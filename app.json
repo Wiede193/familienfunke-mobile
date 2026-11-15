@@ -19,7 +19,10 @@
       "adaptiveIcon": {
         "foregroundImage": "./adaptive-icon.png",
         "backgroundColor": "#F4FAFA"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       [
@@ -31,7 +34,11 @@
     ],
     "extra": {
       "privacyMode": "invite-only",
-      "betaVersion": "1.0.0-beta.1"
-    }
+      "betaVersion": "1.0.0-beta.1",
+      "eas": {
+        "projectId": "b869a908-353f-489f-bdf4-b3e8d91a8ba1"
+      }
+    },
+    "owner": "steve193"
   }
 }
