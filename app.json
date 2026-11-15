@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Familienfunke",
+    "slug": "familienfunke-native",
+    "scheme": "familienfunke",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F4FAFA"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "de.familienfunke.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Familienfunke benötigt die Fotoauswahl nur, wenn du ein Profilfoto hochladen möchtest."
+      }
+    },
+    "android": {
+      "package": "de.familienfunke.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./adaptive-icon.png",
+        "backgroundColor": "#F4FAFA"
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Du kannst freiwillig Profilfotos auswählen."
+        }
+      ]
+    ],
+    "extra": {
+      "privacyMode": "invite-only",
+      "betaVersion": "1.0.0-beta.1"
+    }
+  }
+}

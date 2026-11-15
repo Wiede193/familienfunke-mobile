@@ -1,0 +1,52 @@
+FAMILIENFUNKE – INSTALLATIONSWEG NUR MIT IPHONE / IPAD
+=================================================
+Stand: 15.11.2026 – vorbereitetes Expo/React-Native-Projekt.
+
+A) Neues PRIVATES GitHub-Repository anlegen:
+   1. Safari: https://github.com/new
+   2. Name: familienfunke-mobile
+   3. Private auswählen; KEIN README automatisch anlegen.
+   4. Repository erstellen.
+   5. Im neuen Repository „uploading an existing file“ öffnen.
+   6. Dieses ZIP entpacken. In iOS Dateien alle EINZELDATEIEN
+      gleichzeitig markieren und hochladen (nicht das ZIP).
+   7. „Commit changes“ wählen.
+   8. Unbedingt prüfen, dass package.json und App.jsx in
+      der obersten Ebene liegen.
+
+B) Ohne Mac prüfen und Expo-Projekt verbinden:
+   1. Neues Repo öffnen: Code > Codespaces > Create codespace.
+   2. Ein Browserterminal öffnen und eingeben:
+      npm install
+      npx expo install --fix
+      npx expo export --platform ios
+      npx eas-cli@latest login
+      npx eas-cli@latest init
+   3. EAS verknüpft das Projekt mit DEINEM Expo-Konto.
+   4. Wenn expo install --fix package.json ändert, die Änderung
+      über Source Control committen; .env nicht committen.
+   5. Einen iOS-Simulator-Build ohne Apple-Abo vorbereiten:
+      npx eas-cli@latest build -p ios --profile simulator
+   Dieser Build läuft NICHT direkt auf einem iPhone.
+
+C) Anmeldung mit vorhandener Supabase-Datenbank:
+   - In Expo > Project > Environment variables für 'preview'
+     die beiden öffentlichen Variablen festlegen:
+     EXPO_PUBLIC_SUPABASE_URL
+     EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+   - Niemals Supabase Secret Key / service_role hochladen.
+   - Für Produktion und Entwicklung ggf. separat konfigurieren.
+   - Danach muss das iOS-Bundle neu erstellt werden.
+
+D) Später ECHTE iPhone-App unabhängig von Expo Go:
+   - Apple Developer Program erforderlich für Cloud-Signierung.
+   - Offizielle Expo-Anleitungen:
+     https://docs.expo.dev/build/introduction/
+     https://docs.expo.dev/develop/development-builds/introduction/
+   - Anschließend iOS-Geräte registrieren, signierten Build
+     erstellen und über TestFlight oder Ad-hoc verteilen.
+
+WICHTIG: Die App-Basis ist noch NICHT auf dem iPhone end-to-end getestet.
+Sie verarbeitet potenziell Daten von Familien. Vor Freigabe an
+weitere Nutzer sind Build-, Rechte-, Datenschutz- und Sicherheitstests
+unbedingt erforderlich. Bestehende Supabase-Tabellen NICHT löschen.

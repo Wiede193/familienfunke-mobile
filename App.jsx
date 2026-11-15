@@ -1,0 +1,510 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator, Alert, Image, KeyboardAvoidingView, Linking,
+  Platform, Pressable, RefreshControl, SafeAreaView, ScrollView,
+  StatusBar, StyleSheet, Switch, Text, TextInput, View,
+} from 'react-native';
+import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { File } from 'expo-file-system';
+import { assertResult, configured, errorMessage, supabase } from './supabase';
+
+const C = {
+  bg: '#F4F8F8', white:'#FFFFFF', ink:'#173C46', muted:'#687F87',
+  accent:'#087F87', accentDark:'#08646A', pale:'#E7F5F4', line:'#E2EBED',
+  coral:'#ED8772', warning:'#FFF6E4', warningText:'#78541F',
+};
+const INTERESTS = ['Spielplatz','Natur','Radfahren','Wandern','Kochen','Musik','Basteln','Sport','Tiere','Lesen','Ausflüge','Spieleabende'];
+const TABS = [['discover','Entdecken','⌕'],['contacts','Kontakte','♡'],['chat','Nachrichten','✉'],['events','Kalender','▦'],['profile','Profil','◉']];
+const blankProfile = {display_name:'',region_label:'',about:'',interests:[],is_discoverable:false};
+const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[]};
+const formatDate = (value) => { if (!value) return '–'; const d = new Date(value); return isNaN(d) ? '–' : d.toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
+const initial = (name) => String(name||'F').split(/\s+/).slice(0,2).map(s=>s[0]||'').join('').toUpperCase();
+const safeString = (value, length) => String(value||'').trim().slice(0,length);
+const eqId = (a,b) => !!a && a===b;
+const givenDate = (str,time) => { const date = new Date(`${str}T${time}:00`); return isNaN(date.getTime())?null:date; };
+const humanError = (e) => {
+  const msg = errorMessage(e);
+  if (/invalid login credentials/i.test(msg)) return 'E-Mail oder Passwort stimmen nicht. Bitte prüfe deine Zugangsdaten.';
+  if (/email not confirmed/i.test(msg)) return 'Deine E-Mail-Adresse ist noch nicht bestätigt.';
+  if (/row-level security|permission denied|policy/i.test(msg)) return 'Diese Aktion ist noch nicht freigegeben oder durch die Sicherheitsregeln gesperrt.';
+  return msg;
+};
+
+function Button({title, onPress, mode='primary', disabled=false, small=false, style}) {
+  return <Pressable accessibilityRole="button" onPress={onPress} disabled={disabled}
+    style={({pressed})=>[styles.button,styles[`button_${mode}`],small&&styles.buttonSmall,disabled&&{opacity:0.46},pressed&&{opacity:.8},style]}>
+    <Text style={[styles.buttonText,mode!=='primary'&&styles.buttonTextDark,small&&{fontSize:13}]}>{title}</Text>
+  </Pressable>;
+}
+function Chip({text,selected,onPress}) {
+  return <Pressable disabled={!onPress} onPress={onPress} style={[styles.chip,selected&&styles.chipSelected]}>
+    <Text style={[styles.chipText,selected&&{color:C.white}]}>{selected?'✓ ':''}{text}</Text>
+  </Pressable>;
+}
+function Card({children,style}) {return <View style={[styles.card,style]}>{children}</View>;}
+function H({children,sub}) {return <View style={{marginBottom:17}}><Text style={styles.h}>{children}</Text>{sub?<Text style={styles.sub}>{sub}</Text>:null}</View>;}
+function Info({children,warning=false}) {return <View style={[styles.info,warning&&styles.warning]}><Text style={[styles.infoText,warning&&{color:C.warningText}]}>{children}</Text></View>;}
+function Avatar({name,size=52,uri}) {return <View style={[styles.avatar,{width:size,height:size,borderRadius:size/2}]}>{uri?<Image source={{uri}} style={{width:size,height:size,borderRadius:size/2}}/>:<Text style={[styles.avatarText,{fontSize:size*.30}]}>{initial(name)}</Text>}</View>;}
+function Row({children,style}) {return <View style={[{flexDirection:'row',alignItems:'center',gap:10},style]}>{children}</View>;}
+function Input({label,multiline=false,style,...props}) {
+  return <View style={[{marginBottom:13},style]}><Text style={styles.label}>{label}</Text><TextInput
+    placeholderTextColor="#9AAFB4" style={[styles.input,multiline&&{height:95,textAlignVertical:'top',paddingTop:12}]}
+    multiline={multiline} {...props}/></View>;
+}
+function Blank({title,body}) {return <Card style={{alignItems:'center',paddingVertical:30}}><Text style={{fontSize:34,marginBottom:8}}>♡</Text><Text style={styles.cardTitle}>{title}</Text><Text style={[styles.sub,{textAlign:'center'}]}>{body}</Text></Card>;}
+
+function Login({error,setError}) {
+  const [email,setEmail]=useState('');
+  const [password,setPassword]=useState('');
+  const [busy,setBusy]=useState(false);
+  async function submit() {
+    if (!email.includes('@')||!password) return setError('Bitte E-Mail und Passwort eingeben.');
+    setBusy(true);setError('');
+    const {error:e}=await supabase.auth.signInWithPassword({email:email.trim(),password});
+    if (e) setError(humanError(e));
+    setBusy(false);
+  }
+  return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
+    <ScrollView contentContainerStyle={styles.loginPage} keyboardShouldPersistTaps="handled">
+      <View style={styles.loginMark}><Text style={{fontSize:52,color:C.white}}>♥</Text></View>
+      <Text style={styles.brand}>familienfunke<Text style={{color:C.coral}}>.</Text></Text>
+      <Text style={styles.tagline}>Aus Nachbarschaft wird Freundschaft.</Text>
+      <View style={{height:28}}/>
+      <Card style={{width:'100%',padding:23}}>
+        <Text style={styles.h}>Willkommen zurück!</Text>
+        <Text style={[styles.sub,{marginBottom:21}]}>Deine private Familien-Community. Nur eingeladene Erwachsene können sich anmelden.</Text>
+        <Input label="E-Mail-Adresse" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email"/>
+        <Input label="Passwort" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoComplete="current-password"/>
+        {error?<Info warning>{error}</Info>:null}
+        <Button title={busy?'Anmeldung läuft …':'Anmelden'} disabled={busy} onPress={submit}/>
+        <Text style={[styles.micro,{textAlign:'center',marginTop:14}]}>Keine öffentliche Registrierung · Private Beta</Text>
+      </Card>
+    </ScrollView>
+  </KeyboardAvoidingView>;
+}
+
+export default function App() {
+  const [session,setSession]=useState(undefined);
+  const [tab,setTab]=useState('discover');
+  const [selectedContact,setSelectedContact]=useState(null);
+  const [detailFamily,setDetailFamily]=useState(null);
+  const [showEventForm,setShowEventForm]=useState(false);
+  const [showInfo,setShowInfo]=useState(false);
+  const [reportTarget,setReportTarget]=useState(null);
+  const [reportDetails,setReportDetails]=useState('');
+  const [error,setError]=useState('');
+  const [notice,setNotice]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [loading,setLoading]=useState(false);
+  const [db,setDb]=useState(blankData);
+  const [myProfile,setMyProfile]=useState(null);
+  const [verification,setVerification]=useState(null);
+  const [membership,setMembership]=useState(null);
+  const [photosUrls,setPhotosUrls]=useState({});
+  const me=session?.user?.id;
+
+  const load=useCallback(async(silent=false)=>{
+    if(!me||!supabase)return;
+    if(!silent)setLoading(true);
+    try {
+      const queries=await Promise.all([
+        supabase.from('profiles').select('*').limit(150),
+        supabase.from('contact_requests').select('*').order('created_at',{ascending:false}).limit(200),
+        supabase.from('messages').select('*').order('created_at',{ascending:false}).limit(300),
+        supabase.from('events').select('*').order('starts_at',{ascending:true}).limit(150),
+        supabase.from('event_requests').select('*').limit(200),
+        supabase.from('profile_photos').select('*').order('created_at',{ascending:false}).limit(100),
+        supabase.from('blocks').select('*').limit(200),
+        supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
+        supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
+      ]);
+      const firstError=queries.find(x=>x.error)?.error;
+      if(firstError)throw firstError;
+      const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow]=queries;
+      const profileRow=profiles.data.find(p=>p.user_id===me)||null;
+      setDb({profiles:profiles.data||[],contacts:contacts.data||[],messages:messages.data||[],
+        events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[]});
+      setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
+      setError('');
+      const images=await Promise.all((photos.data||[]).map(async(p)=>{
+        try {const {data,error:e}=await supabase.storage.from('familienfunke-photos').createSignedUrl(p.storage_path,1800);
+          return [p.id,e?null:data?.signedUrl||null];} catch {return [p.id,null];}
+      }));
+      setPhotosUrls(Object.fromEntries(images));
+    } catch(e){setError(humanError(e));}
+    finally{setLoading(false);}
+  },[me]);
+
+  useEffect(()=>{
+    if(!supabase){setSession(null);return;}
+    let alive=true;
+    supabase.auth.getSession().then(({data,error:e})=>{
+      if(!alive)return;
+      if(e)setError(humanError(e));
+      setSession(data?.session||null);
+    }).catch(e=>{if(alive){setSession(null);setError(humanError(e));}});
+    const {data:listener}=supabase.auth.onAuthStateChange((_event,next)=>{if(alive)setSession(next);});
+    return ()=>{alive=false;listener.subscription.unsubscribe();};
+  },[]);
+  useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);}},[me,load]);
+
+  const active=verification?.status==='verified'&&myProfile?.moderation_status==='approved'&&membership?.status!=='suspended';
+  const blocked=(uid)=>db.blocks.some(b=>b.blocker_id===me&&b.blocked_id===uid);
+  const findName=(uid)=>db.profiles.find(p=>p.user_id===uid)?.display_name||'Familienprofil';
+  const otherSide=(contact)=>contact.sender_id===me?contact.recipient_id:contact.sender_id;
+  const accepted=db.contacts.filter(x=>x.status==='accepted');
+  const pending=db.contacts.filter(x=>x.status==='pending');
+  const photoOf=(uid)=>db.photos.find(p=>p.owner_id===uid&&p.moderation_status==='approved')||db.photos.find(p=>p.owner_id===uid&&uid===me);
+  const ownPhotos=db.photos.filter(p=>p.owner_id===me);
+  const matches=useMemo(()=>db.profiles.filter(p=>p.user_id!==me&&p.moderation_status==='approved'&&p.is_discoverable)
+      .map(p=>({...p,match:(p.interests||[]).filter(x=>myProfile?.interests?.includes(x)).length}))
+      .sort((a,b)=>b.match-a.match||String(a.display_name).localeCompare(String(b.display_name))),[db.profiles,me,myProfile]);
+
+  async function execute(fn,success){
+    if(busy)return;
+    setBusy(true);setError('');setNotice('');
+    try{await fn();if(success)setNotice(success);await load(true);return true;}
+    catch(e){setError(humanError(e));return false;}
+    finally{setBusy(false);}
+  }
+  function report(type,id){setReportDetails('');setReportTarget({type,id});}
+  async function sendReport(){
+    if(!reportTarget||reportDetails.trim().length<10)return setError('Bitte den Vorfall mit mindestens 10 Zeichen beschreiben.');
+    const ok=await execute(async()=>assertResult(await supabase.from('reports').insert({reporter_id:me,subject_type:reportTarget.type,subject_id:reportTarget.id,details:reportDetails.trim()})),'Danke. Deine Meldung wurde gespeichert.');
+    if(ok){setReportTarget(null);setReportDetails('');}
+  }
+  async function sendRequest(uid){await execute(async()=>assertResult(await supabase.from('contact_requests').insert({sender_id:me,recipient_id:uid})),'Kontaktanfrage verschickt.');}
+  async function replyRequest(id,status){await execute(async()=>assertResult(await supabase.from('contact_requests').update({status}).eq('id',id)),'Kontaktanfrage aktualisiert.');}
+  async function blockUser(uid){
+    Alert.alert('Kontakt blockieren?','Die Person kann dir dann keine neuen Nachrichten schicken.',[
+      {text:'Abbrechen',style:'cancelled'},
+      {text:'Blockieren',style:'destructive',onPress:()=>execute(async()=>assertResult(await supabase.from('blocks').insert({blocker_id:me,blocked_id:uid})),'Kontakt blockiert.')},
+    ]);
+  }
+  async function unblockUser(uid){await execute(async()=>assertResult(await supabase.from('blocks').delete().eq('blocker_id',me).eq('blocked_id',uid)),'Blockierung aufgehoben.');}
+  async function changePassword(password){
+    if(password.length<12)throw new Error('Das Passwort braucht mindestens 12 Zeichen.');
+    return execute(async()=>assertResult(await supabase.auth.updateUser({password})),'Passwort geändert.');
+  }
+
+  if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
+  if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
+  if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/><Login error={error} setError={setError}/></SafeAreaView>;
+
+  const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1];
+  function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact)setSelectedContact(null);else if(showInfo)setShowInfo(false);}
+  return <SafeAreaView style={styles.screen}>
+    <ExpoStatusBar style="dark"/>
+    <View style={styles.topBar}>
+      <View style={{flex:1}}><Text style={styles.smallBrand}>♥  familienfunke<Text style={{color:C.coral}}>.</Text></Text><Text style={styles.topHint}>{navTitle}</Text></View>
+      {detailFamily||selectedContact||showInfo?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" onPress={()=>load()} small mode="ghost"/>}
+    </View>
+    {error?<Pressable onPress={()=>setError('')}><Info warning>{error}  ·  Schließen ×</Info></Pressable>:null}
+    {notice?<Pressable onPress={()=>setNotice('')}><Info>{notice}  ·  Schließen ×</Info></Pressable>:null}
+    {loading?<View style={{padding:4}}><ActivityIndicator color={C.accent}/></View>:null}
+    <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined} keyboardVerticalOffset={0}>
+      {detailFamily?<FamilyDetail p={db.profiles.find(p=>p.user_id===detailFamily)}
+        imageUrl={photosUrls[photoOf(detailFamily)?.id]} photos={db.photos.filter(p=>p.owner_id===detailFamily&&p.moderation_status==='approved')}
+        photosUrls={photosUrls} active={active} disabled={busy} blocked={blocked(detailFamily)}
+        connection={db.contacts.find(c=>c.sender_id===detailFamily||c.recipient_id===detailFamily)}
+        onContact={()=>sendRequest(detailFamily)} onBlock={()=>blockUser(detailFamily)} onUnblock={()=>unblockUser(detailFamily)}
+        onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setDetailFamily(null);setSelectedContact(cid);setTab('chat');}}/>:
+      selectedContact?<ChatScreen contact={accepted.find(c=>c.id===selectedContact)} me={me} nameOf={findName}
+        messages={db.messages.filter(m=>m.contact_id===selectedContact)} disabled={busy} blocked={blocked}
+        send={(body)=>execute(async()=>assertResult(await supabase.from('messages').insert({contact_id:selectedContact,sender_id:me,body})),'Nachricht gesendet.')}
+        onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
+      showInfo?<InfoScreen/>:
+      tab==='discover'?<DiscoverScreen matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
+        myProfile={myProfile} verification={verification} membership={membership}
+        showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked}/>:
+      tab==='contacts'?<ContactsScreen pending={pending} accepted={accepted} me={me} nameOf={findName}
+        respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onUnblock={unblockUser}
+        onChat={(id)=>{setSelectedContact(id);setTab('chat');}}/>:
+      tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
+        onChat={(id)=>setSelectedContact(id)} messages={db.messages}/>:
+      tab==='events'?<EventsScreen events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
+        profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
+        createEvent={(event)=>execute(async()=>assertResult(await supabase.from('events').insert({organizer_id:me,...event})),'Termin eingereicht. Er wird vor Veröffentlichung geprüft.')}
+        requestEvent={(id)=>execute(async()=>assertResult(await supabase.from('event_requests').insert({event_id:id,requester_id:me})),'Teilnahme angefragt.')}
+        replyEvent={(id,requester,status)=>execute(async()=>assertResult(await supabase.from('event_requests').update({status}).eq('event_id',id).eq('requester_id',requester)),'Teilnahmestatus aktualisiert.')}
+        reportEvent={(id)=>report('event',id)}/>:
+      <ProfileScreen profile={myProfile} verification={verification} membership={membership} active={active}
+        photos={ownPhotos} photosUrls={photosUrls} busy={busy}
+        save={(value)=>execute(async()=>assertResult(await supabase.from('profiles').update(value).eq('user_id',me)),'Profil gespeichert. Textänderungen benötigen eine neue Freigabe.')}
+        uploadPhoto={(caption)=>uploadProfilePhoto(caption,me,execute)}
+        reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,execute)}
+        blocks={db.blocks} onUnblock={unblockUser}
+        changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>supabase.auth.signOut()}/>}
+    </KeyboardAvoidingView>
+    {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
+      {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setTab(id);setShowEventForm(false);}}
+        style={styles.tab}><Text style={[styles.tabIcon,tab===id&&{color:C.accent}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accent,fontWeight:'800'}]}>{title}</Text></Pressable>)}
+    </View>:null}
+    {reportTarget?<View style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
+      <Text style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
+      <Input label="Was ist passiert?" multiline value={reportDetails} onChangeText={setReportDetails} maxLength={2000}/>
+      <Row><Button title="Abbrechen" mode="outline" style={{flex:1}} onPress={()=>setReportTarget(null)}/><Button title="Melden" disabled={busy||reportDetails.trim().length<10} style={{flex:1}} onPress={sendReport}/></Row>
+    </Card></View>:null}
+  </SafeAreaView>;
+}
+
+async function uploadProfilePhoto(caption,me,execute){
+  const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,quality:0.85,exif:false});
+  if(result.canceled||!result.assets?.length)return false;
+  const asset=result.assets[0];
+  return execute(async()=>{
+    const manipulator=ImageManipulator.ImageManipulator.manipulate(asset.uri,{maxWidth:1536,maxHeight:1536});
+    manipulator.resize({width:1024,height:null});
+    const rendered=await manipulator.renderAsync();
+    const saved=await rendered.saveAsync({format:ImageManipulator.SaveFormat.JPEG,compress:0.78});
+    const file=new File(saved.uri);
+    if(file.size>5*1024*1024)throw new Error('Das Bild ist größer als 5 MB.');
+    const buffer=await file.arrayBuffer();
+    const path=`${me}/${Date.now()}-${Math.random().toString(36).slice(2,10)}.jpg`;
+    assertResult(await supabase.storage.from('familienfunke-photos').upload(path,new Uint8Array(buffer),{contentType:'image/jpeg',upsert:false}));
+    const result=await supabase.from('profile_photos').insert({owner_id:me,storage_path:path,caption:safeString(caption,200)});
+    if(result.error){await supabase.storage.from('familienfunke-photos').remove([path]);throw result.error;}
+  },'Foto hochgeladen. Es wird vor Veröffentlichung geprüft.');
+}
+async function deleteProfilePhoto(id,me,photos,execute){
+  const photo=photos.find(p=>p.id===id&&p.owner_id===me);
+  if(!photo)return;
+  Alert.alert('Foto löschen?','Das Foto wird aus deinem Profil entfernt.',[
+    {text:'Abbrechen',style:'cancel'},
+    {text:'Löschen',style:'destructive',onPress:()=>execute(async()=>{
+      assertResult(await supabase.from('profile_photos').delete().eq('id',id).eq('owner_id',me));
+      // Storage separat entfernen; fehlender Speicherzugriff führt nicht dazu, dass das Profilbild sichtbar bleibt.
+      await supabase.storage.from('familienfunke-photos').remove([photo.storage_path]);
+    },'Foto entfernt.')},
+  ]);
+}
+
+function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked}) {
+  const [query,setQuery]=useState('');
+  const [interest,setInterest]=useState('Alle');
+  const filtered=matches.filter(p=>(!query||`${p.display_name} ${p.region_label} ${(p.interests||[]).join(' ')}`.toLowerCase().includes(query.toLowerCase()))&&(interest==='Alle'||p.interests?.includes(interest)));
+  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <View style={styles.hero}><Text style={styles.eyebrow}>GEMEINSAM MEHR ERLEBEN</Text><Text style={styles.heroTitle}>Familien in deiner Nähe entdecken.</Text><Text style={styles.heroText}>Finde neue Freundschaften statt endloser Feeds.</Text></View>
+    {!active?<Info warning>Dein Konto wartet noch auf persönliche Erwachsenenprüfung oder Profilfreigabe. Profilstatus: {myProfile?.moderation_status||'–'} · Verifizierung: {verification?.status||'–'}.</Info>:null}
+    <H sub="Passende Interessen – keine exakten Standorte, keine öffentlichen Beiträge.">Familien entdecken</H>
+    <Input label="Suche nach Name, Region oder Interesse" placeholder="z. B. Natur, Potsdam …" value={query} onChangeText={setQuery}/>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:13}}>
+      {['Alle',...INTERESTS].map(i=><View key={i} style={{marginRight:6}}><Chip text={i} selected={interest===i} onPress={()=>setInterest(i)}/></View>)}
+    </ScrollView>
+    {!active?<Blank title="Zunächst Freigabe abwarten" body="Sobald das Konto geprüft ist, erscheinen freigegebene Familienprofile."/>:
+    filtered.length===0?<Blank title="Noch keine passenden Familien" body="Andere freigegebene Familien werden hier angezeigt, sobald sie ihr Profil sichtbar schalten."/>:
+    filtered.map(p=>{
+      const existing=requests.find(c=>(c.sender_id===me&&c.recipient_id===p.user_id)||(c.recipient_id===me&&c.sender_id===p.user_id));
+      return <Card key={p.user_id} style={{marginBottom:12}}>
+        <Row><Avatar name={p.display_name} size={58} uri={imageFor(p.user_id)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{p.display_name}</Text><Text style={styles.micro}>⌖ {p.region_label||'Region nicht angegeben'}</Text></View>{p.match>0?<View style={styles.match}><Text style={styles.matchText}>{p.match} gemeinsam</Text></View>:null}</Row>
+        {p.about?<Text style={[styles.body,{marginTop:11}]} numberOfLines={3}>{p.about}</Text>:null}
+        <View style={styles.chipsRow}>{(p.interests||[]).slice(0,5).map(i=><Chip key={i} text={i}/>)}</View>
+        <Row style={{marginTop:12}}><Button title="Profil ansehen" mode="outline" small style={{flex:1}} onPress={()=>showFamily(p.user_id)}/>
+        {blocked(p.user_id)?<Text style={styles.micro}>Blockiert</Text>:<Button title={existing? existing.status==='accepted'?'Verbunden':existing.status==='pending'?'Anfrage offen':'Angefragt':'Kennenlernen'} small disabled={busy||!!existing} style={{flex:1}} onPress={()=>onContact(p.user_id)}/>}</Row>
+      </Card>;
+    })}
+  </ScrollView>;
+}
+
+function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
+  if(!p)return <Blank title="Profil nicht verfügbar" body="Das Profil kann verborgen oder gesperrt worden sein."/>;
+  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <Card style={{alignItems:'center',paddingTop:26}}><Avatar name={p.display_name} size={88} uri={photosUrls?.[photos?.[0]?.id]}/><Text style={[styles.h,{marginTop:12,textAlign:'center'}]}>{p.display_name}</Text><Text style={styles.sub}>⌖ {p.region_label||'Grobe Region nicht angegeben'}</Text><Text style={[styles.body,{textAlign:'center',marginTop:14}]}>{p.about||'Noch keine Beschreibung'}</Text>
+      <View style={[styles.chipsRow,{justifyContent:'center'}]}>{(p.interests||[]).map(i=><Chip text={i} key={i}/>)}</View>
+      {connection?.status==='accepted'?<Button title="Private Nachricht schreiben" onPress={()=>onChat(connection.id)}/>:
+       !blocked&&active?<Button title={connection?'Kontaktanfrage vorhanden':'Kontakt anfragen'} disabled={disabled||!!connection} onPress={onContact}/>:null}
+      <Row style={{marginTop:12}}>{blocked?<Button title="Entsperren" mode="outline" small onPress={onUnblock}/>:<Button title="Blockieren" mode="outline" small onPress={onBlock}/>}<Button title="Melden" mode="ghost" small onPress={onReport}/></Row>
+    </Card>
+    {photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
+  </ScrollView>;
+}
+
+function ContactsScreen({pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat}){
+  const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
+  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <H sub="Nachrichten sind erst nach gegenseitiger Bestätigung möglich.">Deine Kontakte</H>
+    <Text style={styles.sectionTitle}>Offene Anfragen</Text>
+    {pending.length===0?<Blank title="Keine offenen Anfragen" body="Neue Kontaktwünsche erscheinen hier."/>:pending.map(c=><Card key={c.id} style={{marginBottom:10}}>
+      <Row><Avatar name={nameOf(other(c))}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other(c))}</Text><Text style={styles.micro}>{c.recipient_id===me?'Möchte dich kennenlernen':'Von dir angefragt'}</Text></View></Row>
+      <Row style={{marginTop:13}}>{c.recipient_id===me?<><Button title="Annehmen" small disabled={disabled} onPress={()=>respond(c.id,'accepted')} style={{flex:1}}/><Button title="Ablehnen" mode="outline" small disabled={disabled} onPress={()=>respond(c.id,'declined')} style={{flex:1}}/></>:<Button title="Zurückziehen" small mode="outline" disabled={disabled} onPress={()=>respond(c.id,'cancelled')}/>}</Row>
+    </Card>)}
+    <Text style={styles.sectionTitle}>Bestätigte Kontakte</Text>
+    {accepted.length===0?<Blank title="Noch keine Kontakte" body="Bestätigte Familien erscheinen hier."/>:accepted.map(c=>{const uid=other(c);return <Card key={c.id} style={{marginBottom:10}}>
+      <Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text style={styles.micro}>{blocked(uid)?'Blockiert':'Kontakt bestätigt'}</Text></View></Row>
+      <Row style={{marginTop:12}}><Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>{blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:<Button title="Blockieren" small mode="outline" onPress={()=>onBlock(uid)}/>}</Row>
+    </Card>;})}
+  </ScrollView>;
+}
+
+function ChatList({contacts,me,nameOf,messages,onChat,blocked}){
+  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
+    {contacts.length===0?<Blank title="Noch keine Gespräche" body="Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben."/>:
+    contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;const last=messages.filter(m=>m.contact_id===c.id)[0];return <Pressable key={c.id} onPress={()=>onChat(c.id)}>
+      <Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':last?.body||'Noch keine Nachrichten'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
+    </Pressable>;})}
+  </ScrollView>;
+}
+
+function ChatScreen({contact,me,nameOf,messages,disabled,blocked,send,onReport,onBlock}) {
+  const [text,setText]=useState('');
+  if(!contact)return <Blank title="Gespräch nicht verfügbar" body="Kontakt ist nicht mehr bestätigt oder wurde verborgen."/>;
+  const other=contact.sender_id===me?contact.recipient_id:contact.sender_id;
+  const sorted=[...messages].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  async function submit(){const body=text.trim();if(!body)return; const ok=await send(body);if(ok)setText('');}
+  return <View style={{flex:1}}>
+    <Row style={styles.chatHeader}><Avatar name={nameOf(other)} size={38}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other)}</Text><Text style={styles.micro}>Privates Gespräch</Text></View><Button title="Blockieren" small mode="ghost" onPress={()=>onBlock(other)}/></Row>
+    <ScrollView style={{flex:1}} contentContainerStyle={{padding:16}} keyboardShouldPersistTaps="handled">
+      {sorted.length===0?<Blank title="Sag Hallo!" body="Hier beginnt euer privates Gespräch."/>:sorted.map(m=><View key={m.id} style={[styles.bubble,m.sender_id===me?styles.mine:styles.theirs]}>
+        <Text style={[styles.bubbleText,m.sender_id===me&&{color:C.white}]}>{m.body}</Text>
+        <Row style={{justifyContent:'space-between',marginTop:7}}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>{formatDate(m.created_at)}</Text><Pressable onPress={()=>onReport(m.id)}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>Melden</Text></Pressable></Row>
+      </View>)}
+    </ScrollView>
+    {blocked(other)?<Info warning>Du hast diese Person blockiert. Neue Nachrichten sind nicht erlaubt.</Info>:
+    <Row style={styles.chatComposer}><TextInput placeholder="Nachricht schreiben …" value={text} onChangeText={setText} maxLength={2000} multiline
+      placeholderTextColor="#9AAFB4" style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]}/><Button title="Senden" small disabled={disabled||!text.trim()} onPress={submit}/></Row>}
+  </View>;
+}
+
+function EventsScreen({events,eventRequests,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
+  const [title,setTitle]=useState('');const [description,setDescription]=useState('');const [region,setRegion]=useState('');
+  const [date,setDate]=useState('');const [time,setTime]=useState('15:00');const [count,setCount]=useState('10');const [visibility,setVisibility]=useState('community');
+  const names=(uid)=>profiles.find(p=>p.user_id===uid)?.display_name||'Familie';
+  async function submit(){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time))return Alert.alert('Termin prüfen','Bitte Datum als JJJJ-MM-TT und Zeit als HH:MM eingeben.');
+    const start=givenDate(date,time);const max=parseInt(count,10);
+    if(!start||start<=new Date()||title.trim().length<4||max<2||max>50)return Alert.alert('Bitte prüfen','Titel, zukünftigen Beginn und Teilnehmerzahl (2–50) korrigieren.');
+    const ok=await createEvent({title:safeString(title,100),description:safeString(description,1000),region_label:safeString(region,80),starts_at:start.toISOString(),ends_at:new Date(start.getTime()+2*60*60*1000).toISOString(),max_participants:max,visibility});
+    if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');}
+  }
+  const upcoming=events.filter(e=>new Date(e.ends_at)>new Date());
+  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <H sub="Gemeinsame Aktivitäten statt öffentlicher Diskussionen.">Familienkalender</H>
+    <Button title={showForm?'Formular schließen':'＋ Aktivität erstellen'} disabled={!active} onPress={()=>setShowForm(!showForm)}/>
+    {showForm?<Card style={{marginTop:14}}>
+      <Text style={styles.cardTitle}>Neue Aktivität</Text><Text style={[styles.sub,{marginBottom:15}]}>Vor Veröffentlichung wird der Termin geprüft. Bitte keine Privatadressen veröffentlichen.</Text>
+      <Input label="Titel" placeholder="Spielplatztreffen am Samstag" maxLength={100} value={title} onChangeText={setTitle}/>
+      <Input label="Beschreibung" multiline maxLength={1000} value={description} onChangeText={setDescription}/>
+      <Input label="Grobe Region" placeholder="z. B. Potsdam" maxLength={80} value={region} onChangeText={setRegion}/>
+      <Input label="Datum (JJJJ-MM-TT)" placeholder="2026-12-05" value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation"/>
+      <Input label="Uhrzeit (HH:MM)" placeholder="15:00" value={time} onChangeText={setTime}/>
+      <Input label="Maximale Personen (2–50)" value={count} onChangeText={setCount} keyboardType="number-pad"/>
+      <Text style={styles.label}>Wer soll den Termin sehen?</Text><Row style={{marginBottom:15}}><Chip text="Alle geprüften Familien" selected={visibility==='community'} onPress={()=>setVisibility('community')}/><Chip text="Nur Kontakte" selected={visibility==='contacts'} onPress={()=>setVisibility('contacts')}/></Row>
+      <Button title="Zur Freigabe einreichen" disabled={busy} onPress={submit}/>
+    </Card>:null}
+    <Text style={[styles.sectionTitle,{marginTop:22}]}>Anstehende Treffen</Text>
+    {upcoming.length===0?<Blank title="Noch keine Treffen" body="Neue Aktivitäten erscheinen hier nach Freigabe."/>:upcoming.map(e=>{
+      const self=e.organizer_id===me;const request=eventRequests.find(x=>x.event_id===e.id&&x.requester_id===me);
+      const pending=eventRequests.filter(x=>x.event_id===e.id&&x.status==='requested');
+      return <Card key={e.id} style={{marginBottom:12}}>
+        <Text style={styles.eyebrow}>▦ {formatDate(e.starts_at)}</Text><Text style={[styles.cardTitle,{fontSize:19,marginTop:5}]}>{e.title}</Text>
+        <Text style={[styles.sub,{marginTop:7}]}>{e.description||'Gemeinsames Familientreffen'}</Text>
+        <Text style={[styles.micro,{marginTop:10}]}>⌖ {e.region_label||'Region nach Absprache'}  ·  max. {e.max_participants} Personen</Text>
+        {self?<Info warning>{e.moderation_status==='pending'?'Dein Termin wartet auf Freigabe.':'Du organisierst diesen Termin.'}</Info>:
+          request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request.status==='requested'?'angefragt':request.status==='declined'?'abgelehnt':'zurückgezogen'}</Info>:
+          <Button title="Teilnahme anfragen" disabled={busy||!active} small style={{marginTop:12}} onPress={()=>requestEvent(e.id)}/>}
+        {self&&pending.length>0?<View style={{marginTop:12}}><Text style={styles.label}>Teilnahmeanfragen</Text>{pending.map(r=><View key={r.requester_id} style={{marginTop:9}}><Text style={styles.body}>{names(r.requester_id)}</Text><Row><Button title="Annehmen" small disabled={busy} onPress={()=>replyEvent(e.id,r.requester_id,'approved')}/><Button title="Ablehnen" small mode="outline" disabled={busy} onPress={()=>replyEvent(e.id,r.requester_id,'declined')}/></Row></View>)}</View>:null}
+        {!self?<Pressable onPress={()=>reportEvent(e.id)} style={{marginTop:12}}><Text style={styles.micro}>⚑ Veranstaltung melden</Text></Pressable>:null}
+      </Card>;
+    })}
+  </ScrollView>;
+}
+
+function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
+  const [form,setForm]=useState(blankProfile);const [photoCaption,setPhotoCaption]=useState('');const [newPassword,setNewPassword]=useState('');
+  useEffect(()=>{if(profile)setForm({...blankProfile,...profile});},[profile?.updated_at,profile?.user_id]);
+  async function submit(){if(form.display_name.trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
+    await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});}
+  function toggle(i){setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):f.interests.length>=12?f.interests:[...f.interests,i]}));}
+  async function updatePassword(){if(newPassword.length<12)return Alert.alert('Passwort','Bitte mindestens 12 Zeichen verwenden.');const ok=await changePassword(newPassword);if(ok)setNewPassword('');}
+  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <H sub="Du bestimmst, was andere Familien über euch erfahren.">Mein Familienprofil</H>
+    <Card>
+      <Row><Avatar size={65} name={profile?.display_name}/><View style={{flex:1}}><Text style={styles.cardTitle}>{profile?.display_name||'Deine Familie'}</Text><Text style={styles.micro}>{active?'✓ Erwachsener geprüft, Profil freigegeben':'⌛ Prüfung oder Freigabe ausstehend'}</Text><Text style={styles.micro}>Mitgliedschaft: {membership?.status||'–'}</Text></View></Row>
+      {!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
+    </Card>
+    <Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Angaben bearbeiten</Text>
+      <Input label="Anzeigename" value={form.display_name} onChangeText={x=>setForm(p=>({...p,display_name:x}))} maxLength={60}/>
+      <Input label="Stadt / grobe Region" value={form.region_label} onChangeText={x=>setForm(p=>({...p,region_label:x}))} maxLength={80} placeholder="Keine Wohnadresse"/>
+      <Input label="Über uns" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Was macht ihr gern?"/>
+      <Text style={styles.label}>Interessen (bis zu 12)</Text><View style={[styles.chipsRow,{marginBottom:15}]}>{INTERESTS.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
+      <Row style={{marginBottom:20,justifyContent:'space-between'}}><View style={{flex:1}}><Text style={styles.label}>Für andere Familien sichtbar</Text><Text style={styles.micro}>Erst nach Profilfreigabe sichtbar</Text></View><Switch value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/></Row>
+      <Button title={busy?'Bitte warten …':'Profil speichern'} disabled={busy} onPress={submit}/>
+    </Card>
+    <Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Profilfotos</Text><Text style={[styles.sub,{marginBottom:13}]}>Nur bestätigte Kontakte sehen freigegebene Bilder. Bitte während der Beta keine Kinderfotos hochladen.</Text>
+      <Input label="Kurze Bildbeschreibung (optional)" value={photoCaption} onChangeText={setPhotoCaption} maxLength={200}/>
+      <Button title="＋ Foto auswählen" disabled={busy} mode="outline" onPress={async()=>{const ok=await uploadPhoto(photoCaption);if(ok)setPhotoCaption('');}}/>
+      <View style={[styles.photoGrid,{marginTop:15}]}>{photos.map(p=><Card key={p.id} style={styles.photoCard}>
+        {photosUrls[p.id]?<Image source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
+        <Text style={styles.micro} numberOfLines={2}>{p.caption||'Profilbild'}</Text><Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'Freigegeben':p.moderation_status==='pending'?'In Prüfung':'Abgelehnt'}</Text>
+        <Button title="Löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
+      </Card>)}</View>
+      {photos.length===0?<Text style={[styles.micro,{marginTop:10}]}>Noch keine Bilder hochgeladen.</Text>:null}
+    </Card>
+    <Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Sicherheit und Einstellungen</Text>
+      <Button title="Elternwissen öffnen" mode="outline" onPress={openInfo}/>
+      <Text style={[styles.label,{marginTop:18}]}>Passwort ändern</Text><Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none"/>
+      <Button title="Passwort ändern" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
+      {blocks.length>0?<View style={{marginTop:18}}><Text style={styles.label}>Blockierte Konten</Text>{blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}><Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text><Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/></Row>)}</View>:null}
+      <View style={{height:16}}/><Button title="Abmelden" mode="ghost" onPress={signOut}/>
+    </Card>
+  </ScrollView>;
+}
+
+function InfoScreen(){
+  const links=[
+    ['Elterngeld & Elternzeit','Familienportal des Bundes','https://familienportal.de/'],
+    ['Kindergeld & Kinderzuschlag','Bundesagentur für Arbeit','https://www.arbeitsagentur.de/familie-und-kinder'],
+    ['Bundesgesetze nachlesen','Gesetze im Internet','https://www.gesetze-im-internet.de/'],
+    ['Kita und Schule','Deutscher Bildungsserver','https://www.bildungsserver.de/'],
+  ];
+  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}><H sub="Verlässliche Quellen statt ungeprüfter Diskussionen.">Elternwissen</H>
+    <Info>Die Links führen zu öffentlichen Informationsangeboten. Familienfunke bietet derzeit keine individuelle Rechtsberatung oder Antragsübermittlung an.</Info>
+    {links.map(([name,subtitle,url])=><Pressable key={name} onPress={()=>Linking.openURL(url)}><Card style={{marginBottom:12}}><Row><View style={{flex:1}}><Text style={styles.cardTitle}>{name}</Text><Text style={styles.sub}>{subtitle}</Text></View><Text style={{fontSize:25,color:C.accent}}>↗</Text></Row></Card></Pressable>)}
+  </ScrollView>;
+}
+
+const styles=StyleSheet.create({
+  screen:{flex:1,backgroundColor:C.bg},center:{flex:1,alignItems:'center',justifyContent:'center',gap:15,backgroundColor:C.bg},
+  scroll:{flex:1},content:{padding:18,paddingBottom:35},
+  brand:{fontSize:32,fontWeight:'900',color:C.ink,letterSpacing:-1.2,textAlign:'center'},
+  smallBrand:{fontSize:19,fontWeight:'900',color:C.ink,letterSpacing:-.5},tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:9},
+  loginPage:{flexGrow:1,alignItems:'center',justifyContent:'center',padding:20,backgroundColor:C.bg},
+  loginMark:{width:92,height:92,borderRadius:30,backgroundColor:C.accent,alignItems:'center',justifyContent:'center',marginBottom:20},
+  topBar:{height:67,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:19,flexDirection:'row',alignItems:'center',gap:8},
+  topHint:{fontSize:12,color:C.muted,marginTop:1},
+  card:{backgroundColor:C.white,borderRadius:22,padding:17,borderColor:C.line,borderWidth:1},
+  hero:{backgroundColor:C.accentDark,borderRadius:25,padding:24,marginBottom:24},
+  eyebrow:{fontSize:11,fontWeight:'900',letterSpacing:1.5,color:'#71C6CB'},
+  heroTitle:{fontSize:27,fontWeight:'900',color:C.white,letterSpacing:-.6,marginTop:12,lineHeight:33},
+  heroText:{color:'#DFEFEF',fontSize:14,marginTop:9,lineHeight:21},
+  h:{fontSize:23,fontWeight:'800',color:C.ink,letterSpacing:-.35},
+  sub:{fontSize:13.5,lineHeight:20,color:C.muted,marginTop:4},
+  body:{fontSize:14.5,lineHeight:22,color:C.ink},
+  micro:{fontSize:11.5,color:C.muted,lineHeight:17},
+  sectionTitle:{fontSize:17,color:C.ink,fontWeight:'800',marginBottom:12},
+  cardTitle:{fontSize:16,fontWeight:'800',color:C.ink},
+  label:{fontSize:13,color:C.ink,fontWeight:'700',marginBottom:7},
+  input:{backgroundColor:'#FAFCFC',borderColor:'#DCE7E9',borderWidth:1,borderRadius:13,paddingHorizontal:13,paddingVertical:12,fontSize:15,color:C.ink,minHeight:46},
+  button:{minHeight:47,paddingHorizontal:18,paddingVertical:11,borderRadius:14,justifyContent:'center',alignItems:'center',flexDirection:'row'},
+  button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#BDD9DC',borderWidth:1},
+  button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:37,paddingVertical:8,paddingHorizontal:12},
+  buttonText:{color:C.white,fontSize:14,fontWeight:'800'},buttonTextDark:{color:C.accentDark},
+  chip:{borderRadius:50,borderWidth:1,borderColor:'#CFE4E5',backgroundColor:C.pale,paddingHorizontal:12,paddingVertical:7},
+  chipSelected:{backgroundColor:C.accent,borderColor:C.accent},chipText:{color:C.accentDark,fontSize:12,fontWeight:'700'},
+  chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:12},
+  info:{backgroundColor:C.pale,borderRadius:14,paddingHorizontal:15,paddingVertical:12,marginHorizontal:12,marginTop:7,marginBottom:12},
+  warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:19,color:C.accentDark},
+  avatar:{backgroundColor:'#D8EEEF',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.accentDark},
+  match:{backgroundColor:C.pale,borderRadius:9,paddingHorizontal:9,paddingVertical:6},matchText:{fontSize:10.5,fontWeight:'800',color:C.accentDark},
+  tabBar:{height:68,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around'},
+  tab:{flex:1,alignItems:'center',paddingVertical:8},tabIcon:{fontSize:25,color:'#8BA1A7',fontWeight:'500'},tabLabel:{fontSize:10,color:'#8BA1A7',marginTop:2},
+  chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
+  chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
+  bubble:{borderRadius:17,padding:12,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:4},
+  theirs:{backgroundColor:C.white,alignSelf:'flex-start',borderBottomLeftRadius:4},bubbleText:{color:C.ink,fontSize:14.5,lineHeight:21},
+  photoGrid:{flexDirection:'row',flexWrap:'wrap',gap:10},photoCard:{width:'47%',padding:9},photoImage:{width:'100%',height:110,borderRadius:10,marginBottom:7},
+  modalShade:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(15,44,52,.52)',justifyContent:'center',zIndex:100},
+});
