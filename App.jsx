@@ -247,8 +247,20 @@ onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setDetailFamily(nu
 selectedContact?<ChatScreen contact={accepted.find(c=>c.id===selectedContact)} me={me} nameOf={findName}
 messages={db.messages.filter(m=>m.contact_id===selectedContact)} disabled={busy} blocked={blocked}
 send={(body)=>execute(async()=>{
-  await moderateTextOrThrow([body]);
-  assertResult(await supabase.from('messages').insert({contact_id:selectedContact,sender_id:me,body}));
+  // Die Nachricht wird ausschliesslich von der authentifizierten Edge Function
+  // geprueft und gespeichert. Kein direkter INSERT in public.messages mehr.
+  const {data, error:sendError} = await supabase.functions.invoke('send-message', {
+    body: {contact_id:selectedContact, body},
+  });
+  if(sendError){
+    const status = sendError.context?.status;
+    if(status===422)throw new Error('Diese Nachricht wurde wegen unserer Inhaltsregeln zurueckgehalten. Bitte formuliere sie anders.');
+    if(status===401)throw new Error('Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.');
+    if(status===403)throw new Error('Nachrichten sind fuer diesen Kontakt momentan nicht erlaubt.');
+    if(status===503)throw new Error('Die Sicherheitspruefung ist momentan nicht verfuegbar. Bitte spaeter erneut versuchen.');
+    throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
+  }
+  if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
 },'Nachricht gesendet.')}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
