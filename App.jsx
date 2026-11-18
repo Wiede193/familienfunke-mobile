@@ -547,12 +547,12 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
   <Text style={styles.profileAbout}>{profile?.about||'Erzählt anderen Familien etwas über euch und eure Lieblingsausflüge.'}</Text>
   <View style={styles.chipsRow}>{(profile?.interests||[]).slice(0,8).map(i=><Chip key={i} text={i}/>)}</View>
   <Row style={{marginTop:19,alignItems:'stretch'}}>
-   <Button title={editing?'✕ Schließen':'✎ Bearbeiten'} mode="outline" small style={{flex:1}} onPress={()=>setEditing(v=>!v)}/>
-   <Button title={settingsOpen?'✕ Schließen':'⚙ Einstellungen'} mode="ghost" small style={{flex:1}} onPress={()=>setSettingsOpen(v=>!v)}/>
+   <Button title={editing?'✕ Schließen':'✎ Bearbeiten'} mode="outline" small style={{flex:1}} onPress={()=>{setEditing(v=>!v);setSettingsOpen(false);}}/>
+   <Button title={settingsOpen?'✕ Schließen':'⚙ Einstellungen'} mode="ghost" small style={{flex:1}} onPress={()=>{setSettingsOpen(v=>!v);setEditing(false);}}/>
   </Row>
  </View>
  {!active?<Info warning>Angaben und Bilder sind erst nach Freigabe für andere Familien sichtbar.</Info>:null}
- <Card style={{marginTop:18}}>
+ {!editing&&!settingsOpen?<Card style={{marginTop:18}}>
   <Row style={{alignItems:'flex-start',justifyContent:'space-between'}}>
    <View style={{flex:1}}>
     <Text style={styles.sectionTitle}>☀ Unsere Momente</Text>
@@ -580,9 +580,10 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
    <Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'✓ Freigegeben':p.moderation_status==='pending'?'⌛ In Prüfung':'Nicht freigegeben'}</Text>
    <Button title="Foto löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
   </View>)}</View>}
- </Card>
+ </Card>:null}
  {editing?<Card style={{marginTop:16}}>
-  <Text style={styles.sectionTitle}>Familienprofil bearbeiten</Text>
+  <Text style={styles.sectionTitle}>✎ Familienprofil bearbeiten</Text>
+  <Text style={[styles.sub,{marginTop:-7,marginBottom:16}]}>Hier kannst du eure Angaben und Interessen ändern.</Text>
   <Input label="Anzeigename" value={form.display_name} onChangeText={x=>setForm(p=>({...p,display_name:x}))} maxLength={60}/>
   <Input label="Stadt / grobe Region" value={form.region_label} onChangeText={x=>setForm(p=>({...p,region_label:x}))} maxLength={80} placeholder="Keine Wohnadresse"/>
   <Input label="Über uns" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Was macht ihr gern?"/>
@@ -595,7 +596,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
   <Button title={busy?'Bitte warten …':'Änderungen speichern'} disabled={busy} onPress={submit}/>
  </Card>:null}
  {settingsOpen?<Card style={{marginTop:16}}>
-  <Text style={styles.sectionTitle}>Sicherheit und Einstellungen</Text>
+  <Text style={styles.sectionTitle}>⚙ Sicherheit und Einstellungen</Text>
   <Text style={[styles.micro,{marginBottom:12}]}>Mitgliedschaft: {membership?.status||'–'} · Verifizierung: {verification?.status||'–'}</Text>
   <Button title="Elternwissen öffnen" mode="outline" onPress={openInfo}/>
   <Text style={[styles.label,{marginTop:18}]}>Passwort ändern</Text>
