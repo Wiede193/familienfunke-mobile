@@ -11,9 +11,9 @@ import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
-bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
-accent:'#087F87',accentDark:'#075D67',pale:'#E4F5F1',line:'#F0E5DC',
-coral:'#EE7867',coralDeep:'#B9474C',sunny:'#FFE4AA',
+bg:'#FFFAF2',white:'#FFFFFF',ink:'#243E43',muted:'#687E80',
+accent:'#087F87',accentDark:'#075D67',pale:'#FFF2DF',line:'#EFE1D3',
+coral:'#EE7867',coralDeep:'#B9474C',sunny:'#FFE3A0',
 lavender:'#F2EEFF',warning:'#FFF1D6',warningText:'#75521D',
 };
 const INTERESTS = ['Spielplatz','Natur','Radfahren','Wandern','Kochen','Musik','Basteln','Sport','Tiere','Lesen','Ausflüge','Spieleabende'];
@@ -87,6 +87,7 @@ return <Pressable disabled={!onPress} onPress={onPress} style={[styles.chip,sele
 </Pressable>;
 }
 function Card({children,style}) {return <View style={[styles.card,style]}>{children}</View>;}
+function MadeInGermanyStamp(){return <View accessibilityLabel="Made in Germany – Designentwurf für die private Beta" style={styles.madeInGermanyStamp}><Text style={styles.stampKicker}>MADE IN</Text><Text style={styles.stampCountry}>GERMANY</Text><Text style={styles.stampDraft}>BETA · DESIGN</Text></View>;}
 function H({children,sub}) {return <View style={{marginBottom:17}}><Text style={styles.h}>{children}</Text>{sub?<Text style={styles.sub}>{sub}</Text>:null}</View>;}
 function Info({children,warning=false}) {return <View style={[styles.info,warning&&styles.warning]}><Text style={[styles.infoText,warning&&{color:C.warningText}]}>{children}</Text></View>;}
 function Avatar({name,size=52,uri}) {return <View style={[styles.avatar,{width:size,height:size,borderRadius:size/2}]}>{uri?<Image source={{uri}} style={{width:size,height:size,borderRadius:size/2}}/>:<Text style={[styles.avatarText,{fontSize:size*.30}]}>{initial(name)}</Text>}</View>;}
@@ -240,7 +241,7 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{detailFamily||selectedContact||showInfo?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" onPress={()=>load()} small mode="ghost"/>}
+{detailFamily||selectedContact||showInfo?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<MadeInGermanyStamp/>}
 </View>
 {error?<Pressable onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
 {notice?<Pressable onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
@@ -505,85 +506,104 @@ const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
 const [photoPickerBusy,setPhotoPickerBusy]=useState(false);
 const [newPassword,setNewPassword]=useState('');
+const [editing,setEditing]=useState(false);
+const [settingsOpen,setSettingsOpen]=useState(false);
+const [addingMoment,setAddingMoment]=useState(false);
 useEffect(()=>{if(profile)setForm({...blankProfile,...profile});},[profile?.updated_at,profile?.user_id]);
-async function submit(){if(form.display_name.trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
-await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});}
+async function submit(){
+ if(form.display_name.trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
+ const ok=await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});
+ if(ok)setEditing(false);
+}
 function toggle(i){setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):f.interests.length>=12?f.interests:[...f.interests,i]}));}
 async function updatePassword(){if(newPassword.length<12)return Alert.alert('Passwort','Bitte mindestens 12 Zeichen verwenden.');const ok=await changePassword(newPassword);if(ok)setNewPassword('');}
 async function selectDraftPhoto(){
-  if(busy||photoPickerBusy)return;
-  setPhotoPickerBusy(true);
-  try {
-    const result=await ImagePicker.launchImageLibraryAsync({
-      mediaTypes:['images'],allowsEditing:true,quality:0.85,exif:false,
-    });
-    if(!result.canceled&&result.assets?.[0]?.uri){
-      setSelectedPhoto(result.assets[0]);
-    }
-  } catch(e){
-    Alert.alert('Fotoauswahl fehlgeschlagen',humanError(e));
-  } finally {
-    setPhotoPickerBusy(false);
-  }
+ if(busy||photoPickerBusy)return;
+ setPhotoPickerBusy(true);
+ try{
+  const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,quality:0.85,exif:false});
+  if(!result.canceled&&result.assets?.[0]?.uri)setSelectedPhoto(result.assets[0]);
+ }catch(e){Alert.alert('Fotoauswahl fehlgeschlagen',humanError(e));}
+ finally{setPhotoPickerBusy(false);}
 }
 async function submitDraftPhoto(){
-  if(!selectedPhoto||busy||photoPickerBusy)return;
-  const ok=await uploadPhoto(selectedPhoto,photoCaption);
-  if(ok){
-    setSelectedPhoto(null);
-    setPhotoCaption('');
-  }
+ if(!selectedPhoto||busy||photoPickerBusy)return;
+ const ok=await uploadPhoto(selectedPhoto,photoCaption);
+ if(ok){setSelectedPhoto(null);setPhotoCaption('');setAddingMoment(false);}
 }
+const heroPhoto=photos.find(p=>p.moderation_status==='approved'&&photosUrls[p.id]);
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-<H sub="Du bestimmst, was andere Familien über euch erfahren.">Mein Familienprofil</H>
-<Card>
-<Row><Avatar size={65} name={profile?.display_name}/><View style={{flex:1}}><Text style={styles.cardTitle}>{profile?.display_name||'Deine Familie'}</Text><Text style={styles.micro}>{active?'✓ Erwachsener geprüft, Profil freigegeben':'⌛ Prüfung oder Freigabe ausstehend'}</Text><Text style={styles.micro}>Mitgliedschaft: {membership?.status||'–'}</Text></View></Row>
-{!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
-</Card>
-<Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Angaben bearbeiten</Text>
-<Input label="Anzeigename" value={form.display_name} onChangeText={x=>setForm(p=>({...p,display_name:x}))} maxLength={60}/>
-<Input label="Stadt / grobe Region" value={form.region_label} onChangeText={x=>setForm(p=>({...p,region_label:x}))} maxLength={80} placeholder="Keine Wohnadresse"/>
-<Input label="Über uns" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Was macht ihr gern?"/>
-<Text style={styles.label}>Interessen (bis zu 12)</Text><View style={[styles.chipsRow,{marginBottom:15}]}>{INTERESTS.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
-<Row style={{marginBottom:20,justifyContent:'space-between'}}><View style={{flex:1}}><Text style={styles.label}>Für andere Familien sichtbar</Text><Text style={styles.micro}>Erst nach Profilfreigabe sichtbar</Text></View><Switch value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/></Row>
-<Button title={busy?'Bitte warten …':'Profil speichern'} disabled={busy} onPress={submit}/>
-</Card>
-<Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Profilfotos</Text><Text style={[styles.sub,{marginBottom:13}]}>Nur bestätigte Kontakte sehen freigegebene Bilder. Bitte während der Beta keine Kinderfotos hochladen.</Text>
-<Text style={styles.label}>1. Foto auswählen</Text>
-<Button title={selectedPhoto?'Anderes Foto auswählen':'＋ Foto auswählen'}
-  disabled={busy||photoPickerBusy} mode="outline" onPress={selectDraftPhoto}/>
-{selectedPhoto?<View style={{marginTop:14}}>
-  <Image source={{uri:selectedPhoto.uri}} style={styles.photoDraftPreview} resizeMode="contain"/>
-  <Input label="2. Kurze Bildbeschreibung (optional)" value={photoCaption}
-    onChangeText={setPhotoCaption} maxLength={200}
-    placeholder="Was möchtest du zu diesem Foto erzählen?"/>
-  <Text style={[styles.micro,{marginBottom:12}]}>
-    Dein Foto und die Beschreibung werden erst nach dem Einreichen geprüft.
-    Bis zur Freigabe bleibt das Foto für andere Familien verborgen.
-  </Text>
-  <Row style={{alignItems:'stretch'}}>
-    <Button title="Verwerfen" mode="outline" small disabled={busy||photoPickerBusy}
-      style={{flex:1}} onPress={()=>{setSelectedPhoto(null);setPhotoCaption('');}}/>
-    <Button title={busy?'Wird eingereicht …':'Foto einreichen'}
-      disabled={busy||photoPickerBusy} style={{flex:1}} onPress={submitDraftPhoto}/>
+ <View style={styles.profileHero}>
+  <View pointerEvents="none" style={styles.profileHeroSun}/>
+  <Text style={styles.profileEyebrow}>✦ DAS SIND WIR</Text>
+  <Row style={{alignItems:'flex-start',marginTop:14}}>
+   <Avatar size={72} name={profile?.display_name} uri={heroPhoto?photosUrls[heroPhoto.id]:null}/>
+   <View style={{flex:1,paddingTop:3}}>
+    <Text style={styles.profileName}>{profile?.display_name||'Deine Familie'}</Text>
+    <Text style={styles.profileRegion}>⌖ {profile?.region_label||'Region noch nicht angegeben'}</Text>
+    <Text style={styles.profileStatus}>{active?'✓ Profil freigegeben':'⌛ Prüfung ausstehend'}</Text>
+   </View>
   </Row>
-</View>:<Text style={[styles.micro,{marginTop:10}]}>
-  Nach der Fotoauswahl kannst du eine Beschreibung ergänzen und beides zusammen einreichen.
-</Text>}
-<View style={[styles.photoGrid,{marginTop:15}]}>{photos.map(p=><Card key={p.id} style={styles.photoCard}>
-{photosUrls[p.id]?<Image source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
-<Text style={styles.micro} numberOfLines={2}>{p.caption||'Profilbild'}</Text><Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'Freigegeben':p.moderation_status==='pending'?'In Prüfung':'Abgelehnt'}</Text>
-<Button title="Löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
-</Card>)}</View>
-{photos.length===0?<Text style={[styles.micro,{marginTop:10}]}>Noch keine Bilder hochgeladen.</Text>:null}
-</Card>
-<Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Sicherheit und Einstellungen</Text>
-<Button title="Elternwissen öffnen" mode="outline" onPress={openInfo}/>
-<Text style={[styles.label,{marginTop:18}]}>Passwort ändern</Text><Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none"/>
-<Button title="Passwort ändern" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
-{blocks.length>0?<View style={{marginTop:18}}><Text style={styles.label}>Blockierte Konten</Text>{blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}><Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text><Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/></Row>)}</View>:null}
-<View style={{height:16}}/><Button title="Abmelden" mode="ghost" onPress={signOut}/>
-</Card>
+  <Text style={styles.profileAbout}>{profile?.about||'Erzählt anderen Familien etwas über euch und eure Lieblingsausflüge.'}</Text>
+  <View style={styles.chipsRow}>{(profile?.interests||[]).slice(0,8).map(i=><Chip key={i} text={i}/>)}</View>
+  <Row style={{marginTop:19,alignItems:'stretch'}}>
+   <Button title={editing?'✕ Schließen':'✎ Bearbeiten'} mode="outline" small style={{flex:1}} onPress={()=>setEditing(v=>!v)}/>
+   <Button title={settingsOpen?'✕ Schließen':'⚙ Einstellungen'} mode="ghost" small style={{flex:1}} onPress={()=>setSettingsOpen(v=>!v)}/>
+  </Row>
+ </View>
+ {!active?<Info warning>Angaben und Bilder sind erst nach Freigabe für andere Familien sichtbar.</Info>:null}
+ <Card style={{marginTop:18}}>
+  <Row style={{alignItems:'flex-start',justifyContent:'space-between'}}>
+   <View style={{flex:1}}>
+    <Text style={styles.sectionTitle}>☀ Unsere Momente</Text>
+    <Text style={[styles.sub,{marginTop:-7,marginBottom:13}]}>Einblicke in euer Familienleben – keine öffentliche Pinnwand.</Text>
+   </View>
+  </Row>
+  <Button title={addingMoment?'✕ Fotoeingabe schließen':'＋ Erinnerung hinzufügen'} mode="outline" onPress={()=>setAddingMoment(v=>!v)}/>
+  {addingMoment?<View style={{marginTop:17}}>
+   <Text style={[styles.micro,{marginBottom:14}]}>Nur bestätigte Kontakte sehen freigegebene Bilder. Bitte in der Beta keine Kinderfotos hochladen.</Text>
+   <Button title={selectedPhoto?'Anderes Foto auswählen':'Foto auswählen'} disabled={busy||photoPickerBusy} mode="ghost" onPress={selectDraftPhoto}/>
+   {selectedPhoto?<View style={{marginTop:14}}>
+    <Image source={{uri:selectedPhoto.uri}} style={styles.photoDraftPreview} resizeMode="contain"/>
+    <Input label="Kleine Geschichte zum Foto (optional)" value={photoCaption} onChangeText={setPhotoCaption} maxLength={200} placeholder="Was habt ihr Schönes erlebt?"/>
+    <Text style={[styles.micro,{marginBottom:12}]}>Foto und Beschreibung werden zunächst geprüft und bis zur Freigabe nicht für andere Familien angezeigt.</Text>
+    <Row style={{alignItems:'stretch'}}>
+     <Button title="Verwerfen" mode="ghost" small disabled={busy||photoPickerBusy} style={{flex:1}} onPress={()=>{setSelectedPhoto(null);setPhotoCaption('');}}/>
+     <Button title={busy?'Wird eingereicht …':'Foto einreichen'} disabled={busy||photoPickerBusy} small style={{flex:1}} onPress={submitDraftPhoto}/>
+    </Row>
+   </View>:null}
+  </View>:null}
+  {photos.length===0?<View style={styles.emptyMoments}><Text style={{fontSize:30,color:C.coral}}>♡</Text><Text style={[styles.cardTitle,{textAlign:'center'}]}>Euer erstes Foto fehlt noch</Text><Text style={[styles.sub,{textAlign:'center'}]}>Ein schöner Ausflug, ein Lieblingsort oder ein besonderer Moment.</Text></View>:
+  <View style={[styles.photoGrid,{marginTop:16}]}>{photos.map(p=><View key={p.id} style={styles.momentTile}>
+   {photosUrls[p.id]?<Image source={{uri:photosUrls[p.id]}} style={styles.momentImage}/>:<View style={[styles.momentImage,{backgroundColor:C.pale,justifyContent:'center',alignItems:'center'}]}><Text style={styles.micro}>Bild wird geladen</Text></View>}
+   <Text style={styles.momentCaption} numberOfLines={3}>{p.caption||'Ein Familienmoment'}</Text>
+   <Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'✓ Freigegeben':p.moderation_status==='pending'?'⌛ In Prüfung':'Nicht freigegeben'}</Text>
+   <Button title="Foto löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
+  </View>)}</View>}
+ </Card>
+ {editing?<Card style={{marginTop:16}}>
+  <Text style={styles.sectionTitle}>Familienprofil bearbeiten</Text>
+  <Input label="Anzeigename" value={form.display_name} onChangeText={x=>setForm(p=>({...p,display_name:x}))} maxLength={60}/>
+  <Input label="Stadt / grobe Region" value={form.region_label} onChangeText={x=>setForm(p=>({...p,region_label:x}))} maxLength={80} placeholder="Keine Wohnadresse"/>
+  <Input label="Über uns" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Was macht ihr gern?"/>
+  <Text style={styles.label}>Interessen (bis zu 12)</Text>
+  <View style={[styles.chipsRow,{marginBottom:15}]}>{INTERESTS.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
+  <Row style={{marginBottom:20,justifyContent:'space-between'}}>
+   <View style={{flex:1}}><Text style={styles.label}>In der Familiensuche sichtbar</Text><Text style={styles.micro}>Erst nach Profilfreigabe sichtbar</Text></View>
+   <Switch value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/>
+  </Row>
+  <Button title={busy?'Bitte warten …':'Änderungen speichern'} disabled={busy} onPress={submit}/>
+ </Card>:null}
+ {settingsOpen?<Card style={{marginTop:16}}>
+  <Text style={styles.sectionTitle}>Sicherheit und Einstellungen</Text>
+  <Text style={[styles.micro,{marginBottom:12}]}>Mitgliedschaft: {membership?.status||'–'} · Verifizierung: {verification?.status||'–'}</Text>
+  <Button title="Elternwissen öffnen" mode="outline" onPress={openInfo}/>
+  <Text style={[styles.label,{marginTop:18}]}>Passwort ändern</Text>
+  <Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none"/>
+  <Button title="Passwort ändern" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
+  {blocks.length>0?<View style={{marginTop:18}}><Text style={styles.label}>Blockierte Konten</Text>{blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}><Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text><Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/></Row>)}</View>:null}
+  <View style={{height:16}}/><Button title="Abmelden" mode="ghost" onPress={signOut}/>
+ </Card>:null}
 </ScrollView>;
 }
 function InfoScreen(){
@@ -648,6 +668,21 @@ bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgr
 theirs:{backgroundColor:'#FFF0E8',alignSelf:'flex-start',borderBottomLeftRadius:5},bubbleText:{color:C.ink,fontSize:14.5,lineHeight:21},
 photoGrid:{flexDirection:'row',flexWrap:'wrap',gap:10},photoCard:{width:'47%',padding:10},photoImage:{width:'100%',height:110,borderRadius:14,marginBottom:8},
 photoDraftPreview:{width:'100%',height:230,backgroundColor:C.pale,borderRadius:18,marginBottom:14},
+madeInGermanyStamp:{width:82,minHeight:48,borderColor:'#DEB773',borderWidth:1.4,borderRadius:12,backgroundColor:'#FFF6E5',alignItems:'center',justifyContent:'center',paddingVertical:4},
+stampKicker:{fontSize:8,fontWeight:'800',color:'#916A2A',letterSpacing:1.2},
+stampCountry:{fontSize:11,fontWeight:'900',color:C.ink,letterSpacing:.5},
+stampDraft:{fontSize:6.5,fontWeight:'800',color:C.muted,letterSpacing:.4},
+profileHero:{padding:20,borderRadius:26,backgroundColor:'#FFF0D8',borderColor:'#F4D6A0',borderWidth:1,overflow:'hidden'},
+profileHeroSun:{position:'absolute',height:175,width:175,borderRadius:100,backgroundColor:'#FFDA8F',opacity:.68,top:-115,right:-55},
+profileEyebrow:{fontSize:11,fontWeight:'900',letterSpacing:1.4,color:'#A46C23'},
+profileName:{fontSize:23,fontWeight:'900',color:C.ink,letterSpacing:-.5},
+profileRegion:{fontSize:13,color:C.muted,fontWeight:'700',marginTop:6},
+profileStatus:{fontSize:12,color:C.accentDark,fontWeight:'800',marginTop:7},
+profileAbout:{fontSize:15,lineHeight:23,color:C.ink,marginTop:18},
+emptyMoments:{alignItems:'center',paddingVertical:30,paddingHorizontal:12,gap:7},
+momentTile:{width:'48%',backgroundColor:C.white,borderColor:C.line,borderWidth:1,borderRadius:18,padding:9,gap:6},
+momentImage:{width:'100%',height:140,borderRadius:12,resizeMode:'cover'},
+momentCaption:{fontSize:13,fontWeight:'800',color:C.ink,lineHeight:19},
 modalShade:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(15,44,52,.52)',justifyContent:'center',zIndex:100},
 });
 
