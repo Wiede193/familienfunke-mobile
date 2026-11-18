@@ -9,10 +9,12 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
+// Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
-bg: '#F4F8F8', white:'#FFFFFF', ink:'#173C46', muted:'#687F87',
-accent:'#087F87', accentDark:'#08646A', pale:'#E7F5F4', line:'#E2EBED',
-coral:'#ED8772', warning:'#FFF6E4', warningText:'#78541F',
+bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
+accent:'#087F87',accentDark:'#075D67',pale:'#E4F5F1',line:'#F0E5DC',
+coral:'#EE7867',coralDeep:'#B9474C',sunny:'#FFE4AA',
+lavender:'#F2EEFF',warning:'#FFF1D6',warningText:'#75521D',
 };
 const INTERESTS = ['Spielplatz','Natur','Radfahren','Wandern','Kochen','Musik','Basteln','Sport','Tiere','Lesen','Ausflüge','Spieleabende'];
 const TABS = [['discover','Entdecken','⌕'],['contacts','Kontakte','♡'],['chat','Nachrichten','✉'],['events','Kalender','▦'],['profile','Profil','◉']];
@@ -94,7 +96,7 @@ return <View style={[{marginBottom:13},style]}><Text style={styles.label}>{label
 placeholderTextColor="#9AAFB4" style={[styles.input,multiline&&{height:95,textAlignVertical:'top',paddingTop:12}]}
 multiline={multiline} {...props}/></View>;
 }
-function Blank({title,body}) {return <Card style={{alignItems:'center',paddingVertical:30}}><Text style={{fontSize:34,marginBottom:8}}>♡</Text><Text style={styles.cardTitle}>{title}</Text><Text style={[styles.sub,{textAlign:'center'}]}>{body}</Text></Card>;}
+function Blank({title,body}) {return <Card style={{alignItems:'center',paddingVertical:30}}><Text style={{fontSize:38,marginBottom:8,color:C.coral}}>♡</Text><Text style={styles.cardTitle}>{title}</Text><Text style={[styles.sub,{textAlign:'center'}]}>{body}</Text></Card>;}
 function Login({error,setError}) {
 const [email,setEmail]=useState('');
 const [password,setPassword]=useState('');
@@ -109,7 +111,7 @@ setBusy(false);
 return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
 <ScrollView contentContainerStyle={styles.loginPage} keyboardShouldPersistTaps="handled">
 <View style={styles.loginMark}><Text style={{fontSize:52,color:C.white}}>♥</Text></View>
-<Text style={styles.brand}>familienfunke<Text style={{color:C.coral}}>.</Text></Text>
+<Text style={styles.brand}>Familienfunke<Text style={{color:C.coral}}>.</Text></Text>
 <Text style={styles.tagline}>Aus Nachbarschaft wird Freundschaft.</Text>
 <View style={{height:28}}/>
 <Card style={{width:'100%',padding:23}}>
@@ -223,7 +225,7 @@ async function changePassword(password){
 if(password.length<12)throw new Error('Das Passwort braucht mindestens 12 Zeichen.');
 return execute(async()=>assertResult(await supabase.auth.updateUser({password})),'Passwort geändert.');
 }
-if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
+if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
 if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
 if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/><Login error={error} setError={setError}/></SafeAreaView>;
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1];
@@ -231,7 +233,13 @@ function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact)se
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
-<View style={{flex:1}}><Text style={styles.smallBrand}>♥ familienfunke<Text style={{color:C.coral}}>.</Text></Text><Text style={styles.topHint}>{navTitle}</Text></View>
+<View style={styles.headerIdentity}>
+  <View style={styles.headerHeartBadge}><Text style={styles.headerHeart}>♥</Text></View>
+  <View style={{flex:1}}>
+    <Text style={styles.smallBrand}>Familienfunke<Text style={{color:C.coral}}>.</Text></Text>
+    <Text style={styles.topHint}>{navTitle}</Text>
+  </View>
+</View>
 {detailFamily||selectedContact||showInfo?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" onPress={()=>load()} small mode="ghost"/>}
 </View>
 {error?<Pressable onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
@@ -294,7 +302,7 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>su
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setTab(id);setShowEventForm(false);}}
-style={styles.tab}><Text style={[styles.tabIcon,tab===id&&{color:C.accent}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accent,fontWeight:'800'}]}>{title}</Text></Pressable>)}
+style={[styles.tab,tab===id&&styles.tabActive]}><Text style={[styles.tabIcon,tab===id&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 {reportTarget?<View style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -364,7 +372,14 @@ const [query,setQuery]=useState('');
 const [interest,setInterest]=useState('Alle');
 const filtered=matches.filter(p=>(!query||`${p.display_name} ${p.region_label} ${(p.interests||[]).join(' ')}`.toLowerCase().includes(query.toLowerCase()))&&(interest==='Alle'||p.interests?.includes(interest)));
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-<View style={styles.hero}><Text style={styles.eyebrow}>GEMEINSAM MEHR ERLEBEN</Text><Text style={styles.heroTitle}>Familien in deiner Nähe entdecken.</Text><Text style={styles.heroText}>Finde neue Freundschaften statt endloser Feeds.</Text></View>
+<View style={styles.hero}>
+  <View style={styles.heroDecorationOne} pointerEvents="none"/>
+  <View style={styles.heroDecorationTwo} pointerEvents="none"/>
+  <View style={styles.heroPill}><Text style={styles.heroPillText}>✦ GEMEINSAM MEHR ERLEBEN</Text></View>
+  <Text style={styles.heroTitle}>Familien in deiner Nähe entdecken.</Text>
+  <Text style={styles.heroText}>Finde neue Freundschaften statt endloser Feeds.</Text>
+  <View style={styles.heroTagline}><Text style={styles.heroTaglineText}>♥  Aus Nachbarschaft wird Freundschaft.</Text></View>
+</View>
 {!active?<Info warning>Dein Konto wartet noch auf persönliche Erwachsenenprüfung oder Profilfreigabe. Profilstatus: {myProfile?.moderation_status||'–'} · Verifizierung: {verification?.status||'–'}.</Info>:null}
 <H sub="Passende Interessen – keine exakten Standorte, keine öffentlichen Beiträge.">Familien entdecken</H>
 <Input label="Suche nach Name, Region oder Interesse" placeholder="z. B. Natur, Potsdam …" value={query} onChangeText={setQuery}/>
@@ -585,45 +600,54 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 }
 const styles=StyleSheet.create({
 screen:{flex:1,backgroundColor:C.bg},center:{flex:1,alignItems:'center',justifyContent:'center',gap:15,backgroundColor:C.bg},
-scroll:{flex:1},content:{padding:18,paddingBottom:35},
-brand:{fontSize:32,fontWeight:'900',color:C.ink,letterSpacing:-1.2,textAlign:'center'},
-smallBrand:{fontSize:19,fontWeight:'900',color:C.ink,letterSpacing:-.5},tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:9},
+scroll:{flex:1},content:{padding:19,paddingBottom:40},
+brand:{fontSize:33,fontWeight:'900',color:C.ink,letterSpacing:-1.15,textAlign:'center'},
+smallBrand:{fontSize:19,fontWeight:'900',color:C.ink,letterSpacing:-.7},tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:9},
 loginPage:{flexGrow:1,alignItems:'center',justifyContent:'center',padding:20,backgroundColor:C.bg},
-loginMark:{width:92,height:92,borderRadius:30,backgroundColor:C.accent,alignItems:'center',justifyContent:'center',marginBottom:20},
-topBar:{height:67,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:19,flexDirection:'row',alignItems:'center',gap:8},
-topHint:{fontSize:12,color:C.muted,marginTop:1},
-card:{backgroundColor:C.white,borderRadius:22,padding:17,borderColor:C.line,borderWidth:1},
-hero:{backgroundColor:C.accentDark,borderRadius:25,padding:24,marginBottom:24},
-eyebrow:{fontSize:11,fontWeight:'900',letterSpacing:1.5,color:'#71C6CB'},
-heroTitle:{fontSize:27,fontWeight:'900',color:C.white,letterSpacing:-.6,marginTop:12,lineHeight:33},
-heroText:{color:'#DFEFEF',fontSize:14,marginTop:9,lineHeight:21},
-h:{fontSize:23,fontWeight:'800',color:C.ink,letterSpacing:-.35},
-sub:{fontSize:13.5,lineHeight:20,color:C.muted,marginTop:4},
+loginMark:{width:95,height:95,borderRadius:31,backgroundColor:C.coral,alignItems:'center',justifyContent:'center',marginBottom:22,transform:[{rotate:'-7deg'}]},
+topBar:{minHeight:74,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:19,flexDirection:'row',alignItems:'center',gap:10,paddingVertical:8},
+headerIdentity:{flex:1,flexDirection:'row',alignItems:'center',gap:10},
+headerHeartBadge:{width:37,height:37,borderRadius:13,backgroundColor:C.coral,alignItems:'center',justifyContent:'center'},
+headerHeart:{fontSize:21,fontWeight:'900',color:C.white},
+topHint:{fontSize:12,color:C.muted,marginTop:1,fontWeight:'600'},
+card:{backgroundColor:C.white,borderRadius:25,padding:18,borderColor:C.line,borderWidth:1,shadowColor:'#C28368',shadowOpacity:0.07,shadowRadius:11,shadowOffset:{width:0,height:3},elevation:2},
+hero:{backgroundColor:C.accentDark,borderRadius:29,paddingHorizontal:23,paddingVertical:27,marginBottom:25,overflow:'hidden',minHeight:238},
+heroDecorationOne:{position:'absolute',width:165,height:165,borderRadius:83,backgroundColor:'#137D85',top:-64,right:-64},
+heroDecorationTwo:{position:'absolute',width:88,height:88,borderRadius:44,backgroundColor:C.coral,opacity:0.65,bottom:-37,right:22},
+heroPill:{alignSelf:'flex-start',backgroundColor:C.sunny,borderRadius:40,paddingHorizontal:13,paddingVertical:7,marginBottom:12},
+heroPillText:{fontSize:10.5,fontWeight:'900',letterSpacing:1.1,color:'#624315'},
+eyebrow:{fontSize:11,fontWeight:'900',letterSpacing:1.5,color:C.coralDeep},
+heroTitle:{fontSize:28,fontWeight:'900',color:C.white,letterSpacing:-.8,lineHeight:35,maxWidth:295},
+heroText:{color:'#E5F8F6',fontSize:14,lineHeight:21,marginTop:10,maxWidth:285},
+heroTagline:{alignSelf:'flex-start',backgroundColor:'rgba(255,255,255,0.13)',borderRadius:12,paddingVertical:8,paddingHorizontal:10,marginTop:18},
+heroTaglineText:{color:C.white,fontSize:11.5,fontWeight:'700'},
+h:{fontSize:25,fontWeight:'900',color:C.ink,letterSpacing:-.6},
+sub:{fontSize:13.5,lineHeight:21,color:C.muted,marginTop:6},
 body:{fontSize:14.5,lineHeight:22,color:C.ink},
 micro:{fontSize:11.5,color:C.muted,lineHeight:17},
-sectionTitle:{fontSize:17,color:C.ink,fontWeight:'800',marginBottom:12},
-cardTitle:{fontSize:16,fontWeight:'800',color:C.ink},
-label:{fontSize:13,color:C.ink,fontWeight:'700',marginBottom:7},
-input:{backgroundColor:'#FAFCFC',borderColor:'#DCE7E9',borderWidth:1,borderRadius:13,paddingHorizontal:13,paddingVertical:12,fontSize:15,color:C.ink,minHeight:46},
-button:{minHeight:47,paddingHorizontal:18,paddingVertical:11,borderRadius:14,justifyContent:'center',alignItems:'center',flexDirection:'row'},
-button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#BDD9DC',borderWidth:1},
-button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:37,paddingVertical:8,paddingHorizontal:12},
-buttonText:{color:C.white,fontSize:14,fontWeight:'800'},buttonTextDark:{color:C.accentDark},
-chip:{borderRadius:50,borderWidth:1,borderColor:'#CFE4E5',backgroundColor:C.pale,paddingHorizontal:12,paddingVertical:7},
-chipSelected:{backgroundColor:C.accent,borderColor:C.accent},chipText:{color:C.accentDark,fontSize:12,fontWeight:'700'},
-chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:7,marginTop:12},
-info:{backgroundColor:C.pale,borderRadius:14,paddingHorizontal:15,paddingVertical:12,marginHorizontal:12,marginTop:7,marginBottom:12},
-warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:19,color:C.accentDark},
-avatar:{backgroundColor:'#D8EEEF',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.accentDark},
-match:{backgroundColor:C.pale,borderRadius:9,paddingHorizontal:9,paddingVertical:6},matchText:{fontSize:10.5,fontWeight:'800',color:C.accentDark},
-tabBar:{height:68,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around'},
-tab:{flex:1,alignItems:'center',paddingVertical:8},tabIcon:{fontSize:25,color:'#8BA1A7',fontWeight:'500'},tabLabel:{fontSize:10,color:'#8BA1A7',marginTop:2},
+sectionTitle:{fontSize:18,color:C.ink,fontWeight:'900',marginBottom:13},
+cardTitle:{fontSize:17,fontWeight:'900',color:C.ink},
+label:{fontSize:13,color:C.ink,fontWeight:'800',marginBottom:8},
+input:{backgroundColor:'#FFFEFC',borderColor:'#E5DBD3',borderWidth:1,borderRadius:17,paddingHorizontal:15,paddingVertical:13,fontSize:15,color:C.ink,minHeight:48},
+button:{minHeight:50,paddingHorizontal:18,paddingVertical:12,borderRadius:18,justifyContent:'center',alignItems:'center',flexDirection:'row'},
+button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#AEDBDD',borderWidth:1.5},
+button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:39,paddingVertical:8,paddingHorizontal:13},
+buttonText:{color:C.white,fontSize:14,fontWeight:'900'},buttonTextDark:{color:C.accentDark},
+chip:{borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:13,paddingVertical:8},
+chipSelected:{backgroundColor:C.coralDeep,borderColor:C.coralDeep},chipText:{color:C.accentDark,fontSize:12,fontWeight:'800'},
+chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},
+info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertical:14,marginHorizontal:12,marginTop:7,marginBottom:12},
+warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:C.accentDark},
+avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
+match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
+tabBar:{height:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
+tab:{flex:1,alignItems:'center',paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.pale},tabIcon:{fontSize:25,color:'#8E9FA4',fontWeight:'500'},tabLabel:{fontSize:10,color:'#8E9FA4',marginTop:3,fontWeight:'600'},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
-bubble:{borderRadius:17,padding:12,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:4},
-theirs:{backgroundColor:C.white,alignSelf:'flex-start',borderBottomLeftRadius:4},bubbleText:{color:C.ink,fontSize:14.5,lineHeight:21},
-photoGrid:{flexDirection:'row',flexWrap:'wrap',gap:10},photoCard:{width:'47%',padding:9},photoImage:{width:'100%',height:110,borderRadius:10,marginBottom:7},
-photoDraftPreview:{width:'100%',height:230,backgroundColor:C.pale,borderRadius:14,marginBottom:14},
+bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},
+theirs:{backgroundColor:'#FFF0E8',alignSelf:'flex-start',borderBottomLeftRadius:5},bubbleText:{color:C.ink,fontSize:14.5,lineHeight:21},
+photoGrid:{flexDirection:'row',flexWrap:'wrap',gap:10},photoCard:{width:'47%',padding:10},photoImage:{width:'100%',height:110,borderRadius:14,marginBottom:8},
+photoDraftPreview:{width:'100%',height:230,backgroundColor:C.pale,borderRadius:18,marginBottom:14},
 modalShade:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(15,44,52,.52)',justifyContent:'center',zIndex:100},
 });
 
