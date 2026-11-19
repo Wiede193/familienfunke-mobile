@@ -12,6 +12,7 @@ import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WelcomeIntro from './WelcomeIntro';
+import FamilyGuideScreen from './FamilyGuide';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
@@ -29,7 +30,7 @@ const sameRegion = (a,b) => {
   const x=normalizeLabel(a), y=normalizeLabel(b);
   return !!x && (x===y || REGION_CLUSTERS.some(group=>group.includes(x)&&group.includes(y)));
 };
-const TABS = [['market','Basar','♧'],['partners','Kitas','✿'],['discover','Familien','♡'],['events','Treffen','▦'],['more','Mehr','◉']];
+const TABS = [['market','Basar','♧'],['discover','Familien','♡'],['guide','Wegweiser','☀'],['events','Treffen','▦'],['more','Mehr','◉']];
 const MARKET_CATEGORIES=['Kleidung','Spielzeug','Bücher','Babyausstattung','Möbel','Sonstiges'];
 const ORG_KINDS=[['kita','Kita / Kindergarten'],['foerderverein','Förderverein'],['familienzentrum','Familienzentrum'],['verein','Familienverein']];
 const SECTION_MESSAGES={market:'Von Familien für Familien: kostenlos einstellen, verschenken und tauschen. Unsere Gebühren sind offen – aktuell gibt es keine Onlinezahlungen. Wir verkaufen keine persönlichen Daten.',partners:'Kitas und Fördervereine stellen sich vor, zeigen freie Plätze und laden zu Flohmärkten ein. Ein Stern erscheint nur bei bestätigter Einrichtung.',discover:'Neue Familien kennenlernen – freiwillig, respektvoll und ohne genaue Standortfreigabe.',events:'Gemeinsam etwas unternehmen statt endlose Diskussionen. Veranstaltungen werden vor der Veröffentlichung geprüft.',inclusion:'Für Familien mit und ohne Behinderung: willkommen, respektiert und ohne Pflicht zur Offenlegung persönlicher Diagnosen.'};
@@ -303,9 +304,9 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 </View><TechnicalHelpScreen initialCategory="Anmeldung & Konto"/></>:
 <Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
 </SafeAreaView>;
-const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',inclusion:'Inklusion',aboutApp:'Über uns',help:'Hilfe & FAQ'};
+const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(['profile','contacts','chat','inclusion','aboutApp','help'].includes(tab))setTab('more');}
+function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(['profile','contacts','chat','inclusion','partners','aboutApp','help'].includes(tab))setTab('more');}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
@@ -316,7 +317,7 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{detailFamily||selectedContact||showInfo||['profile','contacts','chat','inclusion','aboutApp','help'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" onPress={()=>load()} small mode="ghost"/>}
+{detailFamily||selectedContact||showInfo||['profile','contacts','chat','inclusion','partners','aboutApp','help'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" onPress={()=>load()} small mode="ghost"/>}
 </View>
 {error?<Pressable onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
 {notice?<Pressable onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
@@ -348,6 +349,7 @@ send={(body)=>execute(async()=>{
 },'Nachricht gesendet.')}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
+tab==='guide'?<FamilyGuideScreen userId={me} regionLabel={myProfile?.region_label}/>:
 tab==='market'?<MarketScreen listings={db.listings} me={me} active={active} busy={busy}
 organizations={db.organizations} photoUrls={marketPhotoUrls} contacts={db.contacts}
 createListing={(v,asset)=>execute(async()=>{
@@ -431,7 +433,7 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>su
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','inclusion','aboutApp','help'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','inclusion','aboutApp','help'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,tab===id&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','inclusion','partners','aboutApp','help'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','inclusion','partners','aboutApp','help'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,tab===id&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 {reportTarget?<View style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -888,6 +890,7 @@ function MoreScreen({navigate,openInfo,openWelcome}){
   ['chat','✉','Nachrichten','Private Unterhaltungen mit bestätigten Kontakten'],
   ['profile','◉','Mein Profil','Hobbys, Fotos und Privatsphäre einstellen'],
   ['inclusion','✿','Familien & Inklusion','Anlaufstelle ohne Nachweis- oder Diagnosepflicht'],
+  ['partners','✿','Kitas & Partnerwelt','Einrichtungen, freie Plätze und Kita-Veranstaltungen'],
   ['aboutApp','♡','Über Familienfunke','Wie unsere Idee entstanden ist'],
   ['welcome','☀','Unser Familienfunke','Die Willkommenskarte noch einmal ansehen'],
   ['help','?','Hilfe & FAQ','Schritt-für-Schritt-Anleitungen zur App']];
