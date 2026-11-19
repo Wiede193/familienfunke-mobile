@@ -57,18 +57,3 @@ $body$;
 REVOKE ALL ON FUNCTION public.ff_push_register(text,boolean) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.ff_push_register(text,boolean) TO authenticated;
 COMMIT;
- THEN
-    RAISE EXCEPTION 'Invalid Expo push token' USING ERRCODE='22023';
- END IF;
- -- A physical phone can be reassigned to a new signed-in account.
- -- Existing token is then moved, not shared across account owners.
- INSERT INTO private.ff_push_devices(user_id,expo_token)
- VALUES(me,p_token)
- ON CONFLICT (expo_token) DO UPDATE SET
- user_id=excluded.user_id,updated_at=now();
- RETURN true;
-END
-$body$;
-REVOKE ALL ON FUNCTION public.ff_push_register(text,boolean) FROM PUBLIC,anon,authenticated;
-GRANT EXECUTE ON FUNCTION public.ff_push_register(text,boolean) TO authenticated;
-COMMIT;
