@@ -11,6 +11,7 @@ import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { BUNDESLAENDER, KREISE_NACH_LAND } from './data/regionen';
 import MomentViewer from './components/MomentViewer';
+import FamilyTabIcon from './components/FamilyTabIcon';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFFAF2',white:'#FFFFFF',ink:'#243E43',muted:'#687E80',
@@ -45,7 +46,7 @@ const PROFILE_MENUS=[
  ['konto','07','Konto & Hilfe','Sicherheit & Zugang']
 ];
 
-const TABS = [['discover','Entdecken','⌕'],['contacts','Kontakte','♡'],['chat','Nachrichten','✉'],['events','Kalender','▦'],['profile','Profil','◉']];
+const TABS = [['discover','Entdecken'],['contacts','Kontakte'],['chat','Nachrichten'],['events','Kalender'],['profile','Profil']];
 const blankProfile = {display_name:'',region_label:'',about:'',interests:[],is_discoverable:false};
 const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[]};
 const formatDate = (value) => { if (!value) return '–'; const d = new Date(value); return isNaN(d) ? '–' : d.toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
@@ -330,8 +331,12 @@ blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>supabase.auth.signOut()}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setTab(id);setShowEventForm(false);}}
-style={[styles.tab,tab===id&&styles.tabActive]}><Text style={[styles.tabIcon,tab===id&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+{TABS.map(([id,title])=><Pressable accessibilityRole="tab" accessibilityLabel={title}
+accessibilityState={{selected:tab===id}} key={id} onPress={()=>{setTab(id);setShowEventForm(false);}}
+style={({pressed})=>[styles.tab,tab===id&&styles.tabActive,pressed&&styles.tabPressed]}>
+<FamilyTabIcon name={id} color={tab===id?C.accentDark:'#839293'} size={26}/>
+<Text numberOfLines={1} style={[styles.tabLabel,tab===id&&styles.tabLabelActive]}>{title}</Text>
+</Pressable>)}
 </View>:null}
 {reportTarget?<View style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -850,22 +855,22 @@ brand:{fontSize:33,fontWeight:'900',color:C.ink,letterSpacing:-1.15,textAlign:'c
 smallBrand:{fontSize:19,fontWeight:'900',color:C.ink,letterSpacing:-.7},tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:9},
 loginPage:{flexGrow:1,alignItems:'center',justifyContent:'center',padding:20,backgroundColor:C.bg},
 loginMark:{width:95,height:95,borderRadius:31,backgroundColor:C.coral,alignItems:'center',justifyContent:'center',marginBottom:22,transform:[{rotate:'-7deg'}]},
-topBar:{minHeight:74,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:19,flexDirection:'row',alignItems:'center',gap:10,paddingVertical:8},
+topBar:{minHeight:74,borderBottomWidth:1,borderBottomColor:'#F1E2CE',backgroundColor:'#FFFBF5',paddingHorizontal:19,flexDirection:'row',alignItems:'center',gap:10,paddingVertical:8},
 headerIdentity:{flex:1,flexDirection:'row',alignItems:'center',gap:10},
-headerHeartBadge:{width:37,height:37,borderRadius:13,backgroundColor:C.coral,alignItems:'center',justifyContent:'center'},
+headerHeartBadge:{width:38,height:38,borderRadius:13,backgroundColor:'#EC8775',alignItems:'center',justifyContent:'center'},
 headerHeart:{fontSize:21,fontWeight:'900',color:C.white},
 topHint:{fontSize:12,color:C.muted,marginTop:1,fontWeight:'600'},
 card:{backgroundColor:C.white,borderRadius:25,padding:18,borderColor:C.line,borderWidth:1,shadowColor:'#C28368',shadowOpacity:0.07,shadowRadius:11,shadowOffset:{width:0,height:3},elevation:2},
-hero:{backgroundColor:C.accentDark,borderRadius:29,paddingHorizontal:23,paddingVertical:27,marginBottom:25,overflow:'hidden',minHeight:238},
-heroDecorationOne:{position:'absolute',width:165,height:165,borderRadius:83,backgroundColor:'#137D85',top:-64,right:-64},
-heroDecorationTwo:{position:'absolute',width:88,height:88,borderRadius:44,backgroundColor:C.coral,opacity:0.65,bottom:-37,right:22},
-heroPill:{alignSelf:'flex-start',backgroundColor:C.sunny,borderRadius:40,paddingHorizontal:13,paddingVertical:7,marginBottom:12},
+hero:{backgroundColor:'#FFEEC8',borderRadius:28,paddingHorizontal:23,paddingVertical:27,marginBottom:25,overflow:'hidden',minHeight:238,borderColor:'#F5DDA7',borderWidth:1},
+heroDecorationOne:{position:'absolute',width:165,height:165,borderRadius:83,backgroundColor:'#FFD98D',top:-64,right:-64,opacity:.95},
+heroDecorationTwo:{position:'absolute',width:88,height:88,borderRadius:44,backgroundColor:'#F3A38B',opacity:0.65,bottom:-37,right:22},
+heroPill:{alignSelf:'flex-start',backgroundColor:'#FFF9EE',borderRadius:40,paddingHorizontal:13,paddingVertical:7,marginBottom:12,borderColor:'#EDD8AF',borderWidth:1},
 heroPillText:{fontSize:10.5,fontWeight:'900',letterSpacing:1.1,color:'#624315'},
 eyebrow:{fontSize:11,fontWeight:'900',letterSpacing:1.5,color:C.coralDeep},
-heroTitle:{fontSize:28,fontWeight:'900',color:C.white,letterSpacing:-.8,lineHeight:35,maxWidth:295},
-heroText:{color:'#E5F8F6',fontSize:14,lineHeight:21,marginTop:10,maxWidth:285},
-heroTagline:{alignSelf:'flex-start',backgroundColor:'rgba(255,255,255,0.13)',borderRadius:12,paddingVertical:8,paddingHorizontal:10,marginTop:18},
-heroTaglineText:{color:C.white,fontSize:11.5,fontWeight:'700'},
+heroTitle:{fontSize:28,fontWeight:'900',color:C.ink,letterSpacing:-.8,lineHeight:35,maxWidth:295},
+heroText:{color:'#536667',fontSize:14,lineHeight:21,marginTop:10,maxWidth:285},
+heroTagline:{alignSelf:'flex-start',backgroundColor:'#FFFFFF',borderRadius:12,paddingVertical:8,paddingHorizontal:10,marginTop:18,borderWidth:1,borderColor:'#F2DAB6'},
+heroTaglineText:{color:C.accentDark,fontSize:11.5,fontWeight:'800'},
 h:{fontSize:25,fontWeight:'900',color:C.ink,letterSpacing:-.6},
 sub:{fontSize:13.5,lineHeight:21,color:C.muted,marginTop:6},
 body:{fontSize:14.5,lineHeight:22,color:C.ink},
@@ -885,8 +890,8 @@ info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertica
 warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:C.accentDark},
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
-tabBar:{height:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
-tab:{flex:1,alignItems:'center',paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.pale},tabIcon:{fontSize:25,color:'#8E9FA4',fontWeight:'500'},tabLabel:{fontSize:10,color:'#8E9FA4',marginTop:3,fontWeight:'600'},
+tabBar:{minHeight:78,borderTopWidth:1,borderTopColor:'#EBDCC9',backgroundColor:'#FFFEF9',flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:4,paddingBottom:4},
+tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:64,paddingVertical:7,paddingHorizontal:1,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:'#FFF0D3'},tabPressed:{opacity:.75},tabLabel:{fontSize:10,color:'#7F9090',marginTop:5,fontWeight:'700'},tabLabelActive:{color:C.accentDark,fontWeight:'900'},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},
