@@ -322,7 +322,8 @@ tab==='market'?<MarketScreen listings={db.listings} me={me} active={active} busy
 organizations={db.organizations} photoUrls={marketPhotoUrls} contacts={db.contacts}
 createListing={(v,asset)=>execute(async()=>{
  await moderateTextOrThrow([v.title,v.description,v.region_label]);
- const inserted=assertResult(await supabase.from('ff_market_listings').insert({...v,seller_id:me}).select('id').single());
+ const {data:inserted,error:insertError}=await supabase.from('ff_market_listings').insert({...v,seller_id:me}).select('id').single();
+ if(insertError)throw insertError;
  if(asset)await uploadMarketPhoto(inserted.id,asset,me);
 },'Inserat eingereicht. Es erscheint nach Freigabe.')}
 uploadPendingPhoto={(listingId,asset)=>execute(async()=>{await uploadMarketPhoto(listingId,asset,me);},'Foto zur Prüfung eingereicht.')}
@@ -435,6 +436,260 @@ await supabase.storage.from('familienfunke-photos').remove([photo.storage_path])
 },'Foto entfernt.')},
 ]);
 }
+
+/** Der Markt wird erst nach Betreiberfreigabe anderen Mitgliedern gezeigt.
+ * Bezahlen ist absichtlich NICHT implementiert. */
+async function uploadMarketPhoto(listingId,asset,me){
+  if(!asset?.uri) return;
+  const job=ImageManipulator.ImageManipulator.manipulate(asset.uri);
+  job.resize({width:1024,height:null});
+  const rendered=await job.renderAsync();
+  const saved=await rendered.saveAsync({format:ImageManipulator.SaveFormat.JPEG,compress:0.78});
+  const file=new File(saved.uri);
+  if(file.size>5*1024*1024)throw new Error('Das Bild darf maximal 5 MB groß sein.');
+  const path=`${me}/${listingId}.jpg`;
+  const {error:uploadError}=await supabase.storage.from('ff-market-photos')
+    .upload(path,new Uint8Array(await file.arrayBuffer()),{contentType:'image/jpeg',upsert:false});
+  if(uploadError)throw uploadError;
+  const {error:updateError}=await supabase.from('ff_market_listings')
+    .update({photo_path:path}).eq('id',listingId).eq('seller_id',me);
+  if(updateError)throw updateError;
+}
+async function selectMarketPhoto(){
+  const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],quality:0.8,exif:false});
+  return result.canceled?null:result.assets?.[0]||null;
+}
+function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,createListing,uploadPendingPhoto,onContact,nameOf,blocked}){
+  const [open,setOpen]=useState(false);
+  const [query,setQuery]=useState('');
+  const [filter,setFilter]=useState('Alle');
+  const [title,setTitle]=useState('');
+  const [description,setDescription]=useState('');
+  const [region,setRegion]=useState('');
+  const [category,setCategory]=useState('Kleidung');
+  const [condition,setCondition]=useState('Gut');
+  const [trade,setTrade]=useState('sell');
+  const [price,setPrice]=useState('');
+  const [organizationId,setOrganizationId]=useState('');
+  const [photo,setPhoto]=useState(null);
+  const [choosing,setChoosing]=useState(false);
+  const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
+  const shown=listings.filter(x=>(x.moderation_status==='approved'||x.seller_id===me)
+     &&!blocked(x.seller_id)
+     &&(filter==='Alle'||x.category===filter)
+     &&normalizeLabel([x.title,x.description,x.region_label,x.category].join(' ')).includes(normalizeLabel(query)));
+  const priceLabel=x=>x.trade_type==='gift'?'Zu verschenken':x.trade_type==='swap'?'Tausch':(x.price_cents/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
+  async function pick(fn){
+    if(choosing)return;
+    setChoosing(true);
+    try{const asset=await selectMarketPhoto();if(asset)await fn(asset);}
+    catch(e){Alert.alert('Fotoauswahl',humanError(e));}
+    finally{setChoosing(false);}
+  }
+  async function submit(){
+    if(!active)return;
+    if(title.trim().length<4||title.trim().length>100)return Alert.alert('Titel prüfen','Bitte mindestens 4 Zeichen eingeben.');
+    const num=Number(price.trim().replace(',','.'));
+    if(trade==='sell'&&(!Number.isFinite(num)||num<0||num>100000||!price.trim()))return Alert.alert('Preis prüfen','Bitte einen Preis in Euro eingeben.');
+    const cents=trade==='sell'?Math.round(num*100):0;
+    const ok=await createListing({title:safeString(title,100),description:safeString(description,1500),
+      category,item_condition:condition,trade_type:trade,price_cents:cents,
+      region_label:safeString(region,80),organization_id:organizationId||null},photo);
+    if(ok){setTitle('');setDescription('');setPrice('');setPhoto(null);setOrganizationId('');setOpen(false);}
+  }
+  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <H sub="Kinderkleidung, Spielzeug, Bücher und Babyausstattung aus deiner Umgebung.">Familienbasar</H>
+    <Info>{SECTION_MESSAGES.market}</Info>
+    <Card style={{marginBottom:15}}>
+      <Text style={styles.cardTitle}>Fair handeln, bewusst vertrauen.</Text>
+      <Text style={styles.sub}>Inserate sind kostenlos. Onlinezahlung und Verkaufsprovisionen sind noch nicht aktiviert. Identitätsprüfung ersetzt keinen Käuferschutz: vereinbare sichere Übergaben und gib keine Privatadresse öffentlich an.</Text>
+      <View style={{marginTop:15}}><Button title={open?'Inserat schließen':'＋ Artikel einstellen'} disabled={!active} onPress={()=>setOpen(x=>!x)}/></View>
+    </Card>
+    {!active?<Info warning>Nur freigegebene erwachsene Mitglieder können Inserate einstellen und andere kontaktieren.</Info>:null}
+    {open?<Card style={{marginBottom:16}}>
+      <Text style={styles.sectionTitle}>Neues Inserat</Text>
+      <Input label="Was bietest du an?" value={title} onChangeText={setTitle} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
+      <Input label="Beschreibung" multiline value={description} onChangeText={setDescription} maxLength={1500} placeholder="Zustand, Größe, Hinweise zur Übergabe …"/>
+      <Text style={styles.label}>Kategorie</Text>
+      <View style={styles.chipsRow}>{MARKET_CATEGORIES.map(c=><Chip key={c} text={c} selected={category===c} onPress={()=>setCategory(c)}/>)}</View>
+      <Text style={[styles.label,{marginTop:18}]}>Angebot</Text>
+      <View style={styles.chipsRow}><Chip text="Verkaufen" selected={trade==='sell'} onPress={()=>setTrade('sell')}/><Chip text="Verschenken" selected={trade==='gift'} onPress={()=>setTrade('gift')}/><Chip text="Tauschen" selected={trade==='swap'} onPress={()=>setTrade('swap')}/></View>
+      {trade==='sell'?<View style={{marginTop:15}}><Input label="Preis in Euro" value={price} onChangeText={setPrice} keyboardType="decimal-pad" placeholder="z. B. 12,50"/></View>:null}
+      <Text style={styles.label}>Zustand</Text>
+      <View style={styles.chipsRow}>{['Neu','Sehr gut','Gut','Gebraucht'].map(x=><Chip key={x} text={x} selected={condition===x} onPress={()=>setCondition(x)}/>)}</View>
+      <View style={{marginTop:17}}><Input label="Ort / Region (ohne Adresse)" value={region} onChangeText={setRegion} maxLength={80} placeholder="z. B. Fürstenwalde/Spree"/></View>
+      {myOrgs.length>0?<><Text style={styles.label}>Verkaufen als</Text><View style={styles.chipsRow}>
+         <Chip text="Privates Familienkonto" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
+         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
+      </View></>:null}
+      <View style={{marginTop:17}}><Button title={photo?'✓ Foto gewählt – anderes auswählen':'Foto auswählen (optional)'}
+        mode="outline" disabled={choosing||busy} onPress={()=>pick(setPhoto)}/></View>
+      {photo?<Image source={{uri:photo.uri}} style={styles.photoDraftPreview} resizeMode="contain"/>:null}
+      <Text style={[styles.micro,{marginTop:10,marginBottom:13}]}>Das Inserat und das Foto bleiben zunächst privat. Erst nach Prüfung wird das Angebot für andere freigegeben. Über Familienfunke können derzeit keine Zahlungen durchgeführt werden.</Text>
+      <Button title={busy?'Speichert …':'Kostenlos zur Prüfung einreichen'} disabled={!active||busy||choosing} onPress={submit}/>
+    </Card>:null}
+    <Input label="Angebote durchsuchen" placeholder="z. B. Spielzeug, Storkow …" value={query} onChangeText={setQuery}/>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}}>
+      {['Alle',...MARKET_CATEGORIES].map(x=><View key={x} style={{marginRight:7}}><Chip text={x} selected={x===filter} onPress={()=>setFilter(x)}/></View>)}
+    </ScrollView>
+    <Text style={[styles.micro,{marginBottom:10}]}>{shown.length} {shown.length===1?'Angebot':'Angebote'} verfügbar (einschließlich eigener Entwürfe)</Text>
+    {shown.length===0?<Blank title="Der Basar startet hier" body="Sobald Familien ihre ersten Angebote eingereicht haben und diese geprüft sind, kannst du hier stöbern. Du kannst schon einen Artikel anbieten."/>:shown.map(x=>{
+      const own=x.seller_id===me;
+      const sellerOrg=organizations.find(o=>o.id===x.organization_id&&o.status==='approved');
+      const connected=contacts.find(c=>(c.sender_id===me&&c.recipient_id===x.seller_id)||(c.recipient_id===me&&c.sender_id===x.seller_id));
+      return <Card key={x.id} style={{marginBottom:12}}>
+        {photoUrls[x.id]?<Image source={{uri:photoUrls[x.id]}} style={{width:'100%',height:175,borderRadius:16,marginBottom:12}} resizeMode="cover"/>:null}
+        <Row style={{justifyContent:'space-between',alignItems:'flex-start'}}>
+           <View style={{flex:1}}><Text style={styles.cardTitle}>{x.title}</Text>
+             <Text style={styles.micro}>{x.category} · Zustand: {x.item_condition}</Text>
+           </View><Text style={[styles.cardTitle,{color:C.accentDark}]}>{priceLabel(x)}</Text>
+        </Row>
+        {x.description?<Text style={[styles.body,{marginTop:9}]}>{x.description}</Text>:null}
+        <Text style={[styles.micro,{marginTop:10}]}>⌖ {x.region_label||'Region auf Anfrage'} · {sellerOrg?sellerOrg.name:nameOf(x.seller_id)}
+          {sellerOrg?' ✦':''}</Text>
+        {own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{marginTop:7,color:C.warningText}]}>Nur für dich sichtbar · {x.moderation_status==='pending'?'wartet auf Freigabe':x.moderation_status==='rejected'?'nicht freigegeben':'nicht veröffentlicht'}</Text>:null}
+        {own&&x.moderation_status==='pending'&&!x.photo_path?
+          <View style={{marginTop:11}}><Button title="Foto ergänzen" mode="outline" small disabled={choosing||busy} onPress={()=>pick(asset=>uploadPendingPhoto(x.id,asset))}/></View>:null}
+        {!own?<View style={{marginTop:12}}><Button title={connected?connected.status==='accepted'?'Über Nachrichten Kontakt aufnehmen':connected.status==='pending'?'Kontaktanfrage offen':'Kontakt bereits angefragt':'Verkäufer kontaktieren'}
+           disabled={!!connected||busy||!active} mode="outline" onPress={()=>onContact(x.seller_id)}/></View>:null}
+      </Card>;
+    })}
+  </ScrollView>;
+}
+function PartnersScreen({organizations,partnerEvents,me,active,busy,applyOrg,createPartnerEvent,openInclusion}){
+  const [applying,setApplying]=useState(false);
+  const [kind,setKind]=useState('kita');
+  const [name,setName]=useState('');
+  const [region,setRegion]=useState('');
+  const [description,setDescription]=useState('');
+  const [places,setPlaces]=useState(false);
+  const [eventForm,setEventForm]=useState(false);
+  const [eventOrg,setEventOrg]=useState('');
+  const [eventTitle,setEventTitle]=useState('');
+  const [eventDesc,setEventDesc]=useState('');
+  const [eventRegion,setEventRegion]=useState('');
+  const [eventDate,setEventDate]=useState('');
+  const [eventTime,setEventTime]=useState('10:00');
+  const mine=organizations.filter(o=>o.owner_id===me);
+  const approvedMine=mine.filter(o=>o.status==='approved');
+  const shown=organizations.filter(o=>o.status==='approved'||o.owner_id===me);
+  const events=partnerEvents.filter(e=>new Date(e.starts_at)>new Date());
+  async function apply(){
+    if(!active||name.trim().length<3)return Alert.alert('Einrichtung','Bitte den Namen der Einrichtung angeben.');
+    const ok=await applyOrg({kind,name:safeString(name,100),region_label:safeString(region,80),
+       description:safeString(description,800),open_places:places});
+    if(ok){setApplying(false);setName('');setDescription('');setRegion('');setPlaces(false);}
+  }
+  async function postEvent(){
+    const start=givenDate(eventDate,eventTime);
+    const org=approvedMine.find(o=>o.id===(eventOrg||approvedMine[0]?.id));
+    if(!org||!start||start<=new Date()||eventTitle.trim().length<4)
+      return Alert.alert('Veranstaltung prüfen','Bitte Einrichtung, Titel und zukünftiges Datum korrekt eintragen.');
+    const ok=await createPartnerEvent({organization_id:org.id,title:safeString(eventTitle,100),
+       description:safeString(eventDesc,1000),region_label:safeString(eventRegion,80),starts_at:start.toISOString()});
+    if(ok){setEventForm(false);setEventTitle('');setEventDesc('');setEventDate('');}
+  }
+  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <H sub="Kitas, Fördervereine und Familienzentren in deiner Region.">Kita & Partnerwelt</H>
+    <Info>{SECTION_MESSAGES.partners}</Info>
+    <Card style={{marginBottom:14}}>
+      <Text style={styles.cardTitle}>Einrichtungen willkommen!</Text>
+      <Text style={styles.sub}>Stellt eure Kita vor, zeigt bei Bedarf freie Plätze und kündigt Flohmärkte an. Ein Partnerprofil wird erst nach Prüfung öffentlich sichtbar.</Text>
+      <View style={{marginTop:13}}><Button title={applying?'Antrag schließen':'＋ Einrichtung anmelden'} mode="outline" disabled={!active} onPress={()=>setApplying(x=>!x)}/></View>
+    </Card>
+    {applying?<Card style={{marginBottom:13}}>
+      <Text style={styles.sectionTitle}>Partnerkonto beantragen</Text>
+      <Text style={styles.label}>Art der Einrichtung</Text>
+      <View style={styles.chipsRow}>{ORG_KINDS.map(([id,txt])=><Chip key={id} text={txt} selected={kind===id} onPress={()=>setKind(id)}/>)}</View>
+      <View style={{marginTop:17}}><Input label="Name der Einrichtung" value={name} onChangeText={setName} maxLength={100}/></View>
+      <Input label="Ort / Region" value={region} onChangeText={setRegion} maxLength={80}/>
+      <Input label="Kurzvorstellung" multiline value={description} onChangeText={setDescription} maxLength={800}/>
+      <Row style={{marginBottom:15,justifyContent:'space-between'}}>
+        <Text style={[styles.label,{flex:1}]}>Einrichtung hat laut eigener Angabe freie Plätze</Text>
+        <Switch accessibilityLabel="Freie Plätze melden" value={places} onValueChange={setPlaces}/>
+      </Row>
+      <Text style={[styles.micro,{marginBottom:12}]}>Mit diesem Antrag wird kein verifiziertes Konto erstellt. Unsere Betreiber prüfen die Einrichtung und die Berechtigung zur Vertretung. Bis dahin bleibt das Partnerprofil verborgen.</Text>
+      <Button title="Antrag kostenlos einreichen" disabled={busy||!active} onPress={apply}/>
+    </Card>:null}
+    <Text style={styles.sectionTitle}>Kitas und Partner</Text>
+    {shown.length===0?<Blank title="Partnerwelt im Aufbau" body="Nach Bestätigung der ersten Einrichtungen entstehen hier Kita-Profile, Vorstellungen und Veranstaltungen."/>:
+       shown.map(o=><Card key={o.id} style={{marginBottom:12}}>
+          <Row style={{alignItems:'flex-start'}}>
+            <View style={{width:42,height:42,borderRadius:12,backgroundColor:C.sunny,alignItems:'center',justifyContent:'center'}}><Text style={{fontSize:21}}>✿</Text></View>
+            <View style={{flex:1}}>
+              <Row style={{alignItems:'baseline',gap:5,flexWrap:'wrap'}}>
+                <Text style={styles.cardTitle}>{o.name}</Text>
+                {o.status==='approved'?<Text accessibilityLabel="Einrichtung geprüft" style={{fontSize:13,color:C.accentDark}}>✦</Text>:null}
+              </Row>
+              <Text style={styles.micro}>{ORG_KINDS.find(([id])=>id===o.kind)?.[1]||'Einrichtung'} · {o.region_label||'Region folgt'}</Text>
+            </View>
+          </Row>
+          {o.description?<Text style={[styles.body,{marginTop:11}]}>{o.description}</Text>:null}
+          {o.status==='approved'&&o.open_places?<Text style={[styles.micro,{marginTop:9,color:C.accentDark,fontWeight:'800'}]}>Freie Plätze · Angabe der Einrichtung, bitte direkt erfragen</Text>:null}
+          {o.owner_id===me&&o.status!=='approved'?<Text style={[styles.micro,{marginTop:11}]}>Dein Antrag ist nur für dich sichtbar. Freigabe ausstehend.</Text>:null}
+       </Card>)}
+    {approvedMine.length>0?<Card style={{marginTop:6,marginBottom:13}}>
+        <Text style={styles.sectionTitle}>Flohmarkt oder Kita-Veranstaltung ankündigen</Text>
+        <Button title={eventForm?'Formular schließen':'＋ Partnerveranstaltung erstellen'} mode="outline" onPress={()=>setEventForm(v=>!v)}/>
+        {eventForm?<View style={{marginTop:15}}>
+          <Text style={styles.label}>Für welche Einrichtung?</Text>
+          <View style={styles.chipsRow}>{approvedMine.map(o=><Chip key={o.id} text={o.name} selected={(eventOrg||approvedMine[0]?.id)===o.id} onPress={()=>setEventOrg(o.id)}/>)}</View>
+          <View style={{marginTop:16}}><Input label="Titel" maxLength={100} value={eventTitle} onChangeText={setEventTitle} placeholder="Sommerflohmarkt der Kita …"/></View>
+          <Input label="Beschreibung" multiline maxLength={1000} value={eventDesc} onChangeText={setEventDesc}/>
+          <Input label="Region" maxLength={80} value={eventRegion} onChangeText={setEventRegion}/>
+          <Input label="Datum (JJJJ-MM-TT)" value={eventDate} onChangeText={setEventDate} placeholder="2026-12-12"/>
+          <Input label="Uhrzeit (HH:MM)" value={eventTime} onChangeText={setEventTime}/>
+          <Button title="Veranstaltung zur Freigabe senden" disabled={busy} onPress={postEvent}/>
+        </View>:null}
+    </Card>:null}
+    <Text style={[styles.sectionTitle,{marginTop:15}]}>Flohmärkte & Veranstaltungen</Text>
+    {events.length===0?<Blank title="Noch keine Partnerveranstaltungen" body="Bestätigte Einrichtungen können hier ihre Flohmärkte und Termine bewerben."/>:
+       events.map(e=><Card key={e.id} style={{marginBottom:12}}>
+          <Text style={[styles.eyebrow,{marginBottom:7}]}>{formatDate(e.starts_at)}</Text>
+          <Text style={styles.cardTitle}>{e.title}</Text>
+          <Text style={styles.micro}>{organizations.find(o=>o.id===e.organization_id)?.name||'Einrichtung'} · {e.region_label||'Ort auf Anfrage'}</Text>
+          {e.description?<Text style={[styles.body,{marginTop:8}]}>{e.description}</Text>:null}
+          {e.creator_id===me&&e.moderation_status!=='approved'?<Text style={[styles.micro,{marginTop:10}]}>Für dich sichtbar · wartet auf Freigabe</Text>:null}
+       </Card>)}
+    <View style={{marginTop:13}}><Button title="Inklusion und Familienunterstützung" mode="ghost" onPress={openInclusion}/></View>
+  </ScrollView>;
+}
+function MoreScreen({navigate,openInfo}){
+  const items=[['contacts','♡','Kontakte','Kontaktanfragen und Freundschaften verwalten'],
+  ['chat','✉','Nachrichten','Private Unterhaltungen mit bestätigten Kontakten'],
+  ['profile','◉','Mein Profil','Hobbys, Fotos und Privatsphäre einstellen'],
+  ['inclusion','✿','Familien & Inklusion','Anlaufstelle ohne Nachweis- oder Diagnosepflicht']];
+  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <H sub="Deine Kontakte, Einstellungen und unterstützenden Angebote.">Weitere Bereiche</H>
+    {items.map(([id,icon,title,subtitle])=><Pressable accessibilityRole="button" accessibilityLabel={title} key={id} onPress={()=>navigate(id)}>
+      <Card style={{marginBottom:12}}><Row><Text style={{fontSize:26,color:C.coral,width:36}}>{icon}</Text>
+      <View style={{flex:1}}><Text style={styles.cardTitle}>{title}</Text><Text style={styles.sub}>{subtitle}</Text></View>
+      <Text style={{fontSize:20,color:C.accent}}>›</Text></Row></Card></Pressable>)}
+    <Button title="Elternwissen & hilfreiche Links" mode="outline" onPress={openInfo}/>
+  </ScrollView>;
+}
+function InclusionScreen(){
+  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <H sub="Gemeinsam dazugehören. Mit eigenen Bedürfnissen, Stärken und Erfahrungen.">Familien & Inklusion</H>
+    <Info>{SECTION_MESSAGES.inclusion}</Info>
+    <Card style={{marginBottom:14}}>
+      <Text style={styles.sectionTitle}>Hier hat jede Familie ihren Platz</Text>
+      <Text style={styles.body}>Familien mit behinderten Kindern, Eltern mit Behinderung und alle, die sich für Inklusion interessieren, sollen sich hier willkommen fühlen – ohne Etiketten, Pflichtangaben oder medizinische Nachweise.</Text>
+    </Card>
+    <Card style={{marginBottom:14}}>
+      <Text style={styles.cardTitle}>Geschützter Austausch ist in Vorbereitung</Text>
+      <Text style={styles.sub}>Für spätere freiwillige Gruppen planen wir einen geschützten Zugang, klare Gruppenregeln sowie Melde- und Moderationsmöglichkeiten. Noch gibt es hier keine geschlossenen Chats. Es werden auch keine Angaben über Behinderungen gespeichert.</Text>
+    </Card>
+    <Card style={{marginBottom:14}}>
+      <Text style={styles.cardTitle}>Barrierefreiheit ist keine Sonderfunktion</Text>
+      <Text style={styles.sub}>Gute Lesbarkeit, ausreichend große Bedienelemente, verständliche Sprache und Unterstützung der Bedienungshilfen sollen in der gesamten App gelten. Dieser erste Bereich ist keine Zertifizierung der App als barrierefrei.</Text>
+    </Card>
+    <Card><Text style={styles.cardTitle}>Gemeinsame Freizeit</Text>
+      <Text style={styles.sub}>Später können Veranstaltungen freiwillige Informationen zu Zugänglichkeit, Ruhezonen, Rollstuhlzugang und Unterstützungsangeboten enthalten. Diese Angaben sollen Veranstalter bereitstellen, ohne Gesundheitsdaten der Familien abzufragen.</Text>
+    </Card>
+  </ScrollView>;
+}
+
 function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked}) {
 const [query,setQuery]=useState('');
 const [interest,setInterest]=useState('Alle');
