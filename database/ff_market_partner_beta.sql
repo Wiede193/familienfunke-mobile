@@ -38,7 +38,7 @@ create table if not exists public.ff_market_listings (
  trade_type text not null default 'sell' check(trade_type in ('sell','gift','swap')),
  price_cents int not null default 0 check(price_cents between 0 and 10000000),
  region_label text not null default '' check(char_length(region_label)<=80),
- photo_path text check(photo_path is null or (char_length(photo_path)<=250 and photo_path ~ ('^[0-9a-f-]+/[0-9a-f-]+' || chr(92) || '.jpg
+ photo_path text check(photo_path is null or (char_length(photo_path)<=250 and photo_path ~ '^[0-9a-f-]+/[0-9a-f-]+[.]jpg)),
  moderation_status text not null default 'pending' check(moderation_status in ('pending','approved','rejected','removed','sold')),
  created_at timestamptz not null default now(),
  constraint ff_market_price_kind check (trade_type='sell' or price_cents=0)
@@ -102,6 +102,9 @@ create policy ff_market_photos_insert on storage.objects for insert to authentic
  bucket_id='ff-market-photos'
  and (storage.foldername(name))[1]=(select auth.uid())::text
  and private.is_active_adult((select auth.uid()))
+ and exists (select 1 from public.ff_market_listings l
+   where l.seller_id=(select auth.uid()) and l.moderation_status='pending'
+   and l.photo_path is null and name=(l.seller_id::text || '/' || l.id::text || '.jpg'))
 );
 create policy ff_market_photos_read on storage.objects for select to authenticated using (
  bucket_id='ff-market-photos' and (
@@ -113,7 +116,7 @@ create policy ff_market_photos_read on storage.objects for select to authenticat
  ))
  )
 );
-))),
+)),
  moderation_status text not null default 'pending' check(moderation_status in ('pending','approved','rejected','removed','sold')),
  created_at timestamptz not null default now(),
  constraint ff_market_price_kind check (trade_type='sell' or price_cents=0)
