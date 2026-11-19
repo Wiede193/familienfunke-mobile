@@ -4,13 +4,16 @@ on:
   push:
     branches:
       - design/profil-momente-benachrichtigungen
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   install-native:
-    if: ${{ github.event.head_commit.message == 'chore: Expo-Entwicklungsclient-Abhängigkeiten einmalig installieren' }}
+    if: ${{ (github.event_name == 'push' && github.event.head_commit.message == 'chore: Expo-Entwicklungsclient-Abhängigkeiten einmalig installieren') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'design/profil-momente-benachrichtigungen') }}
     runs-on: ubuntu-latest
     timeout-minutes: 18
     env:
@@ -28,18 +31,31 @@ jobs:
           node-version: "22"
           cache: npm
 
+      - name: Prüfen, ob Pakete schon im Manifest stehen
+        id: needed
+        run: |
+          if node -e "const p=require('./package.json');if(!['expo-dev-client','expo-notifications','expo-device','expo-constants'].every(n=>!!p.dependencies?.[n]))process.exit(1)"; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Vorhandene Abhängigkeiten installieren
+        if: steps.needed.outputs.needed == 'true'
         run: npm ci --no-audit --no-fund
 
       - name: SDK-kompatible Pakete installieren
+        if: steps.needed.outputs.needed == 'true'
         run: npx expo install expo-dev-client expo-notifications expo-device expo-constants
 
       - name: Lockdatei und Expo-Kompatibilität prüfen
+        if: steps.needed.outputs.needed == 'true'
         run: |
           npm ci --no-audit --no-fund
           npx expo install --check
 
       - name: Ausschließlich Paketliste und Lockdatei speichern
+        if: steps.needed.outputs.needed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
