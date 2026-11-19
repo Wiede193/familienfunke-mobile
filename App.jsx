@@ -14,6 +14,7 @@ import { BUNDESLAENDER, KREISE_NACH_LAND } from './data/regionen';
 import MomentViewer from './components/MomentViewer';
 import FamilyTabIcon from './components/FamilyTabIcon';
 import FamilyOutingIdeas from './components/FamilyOutingIdeas';
+import NearbySwipe from './components/NearbySwipe';
 import { computeActivity, isValidSeenState, markSeen, newSeenState, storageKey } from './lib/activityIndicators';
 import { matchingReasons, normalized, rankFamilyProfiles } from './lib/familyMatching';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
@@ -334,7 +335,7 @@ if(!reportTarget||reportDetails.trim().length<10)return setError('Bitte den Vorf
 const ok=await execute(async()=>assertResult(await supabase.from('reports').insert({reporter_id:me,subject_type:reportTarget.type,subject_id:reportTarget.id,details:reportDetails.trim()})),'Danke. Deine Meldung wurde gespeichert.');
 if(ok){setReportTarget(null);setReportDetails('');}
 }
-async function sendRequest(uid){await execute(async()=>assertResult(await supabase.from('contact_requests').insert({sender_id:me,recipient_id:uid})),'Kontaktanfrage verschickt.');}
+async function sendRequest(uid){return execute(async()=>assertResult(await supabase.from('contact_requests').insert({sender_id:me,recipient_id:uid})),'Kontaktanfrage verschickt.');}
 async function replyRequest(id,status){await execute(async()=>assertResult(await supabase.from('contact_requests').update({status}).eq('id',id)),'Kontaktanfrage aktualisiert.');}
 async function blockUser(uid){
 Alert.alert('Kontakt blockieren?','Die Person kann dir dann keine neuen Nachrichten schicken.',[
@@ -543,6 +544,7 @@ const [focus,setFocus]=useState('all');
 const [scope,setScope]=useState('passend');
 const [sameRegionOnly,setSameRegionOnly]=useState(false);
 const [sortBy,setSortBy]=useState('passung');
+const [discoverMode,setDiscoverMode]=useState('nearby');
 const ownInterests=Array.isArray(myProfile?.interests)?myProfile.interests:[];
 const hasRegion=!!normalized(myProfile?.region_label);
 const hasMatchingDetails=ownInterests.length>0||hasRegion;
@@ -561,6 +563,19 @@ const filtered=enriched.filter(p=>{
  ?String(a.display_name||'').localeCompare(String(b.display_name||''),'de')
  :b.score-a.score||String(a.display_name||'').localeCompare(String(b.display_name||''),'de'));
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+<View style={styles.matchScopeBar}>
+ <Pressable accessibilityRole="button" accessibilityState={{selected:discoverMode==='nearby'}}
+  onPress={()=>setDiscoverMode('nearby')} style={[styles.matchScopeButton,discoverMode==='nearby'&&styles.matchScopeSelected]}>
+  <Text style={[styles.matchScopeText,discoverMode==='nearby'&&styles.matchScopeTextSelected]}>⌖ In deiner Nähe</Text>
+ </Pressable>
+ <Pressable accessibilityRole="button" accessibilityState={{selected:discoverMode==='list'}}
+  onPress={()=>setDiscoverMode('list')} style={[styles.matchScopeButton,discoverMode==='list'&&styles.matchScopeSelected]}>
+  <Text style={[styles.matchScopeText,discoverMode==='list'&&styles.matchScopeTextSelected]}>Familienliste</Text>
+ </Pressable>
+</View>
+{discoverMode==='nearby'?<NearbySwipe
+  userId={me} active={active} profiles={matches} requests={requests}
+  imageFor={imageFor} onShowProfile={showFamily} onContact={onContact}/>:<>
 <View style={styles.hero}>
   <View style={styles.heroDecorationOne} pointerEvents="none"/>
   <View style={styles.heroDecorationTwo} pointerEvents="none"/>
@@ -645,6 +660,7 @@ filtered.map(p=>{
  </View>
 </Pressable>
 <Text style={[styles.micro,{marginTop:13,textAlign:'center'}]}>Keine GPS-Daten, keine geschätzten Entfernungen und keine künstlichen Übereinstimmungs-Prozentwerte.</Text>
+</>}
 </ScrollView>;
 }
 function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat,onPhotosViewed}){
