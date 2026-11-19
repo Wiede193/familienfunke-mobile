@@ -18,7 +18,33 @@ accent:'#087F87',accentDark:'#075D67',pale:'#FFF2DF',line:'#EFE1D3',
 coral:'#EE7867',coralDeep:'#B9474C',sunny:'#FFE3A0',
 lavender:'#F2EEFF',warning:'#FFF1D6',warningText:'#75521D',
 };
-const INTERESTS = ['Spielplatz','Natur','Radfahren','Wandern','Kochen','Musik','Basteln','Sport','Tiere','Lesen','Ausflüge','Spieleabende'];
+const INTEREST_GROUPS={
+ hobbys:[
+  ['Sport & Bewegung',['Sport','Schwimmen','Fußball','Radfahren','Wandern','Joggen','Fitness','Tanzen','Yoga','Klettern','Wintersport']],
+  ['Kreatives & Handgemachtes',['Basteln','Malen','Fotografie','Handarbeiten','Gärtnern','Backen','Kochen']],
+  ['Musik, Kultur & Zuhause',['Musik','Singen','Instrumente','Lesen','Brettspiele','Spieleabende','Tiere']]
+ ],
+ unterwegs:[
+  ['Natur & Draußen',['Natur','Spielplatz','Wald','Spaziergänge','Camping','Picknick','Garten','Fahrradtouren']],
+  ['Ausflüge & Entdecken',['Ausflüge','Zoo','Tierpark','Bauernhof','Museum','Bibliothek','Kino','Theater','Schwimmbad','Städtetrips']]
+ ],
+ treffen:[
+  ['So lernen wir andere Familien kennen',['Spielplatztreff','Eltern-Kind-Treff','Krabbelgruppe','Kaffee & Kuchen','Gemeinsam kochen','Gemeinsame Ausflüge','Familienfeste','Grillen']],
+  ['Wann passt es oft gut?',['Nachmittags','Wochenenden','Unter der Woche','Spontane Treffen']],
+  ['Welche Treffen mögen wir?',['Ruhige Treffen','Aktive Treffen','Draußen treffen','Kreative Treffen']]
+ ]
+};
+const INTERESTS=[...new Set(Object.values(INTEREST_GROUPS).flatMap(groups=>groups.flatMap(([,items])=>items)))];
+const PROFILE_MENUS=[
+ ['steckbrief','01','Steckbrief','Das seid ihr'],
+ ['hobbys','02','Hobbys','Was euch Spaß macht'],
+ ['unterwegs','03','Freizeit','Draußen & unterwegs'],
+ ['treffen','04','Treffideen','Gemeinsam statt allein'],
+ ['momente','05','Unsere Momente','Fotos & Geschichten'],
+ ['sichtbarkeit','06','Privatsphäre','Wer euch finden kann'],
+ ['konto','07','Konto & Hilfe','Sicherheit & Zugang']
+];
+
 const TABS = [['discover','Entdecken','⌕'],['contacts','Kontakte','♡'],['chat','Nachrichten','✉'],['events','Kalender','▦'],['profile','Profil','◉']];
 const blankProfile = {display_name:'',region_label:'',about:'',interests:[],is_discoverable:false};
 const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[]};
@@ -518,17 +544,21 @@ const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
 const [photoPickerBusy,setPhotoPickerBusy]=useState(false);
 const [newPassword,setNewPassword]=useState('');
-const [editing,setEditing]=useState(false);
-const [settingsOpen,setSettingsOpen]=useState(false);
+const [activeMenu,setActiveMenu]=useState('momente');
 const [addingMoment,setAddingMoment]=useState(false);
 const [viewingPhotoId,setViewingPhotoId]=useState(null);
 useEffect(()=>{if(profile)setForm({...blankProfile,...profile});},[profile?.updated_at,profile?.user_id]);
 async function submit(){
  if(form.display_name.trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
- const ok=await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});
- if(ok)setEditing(false);
+ await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});
 }
-function toggle(i){setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):f.interests.length>=12?f.interests:[...f.interests,i]}));}
+function toggle(i){
+ if(!form.interests?.includes(i)&&(form.interests||[]).length>=12){
+  Alert.alert('12 Interessen ausgewählt','Du kannst bis zu 12 Hobbys, Aktivitäten und Treffideen speichern. Entferne zuerst eine andere Auswahl.');
+  return;
+ }
+ setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):[...f.interests,i]}));
+}
 async function updatePassword(){if(newPassword.length<12)return Alert.alert('Passwort','Bitte mindestens 12 Zeichen verwenden.');const ok=await changePassword(newPassword);if(ok)setNewPassword('');}
 async function selectDraftPhoto(){
  if(busy||photoPickerBusy)return;
@@ -559,13 +589,19 @@ return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content
   </Row>
   <Text style={styles.profileAbout}>{profile?.about||'Erzählt anderen Familien etwas über euch und eure Lieblingsausflüge.'}</Text>
   <View style={styles.chipsRow}>{(profile?.interests||[]).slice(0,8).map(i=><Chip key={i} text={i}/>)}</View>
-  <Row style={{marginTop:19,alignItems:'stretch'}}>
-   <Button title={editing?'✕ Schließen':'✎ Bearbeiten'} mode="outline" small style={{flex:1}} onPress={()=>{setEditing(v=>!v);setSettingsOpen(false);}}/>
-   <Button title={settingsOpen?'✕ Schließen':'⚙ Einstellungen'} mode="ghost" small style={{flex:1}} onPress={()=>{setSettingsOpen(v=>!v);setEditing(false);}}/>
-  </Row>
+  <Text style={[styles.micro,{marginTop:16,color:'#8B6327'}]}>Euer Familienprofil: {(profile?.interests||[]).length} Interessen · {photos.length} Momente</Text>
  </View>
  {!active?<Info warning>Angaben und Bilder sind erst nach Freigabe für andere Familien sichtbar.</Info>:null}
- {!editing&&!settingsOpen?<Card style={{marginTop:18}}>
+ <Text style={[styles.sectionTitle,{marginTop:22,marginBottom:7}]}>Dein Familienbereich</Text>
+ <Text style={[styles.sub,{marginTop:0,marginBottom:15}]}>Wähle aus, was du ergänzen oder einstellen möchtest.</Text>
+ <View style={styles.profileMenuGrid}>{PROFILE_MENUS.map(([id,number,title,subtitle])=><Pressable key={id}
+  accessibilityRole="button" accessibilityLabel={title} accessibilityState={{selected:activeMenu===id}}
+  onPress={()=>setActiveMenu(id)} style={({pressed})=>[styles.profileMenuTile,activeMenu===id&&styles.profileMenuTileActive,pressed&&{opacity:.8}]}>
+   <Text style={styles.profileMenuNumber}>{number}</Text>
+   <Text style={styles.profileMenuTitle}>{title}</Text>
+   <Text style={styles.profileMenuSubtitle}>{subtitle}</Text>
+  </Pressable>)}</View>
+ {activeMenu==='momente'?<Card style={{marginTop:18}}>
   <Row style={{alignItems:'flex-start',justifyContent:'space-between'}}>
    <View style={{flex:1}}>
     <Text style={styles.sectionTitle}>☀ Unsere Momente</Text>
@@ -598,29 +634,65 @@ return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content
    <Button title="Foto löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
   </View>)}</View>}
  </Card>:null}
- {editing?<Card style={{marginTop:16}}>
-  <Text style={styles.sectionTitle}>✎ Familienprofil bearbeiten</Text>
-  <Text style={[styles.sub,{marginTop:-7,marginBottom:16}]}>Hier kannst du eure Angaben und Interessen ändern.</Text>
-  <Input label="Anzeigename" value={form.display_name} onChangeText={x=>setForm(p=>({...p,display_name:x}))} maxLength={60}/>
-  <Input label="Stadt / grobe Region" value={form.region_label} onChangeText={x=>setForm(p=>({...p,region_label:x}))} maxLength={80} placeholder="Keine Wohnadresse"/>
-  <Input label="Über uns" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Was macht ihr gern?"/>
-  <Text style={styles.label}>Interessen (bis zu 12)</Text>
-  <View style={[styles.chipsRow,{marginBottom:15}]}>{INTERESTS.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
-  <Row style={{marginBottom:20,justifyContent:'space-between'}}>
-   <View style={{flex:1}}><Text style={styles.label}>In der Familiensuche sichtbar</Text><Text style={styles.micro}>Erst nach Profilfreigabe sichtbar</Text></View>
+
+ {activeMenu==='steckbrief'?<Card style={{marginTop:17}}>
+  <Text style={styles.sectionTitle}>✎ Euer Familien-Steckbrief</Text>
+  <Text style={[styles.sub,{marginTop:-8,marginBottom:17}]}>Eine persönliche Vorstellung, ohne private Namen oder genaue Anschrift der Kinder preiszugeben.</Text>
+  <Input label="Familienname / Anzeigename" value={form.display_name} onChangeText={x=>setForm(p=>({...p,display_name:x}))} maxLength={60} placeholder="Wie sollen andere euch nennen?"/>
+  <Input label="Stadt / grobe Region" value={form.region_label} onChangeText={x=>setForm(p=>({...p,region_label:x}))} maxLength={80} placeholder="Bitte keine Wohnadresse eintragen"/>
+  <Input label="Das macht uns als Familie aus" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Wie verbringt ihr eure Freizeit? Was ist euch wichtig? Welche Begegnungen wünscht ihr euch?"/>
+  <Text style={[styles.micro,{marginBottom:16}]}>Noch {Math.max(0,500-(form.about||'').length)} Zeichen verfügbar. Diese Beschreibung kann in freigegebenen Familienprofilen angezeigt werden.</Text>
+  <Button title={busy?'Wird gespeichert …':'Steckbrief speichern'} disabled={busy} onPress={submit}/>
+ </Card>:null}
+ {['hobbys','unterwegs','treffen'].includes(activeMenu)?<Card style={{marginTop:17}}>
+  <Text style={styles.sectionTitle}>{activeMenu==='hobbys'?'♫ Hobbys & Interessen':activeMenu==='unterwegs'?'☀ Freizeit & Ausflüge':'♡ Treffen & Familienalltag'}</Text>
+  <Text style={[styles.sub,{marginTop:-7,marginBottom:14}]}>Wähle, was zu euch passt. Alle drei Bereiche teilen sich dieselben 12 Interessen für eure Familiensuche.</Text>
+  <View style={styles.profileInterestCount}><Text style={styles.profileInterestCountText}>{(form.interests||[]).length} von 12 ausgewählt</Text></View>
+  {(INTEREST_GROUPS[activeMenu]||[]).map(([heading,items])=><View key={heading} style={{marginBottom:17}}>
+   <Text style={styles.label}>{heading}</Text>
+   <View style={[styles.chipsRow,{marginTop:3}]}>{items.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
+  </View>)}
+  {(form.interests||[]).length>0?<View style={styles.profileSelectedInterests}>
+   <Text style={styles.label}>Eure bisherige Auswahl – zum Entfernen antippen</Text>
+   <View style={[styles.chipsRow,{marginTop:3,marginBottom:6}]}>{form.interests.map(i=><Chip key={i} text={i} selected onPress={()=>toggle(i)}/>)}</View>
+  </View>:null}
+  <Button title={busy?'Wird gespeichert …':'Interessen speichern'} disabled={busy} onPress={submit}/>
+ </Card>:null}
+ {activeMenu==='sichtbarkeit'?<Card style={{marginTop:17}}>
+  <Text style={styles.sectionTitle}>♡ Sichtbarkeit & Privatsphäre</Text>
+  <Text style={[styles.sub,{marginTop:-8,marginBottom:17}]}>Ihr entscheidet, ob eure Familie in der Suche vorgeschlagen wird.</Text>
+  <Row style={{alignItems:'center',justifyContent:'space-between',marginBottom:17}}>
+   <View style={{flex:1}}><Text style={styles.label}>In der Familiensuche erscheinen</Text>
+    <Text style={styles.micro}>Nur wenn euer Profil freigegeben ist und ihr sichtbar sein möchtet.</Text></View>
    <Switch value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/>
   </Row>
-  <Button title={busy?'Bitte warten …':'Änderungen speichern'} disabled={busy} onPress={submit}/>
+  <View style={styles.profilePrivacyNote}>
+   <Text style={styles.label}>Was sehen andere Familien?</Text>
+   <Text style={styles.body}>Familienname, grobe Region, euer Beschreibungstext und ausgewählte Interessen können im freigegebenen Profil sichtbar sein.</Text>
+   <Text style={[styles.body,{marginTop:9}]}>Freigegebene Familienfotos zeigen wir in der App nur bestätigten Kontakten. Bitte in der Beta keine Kinderfotos einstellen.</Text>
+   <Text style={[styles.micro,{marginTop:11}]}>Das Ausschalten der Suche ersetzt kein Löschen des Profils. Die tatsächlichen Zugriffsmöglichkeiten müssen zusätzlich serverseitig geschützt sein.</Text>
+  </View>
+  <Button title={busy?'Wird gespeichert …':'Sichtbarkeit speichern'} disabled={busy} onPress={submit}/>
  </Card>:null}
- {settingsOpen?<Card style={{marginTop:16}}>
-  <Text style={styles.sectionTitle}>⚙ Sicherheit und Einstellungen</Text>
-  <Text style={[styles.micro,{marginBottom:12}]}>Mitgliedschaft: {membership?.status||'–'} · Verifizierung: {verification?.status||'–'}</Text>
+ {activeMenu==='konto'?<Card style={{marginTop:17}}>
+  <Text style={styles.sectionTitle}>⚙ Konto, Sicherheit & Hilfe</Text>
+  <Text style={[styles.micro,{marginTop:-7,marginBottom:17}]}>Mitgliedschaft: {membership?.status||'–'} · Verifizierung: {verification?.status||'–'}</Text>
+  <Text style={styles.label}>Informationen & Hilfen</Text>
   <Button title="Familien-Kompass öffnen" mode="outline" onPress={openInfo}/>
-  <Text style={[styles.label,{marginTop:18}]}>Passwort ändern</Text>
-  <Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none"/>
-  <Button title="Passwort ändern" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
-  {blocks.length>0?<View style={{marginTop:18}}><Text style={styles.label}>Blockierte Konten</Text>{blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}><Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text><Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/></Row>)}</View>:null}
-  <View style={{height:16}}/><Button title="Abmelden" mode="ghost" onPress={signOut}/>
+  <View style={styles.profileSettingsDivider}/>
+  <Text style={styles.label}>Passwort ändern</Text>
+  <Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none" autoCorrect={false}/>
+  <Button title="Passwort aktualisieren" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
+  {blocks.length>0?<View style={{marginTop:21}}>
+   <Text style={styles.label}>Blockierte Konten</Text>
+   {blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}>
+    <Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text>
+    <Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/>
+   </Row>)}
+  </View>:null}
+  <View style={styles.profileSettingsDivider}/>
+  <Text style={[styles.micro,{marginBottom:11}]}>Melde dich nur ab, wenn du dein Konto verlassen möchtest. Deine gespeicherten Profilangaben bleiben bestehen.</Text>
+  <Button title="Abmelden" mode="ghost" onPress={signOut}/>
  </Card>:null}
 </ScrollView>
 <MomentViewer photos={photos} urls={photosUrls} activeId={viewingPhotoId} onSelect={setViewingPhotoId}
@@ -836,6 +908,17 @@ momentPreviewPressable:{position:'relative'},
 momentZoomBadge:{position:'absolute',bottom:7,right:7,backgroundColor:'rgba(18,55,62,.88)',borderRadius:11,paddingHorizontal:9,paddingVertical:5},
 momentZoomText:{color:'#FFFFFF',fontSize:10,fontWeight:'800'},
 momentCaption:{fontSize:13,fontWeight:'800',color:C.ink,lineHeight:19},
+profileMenuGrid:{flexDirection:'row',flexWrap:'wrap',gap:10,justifyContent:'space-between'},
+profileMenuTile:{width:'48%',backgroundColor:C.white,borderColor:C.line,borderWidth:1.5,borderRadius:19,paddingHorizontal:14,paddingVertical:15,minHeight:101,justifyContent:'center'},
+profileMenuTileActive:{backgroundColor:'#FFF1D5',borderColor:'#E7B96D'},
+profileMenuNumber:{color:'#B47E34',fontSize:11,fontWeight:'900',letterSpacing:1.2,marginBottom:8},
+profileMenuTitle:{color:C.ink,fontSize:15.5,fontWeight:'900',lineHeight:21},
+profileMenuSubtitle:{color:C.muted,fontSize:11.5,lineHeight:16,marginTop:3},
+profileInterestCount:{alignSelf:'flex-start',backgroundColor:'#FFF0D3',paddingHorizontal:12,paddingVertical:7,borderRadius:14,marginBottom:18},
+profileInterestCountText:{fontSize:12,color:'#855D26',fontWeight:'900'},
+profileSelectedInterests:{backgroundColor:'#FFF9F0',borderRadius:16,padding:13,marginTop:4,marginBottom:18,borderColor:C.line,borderWidth:1},
+profilePrivacyNote:{padding:15,borderRadius:17,backgroundColor:'#FFF5E6',marginBottom:19},
+profileSettingsDivider:{height:1,backgroundColor:C.line,marginVertical:23},
 kompassDiscoverCallout:{backgroundColor:'#FFF0D3',borderColor:'#EED19A',borderWidth:1,borderRadius:21,padding:17},
 kompassCalloutEyebrow:{fontSize:10.5,fontWeight:'900',color:'#A06A2B',letterSpacing:.8,marginBottom:8},
 kompassCalloutTitle:{fontSize:17,fontWeight:'900',color:C.ink},
