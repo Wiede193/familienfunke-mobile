@@ -21,6 +21,18 @@
     "production": {
       "autoIncrement": true,
       "environment": "production"
+    },
+    "development-ios": {
+      "extends": "development",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "development-android": {
+      "extends": "development",
+      "android": {
+        "buildType": "apk"
+      }
     }
   }
 }
