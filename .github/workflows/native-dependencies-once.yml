@@ -1,0 +1,48 @@
+name: Native Expo-Abhängigkeiten einmalig synchronisieren
+
+on:
+  push:
+    branches:
+      - design/profil-momente-benachrichtigungen
+
+permissions:
+  contents: write
+
+jobs:
+  install-native:
+    if: ${{ github.event.head_commit.message == 'chore: Expo-Entwicklungsclient-Abhängigkeiten einmalig installieren' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+    steps:
+      - name: Entwicklungsbranch laden
+        uses: actions/checkout@v4
+        with:
+          ref: design/profil-momente-benachrichtigungen
+
+      - name: Node.js 22 laden
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Vorhandene Abhängigkeiten installieren
+        run: npm ci --no-audit --no-fund
+
+      - name: SDK-kompatible Pakete installieren
+        run: npx expo install expo-dev-client expo-notifications expo-device expo-constants
+
+      - name: Lockdatei und Expo-Kompatibilität prüfen
+        run: |
+          npm ci --no-audit --no-fund
+          npx expo install --check
+
+      - name: Ausschließlich Paketliste und Lockdatei speichern
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git diff --cached --quiet || git commit -m "fix: SDK-kompatibler Expo-Entwicklungsclient und Push-Bibliotheken"
+          git push origin HEAD:design/profil-momente-benachrichtigungen
