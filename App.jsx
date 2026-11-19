@@ -13,6 +13,7 @@ import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { BUNDESLAENDER, KREISE_NACH_LAND } from './data/regionen';
 import MomentViewer from './components/MomentViewer';
 import FamilyTabIcon from './components/FamilyTabIcon';
+import FamilyOutingIdeas from './components/FamilyOutingIdeas';
 import { computeActivity, isValidSeenState, markSeen, newSeenState, storageKey } from './lib/activityIndicators';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
@@ -382,7 +383,7 @@ onChat={openChat} onShowFamily={setDetailFamily} newPhotoCount={freshPhotoCount}
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
 onChat={openChat} messages={db.messages} chatCounts={activities.chatCounts}/>:
 tab==='events'?<EventsScreen events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
-profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
+profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm} initialRegion={myProfile?.region_label||''}
 createEvent={(event)=>execute(async()=>{
   await moderateTextOrThrow([event.title,event.description,event.region_label]);
   assertResult(await supabase.from('events').insert({organizer_id:me,...event}));
@@ -603,9 +604,22 @@ placeholderTextColor="#9AAFB4" style={[styles.input,{flex:1,maxHeight:100,margin
 </>}
 </View>;
 }
-function EventsScreen({events,eventRequests,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
+function EventsScreen({events,eventRequests,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent,initialRegion=''}){
 const [title,setTitle]=useState('');const [description,setDescription]=useState('');const [region,setRegion]=useState('');
 const [date,setDate]=useState('');const [time,setTime]=useState('15:00');const [count,setCount]=useState('10');const [visibility,setVisibility]=useState('community');
+const [section,setSection]=useState('kalender');
+const eventsScroll=useRef(null);
+function planIdea(idea,place){
+ if(!idea)return;
+ setTitle((idea.title+' – Familientreffen').slice(0,100));
+ setDescription(('Gemeinsam '+idea.description+'\n\nBitte Treffpunkt, Uhrzeit und alle Details erst gemeinsam abstimmen.').slice(0,1000));
+ setRegion(place.slice(0,80));
+ setDate('');
+ setShowForm(true);
+ setSection('kalender');
+ requestAnimationFrame(()=>eventsScroll.current?.scrollTo({y:0,animated:true}));
+ if(!active)Alert.alert('Profilfreigabe erforderlich','Du kannst den Termin vorbereiten, aber erst nach der Profilfreigabe einreichen.');
+}
 const names=(uid)=>profiles.find(p=>p.user_id===uid)?.display_name||'Familie';
 async function submit(){
 if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time))return Alert.alert('Termin prüfen','Bitte Datum als JJJJ-MM-TT und Zeit als HH:MM eingeben.');
@@ -615,8 +629,20 @@ const ok=await createEvent({title:safeString(title,100),description:safeString(d
 if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');}
 }
 const upcoming=events.filter(e=>new Date(e.ends_at)>new Date());
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-<H sub="Gemeinsame Aktivitäten statt öffentlicher Diskussionen.">Familienkalender</H>
+return <ScrollView ref={eventsScroll} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+<H sub="Gemeinsam etwas unternehmen und neue Familien kennenlernen.">Familienkalender</H>
+<View style={styles.outingSectionBar}>
+  <Pressable accessibilityRole="button" accessibilityState={{selected:section==='kalender'}}
+    onPress={()=>setSection('kalender')} style={[styles.outingSectionButton,section==='kalender'&&styles.outingSectionButtonActive]}>
+    <Text style={[styles.outingSectionText,section==='kalender'&&styles.outingSectionTextActive]}>Gemeinsame Treffen</Text>
+  </Pressable>
+  <Pressable accessibilityRole="button" accessibilityState={{selected:section==='ideen'}}
+    onPress={()=>setSection('ideen')} style={[styles.outingSectionButton,section==='ideen'&&styles.outingSectionButtonActive]}>
+    <Text style={[styles.outingSectionText,section==='ideen'&&styles.outingSectionTextActive]}>Ausflugsideen</Text>
+  </Pressable>
+</View>
+{section==='ideen'?<FamilyOutingIdeas initialRegion={initialRegion} onPlan={planIdea}/>:<>
+<Text style={[styles.micro,{marginBottom:15}]}>Termine werden vor ihrer Veröffentlichung geprüft. Öffentliche Privatadressen bitte vermeiden.</Text>
 <Button title={showForm?'Formular schließen':'＋ Aktivität erstellen'} disabled={!active} onPress={()=>setShowForm(!showForm)}/>
 {showForm?<Card style={{marginTop:14}}>
 <Text style={styles.cardTitle}>Neue Aktivität</Text><Text style={[styles.sub,{marginBottom:15}]}>Vor Veröffentlichung wird der Termin geprüft. Bitte keine Privatadressen veröffentlichen.</Text>
@@ -627,7 +653,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Input label="Uhrzeit (HH:MM)" placeholder="15:00" value={time} onChangeText={setTime}/>
 <Input label="Maximale Personen (2–50)" value={count} onChangeText={setCount} keyboardType="number-pad"/>
 <Text style={styles.label}>Wer soll den Termin sehen?</Text><Row style={{marginBottom:15}}><Chip text="Alle geprüften Familien" selected={visibility==='community'} onPress={()=>setVisibility('community')}/><Chip text="Nur Kontakte" selected={visibility==='contacts'} onPress={()=>setVisibility('contacts')}/></Row>
-<Button title="Zur Freigabe einreichen" disabled={busy} onPress={submit}/>
+<Button title="Zur Freigabe einreichen" disabled={busy||!active} onPress={submit}/>
 </Card>:null}
 <Text style={[styles.sectionTitle,{marginTop:22}]}>Anstehende Treffen</Text>
 {upcoming.length===0?<Blank title="Noch keine Treffen" body="Neue Aktivitäten erscheinen hier nach Freigabe."/>:upcoming.map(e=>{
@@ -644,6 +670,7 @@ request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request
 {!self?<Pressable onPress={()=>reportEvent(e.id)} style={{marginTop:12}}><Text style={styles.micro}>⚑ Veranstaltung melden</Text></Pressable>:null}
 </Card>;
 })}
+</>}
 </ScrollView>;
 }
 function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
@@ -1035,6 +1062,11 @@ momentPreviewPressable:{position:'relative'},
 momentZoomBadge:{position:'absolute',bottom:7,right:7,backgroundColor:'rgba(18,55,62,.88)',borderRadius:11,paddingHorizontal:9,paddingVertical:5},
 momentZoomText:{color:'#FFFFFF',fontSize:10,fontWeight:'800'},
 momentCaption:{fontSize:13,fontWeight:'800',color:C.ink,lineHeight:19},
+outingSectionBar:{flexDirection:'row',padding:5,borderRadius:18,backgroundColor:'#FFF0D5',gap:5,marginBottom:20},
+outingSectionButton:{flex:1,minHeight:45,borderRadius:14,justifyContent:'center',alignItems:'center',paddingHorizontal:6},
+outingSectionButtonActive:{backgroundColor:'#FFFFFF',borderColor:'#E9D4B6',borderWidth:1},
+outingSectionText:{color:'#71807A',fontSize:12.5,fontWeight:'800',textAlign:'center'},
+outingSectionTextActive:{color:C.accentDark,fontWeight:'900'},
 profileMenuGrid:{flexDirection:'row',flexWrap:'wrap',gap:10,justifyContent:'space-between'},
 profileMenuTile:{width:'48%',backgroundColor:C.white,borderColor:C.line,borderWidth:1.5,borderRadius:19,paddingHorizontal:14,paddingVertical:15,minHeight:101,justifyContent:'center'},
 profileMenuTileActive:{backgroundColor:'#FFF1D5',borderColor:'#E7B96D'},
