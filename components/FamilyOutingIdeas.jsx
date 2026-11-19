@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import OderSpreePlaces from './OderSpreePlaces';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 // Redaktionelle Ausflugsideen, KEINE automatisch verifizierten Orte, Preise,
@@ -29,7 +30,8 @@ function FilterPill({label,selected,onPress}){
  </Pressable>;
 }
 
-export default function FamilyOutingIdeas({initialRegion='',onPlan}){
+export default function FamilyOutingIdeas({initialRegion='',onPlan,userId}){
+ const [guide,setGuide]=useState('regional');
  const [age,setAge]=useState('Alle');
  const [kind,setKind]=useState('Alle');
  const [cost,setCost]=useState('Alle');
@@ -46,6 +48,17 @@ export default function FamilyOutingIdeas({initialRegion='',onPlan}){
   Linking.openURL(url).catch(()=>Alert.alert('Karte nicht geöffnet','Die externe Kartensuche konnte nicht gestartet werden.'));
  }
  return <View style={styles.root}>
+  <View style={styles.guideTabs}>
+   <Pressable accessibilityRole="button" accessibilityState={{selected:guide==='regional'}}
+    onPress={()=>setGuide('regional')} style={[styles.guideTab,guide==='regional'&&styles.guideTabSelected]}>
+    <Text style={[styles.guideTabText,guide==='regional'&&styles.guideTabTextSelected]}>Orte in Oder-Spree</Text>
+   </Pressable>
+   <Pressable accessibilityRole="button" accessibilityState={{selected:guide==='general'}}
+    onPress={()=>setGuide('general')} style={[styles.guideTab,guide==='general'&&styles.guideTabSelected]}>
+    <Text style={[styles.guideTabText,guide==='general'&&styles.guideTabTextSelected]}>Ideen überall</Text>
+   </Pressable>
+  </View>
+  {guide==='regional'?<OderSpreePlaces userId={userId} onPlan={onPlan}/>:<>
   <View style={styles.hero}>
    <View pointerEvents="none" style={styles.sun}/>
    <Text style={styles.kicker}>FAMILIENFUNKE · GEMEINSAM RAUS</Text>
@@ -94,10 +107,16 @@ export default function FamilyOutingIdeas({initialRegion='',onPlan}){
    </View>
   </View>)}
   <Text style={styles.disclaimer}>Das sind allgemeine Freizeitideen, keine überprüften konkreten Ausflugsziele. Eintritt, Öffnungszeiten, Eignung und Zugänglichkeit bitte beim jeweiligen Anbieter prüfen. Persönliche Adressen gehören nicht in öffentliche Termine.</Text>
+  </>}
  </View>;
 }
 
 const styles=StyleSheet.create({
+ guideTabs:{flexDirection:'row',gap:5,backgroundColor:'#FFF0D3',padding:5,borderRadius:17,marginBottom:17},
+ guideTab:{flex:1,minHeight:43,paddingHorizontal:6,alignItems:'center',justifyContent:'center',borderRadius:13},
+ guideTabSelected:{backgroundColor:'#FFFFFF',borderWidth:1,borderColor:'#EFD5AA'},
+ guideTabText:{fontSize:12.5,fontWeight:'800',color:'#718180'},
+ guideTabTextSelected:{color:'#075D67'},
  root:{gap:0,paddingBottom:13},
  hero:{backgroundColor:'#FFF0D3',borderRadius:24,padding:21,overflow:'hidden',borderWidth:1,borderColor:'#F2D7A3',marginBottom:24},
  sun:{position:'absolute',right:-58,top:-92,width:170,height:170,borderRadius:85,backgroundColor:'#FFD98E'},
