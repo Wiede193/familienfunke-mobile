@@ -1,5 +1,5 @@
-import React from 'react';
-import {Modal, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import React, {useEffect, useRef} from 'react';
+import {AccessibilityInfo, Modal, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 
 const P={
   ink:'#193C48',muted:'#607984',white:'#FFFFFF',
@@ -14,6 +14,26 @@ const highlights=[
 ];
 
 export default function WelcomeIntro({visible,onClose}){
+  // Beim automatischen Schließen dieselbe Funktion wie beim manuellen Schließen
+  // aufrufen: so wird die Begrüßung je Konto als gesehen gespeichert.
+  const onCloseRef=useRef(onClose);
+  onCloseRef.current=onClose;
+  useEffect(()=>{
+    if(!visible)return;
+    let cancelled=false;
+    let timer;
+    // Ein laufender Screenreader soll die Begrüßung ohne Zeitdruck vorlesen können.
+    AccessibilityInfo.isScreenReaderEnabled()
+      .then(enabled=>{
+        if(!cancelled&&!enabled){
+          timer=setTimeout(()=>onCloseRef.current?.(),15000);
+        }
+      })
+      .catch(()=>{
+        if(!cancelled)timer=setTimeout(()=>onCloseRef.current?.(),15000);
+      });
+    return ()=>{cancelled=true;if(timer)clearTimeout(timer);};
+  },[visible]);
   return <Modal visible={!!visible} transparent animationType="fade" onRequestClose={onClose}
     statusBarTranslucent accessibilityViewIsModal>
     <View style={styles.overlay}>
@@ -45,7 +65,7 @@ export default function WelcomeIntro({visible,onClose}){
             onPress={onClose} style={({pressed})=>[styles.button,pressed&&{opacity:0.84}]}>
             <Text style={styles.buttonText}>Familienfunke entdecken  ♥</Text>
           </Pressable>
-          <Text style={styles.footer}>Du findest diese Begrüßung jederzeit unter „Mehr“ wieder.</Text>
+          <Text style={styles.footer}>Schließt sich nach 15 Sekunden automatisch. Du findest die Begrüßung jederzeit unter „Mehr“ wieder.</Text>
         </ScrollView>
       </View>
     </View>
