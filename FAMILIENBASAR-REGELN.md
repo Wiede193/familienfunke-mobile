@@ -23,9 +23,27 @@ Die Liste ist nicht abschließend. Rechtliche Regeln und produktspezifische Sich
 ## Moderation
 1. Neue Inserate werden grundsätzlich zunächst als **pending** gespeichert. Bis zum erfolgreichen Review sind sie für andere Familien unsichtbar.
 2. Der Server prüft Besitzberechtigung/Anmeldestatus, Angebotsdaten, Text und – falls vorhanden – das private hochgeladene JPEG-Foto. Ein klientseitiger Check ist niemals die einzige Sicherheitsgrenze.
-3. Der kostenlose OpenAI-Moderationsendpunkt überprüft schädliche Texte und Bilder. Zusätzlich prüft eine serverseitige Liste häufige verbotene Angebote im Kontext.
-4. Nur eindeutige, technisch erfolgreich geprüfte Inhalte können automatisch freigegeben werden. Bei verdächtigen Begriffen, fehlgeschlagenen Prüfungen oder unsicheren Fällen bleibt das Inserat gesperrt und wartet auf menschliche Sichtung. Es findet **keine** automatische Ablehnung wegen eines einzelnen Schlagworts statt.
-5. Die Moderations-API ist kein vollständiger Produktklassifikator: Ein harmlos betiteltes Inserat mit einer unerlaubten Ware auf dem Foto kann durchrutschen. Meldefunktionen, menschliche Nachprüfung und spätere, gesondert bewertete Bild-Objektklassifikation bleiben erforderlich. Vor öffentlichem Rollout sollte der gesamte Freigabefluss mit realen Testkonten geprüft werden.
+3. Der kostenlose OpenAI-Moderationsendpunkt überprüft schädliche Texte und Bilder. Zusätzlich bewertet ein kontextbewusstes KI-Modell den tatsächlich angebotenen Gegenstand anhand von Titel, Beschreibung und Foto gemeinsam – ausdrücklich ohne alleinige Ablehnung aufgrund eines Schlüsselworts.
+4. Nur eindeutige, technisch erfolgreich geprüfte Inhalte können automatisch freigegeben werden. Klare Verstöße wie echte Tierangebote werden abgelehnt. Bei auffälligen Moderationsergebnissen, fehlgeschlagenen Prüfungen oder zweifelhaften Fällen bleibt das Inserat gesperrt und wartet auf menschliche Sichtung. **Spielzeugpistolen, Kuscheltiere und Tierzubehör dürfen nicht wegen eines einzelnen Wortes scheitern.**
+5. Auch die kombinierte Text-/Bild-Klassifikation ist nicht fehlerfrei: Ein irreführendes Bild oder zweideutige Beschreibung können durchrutschen oder zu einer falschen Bewertung führen. Meldungen, menschliche Nachprüfung und regelmäßige Tests bleiben erforderlich. Vor öffentlichem Rollout sollte der gesamte Freigabefluss mit realen Testkonten geprüft werden.
 6. Alle Freigaben müssen serverseitig gegen nachträgliches Ändern bereits geprüfter Daten abgesichert werden; eine aktuell schwebende Prüfung darf kein geändertetes Inserat freigeben.
 
 **Maßgebliche Referenz für den Umfang, nicht zur wörtlichen Übernahme:** https://themen.kleinanzeigen.de/policy/
+
+## Gezielte Prüffälle für die neue Kontext-KI
+| Inserat | Soll-Ergebnis |
+|---|---|
+| „Schaf Lena“ – weiches Kuscheltier mit Foto | automatisch freigeben |
+| Bunte Plastik-Spielzeugpistole im Kinderzimmer | automatisch freigeben |
+| Kinderdecke mit Hundemotiv | automatisch freigeben |
+| Hundeleine ohne Tierangebot | automatisch freigeben |
+| „Welpe in gute Hände“ oder „Katze zu verschenken“ | ablehnen |
+| Schildkröte gegen Schutzgebühr | ablehnen |
+| Echte Schusswaffe oder scharfe Munition | ablehnen |
+| Täuschend echt aussehende Spielzeugwaffe | zur manuellen Prüfung |
+| Foto zeigt echtes Tier, Titel behauptet „Stofftier“ | ablehnen oder zurückhalten |
+| Medikamente, Alkohol, Tabak, Drogen | ablehnen |
+| Fehlender KI-Dienst, unlesbares Foto oder laufende Änderung | niemals automatisch freigeben |
+| Unberechtigter Nutzer ruft fremde Inserat-ID auf | keine Freigabe |
+
+Das sind **Soll-Ergebnisse**, keine bereits durchgeführten Live-Tests. Ein End-to-End-Test mit authentifizierten Familienkonten steht noch aus.

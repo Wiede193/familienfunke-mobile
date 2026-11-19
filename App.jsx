@@ -351,7 +351,8 @@ showInfo?<InfoScreen/>:
 tab==='market'?<MarketScreen listings={db.listings} me={me} active={active} busy={busy}
 organizations={db.organizations} photoUrls={marketPhotoUrls} contacts={db.contacts}
 createListing={(v,asset)=>execute(async()=>{
- await moderateTextOrThrow([v.title,v.description,v.region_label]);
+ // Basar-Texte nicht wegen einzelner Wörter vorab blockieren.
+ // Die verpflichtende Inhalts- und Produktprüfung findet auf dem Server statt.
  const {data:inserted,error:insertError}=await supabase.from('ff_market_listings').insert({...v,seller_id:me}).select('id').single();
  if(insertError)throw insertError;
  if(asset){
@@ -364,6 +365,10 @@ createListing={(v,asset)=>execute(async()=>{
  const {data:review,error:reviewError}=await supabase.functions.invoke('ff-market-review',{body:{listing_id:inserted.id}});
  if(!reviewError&&review?.status==='approved'){
    setNotice('Dein Inserat wurde automatisch geprüft und veröffentlicht.');
+ }else if(!reviewError&&review?.status==='rejected'){
+   setNotice(review.reason==='live_animal'?
+     'Lebende Tiere dürfen bei Familienfunke nicht angeboten oder vermittelt werden. Das Inserat wurde abgelehnt.':
+     'Das angebotene Produkt ist im Familienbasar nicht erlaubt. Das Inserat wurde nicht veröffentlicht.');
  }else{
    setNotice('Dein Inserat wurde gespeichert und bleibt bis zur Freigabe in Prüfung.');
  }
@@ -373,6 +378,8 @@ uploadPendingPhoto={(listingId,asset)=>execute(async()=>{
  const {data:review,error:reviewError}=await supabase.functions.invoke('ff-market-review',{body:{listing_id:listingId}});
  if(!reviewError&&review?.status==='approved'){
    setNotice('Foto und Inserat geprüft. Dein Angebot ist jetzt sichtbar.');
+ }else if(!reviewError&&review?.status==='rejected'){
+   setNotice('Das Angebot verstößt gegen die Familienbasar-Regeln und wurde nicht veröffentlicht.');
  }else{
    setNotice('Das Foto wurde gespeichert. Das Inserat bleibt bis zur Freigabe in Prüfung.');
  }
@@ -637,7 +644,7 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
         <Button title={photo?'✓ Foto ausgewählt – ändern':'＋ Artikelfoto auswählen'} mode="outline" disabled={choosing||busy}
           onPress={()=>pick(setPhoto)}/>
         {photo?<Image source={{uri:photo.uri}} style={[styles.photoDraftPreview,{marginTop:10}]} resizeMode="contain"/>:null}
-        <Text style={[styles.micro,{marginTop:8}]}>Ein Foto pro Inserat ist in dieser Beta möglich.</Text>
+        <Text style={[styles.micro,{marginTop:8}]}>Ein Foto pro Inserat ist möglich.</Text>
       </View>
       <Input label="Anzeigentitel" value={title} onChangeText={setTitle} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
       <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={setCategory} options={MARKET_CATEGORIES}/>
@@ -658,7 +665,7 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
         <Chip text="Privat" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
       </View></>:null}
-      <Info>Nur familiengeeignete Gegenstände. Nicht erlaubt sind unter anderem Waffen, Drogen, Alkohol, Tabak, Arzneimittel, 18+-Waren, lebende Tiere, Fälschungen, gefährliche Stoffe und reine Werbung. Die Anzeige ist erst nach Prüfung sichtbar.</Info>
+      <Info>Erlaubt sind auch Kuscheltiere, Tierfiguren und eindeutig harmloses Kinderspielzeug. Echte Tiere sind bei uns ausnahmslos verboten – ebenso Waffen, Drogen, Medikamente, 18+-Waren und andere gefährliche oder illegale Artikel. Die Anzeige erscheint erst nach Prüfung.</Info>
       <Button title={busy?'Wird gespeichert …':'Anzeige kostenlos einreichen'} disabled={busy||choosing||!active} onPress={submit}/>
     </Card>:null}
     {selected?<View>
