@@ -1,0 +1,19 @@
+# Abhängigkeiten und generierte Dateien
+node_modules/
+.expo/
+dist/
+web-build/
+android/
+ios/
+*.log
+npm-debug.log*
+
+# Persönliche Konfiguration niemals veröffentlichen
+.env
+.env.*
+!.env.example
+
+# Editor / Betriebssystem
+.DS_Store
+.vscode/
+.idea/
