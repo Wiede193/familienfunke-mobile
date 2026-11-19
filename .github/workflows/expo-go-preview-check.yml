@@ -1,0 +1,25 @@
+name: Expo Go SDK 54 iPhone-Testfassung
+
+on:
+  push:
+    branches:
+      - test/iphone-expo-go-sdk54
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+      - name: Passenden SDK-54-Lockfile erzeugen
+        run: npm install --no-audit --no-fund
+      - name: Expo-Paketversionen prüfen
+        run: npx expo install --check
+      - name: iOS-JavaScript für Expo Go bündeln
+        run: npx expo export --platform ios --output-dir dist/ios
