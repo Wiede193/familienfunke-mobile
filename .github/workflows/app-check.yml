@@ -37,6 +37,9 @@ jobs:
       - name: Abhängigkeiten aus Lockfile installieren
         run: npm ci --no-audit --no-fund
 
+      - name: Matching- und Datenschutzregeln testen
+        run: node --test tests/*.test.cjs
+
       - name: App-Konfiguration prüfen
         run: npx expo config --json > /dev/null
 
