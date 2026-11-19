@@ -4,13 +4,16 @@ on:
   push:
     branches:
       - design/profil-momente-benachrichtigungen
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   patch-dependencies:
-    if: ${{ github.event.head_commit.message == 'chore: Expo-Patchversionen synchronisieren (einmalig)' }}
+    if: ${{ (github.event_name == 'push' && github.event.head_commit.message == 'chore: Expo-Patchversionen synchronisieren (einmalig)') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'design/profil-momente-benachrichtigungen') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
