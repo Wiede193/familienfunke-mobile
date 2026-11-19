@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 ActivityIndicator, Alert, Image, KeyboardAvoidingView, Linking,
 Modal, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView,
@@ -545,6 +545,8 @@ const [selectedPhoto,setSelectedPhoto]=useState(null);
 const [photoPickerBusy,setPhotoPickerBusy]=useState(false);
 const [newPassword,setNewPassword]=useState('');
 const [activeMenu,setActiveMenu]=useState('momente');
+const profileScrollRef=useRef(null);
+const profilePanelYRef=useRef(0);
 const [addingMoment,setAddingMoment]=useState(false);
 const [viewingPhotoId,setViewingPhotoId]=useState(null);
 useEffect(()=>{if(profile)setForm({...blankProfile,...profile});},[profile?.updated_at,profile?.user_id]);
@@ -575,7 +577,7 @@ async function submitDraftPhoto(){
  if(ok){setSelectedPhoto(null);setPhotoCaption('');setAddingMoment(false);}
 }
 const heroPhoto=photos.find(p=>p.moderation_status==='approved'&&photosUrls[p.id]);
-return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+return <><ScrollView ref={profileScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
  <View style={styles.profileHero}>
   <View pointerEvents="none" style={styles.profileHeroSun}/>
   <Text style={styles.profileEyebrow}>✦ DAS SIND WIR</Text>
@@ -596,11 +598,12 @@ return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content
  <Text style={[styles.sub,{marginTop:0,marginBottom:15}]}>Wähle aus, was du ergänzen oder einstellen möchtest.</Text>
  <View style={styles.profileMenuGrid}>{PROFILE_MENUS.map(([id,number,title,subtitle])=><Pressable key={id}
   accessibilityRole="button" accessibilityLabel={title} accessibilityState={{selected:activeMenu===id}}
-  onPress={()=>setActiveMenu(id)} style={({pressed})=>[styles.profileMenuTile,activeMenu===id&&styles.profileMenuTileActive,pressed&&{opacity:.8}]}>
+  onPress={()=>{setActiveMenu(id);requestAnimationFrame(()=>profileScrollRef.current?.scrollTo({y:Math.max(0,profilePanelYRef.current-14),animated:true}));}} style={({pressed})=>[styles.profileMenuTile,activeMenu===id&&styles.profileMenuTileActive,pressed&&{opacity:.8}]}>
    <Text style={styles.profileMenuNumber}>{number}</Text>
    <Text style={styles.profileMenuTitle}>{title}</Text>
    <Text style={styles.profileMenuSubtitle}>{subtitle}</Text>
   </Pressable>)}</View>
+ <View onLayout={e=>{profilePanelYRef.current=e.nativeEvent.layout.y;}}>
  {activeMenu==='momente'?<Card style={{marginTop:18}}>
   <Row style={{alignItems:'flex-start',justifyContent:'space-between'}}>
    <View style={{flex:1}}>
@@ -694,6 +697,7 @@ return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content
   <Text style={[styles.micro,{marginBottom:11}]}>Melde dich nur ab, wenn du dein Konto verlassen möchtest. Deine gespeicherten Profilangaben bleiben bestehen.</Text>
   <Button title="Abmelden" mode="ghost" onPress={signOut}/>
  </Card>:null}
+ </View>
 </ScrollView>
 <MomentViewer photos={photos} urls={photosUrls} activeId={viewingPhotoId} onSelect={setViewingPhotoId}
  onClose={()=>setViewingPhotoId(null)} isOwner/>
