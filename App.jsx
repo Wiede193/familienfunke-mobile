@@ -10,6 +10,8 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import WelcomeIntro from './WelcomeIntro';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
@@ -171,6 +173,7 @@ const [detailFamily,setDetailFamily]=useState(null);
 const [showEventForm,setShowEventForm]=useState(false);
 const [showInfo,setShowInfo]=useState(false);
 const [showLoginHelp,setShowLoginHelp]=useState(false);
+const [showWelcome,setShowWelcome]=useState(false);
 const [reportTarget,setReportTarget]=useState(null);
 const [reportDetails,setReportDetails]=useState('');
 const [error,setError]=useState('');
@@ -236,6 +239,24 @@ const {data:listener}=supabase.auth.onAuthStateChange((_event,next)=>{if(alive)s
 return ()=>{alive=false;listener.subscription.unsubscribe();};
 },[]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});}},[me,load]);
+// Einmalige Begrüßung je Konto auf diesem Gerät. Ein erneuter Aufruf unter „Mehr“ ist jederzeit möglich.
+useEffect(()=>{
+  let valid=true;
+  setShowWelcome(false);
+  if(me){
+    AsyncStorage.getItem('familienfunke.welcome.v1.'+me)
+      .then(seen=>{if(valid)setShowWelcome(seen!=='seen');})
+      .catch(()=>{if(valid)setShowWelcome(true);});
+  }
+  return ()=>{valid=false;};
+},[me]);
+function dismissWelcome(){
+  setShowWelcome(false);
+  if(me){
+    AsyncStorage.setItem('familienfunke.welcome.v1.'+me,'seen')
+      .catch(()=>Alert.alert('Hinweis','Die Einstellung konnte auf diesem Gerät nicht gespeichert werden. Die Begrüßung könnte beim nächsten Start erneut erscheinen.'));
+  }
+}
 const active=verification?.status==='verified'&&myProfile?.moderation_status==='approved'&&membership?.status!=='suspended';
 const blocked=(uid)=>db.blocks.some(b=>b.blocker_id===me&&b.blocked_id===uid);
 const findName=(uid)=>db.profiles.find(p=>p.user_id===uid)?.display_name||'Familienprofil';
@@ -349,7 +370,7 @@ createPartnerEvent={(v)=>execute(async()=>{
  assertResult(await supabase.from('ff_partner_events').insert({...v,creator_id:me}));
 },'Veranstaltung eingereicht. Sie erscheint nach Freigabe.')}
 openInclusion={()=>setTab('inclusion')}/>:
-tab==='more'?<MoreScreen navigate={setTab} openInfo={()=>setShowInfo(true)}/>:
+tab==='more'?<MoreScreen navigate={setTab} openInfo={()=>setShowInfo(true)} openWelcome={()=>setShowWelcome(true)}/>:
 tab==='inclusion'?<InclusionScreen/>:
 tab==='aboutApp'?<AboutFamilienfunkeScreen/>:
 tab==='help'?<TechnicalHelpScreen/>:
@@ -390,6 +411,7 @@ accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&
 <Input label="Was ist passiert?" multiline value={reportDetails} onChangeText={setReportDetails} maxLength={2000}/>
 <Row><Button title="Abbrechen" mode="outline" style={{flex:1}} onPress={()=>setReportTarget(null)}/><Button title="Melden" disabled={busy||reportDetails.trim().length<10} style={{flex:1}} onPress={sendReport}/></Row>
 </Card></View>:null}
+<WelcomeIntro visible={!!me&&showWelcome} onClose={dismissWelcome}/>
 </SafeAreaView>;
 }
 async function uploadProfilePhoto(asset,caption,me,execute){
@@ -834,16 +856,17 @@ function PartnersScreen({organizations,partnerEvents,me,active,busy,applyOrg,cre
     <View style={{marginTop:13}}><Button title="Inklusion und Familienunterstützung" mode="ghost" onPress={openInclusion}/></View>
   </ScrollView>;
 }
-function MoreScreen({navigate,openInfo}){
+function MoreScreen({navigate,openInfo,openWelcome}){
   const items=[['contacts','♡','Kontakte','Kontaktanfragen und Freundschaften verwalten'],
   ['chat','✉','Nachrichten','Private Unterhaltungen mit bestätigten Kontakten'],
   ['profile','◉','Mein Profil','Hobbys, Fotos und Privatsphäre einstellen'],
   ['inclusion','✿','Familien & Inklusion','Anlaufstelle ohne Nachweis- oder Diagnosepflicht'],
   ['aboutApp','♡','Über Familienfunke','Wie unsere Idee entstanden ist'],
+  ['welcome','☀','Unser Familienfunke','Die Willkommenskarte noch einmal ansehen'],
   ['help','?','Hilfe & FAQ','Schritt-für-Schritt-Anleitungen zur App']];
   return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
     <H sub="Deine Kontakte, Einstellungen und unterstützenden Angebote.">Weitere Bereiche</H>
-    {items.map(([id,icon,title,subtitle])=><Pressable accessibilityRole="button" accessibilityLabel={title} key={id} onPress={()=>navigate(id)}>
+    {items.map(([id,icon,title,subtitle])=><Pressable accessibilityRole="button" accessibilityLabel={title} key={id} onPress={()=>id==='welcome'?openWelcome():navigate(id)}>
       <Card style={{marginBottom:12}}><Row><Text style={{fontSize:26,color:C.coral,width:36}}>{icon}</Text>
       <View style={{flex:1}}><Text style={styles.cardTitle}>{title}</Text><Text style={styles.sub}>{subtitle}</Text></View>
       <Text style={{fontSize:20,color:C.accent}}>›</Text></Row></Card></Pressable>)}
