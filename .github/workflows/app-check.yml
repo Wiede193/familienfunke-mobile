@@ -1,0 +1,53 @@
+name: Familienfunke – technischer App-Check
+
+# Nur ein automatischer Check pro Änderung im Entwicklungsbranch.
+# Keine zusätzlichen PR-Prüfläufe und damit keine doppelten (PR)-Fehlmails.
+on:
+  push:
+    branches:
+      - design/profil-momente-benachrichtigungen
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: familienfunke-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  expo-build-check:
+    name: Expo-Konfiguration und Android/iOS-Bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+    steps:
+      - name: Code laden
+        uses: actions/checkout@v4
+
+      - name: Node.js 22 bereitstellen
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Abhängigkeiten aus Lockfile installieren
+        run: npm ci --no-audit --no-fund
+
+      - name: Matching- und Datenschutzregeln testen
+        run: node --test tests/*.test.cjs
+
+      - name: App-Konfiguration prüfen
+        run: npx expo config --json > /dev/null
+
+      - name: Android-Bundle erstellen
+        run: npx expo export --platform android --output-dir /tmp/familienfunke-android
+
+      - name: iOS-Bundle erstellen
+        run: npx expo export --platform ios --output-dir /tmp/familienfunke-ios
+
+      - name: Expo-Versionen prüfen (auch wenn Bundles erfolgreich sind)
+        run: npx expo install --check
+

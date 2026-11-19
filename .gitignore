@@ -1,0 +1,39 @@
+# Familienfunke — vertrauliche lokale Konfiguration nie versionieren
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.p8
+*.p12
+*.key
+*.keystore
+*.jks
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+
+# Expo / React Native
+node_modules/
+.expo/
+.expo-shared/
+web-build/
+dist/
+build/
+*.apk
+*.aab
+*.ipa
+
+# Lokale Betriebssystem- und Editor-Dateien
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Tests / Build-Caches / Logs
+coverage/
+.cache/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

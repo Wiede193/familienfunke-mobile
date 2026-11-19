@@ -1,25 +1,61 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 ActivityIndicator, Alert, Image, KeyboardAvoidingView, Linking,
-Platform, Pressable, RefreshControl, SafeAreaView, ScrollView,
+Modal, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView,
 StatusBar, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
+import { BUNDESLAENDER, KREISE_NACH_LAND } from './data/regionen';
+import MomentViewer from './components/MomentViewer';
+import FamilyTabIcon from './components/FamilyTabIcon';
+import FamilyOutingIdeas from './components/FamilyOutingIdeas';
+import NearbySwipe from './components/NearbySwipe';
+import NotificationCenter from './components/NotificationCenter';
+import { computeActivity, isValidSeenState, markSeen, newSeenState, storageKey } from './lib/activityIndicators';
+import { matchingReasons, normalized, rankFamilyProfiles } from './lib/familyMatching';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
-bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
-accent:'#087F87',accentDark:'#075D67',pale:'#E4F5F1',line:'#F0E5DC',
-coral:'#EE7867',coralDeep:'#B9474C',sunny:'#FFE4AA',
+bg:'#FFFAF2',white:'#FFFFFF',ink:'#243E43',muted:'#687E80',
+accent:'#087F87',accentDark:'#075D67',pale:'#FFF2DF',line:'#EFE1D3',
+coral:'#EE7867',coralDeep:'#B9474C',sunny:'#FFE3A0',
 lavender:'#F2EEFF',warning:'#FFF1D6',warningText:'#75521D',
 };
-const INTERESTS = ['Spielplatz','Natur','Radfahren','Wandern','Kochen','Musik','Basteln','Sport','Tiere','Lesen','Ausflüge','Spieleabende'];
-const TABS = [['discover','Entdecken','⌕'],['contacts','Kontakte','♡'],['chat','Nachrichten','✉'],['events','Kalender','▦'],['profile','Profil','◉']];
+const INTEREST_GROUPS={
+ hobbys:[
+  ['Sport & Bewegung',['Sport','Schwimmen','Fußball','Radfahren','Wandern','Joggen','Fitness','Tanzen','Yoga','Klettern','Wintersport']],
+  ['Kreatives & Handgemachtes',['Basteln','Malen','Fotografie','Handarbeiten','Gärtnern','Backen','Kochen']],
+  ['Musik, Kultur & Zuhause',['Musik','Singen','Instrumente','Lesen','Brettspiele','Spieleabende','Tiere']]
+ ],
+ unterwegs:[
+  ['Natur & Draußen',['Natur','Spielplatz','Wald','Spaziergänge','Camping','Picknick','Garten','Fahrradtouren']],
+  ['Ausflüge & Entdecken',['Ausflüge','Zoo','Tierpark','Bauernhof','Museum','Bibliothek','Kino','Theater','Schwimmbad','Städtetrips']]
+ ],
+ treffen:[
+  ['So lernen wir andere Familien kennen',['Spielplatztreff','Eltern-Kind-Treff','Krabbelgruppe','Kaffee & Kuchen','Gemeinsam kochen','Gemeinsame Ausflüge','Familienfeste','Grillen']],
+  ['Wann passt es oft gut?',['Nachmittags','Wochenenden','Unter der Woche','Spontane Treffen']],
+  ['Welche Treffen mögen wir?',['Ruhige Treffen','Aktive Treffen','Draußen treffen','Kreative Treffen']]
+ ]
+};
+const INTERESTS=[...new Set(Object.values(INTEREST_GROUPS).flatMap(groups=>groups.flatMap(([,items])=>items)))];
+const PROFILE_MENUS=[
+ ['steckbrief','01','Steckbrief','Das seid ihr'],
+ ['hobbys','02','Hobbys','Was euch Spaß macht'],
+ ['unterwegs','03','Freizeit','Draußen & unterwegs'],
+ ['treffen','04','Treffideen','Gemeinsam statt allein'],
+ ['momente','05','Unsere Momente','Fotos & Geschichten'],
+ ['sichtbarkeit','06','Privatsphäre','Wer euch finden kann'],
+ ['konto','07','Konto & Hilfe','Sicherheit & Zugang'],
+ ['neuigkeiten','08','Neuigkeiten','Mitteilungen & Push-Info']
+];
+
+const TABS = [['discover','Entdecken'],['contacts','Kontakte'],['chat','Nachrichten'],['events','Kalender'],['profile','Profil']];
 const blankProfile = {display_name:'',region_label:'',about:'',interests:[],is_discoverable:false};
-const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[]};
+const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[],notifications:[]};
 const formatDate = (value) => { if (!value) return '–'; const d = new Date(value); return isNaN(d) ? '–' : d.toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
 const initial = (name) => String(name||'F').split(/\s+/).slice(0,2).map(s=>s[0]||'').join('').toUpperCase();
 const safeString = (value, length) => String(value||'').trim().slice(0,length);
@@ -87,6 +123,7 @@ return <Pressable disabled={!onPress} onPress={onPress} style={[styles.chip,sele
 </Pressable>;
 }
 function Card({children,style}) {return <View style={[styles.card,style]}>{children}</View>;}
+function MadeInGermanyStamp(){return <View accessibilityLabel="Made in Germany – Designentwurf für die private Beta" style={styles.madeInGermanyStamp}><Text style={styles.stampKicker}>MADE IN</Text><Text style={styles.stampCountry}>GERMANY</Text><Text style={styles.stampDraft}>BETA · DESIGN</Text></View>;}
 function H({children,sub}) {return <View style={{marginBottom:17}}><Text style={styles.h}>{children}</Text>{sub?<Text style={styles.sub}>{sub}</Text>:null}</View>;}
 function Info({children,warning=false}) {return <View style={[styles.info,warning&&styles.warning]}><Text style={[styles.infoText,warning&&{color:C.warningText}]}>{children}</Text></View>;}
 function Avatar({name,size=52,uri}) {return <View style={[styles.avatar,{width:size,height:size,borderRadius:size/2}]}>{uri?<Image source={{uri}} style={{width:size,height:size,borderRadius:size/2}}/>:<Text style={[styles.avatarText,{fontSize:size*.30}]}>{initial(name)}</Text>}</View>;}
@@ -133,20 +170,73 @@ const [selectedContact,setSelectedContact]=useState(null);
 const [detailFamily,setDetailFamily]=useState(null);
 const [showEventForm,setShowEventForm]=useState(false);
 const [showInfo,setShowInfo]=useState(false);
+const [showNotifications,setShowNotifications]=useState(false);
 const [reportTarget,setReportTarget]=useState(null);
 const [reportDetails,setReportDetails]=useState('');
 const [error,setError]=useState('');
 const [notice,setNotice]=useState('');
 const [busy,setBusy]=useState(false);
 const [loading,setLoading]=useState(false);
-const [db,setDb]=useState(blankData);
-const [myProfile,setMyProfile]=useState(null);
-const [verification,setVerification]=useState(null);
-const [membership,setMembership]=useState(null);
-const [photosUrls,setPhotosUrls]=useState({});
+// Privacy: account-scoped cache. Old account data cannot be rendered under
+// another account even for a single frame before logout effects complete.
+const [accountCache,setAccountCache]=useState(null);
+const [seen,setSeen]=useState(null);
+const seenRef=useRef(null);
+const loadEpochRef=useRef(0);
 const me=session?.user?.id;
+const currentUserRef=useRef(me);
+currentUserRef.current=me;
+const currentAccount=me&&accountCache?.userId===me?accountCache:null;
+const db=currentAccount?.db||blankData;
+const myProfile=currentAccount?.myProfile||null;
+const verification=currentAccount?.verification||null;
+const membership=currentAccount?.membership||null;
+const notificationPrefs=currentAccount?.notificationPrefs||null;
+const photosUrls=currentAccount?.photosUrls||{};
+
+// Ungelesen-Markierungen bleiben in dieser Beta lokal auf dem jeweiligen Gerät.
+// Der erste Besuch legt nur einen Ausgangspunkt an, nicht künstlich neue Hinweise.
+useEffect(()=>{
+  let alive=true;
+  seenRef.current=null;
+  setSeen(null);
+  if(!me)return ()=>{alive=false;};
+  AsyncStorage.getItem(storageKey(me)).then(raw=>{
+    let stored=null;
+    try{stored=raw?JSON.parse(raw):null;}catch{stored=null;}
+    const initialSeen=isValidSeenState(stored,me)?stored:newSeenState(me);
+    if(!alive)return;
+    seenRef.current=initialSeen;
+    setSeen(initialSeen);
+    if(!isValidSeenState(stored,me))AsyncStorage.setItem(storageKey(me),JSON.stringify(initialSeen)).catch(()=>{});
+  }).catch(()=>{
+    if(!alive)return;
+    const initialSeen=newSeenState(me);
+    seenRef.current=initialSeen;setSeen(initialSeen);
+  });
+  return ()=>{alive=false;};
+},[me]);
+const markActivity=useCallback((type,contactId=null)=>{
+  const current=seenRef.current;
+  if(!current||current.userId!==me)return;
+  const next=markSeen(current,type,Date.now(),contactId);
+  if(next===current)return;
+  seenRef.current=next;
+  setSeen(next);
+  AsyncStorage.setItem(storageKey(me),JSON.stringify(next)).catch(()=>{});
+},[me]);
+// Hooks must always execute before any authentication-dependent early return.
+useEffect(()=>{
+  // Prevent a loop: marking a chat read updates "seen", so depend only on
+  // the loaded/not-loaded flag, not the changing seen-state object itself.
+  const belongsToCurrentAccount=accountCache?.userId===me;
+  const isOwnAcceptedContact=accountCache?.db?.contacts?.some(c=>c.id===selectedContact&&c.status==='accepted'&&(c.sender_id===me||c.recipient_id===me));
+  if(selectedContact&&me&&seen&&belongsToCurrentAccount&&isOwnAcceptedContact)markActivity('chat',selectedContact);
+},[selectedContact,me,accountCache?.db?.messages,accountCache?.db?.contacts,accountCache?.userId,!!seen,markActivity]);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
+const requestId=++loadEpochRef.current;
+const stillCurrent=()=>currentUserRef.current===me&&loadEpochRef.current===requestId;
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
@@ -159,22 +249,38 @@ supabase.from('profile_photos').select('*').order('created_at',{ascending:false}
 supabase.from('blocks').select('*').limit(200),
 supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
+supabase.from('ff_notifications').select('id,user_id,actor_id,kind,contact_id,message_id,created_at,read_at').eq('user_id',me).order('created_at',{ascending:false}).limit(100),
+supabase.from('ff_notification_preferences').select('*').eq('user_id',me).maybeSingle(),
 ]);
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow]=queries;
-const profileRow=profiles.data.find(p=>p.user_id===me)||null;
-setDb({profiles:profiles.data||[],contacts:contacts.data||[],messages:messages.data||[],
-events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[]});
-setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
-setError('');
-const images=await Promise.all((photos.data||[]).map(async(p)=>{
-try {const {data,error:e}=await supabase.storage.from('familienfunke-photos').createSignedUrl(p.storage_path,1800);
+const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,notifications,prefs]=queries;
+if(!stillCurrent())return;
+const profileRow=(profiles.data||[]).find(p=>p.user_id===me)||null;
+const photosForMe=(photos.data||[]).filter(photo=>photo.owner_id===me);
+const approvedOthers=(photos.data||[]).filter(photo=>photo.owner_id!==me&&photo.moderation_status==='approved');
+const acceptedIds=new Set((contacts.data||[]).filter(c=>c.status==='accepted')
+  .map(c=>c.sender_id===me?c.recipient_id:c.sender_id));
+const blockedByMe=new Set((blocks.data||[]).filter(b=>b.blocker_id===me).map(b=>b.blocked_id));
+// Create signed links only for own pictures or approved pictures of unblocked contacts.
+// Supabase Storage RLS is the ultimate authorization layer.
+const viewablePhotos=[...photosForMe,...approvedOthers.filter(photo=>
+  acceptedIds.has(photo.owner_id)&&!blockedByMe.has(photo.owner_id))];
+const images=await Promise.all(viewablePhotos.map(async(p)=>{
+try {const {data,error:e}=await supabase.storage.from('familienfunke-photos').createSignedUrl(p.storage_path,600);
 return [p.id,e?null:data?.signedUrl||null];} catch {return [p.id,null];}
 }));
-setPhotosUrls(Object.fromEntries(images));
-} catch(e){setError(humanError(e));}
-finally{setLoading(false);}
+if(!stillCurrent())return;
+setAccountCache({
+  userId:me,
+  db:{profiles:profiles.data||[],contacts:contacts.data||[],messages:messages.data||[],
+      events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],notifications:notifications.data||[]},
+  myProfile:profileRow,verification:verificationRow.data,membership:membershipRow.data,
+  notificationPrefs:prefs.data, photosUrls:Object.fromEntries(images),
+});
+setError('');
+} catch(e){if(stillCurrent())setError(humanError(e));}
+finally{if(stillCurrent())setLoading(false);}
 },[me]);
 useEffect(()=>{
 if(!supabase){setSession(null);return;}
@@ -187,7 +293,22 @@ setSession(data?.session||null);
 const {data:listener}=supabase.auth.onAuthStateChange((_event,next)=>{if(alive)setSession(next);});
 return ()=>{alive=false;listener.subscription.unsubscribe();};
 },[]);
-useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);}},[me,load]);
+useEffect(()=>{
+  setSelectedContact(null);
+  setDetailFamily(null);
+  setShowInfo(false);
+  setShowNotifications(false);
+  setReportTarget(null);
+  setTab('discover');
+  setError('');
+  setNotice('');
+  if(me)load();
+  else{
+    loadEpochRef.current++;
+    setAccountCache(null);
+    setLoading(false);
+  }
+},[me,load]);
 const active=verification?.status==='verified'&&myProfile?.moderation_status==='approved'&&membership?.status!=='suspended';
 const blocked=(uid)=>db.blocks.some(b=>b.blocker_id===me&&b.blocked_id===uid);
 const findName=(uid)=>db.profiles.find(p=>p.user_id===uid)?.display_name||'Familienprofil';
@@ -196,9 +317,19 @@ const accepted=db.contacts.filter(x=>x.status==='accepted');
 const pending=db.contacts.filter(x=>x.status==='pending');
 const photoOf=(uid)=>db.photos.find(p=>p.owner_id===uid&&p.moderation_status==='approved')||db.photos.find(p=>p.owner_id===uid&&uid===me);
 const ownPhotos=db.photos.filter(p=>p.owner_id===me);
-const matches=useMemo(()=>db.profiles.filter(p=>p.user_id!==me&&p.moderation_status==='approved'&&p.is_discoverable)
-.map(p=>({...p,match:(p.interests||[]).filter(x=>myProfile?.interests?.includes(x)).length}))
-.sort((a,b)=>b.match-a.match||String(a.display_name).localeCompare(String(b.display_name))),[db.profiles,me,myProfile]);
+const matches=useMemo(()=>rankFamilyProfiles({
+ profiles:db.profiles,
+ viewerProfile:myProfile,
+ viewerId:me,
+ groups:INTEREST_GROUPS,
+ blockedIds:db.blocks.filter(b=>b.blocker_id===me).map(b=>b.blocked_id),
+}),[db.profiles,db.blocks,me,myProfile]);
+const activities=useMemo(()=>computeActivity({
+ me,db,contacts:db.contacts,matches,
+ myProfile,seen,blockedUserIds:db.blocks.filter(b=>b.blocker_id===me).map(b=>b.blocked_id)
+}),[me,db,matches,myProfile,seen]);
+const freshPhotoCount=activities.newPhotos;
+const unreadNoticeCount=(db.notifications||[]).filter(n=>!n.read_at).length;
 async function execute(fn,success){
 if(busy)return;
 setBusy(true);setError('');setNotice('');
@@ -212,7 +343,51 @@ if(!reportTarget||reportDetails.trim().length<10)return setError('Bitte den Vorf
 const ok=await execute(async()=>assertResult(await supabase.from('reports').insert({reporter_id:me,subject_type:reportTarget.type,subject_id:reportTarget.id,details:reportDetails.trim()})),'Danke. Deine Meldung wurde gespeichert.');
 if(ok){setReportTarget(null);setReportDetails('');}
 }
-async function sendRequest(uid){await execute(async()=>assertResult(await supabase.from('contact_requests').insert({sender_id:me,recipient_id:uid})),'Kontaktanfrage verschickt.');}
+async function sendRequest(uid){return execute(async()=>assertResult(await supabase.from('contact_requests').insert({sender_id:me,recipient_id:uid})),'Kontaktanfrage verschickt.');}
+async function swipeLike(uid){
+ if(!supabase||!me)throw new Error('Bitte anmelden.');
+ const {data,error:e}=await supabase.rpc('ff_swipe_interest',{p_target:uid});
+ if(e)throw e;
+ if(!data||typeof data.state!=='string')throw new Error('Keine gültige Match-Antwort erhalten.');
+ if(data.state==='matched')await load(true);
+ return data;
+}
+async function markNotificationRead(id){
+ return execute(async()=>assertResult(await supabase.from('ff_notifications')
+  .update({read_at:new Date().toISOString()}).eq('id',id).eq('user_id',me)),'');
+}
+async function markAllNotifications(){
+ const ids=(db.notifications||[]).filter(n=>!n.read_at).map(n=>n.id);
+ if(!ids.length)return;
+ return execute(async()=>assertResult(await supabase.from('ff_notifications')
+   .update({read_at:new Date().toISOString()}).eq('user_id',me).in('id',ids)),'');
+}
+async function saveNotificationPreference(key,enabled){
+ if(!['notify_matches','notify_requests','notify_messages'].includes(key))return;
+ const values={
+   notify_matches:notificationPrefs?.notify_matches!==false,
+   notify_requests:notificationPrefs?.notify_requests!==false,
+   notify_messages:notificationPrefs?.notify_messages!==false,
+   [key]:enabled
+ };
+ return execute(async()=>{
+   // Ein vorhandener Datensatz darf nur seine Einstellungsfelder ändern.
+   // Eine neue Einstellung legt der Benutzer ausschließlich für sich selbst an.
+   const result=notificationPrefs
+     ?await supabase.from('ff_notification_preferences').update(values).eq('user_id',me)
+     :await supabase.from('ff_notification_preferences').insert({user_id:me,...values});
+   assertResult(result);
+ },'Einstellung gespeichert.');
+}
+async function openNotification(item){
+ if(!item)return;
+ if(!item.read_at)await markNotificationRead(item.id);
+ setShowNotifications(false);
+ const contact=db.contacts.find(c=>c.id===item.contact_id);
+ if(item.kind==='message'&&contact?.status==='accepted'){openChat(item.contact_id);return;}
+ if(item.kind==='match'&&contact?.status==='accepted'){openChat(item.contact_id);return;}
+ setTab('contacts');
+}
 async function replyRequest(id,status){await execute(async()=>assertResult(await supabase.from('contact_requests').update({status}).eq('id',id)),'Kontaktanfrage aktualisiert.');}
 async function blockUser(uid){
 Alert.alert('Kontakt blockieren?','Die Person kann dir dann keine neuen Nachrichten schicken.',[
@@ -228,7 +403,34 @@ return execute(async()=>assertResult(await supabase.auth.updateUser({password}))
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
 if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
 if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/><Login error={error} setError={setError}/></SafeAreaView>;
-const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1];
+if(!currentAccount)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
+  <View style={{flex:1,justifyContent:'center',padding:24,alignItems:'center'}}>
+    {loading?<ActivityIndicator color={C.accent} size="large"/>:null}
+    <Text style={[styles.sub,{textAlign:'center',marginTop:16}]}>
+      {error||'Dein geschütztes Familienprofil wird geladen …'}
+    </Text>
+    {!loading?<Button title="Erneut versuchen" onPress={()=>load()} mode="outline"/>:null}
+  </View></SafeAreaView>;
+if(membership?.status==='suspended')return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
+  <View style={{flex:1,justifyContent:'center',padding:27,alignItems:'center'}}>
+    <Text style={[styles.h,{textAlign:'center'}]}>Dieses Familienkonto ist gesperrt</Text>
+    <Text style={[styles.sub,{textAlign:'center',marginTop:15,marginBottom:24}]}>
+      Die Nutzung ist derzeit eingeschränkt. Bei Fragen wende dich an die Familienfunke-Administration.
+    </Text>
+    <Button title="Abmelden" mode="outline" onPress={()=>supabase.auth.signOut()}/>
+  </View></SafeAreaView>;
+const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Familien-Kompass':TABS.find(t=>t[0]===tab)?.[1];
+function chooseTab(id){
+  setTab(id);
+  setShowEventForm(false);
+  if(id==='discover')markActivity('discover');
+  if(id==='events')markActivity('events');
+}
+function openChat(id){
+  setSelectedContact(id);
+  setTab('chat');
+  markActivity('chat',id);
+}
 function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact)setSelectedContact(null);else if(showInfo)setShowInfo(false);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
@@ -240,7 +442,15 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{detailFamily||selectedContact||showInfo?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" onPress={()=>load()} small mode="ghost"/>}
+{detailFamily||selectedContact||showInfo?<Button title="← Zurück" onPress={back} small mode="ghost"/>:
+<Row style={{gap:6}}>
+<Pressable accessibilityRole="button" accessibilityLabel={'Benachrichtigungen öffnen, '+unreadNoticeCount+' neue Hinweise'}
+ onPress={()=>{setShowNotifications(true);load(true);}} style={styles.refreshButton}>
+  <Text style={[styles.refreshText,{fontSize:22}]}>♧</Text>
+  {unreadNoticeCount>0?<View style={styles.bellBadge}><Text style={styles.bellBadgeText}>{unreadNoticeCount>99?'99+':unreadNoticeCount}</Text></View>:null}
+</Pressable>
+<Pressable accessibilityRole="button" accessibilityLabel="Neuigkeiten aktualisieren" onPress={()=>load(true)}
+ style={styles.refreshButton}><Text style={styles.refreshText}>↻</Text></Pressable><MadeInGermanyStamp/></Row>}
 </View>
 {error?<Pressable onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
 {notice?<Pressable onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
@@ -249,39 +459,52 @@ return <SafeAreaView style={styles.screen}>
 {detailFamily?<FamilyDetail p={db.profiles.find(p=>p.user_id===detailFamily)}
 imageUrl={photosUrls[photoOf(detailFamily)?.id]} photos={db.photos.filter(p=>p.owner_id===detailFamily&&p.moderation_status==='approved')}
 photosUrls={photosUrls} active={active} disabled={busy} blocked={blocked(detailFamily)}
-connection={db.contacts.find(c=>c.sender_id===detailFamily||c.recipient_id===detailFamily)}
+connection={db.contacts.find(c=>(c.sender_id===me&&c.recipient_id===detailFamily)||(c.recipient_id===me&&c.sender_id===detailFamily))}
 onContact={()=>sendRequest(detailFamily)} onBlock={()=>blockUser(detailFamily)} onUnblock={()=>unblockUser(detailFamily)}
-onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setDetailFamily(null);setSelectedContact(cid);setTab('chat');}}/>:
+onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setDetailFamily(null);openChat(cid);}}
+ onPhotosViewed={()=>markActivity('photos')}/>:
 selectedContact?<ChatScreen contact={accepted.find(c=>c.id===selectedContact)} me={me} nameOf={findName}
 messages={db.messages.filter(m=>m.contact_id===selectedContact)} disabled={busy} blocked={blocked}
+onRefresh={()=>load(true)}
 send={(body)=>execute(async()=>{
   // Die Nachricht wird ausschliesslich von der authentifizierten Edge Function
   // geprueft und gespeichert. Kein direkter INSERT in public.messages mehr.
   const {data, error:sendError} = await supabase.functions.invoke('send-message', {
     body: {contact_id:selectedContact, body},
   });
+  // Die Datenbank meldet diese Kennung nach fünf Nachrichten ohne Antwort.
+  // Die Edge Function muss die Kennung ausdrücklich weiterreichen. Solange die
+  // Migration nicht ausgerollt ist, wird hier keine serverseitige Sperre behauptet.
+  const serverCode=[data?.code,data?.error?.code,data?.error_code,sendError?.code,
+    sendError?.message,sendError?.context?.message]
+    .filter(value=>typeof value==='string').join(' ');
+  if(serverCode.includes('FF_MSG_LIMIT_5'))
+    throw new Error('Du hast bereits fünf Nachrichten hintereinander geschrieben. Sobald die andere Familie antwortet, kannst du wieder schreiben.');
   if(sendError){
-    const status = sendError.context?.status;
-    if(status===422)throw new Error('Diese Nachricht wurde wegen unserer Inhaltsregeln zurueckgehalten. Bitte formuliere sie anders.');
+    const status=sendError.context?.status;
+    if(status===422)throw new Error('Diese Nachricht wurde wegen unserer Inhaltsregeln zurückgehalten. Bitte formuliere sie anders.');
     if(status===401)throw new Error('Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.');
-    if(status===403)throw new Error('Nachrichten sind fuer diesen Kontakt momentan nicht erlaubt.');
-    if(status===503)throw new Error('Die Sicherheitspruefung ist momentan nicht verfuegbar. Bitte spaeter erneut versuchen.');
+    if(status===403)throw new Error('Nachrichten sind für diesen Kontakt momentan nicht erlaubt.');
+    if(status===429)throw new Error('Du hast bereits fünf Nachrichten ohne Antwort geschickt. Warte bitte, bis die andere Familie antwortet.');
+    if(status===503)throw new Error('Die Sicherheitsprüfung ist momentan nicht verfügbar. Bitte später erneut versuchen.');
     throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
   }
-  if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
+  if(!data?.message?.id)throw new Error('Keine eindeutige Bestätigung vom Nachrichtenserver erhalten.');
 },'Nachricht gesendet.')}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
 tab==='discover'?<DiscoverScreen matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
 myProfile={myProfile} verification={verification} membership={membership}
-showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked}/>:
+showFamily={setDetailFamily} onContact={sendRequest} onLike={swipeLike} onOpenChat={openChat}
+onReport={(uid)=>report('profile',uid)} onBlock={blockUser}
+imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked} openKompass={()=>setShowInfo(true)} onContacts={()=>setTab('contacts')}/>:
 tab==='contacts'?<ContactsScreen pending={pending} accepted={accepted} me={me} nameOf={findName}
 respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onUnblock={unblockUser}
-onChat={(id)=>{setSelectedContact(id);setTab('chat');}}/>:
+onChat={openChat} onShowFamily={setDetailFamily} newPhotoCount={freshPhotoCount} onViewPhotos={()=>markActivity('photos')}/>:
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
-onChat={(id)=>setSelectedContact(id)} messages={db.messages}/>:
+onChat={openChat} messages={db.messages} chatCounts={activities.chatCounts}/>:
 tab==='events'?<EventsScreen events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
-profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
+profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm} initialRegion={myProfile?.region_label||''}
 createEvent={(event)=>execute(async()=>{
   await moderateTextOrThrow([event.title,event.description,event.region_label]);
   assertResult(await supabase.from('events').insert({organizer_id:me,...event}));
@@ -298,11 +521,22 @@ save={(value)=>execute(async()=>{
 uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,execute)}
 reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,execute)}
 blocks={db.blocks} onUnblock={unblockUser}
-changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>supabase.auth.signOut()}/>}
+changePassword={changePassword} openInfo={()=>setShowInfo(true)} openNotifications={()=>setShowNotifications(true)} signOut={()=>supabase.auth.signOut()}/>}
 </KeyboardAvoidingView>
+<NotificationCenter visible={showNotifications} items={db.notifications||[]}
+ preferences={notificationPrefs} busy={busy} onClose={()=>setShowNotifications(false)}
+ onOpen={openNotification} onMarkRead={markNotificationRead} onMarkAll={markAllNotifications}
+ onSavePreference={saveNotificationPreference}/>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setTab(id);setShowEventForm(false);}}
-style={[styles.tab,tab===id&&styles.tabActive]}><Text style={[styles.tabIcon,tab===id&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+{TABS.map(([id,title])=><Pressable accessibilityRole="tab" accessibilityLabel={title+(activities[id]>0?', '+activities[id]+' Hinweise':'')}
+accessibilityState={{selected:tab===id}} key={id} onPress={()=>chooseTab(id)}
+style={({pressed})=>[styles.tab,tab===id&&styles.tabActive,pressed&&styles.tabPressed]}>
+<View style={styles.tabIconWrap}>
+<FamilyTabIcon name={id} color={tab===id?C.accentDark:'#839293'} size={26}/>
+{activities[id]>0?<View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{activities[id]>99?'99+':activities[id]}</Text></View>:null}
+</View>
+<Text numberOfLines={1} style={[styles.tabLabel,tab===id&&styles.tabLabelActive]}>{title}</Text>
+</Pressable>)}
 </View>:null}
 {reportTarget?<View style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -367,55 +601,163 @@ await supabase.storage.from('familienfunke-photos').remove([photo.storage_path])
 },'Foto entfernt.')},
 ]);
 }
-function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked}) {
+function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,onLike,onOpenChat,onReport,onBlock,imageFor,blocked,openKompass,onContacts}) {
 const [query,setQuery]=useState('');
 const [interest,setInterest]=useState('Alle');
-const filtered=matches.filter(p=>(!query||`${p.display_name} ${p.region_label} ${(p.interests||[]).join(' ')}`.toLowerCase().includes(query.toLowerCase()))&&(interest==='Alle'||p.interests?.includes(interest)));
+const [focus,setFocus]=useState('all');
+const [scope,setScope]=useState('passend');
+const [sameRegionOnly,setSameRegionOnly]=useState(false);
+const [sortBy,setSortBy]=useState('passung');
+const [discoverMode,setDiscoverMode]=useState('nearby');
+const ownInterests=Array.isArray(myProfile?.interests)?myProfile.interests:[];
+const hasRegion=!!normalized(myProfile?.region_label);
+const hasMatchingDetails=ownInterests.length>0||hasRegion;
+const options=[['all','Alle'],['hobbys','Hobbys'],['unterwegs','Freizeit'],['treffen','Treffideen']];
+const enriched=useMemo(()=>matches.map(p=>({...p,...matchingReasons(myProfile,p,INTEREST_GROUPS,focus)})),[matches,myProfile,focus]);
+const filtered=enriched.filter(p=>{
+ if(!!query&&![p.display_name,p.region_label,p.about,...(p.interests||[])].join(' ').toLocaleLowerCase('de-DE').includes(query.trim().toLocaleLowerCase('de-DE')))return false;
+ if(interest!=='Alle'&&!(p.interests||[]).some(i=>normalized(i)===normalized(interest)))return false;
+ if(sameRegionOnly&&!p.sameRegion)return false;
+ if(scope==='passend'){
+   if(focus==='all'&&!p.hasEvidence)return false;
+   if(focus!=='all'&&!p.sharedByTopic[focus]?.length&&!p.similarTopics.some(x=>x.category===focus))return false;
+ }
+ return true;
+}).sort((a,b)=>sortBy==='name'
+ ?String(a.display_name||'').localeCompare(String(b.display_name||''),'de')
+ :b.score-a.score||String(a.display_name||'').localeCompare(String(b.display_name||''),'de'));
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+<View style={styles.matchScopeBar}>
+ <Pressable accessibilityRole="button" accessibilityState={{selected:discoverMode==='nearby'}}
+  onPress={()=>setDiscoverMode('nearby')} style={[styles.matchScopeButton,discoverMode==='nearby'&&styles.matchScopeSelected]}>
+  <Text style={[styles.matchScopeText,discoverMode==='nearby'&&styles.matchScopeTextSelected]}>⌖ In deiner Nähe</Text>
+ </Pressable>
+ <Pressable accessibilityRole="button" accessibilityState={{selected:discoverMode==='list'}}
+  onPress={()=>setDiscoverMode('list')} style={[styles.matchScopeButton,discoverMode==='list'&&styles.matchScopeSelected]}>
+  <Text style={[styles.matchScopeText,discoverMode==='list'&&styles.matchScopeTextSelected]}>Familienliste</Text>
+ </Pressable>
+</View>
+{discoverMode==='nearby'?<NearbySwipe
+  userId={me} active={active} profiles={matches} requests={requests}
+  imageFor={imageFor} onShowProfile={showFamily} onLike={onLike} onOpenChat={onOpenChat}
+  onReport={onReport} onBlock={onBlock} onContacts={onContacts}/>:<>
 <View style={styles.hero}>
   <View style={styles.heroDecorationOne} pointerEvents="none"/>
   <View style={styles.heroDecorationTwo} pointerEvents="none"/>
   <View style={styles.heroPill}><Text style={styles.heroPillText}>✦ GEMEINSAM MEHR ERLEBEN</Text></View>
-  <Text style={styles.heroTitle}>Familien in deiner Nähe entdecken.</Text>
-  <Text style={styles.heroText}>Finde neue Freundschaften statt endloser Feeds.</Text>
-  <View style={styles.heroTagline}><Text style={styles.heroTaglineText}>♥  Aus Nachbarschaft wird Freundschaft.</Text></View>
+  <Text style={styles.heroTitle}>Familien finden, die zu euch passen.</Text>
+  <Text style={styles.heroText}>Gemeinsame Hobbys, ähnliche Ideen und echte Begegnungen.</Text>
+  <View style={styles.heroTagline}><Text style={styles.heroTaglineText}>♥ Aus Gemeinsamkeiten wird Freundschaft.</Text></View>
 </View>
 {!active?<Info warning>Dein Konto wartet noch auf persönliche Erwachsenenprüfung oder Profilfreigabe. Profilstatus: {myProfile?.moderation_status||'–'} · Verifizierung: {verification?.status||'–'}.</Info>:null}
-<H sub="Passende Interessen – keine exakten Standorte, keine öffentlichen Beiträge.">Familien entdecken</H>
-<Input label="Suche nach Name, Region oder Interesse" placeholder="z. B. Natur, Potsdam …" value={query} onChangeText={setQuery}/>
-<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:13}}>
-{['Alle',...INTERESTS].map(i=><View key={i} style={{marginRight:6}}><Chip text={i} selected={interest===i} onPress={()=>setInterest(i)}/></View>)}
-</ScrollView>
+<H sub="Unsere Vorschläge beruhen nur auf freiwilligen Profilangaben – nicht auf deinem Standort.">Familien entdecken</H>
+{!hasMatchingDetails?<View style={styles.matchTip}>
+  <Text style={styles.matchTipTitle}>☀ Erzählt etwas mehr über euch</Text>
+  <Text style={styles.matchTipText}>Tragt im Profil eure Hobbys, Freizeitideen oder grobe Region ein, damit wir Gemeinsamkeiten erkennen können. Du kannst trotzdem alle freigegebenen Familien ansehen.</Text>
+</View>:null}
+<View style={styles.matchScopeBar}>
+  <Pressable accessibilityRole="button" accessibilityState={{selected:scope==='passend'}} style={[styles.matchScopeButton,scope==='passend'&&styles.matchScopeSelected]} onPress={()=>setScope('passend')}>
+    <Text style={[styles.matchScopeText,scope==='passend'&&styles.matchScopeTextSelected]}>Für euch passend</Text>
+  </Pressable>
+  <Pressable accessibilityRole="button" accessibilityState={{selected:scope==='alle'}} style={[styles.matchScopeButton,scope==='alle'&&styles.matchScopeSelected]} onPress={()=>setScope('alle')}>
+    <Text style={[styles.matchScopeText,scope==='alle'&&styles.matchScopeTextSelected]}>Alle Familien</Text>
+  </Pressable>
+</View>
+<Text style={styles.matchFilterTitle}>Was verbindet euch?</Text>
+<View style={styles.matchFilterRow}>{options.map(([id,label])=><View key={id} style={{marginRight:3,marginBottom:3}}>
+ <Chip text={label} selected={focus===id} onPress={()=>setFocus(id)}/>
+</View>)}</View>
+<Input label="Nach Familie, Ort oder Interesse suchen" placeholder="z. B. Wandern oder Beeskow" value={query} onChangeText={setQuery}/>
+{ownInterests.length>0?<><Text style={styles.matchFilterTitle}>Eines eurer Interessen auswählen</Text>
+<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:10}} contentContainerStyle={{gap:6}}>
+{['Alle',...ownInterests].map(i=><Chip key={i} text={i} selected={interest===i} onPress={()=>setInterest(i)}/>)}
+</ScrollView></>:null}
+<View style={styles.matchOptionsRow}>
+ <Pressable accessibilityRole="button" accessibilityState={{selected:sameRegionOnly}} disabled={!hasRegion}
+  style={[styles.matchOptionPill,sameRegionOnly&&styles.matchOptionActive,!hasRegion&&{opacity:.48}]}
+  onPress={()=>setSameRegionOnly(x=>!x)}>
+  <Text style={styles.matchOptionText}>{sameRegionOnly?'✓ Gleiche Region':'Gleiche Region'}</Text>
+ </Pressable>
+ <Pressable accessibilityRole="button" accessibilityLabel="Sortierung ändern" onPress={()=>setSortBy(v=>v==='passung'?'name':'passung')}
+  style={styles.matchOptionPill}>
+  <Text style={styles.matchOptionText}>{sortBy==='passung'?'Sortiert: Gemeinsamkeiten':'Sortiert: Name'} ↕</Text>
+ </Pressable>
+</View>
+<Text style={styles.matchCount}>{filtered.length} {filtered.length===1?'Familie':'Familien'} gefunden</Text>
 {!active?<Blank title="Zunächst Freigabe abwarten" body="Sobald das Konto geprüft ist, erscheinen freigegebene Familienprofile."/>:
-filtered.length===0?<Blank title="Noch keine passenden Familien" body="Andere freigegebene Familien werden hier angezeigt, sobald sie ihr Profil sichtbar schalten."/>:
+filtered.length===0?<View style={styles.matchTip}>
+ <Text style={styles.matchTipTitle}>Noch keine passenden Familien gefunden</Text>
+ <Text style={styles.matchTipText}>Probiere eine andere Suche oder entdecke alle Familien. Vielleicht fehlen in deiner Region gerade noch passende Profile.</Text>
+ <Button title="Alle Familien ansehen" mode="outline" small onPress={()=>{
+  setScope('alle');setQuery('');setInterest('Alle');setSameRegionOnly(false);setFocus('all');
+ }}/>
+</View>:
 filtered.map(p=>{
-const existing=requests.find(c=>(c.sender_id===me&&c.recipient_id===p.user_id)||(c.recipient_id===me&&c.sender_id===p.user_id));
-return <Card key={p.user_id} style={{marginBottom:12}}>
-<Row><Avatar name={p.display_name} size={58} uri={imageFor(p.user_id)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{p.display_name}</Text><Text style={styles.micro}>⌖ {p.region_label||'Region nicht angegeben'}</Text></View>{p.match>0?<View style={styles.match}><Text style={styles.matchText}>{p.match} gemeinsam</Text></View>:null}</Row>
-{p.about?<Text style={[styles.body,{marginTop:11}]} numberOfLines={3}>{p.about}</Text>:null}
-<View style={styles.chipsRow}>{(p.interests||[]).slice(0,5).map(i=><Chip key={i} text={i}/>)}</View>
-<Row style={{marginTop:12}}><Button title="Profil ansehen" mode="outline" small style={{flex:1}} onPress={()=>showFamily(p.user_id)}/>
-{blocked(p.user_id)?<Text style={styles.micro}>Blockiert</Text>:<Button title={existing? existing.status==='accepted'?'Verbunden':existing.status==='pending'?'Anfrage offen':'Angefragt':'Kennenlernen'} small disabled={busy||!!existing} style={{flex:1}} onPress={()=>onContact(p.user_id)}/>}</Row>
-</Card>;
+ const existing=requests.find(c=>(c.sender_id===me&&c.recipient_id===p.user_id)||(c.recipient_id===me&&c.sender_id===p.user_id));
+ return <Card key={p.user_id} style={{marginBottom:13}}>
+  <Row><Avatar name={p.display_name} size={58} uri={imageFor(p.user_id)}/>
+   <View style={{flex:1}}><Text style={styles.cardTitle}>{p.display_name}</Text>
+    <Text style={styles.micro}>⌖ {p.region_label||'Grobe Region nicht angegeben'}</Text>
+   </View>
+   {p.match>0?<View style={styles.match}><Text style={styles.matchText}>{p.match} gleiche {p.match===1?'Vorliebe':'Vorlieben'}</Text></View>:null}
+  </Row>
+  {p.about?<Text style={[styles.body,{marginTop:12}]} numberOfLines={3}>{p.about}</Text>:null}
+  {(p.sharedInterests.length>0||p.similarTopics.length>0||p.sameRegion)?<View style={styles.matchReasonBox}>
+    <Text style={styles.matchReasonTitle}>Warum diese Familie zu euch passen könnte</Text>
+    {p.sharedInterests.length>0?<View style={styles.matchReasonRow}><Text style={styles.matchReasonLabel}>Gemeinsam:</Text>
+      <View style={[styles.chipsRow,{flex:1,marginTop:0}]}>{p.sharedInterests.slice(0,5).map(tag=><Chip key={tag} text={tag}/>)}</View>
+    </View>:null}
+    {p.similarTopics.length>0?<Text style={styles.matchReasonDetail}>Ähnliche Themen: {p.similarTopics.slice(0,2).map(x=>x.label).join(' · ')}</Text>:null}
+    {p.sameRegion?<Text style={styles.matchReasonDetail}>✓ Gleiche selbst angegebene Region</Text>:null}
+  </View>:<Text style={[styles.micro,{marginTop:13}]}>Noch keine Gemeinsamkeiten hinterlegt. Kennenlernen ist trotzdem möglich.</Text>}
+  <Text style={[styles.micro,{marginTop:11}]}>Interessen dieser Familie</Text>
+  <View style={styles.chipsRow}>{(p.interests||[]).slice(0,5).map(i=><Chip key={i} text={i}/>)}</View>
+  <Row style={{marginTop:15}}><Button title="Profil ansehen" mode="outline" small style={{flex:1}} onPress={()=>showFamily(p.user_id)}/>
+   {blocked(p.user_id)?<Text style={styles.micro}>Blockiert</Text>:<Button title={existing? existing.status==='accepted'?'Verbunden':existing.status==='pending'?'Anfrage offen':'Angefragt':'Kennenlernen'} small disabled={busy||!!existing} style={{flex:1}} onPress={()=>onContact(p.user_id)}/>}
+  </Row>
+ </Card>;
 })}
+<Pressable accessibilityRole="button" onPress={openKompass} style={{marginTop:13}}>
+ <View style={styles.kompassDiscoverCallout}>
+  <Text style={styles.kompassCalloutEyebrow}>☀ FAMILIEN-KOMPASS</Text>
+  <Text style={styles.kompassCalloutTitle}>Wegweiser für Familienleistungen ›</Text>
+  <Text style={styles.kompassCalloutText}>Elterngeld, Kita, Kindergeld und mehr – mit offiziellen Links.</Text>
+ </View>
+</Pressable>
+<Text style={[styles.micro,{marginTop:13,textAlign:'center'}]}>Keine GPS-Daten, keine geschätzten Entfernungen und keine künstlichen Übereinstimmungs-Prozentwerte.</Text>
+</>}
 </ScrollView>;
 }
-function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
+function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat,onPhotosViewed}){
+const [viewingPhotoId,setViewingPhotoId]=useState(null);
 if(!p)return <Blank title="Profil nicht verfügbar" body="Das Profil kann verborgen oder gesperrt worden sein."/>;
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <Card style={{alignItems:'center',paddingTop:26}}><Avatar name={p.display_name} size={88} uri={photosUrls?.[photos?.[0]?.id]}/><Text style={[styles.h,{marginTop:12,textAlign:'center'}]}>{p.display_name}</Text><Text style={styles.sub}>⌖ {p.region_label||'Grobe Region nicht angegeben'}</Text><Text style={[styles.body,{textAlign:'center',marginTop:14}]}>{p.about||'Noch keine Beschreibung'}</Text>
 <View style={[styles.chipsRow,{justifyContent:'center'}]}>{(p.interests||[]).map(i=><Chip text={i} key={i}/>)}</View>
 {connection?.status==='accepted'?<Button title="Private Nachricht schreiben" onPress={()=>onChat(connection.id)}/>:
 !blocked&&active?<Button title={connection?'Kontaktanfrage vorhanden':'Kontakt anfragen'} disabled={disabled||!!connection} onPress={onContact}/>:null}
 <Row style={{marginTop:12}}>{blocked?<Button title="Entsperren" mode="outline" small onPress={onUnblock}/>:<Button title="Blockieren" mode="outline" small onPress={onBlock}/>}<Button title="Melden" mode="ghost" small onPress={onReport}/></Row>
 </Card>
-{photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
-</ScrollView>;
+{connection?.status==='accepted'&&photos?.length>0?<><H sub="Nur bestätigte Kontakte sehen freigegebene Familienbilder.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Pressable key={photo.id} accessibilityRole="button"
+ accessibilityLabel={'Foto vergrößern: '+(photo.caption||'Familienmoment')} disabled={!photosUrls[photo.id]}
+ onPress={()=>{setViewingPhotoId(photo.id);onPhotosViewed?.();}} style={styles.galleryPressable}>
+ <Card style={{padding:10}}>{photosUrls[photo.id]?<Image source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
+ <Text style={styles.micro} numberOfLines={2}>{photo.caption||'Familienmoment'}</Text>
+ <Text style={[styles.micro,{color:C.accentDark,fontWeight:'800',marginTop:5}]}>Foto ansehen ›</Text>
+ </Card></Pressable>)}</View></>:null}
+</ScrollView>
+<MomentViewer photos={connection?.status==='accepted'?(photos||[]):[]} urls={photosUrls||{}} activeId={viewingPhotoId} onSelect={setViewingPhotoId}
+ onClose={()=>setViewingPhotoId(null)}/></>;
 }
-function ContactsScreen({pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat}){
+function ContactsScreen({pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat,onShowFamily,newPhotoCount,onViewPhotos}){
 const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <H sub="Nachrichten sind erst nach gegenseitiger Bestätigung möglich.">Deine Kontakte</H>
+{newPhotoCount>0?<Pressable accessibilityRole="button" onPress={onViewPhotos} style={styles.activityCard}>
+  <Text style={styles.activityCardTitle}>☀ Neue Familienmomente</Text>
+  <Text style={styles.activityCardText}>{newPhotoCount} neue freigegebene {newPhotoCount===1?'Aufnahme':'Aufnahmen'} bei deinen bestätigten Kontakten. Öffne ein Familienprofil, um sie anzusehen.</Text>
+  <Text style={styles.activityCardAction}>Hinweis als gesehen markieren ✓</Text>
+ </Pressable>:null}
 <Text style={styles.sectionTitle}>Offene Anfragen</Text>
 {pending.length===0?<Blank title="Keine offenen Anfragen" body="Neue Kontaktwünsche erscheinen hier."/>:pending.map(c=><Card key={c.id} style={{marginBottom:10}}>
 <Row><Avatar name={nameOf(other(c))}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other(c))}</Text><Text style={styles.micro}>{c.recipient_id===me?'Möchte dich kennenlernen':'Von dir angefragt'}</Text></View></Row>
@@ -424,25 +766,38 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <Text style={styles.sectionTitle}>Bestätigte Kontakte</Text>
 {accepted.length===0?<Blank title="Noch keine Kontakte" body="Bestätigte Familien erscheinen hier."/>:accepted.map(c=>{const uid=other(c);return <Card key={c.id} style={{marginBottom:10}}>
 <Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text style={styles.micro}>{blocked(uid)?'Blockiert':'Kontakt bestätigt'}</Text></View></Row>
-<Row style={{marginTop:12}}><Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>{blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:<Button title="Blockieren" small mode="outline" onPress={()=>onBlock(uid)}/>}</Row>
+<Row style={{marginTop:12,flexWrap:'wrap'}}>
+<Button title="Profil ansehen" small mode="outline" disabled={blocked(uid)} onPress={()=>onShowFamily(uid)}/>
+<Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>
+{blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:<Button title="Blockieren" small mode="ghost" onPress={()=>onBlock(uid)}/>}
+</Row>
 </Card>;})}
 </ScrollView>;
 }
-function ChatList({contacts,me,nameOf,messages,onChat,blocked}){
+function ChatList({contacts,me,nameOf,messages,onChat,blocked,chatCounts={}}){
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
 {contacts.length===0?<Blank title="Noch keine Gespräche" body="Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben."/>:
 contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;const last=messages.filter(m=>m.contact_id===c.id)[0];return <Pressable key={c.id} onPress={()=>onChat(c.id)}>
-<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':last?.body||'Noch keine Nachrichten'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
+<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':last?.body||'Noch keine Nachrichten'}</Text></View>
+{chatCounts[c.id]>0?<View style={styles.chatUnreadBadge}><Text style={styles.chatUnreadText}>{chatCounts[c.id]>99?'99+':chatCounts[c.id]}</Text></View>:<Text style={{fontSize:23,color:C.accent}}>›</Text>}
+</Row></Card>
 </Pressable>;})}
 </ScrollView>;
 }
-function ChatScreen({contact,me,nameOf,messages,disabled,blocked,send,onReport,onBlock}) {
+function ChatScreen({contact,me,nameOf,messages,disabled,blocked,send,onReport,onBlock,onRefresh}) {
 const [text,setText]=useState('');
 if(!contact)return <Blank title="Gespräch nicht verfügbar" body="Kontakt ist nicht mehr bestätigt oder wurde verborgen."/>;
 const other=contact.sender_id===me?contact.recipient_id:contact.sender_id;
-const sorted=[...messages].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-async function submit(){const body=text.trim();if(!body)return; const ok=await send(body);if(ok)setText('');}
+const sorted=[...messages].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)||String(a.id).localeCompare(String(b.id)));
+let consecutiveFromMe=0;
+for(let i=sorted.length-1;i>=0;i--){
+  if(sorted[i].sender_id!==me)break;
+  consecutiveFromMe++;
+  if(consecutiveFromMe>=5)break;
+}
+const waitingForReply=consecutiveFromMe>=5;
+async function submit(){const body=text.trim();if(!body||waitingForReply)return; const ok=await send(body);if(ok)setText('');}
 return <View style={{flex:1}}>
 <Row style={styles.chatHeader}><Avatar name={nameOf(other)} size={38}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other)}</Text><Text style={styles.micro}>Privates Gespräch</Text></View><Button title="Blockieren" small mode="ghost" onPress={()=>onBlock(other)}/></Row>
 <ScrollView style={{flex:1}} contentContainerStyle={{padding:16}} keyboardShouldPersistTaps="handled">
@@ -451,14 +806,41 @@ return <View style={{flex:1}}>
 <Row style={{justifyContent:'space-between',marginTop:7}}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>{formatDate(m.created_at)}</Text><Pressable onPress={()=>onReport(m.id)}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>Melden</Text></Pressable></Row>
 </View>)}
 </ScrollView>
-{blocked(other)?<Info warning>Du hast diese Person blockiert. Neue Nachrichten sind nicht erlaubt.</Info>:
-<Row style={styles.chatComposer}><TextInput placeholder="Nachricht schreiben …" value={text} onChangeText={setText} maxLength={2000} multiline
-placeholderTextColor="#9AAFB4" style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]}/><Button title="Senden" small disabled={disabled||!text.trim()} onPress={submit}/></Row>}
+{blocked(other)?<Info warning>Du hast diese Person blockiert. Neue Nachrichten sind nicht erlaubt.</Info>:<>
+<View style={styles.chatLimitBox}>
+ <Text style={styles.chatLimitText}>{waitingForReply?
+  'Du hast fünf Nachrichten hintereinander geschickt. Bitte warte auf eine Antwort.':
+  consecutiveFromMe>0?`${consecutiveFromMe} von 5 Nachrichten ohne Antwort gesendet.`:
+  'Bis zu fünf Nachrichten hintereinander sind möglich.'}</Text>
+ {waitingForReply?<Pressable accessibilityRole="button" accessibilityLabel="Neue Antworten prüfen" onPress={onRefresh}
+  style={styles.chatLimitRefresh}><Text style={styles.chatLimitRefreshText}>↻ Antworten prüfen</Text></Pressable>:null}
+</View>
+<Row style={styles.chatComposer}><TextInput placeholder={waitingForReply?'Antwort abwarten …':'Nachricht schreiben …'}
+ value={text} onChangeText={setText} maxLength={2000} multiline editable={!waitingForReply&&!disabled}
+placeholderTextColor="#9AAFB4" style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]} />
+<Button title="Senden" small disabled={disabled||waitingForReply||!text.trim()} onPress={submit}/></Row>
+<Text style={[styles.micro,{textAlign:'center',paddingHorizontal:13,paddingBottom:9,paddingTop:5}]}>
+ Nachrichten können vor dem Speichern durch den externen Dienst OpenAI auf problematische Inhalte geprüft werden. Dieser Chat ist nicht Ende-zu-Ende-verschlüsselt.
+</Text>
+</>}
 </View>;
 }
-function EventsScreen({events,eventRequests,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
+function EventsScreen({events,eventRequests,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent,initialRegion=''}){
 const [title,setTitle]=useState('');const [description,setDescription]=useState('');const [region,setRegion]=useState('');
 const [date,setDate]=useState('');const [time,setTime]=useState('15:00');const [count,setCount]=useState('10');const [visibility,setVisibility]=useState('community');
+const [section,setSection]=useState('kalender');
+const eventsScroll=useRef(null);
+function planIdea(idea,place){
+ if(!idea)return;
+ setTitle((idea.title+' – Familientreffen').slice(0,100));
+ setDescription(('Gemeinsam '+idea.description+'\n\nBitte Treffpunkt, Uhrzeit und alle Details erst gemeinsam abstimmen.').slice(0,1000));
+ setRegion(place.slice(0,80));
+ setDate('');
+ setShowForm(true);
+ setSection('kalender');
+ requestAnimationFrame(()=>eventsScroll.current?.scrollTo({y:0,animated:true}));
+ if(!active)Alert.alert('Profilfreigabe erforderlich','Du kannst den Termin vorbereiten, aber erst nach der Profilfreigabe einreichen.');
+}
 const names=(uid)=>profiles.find(p=>p.user_id===uid)?.display_name||'Familie';
 async function submit(){
 if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time))return Alert.alert('Termin prüfen','Bitte Datum als JJJJ-MM-TT und Zeit als HH:MM eingeben.');
@@ -468,8 +850,20 @@ const ok=await createEvent({title:safeString(title,100),description:safeString(d
 if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');}
 }
 const upcoming=events.filter(e=>new Date(e.ends_at)>new Date());
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-<H sub="Gemeinsame Aktivitäten statt öffentlicher Diskussionen.">Familienkalender</H>
+return <ScrollView ref={eventsScroll} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+<H sub="Gemeinsam etwas unternehmen und neue Familien kennenlernen.">Familienkalender</H>
+<View style={styles.outingSectionBar}>
+  <Pressable accessibilityRole="button" accessibilityState={{selected:section==='kalender'}}
+    onPress={()=>setSection('kalender')} style={[styles.outingSectionButton,section==='kalender'&&styles.outingSectionButtonActive]}>
+    <Text style={[styles.outingSectionText,section==='kalender'&&styles.outingSectionTextActive]}>Gemeinsame Treffen</Text>
+  </Pressable>
+  <Pressable accessibilityRole="button" accessibilityState={{selected:section==='ideen'}}
+    onPress={()=>setSection('ideen')} style={[styles.outingSectionButton,section==='ideen'&&styles.outingSectionButtonActive]}>
+    <Text style={[styles.outingSectionText,section==='ideen'&&styles.outingSectionTextActive]}>Ausflugsideen</Text>
+  </Pressable>
+</View>
+{section==='ideen'?<FamilyOutingIdeas initialRegion={initialRegion} onPlan={planIdea} userId={me}/>:<>
+<Text style={[styles.micro,{marginBottom:15}]}>Termine werden vor ihrer Veröffentlichung geprüft. Öffentliche Privatadressen bitte vermeiden.</Text>
 <Button title={showForm?'Formular schließen':'＋ Aktivität erstellen'} disabled={!active} onPress={()=>setShowForm(!showForm)}/>
 {showForm?<Card style={{marginTop:14}}>
 <Text style={styles.cardTitle}>Neue Aktivität</Text><Text style={[styles.sub,{marginBottom:15}]}>Vor Veröffentlichung wird der Termin geprüft. Bitte keine Privatadressen veröffentlichen.</Text>
@@ -480,7 +874,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Input label="Uhrzeit (HH:MM)" placeholder="15:00" value={time} onChangeText={setTime}/>
 <Input label="Maximale Personen (2–50)" value={count} onChangeText={setCount} keyboardType="number-pad"/>
 <Text style={styles.label}>Wer soll den Termin sehen?</Text><Row style={{marginBottom:15}}><Chip text="Alle geprüften Familien" selected={visibility==='community'} onPress={()=>setVisibility('community')}/><Chip text="Nur Kontakte" selected={visibility==='contacts'} onPress={()=>setVisibility('contacts')}/></Row>
-<Button title="Zur Freigabe einreichen" disabled={busy} onPress={submit}/>
+<Button title="Zur Freigabe einreichen" disabled={busy||!active} onPress={submit}/>
 </Card>:null}
 <Text style={[styles.sectionTitle,{marginTop:22}]}>Anstehende Treffen</Text>
 {upcoming.length===0?<Blank title="Noch keine Treffen" body="Neue Aktivitäten erscheinen hier nach Freigabe."/>:upcoming.map(e=>{
@@ -497,105 +891,333 @@ request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request
 {!self?<Pressable onPress={()=>reportEvent(e.id)} style={{marginTop:12}}><Text style={styles.micro}>⚑ Veranstaltung melden</Text></Pressable>:null}
 </Card>;
 })}
+</>}
 </ScrollView>;
 }
-function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
+function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,openNotifications,signOut}){
 const [form,setForm]=useState(blankProfile);
 const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
 const [photoPickerBusy,setPhotoPickerBusy]=useState(false);
 const [newPassword,setNewPassword]=useState('');
+const [activeMenu,setActiveMenu]=useState('momente');
+const profileScrollRef=useRef(null);
+const profilePanelYRef=useRef(0);
+const [addingMoment,setAddingMoment]=useState(false);
+const [viewingPhotoId,setViewingPhotoId]=useState(null);
 useEffect(()=>{if(profile)setForm({...blankProfile,...profile});},[profile?.updated_at,profile?.user_id]);
-async function submit(){if(form.display_name.trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
-await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});}
-function toggle(i){setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):f.interests.length>=12?f.interests:[...f.interests,i]}));}
+async function submit(){
+ if(form.display_name.trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
+ await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});
+}
+function toggle(i){
+ if(!form.interests?.includes(i)&&(form.interests||[]).length>=12){
+  Alert.alert('12 Interessen ausgewählt','Du kannst bis zu 12 Hobbys, Aktivitäten und Treffideen speichern. Entferne zuerst eine andere Auswahl.');
+  return;
+ }
+ setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):[...f.interests,i]}));
+}
 async function updatePassword(){if(newPassword.length<12)return Alert.alert('Passwort','Bitte mindestens 12 Zeichen verwenden.');const ok=await changePassword(newPassword);if(ok)setNewPassword('');}
 async function selectDraftPhoto(){
-  if(busy||photoPickerBusy)return;
-  setPhotoPickerBusy(true);
-  try {
-    const result=await ImagePicker.launchImageLibraryAsync({
-      mediaTypes:['images'],allowsEditing:true,quality:0.85,exif:false,
-    });
-    if(!result.canceled&&result.assets?.[0]?.uri){
-      setSelectedPhoto(result.assets[0]);
-    }
-  } catch(e){
-    Alert.alert('Fotoauswahl fehlgeschlagen',humanError(e));
-  } finally {
-    setPhotoPickerBusy(false);
-  }
+ if(busy||photoPickerBusy)return;
+ setPhotoPickerBusy(true);
+ try{
+  const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],allowsEditing:true,quality:0.85,exif:false});
+  if(!result.canceled&&result.assets?.[0]?.uri)setSelectedPhoto(result.assets[0]);
+ }catch(e){Alert.alert('Fotoauswahl fehlgeschlagen',humanError(e));}
+ finally{setPhotoPickerBusy(false);}
 }
 async function submitDraftPhoto(){
-  if(!selectedPhoto||busy||photoPickerBusy)return;
-  const ok=await uploadPhoto(selectedPhoto,photoCaption);
-  if(ok){
-    setSelectedPhoto(null);
-    setPhotoCaption('');
-  }
+ if(!selectedPhoto||busy||photoPickerBusy)return;
+ // Explain actual third-party processing before starting a nonreversible upload.
+ Alert.alert('Hinweis zur Foto-Sicherheitsprüfung',
+  'Vor der Freigabe werden hochgeladene Fotos durch einen externen Moderationsdienst von OpenAI automatisch geprüft. Dabei wird der Bildinhalt an diesen Dienst übermittelt. Bitte in der Beta keine Kinderfotos hochladen. Du kannst den Upload jetzt abbrechen.',
+  [
+   {text:'Abbrechen',style:'cancel'},
+   {text:'Foto hochladen',onPress:async()=>{
+     const ok=await uploadPhoto(selectedPhoto,photoCaption);
+     if(ok){setSelectedPhoto(null);setPhotoCaption('');setAddingMoment(false);}
+   }}
+  ]);
 }
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-<H sub="Du bestimmst, was andere Familien über euch erfahren.">Mein Familienprofil</H>
-<Card>
-<Row><Avatar size={65} name={profile?.display_name}/><View style={{flex:1}}><Text style={styles.cardTitle}>{profile?.display_name||'Deine Familie'}</Text><Text style={styles.micro}>{active?'✓ Erwachsener geprüft, Profil freigegeben':'⌛ Prüfung oder Freigabe ausstehend'}</Text><Text style={styles.micro}>Mitgliedschaft: {membership?.status||'–'}</Text></View></Row>
-{!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
-</Card>
-<Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Angaben bearbeiten</Text>
-<Input label="Anzeigename" value={form.display_name} onChangeText={x=>setForm(p=>({...p,display_name:x}))} maxLength={60}/>
-<Input label="Stadt / grobe Region" value={form.region_label} onChangeText={x=>setForm(p=>({...p,region_label:x}))} maxLength={80} placeholder="Keine Wohnadresse"/>
-<Input label="Über uns" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Was macht ihr gern?"/>
-<Text style={styles.label}>Interessen (bis zu 12)</Text><View style={[styles.chipsRow,{marginBottom:15}]}>{INTERESTS.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
-<Row style={{marginBottom:20,justifyContent:'space-between'}}><View style={{flex:1}}><Text style={styles.label}>Für andere Familien sichtbar</Text><Text style={styles.micro}>Erst nach Profilfreigabe sichtbar</Text></View><Switch value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/></Row>
-<Button title={busy?'Bitte warten …':'Profil speichern'} disabled={busy} onPress={submit}/>
-</Card>
-<Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Profilfotos</Text><Text style={[styles.sub,{marginBottom:13}]}>Nur bestätigte Kontakte sehen freigegebene Bilder. Bitte während der Beta keine Kinderfotos hochladen.</Text>
-<Text style={styles.label}>1. Foto auswählen</Text>
-<Button title={selectedPhoto?'Anderes Foto auswählen':'＋ Foto auswählen'}
-  disabled={busy||photoPickerBusy} mode="outline" onPress={selectDraftPhoto}/>
-{selectedPhoto?<View style={{marginTop:14}}>
-  <Image source={{uri:selectedPhoto.uri}} style={styles.photoDraftPreview} resizeMode="contain"/>
-  <Input label="2. Kurze Bildbeschreibung (optional)" value={photoCaption}
-    onChangeText={setPhotoCaption} maxLength={200}
-    placeholder="Was möchtest du zu diesem Foto erzählen?"/>
-  <Text style={[styles.micro,{marginBottom:12}]}>
-    Dein Foto und die Beschreibung werden erst nach dem Einreichen geprüft.
-    Bis zur Freigabe bleibt das Foto für andere Familien verborgen.
-  </Text>
-  <Row style={{alignItems:'stretch'}}>
-    <Button title="Verwerfen" mode="outline" small disabled={busy||photoPickerBusy}
-      style={{flex:1}} onPress={()=>{setSelectedPhoto(null);setPhotoCaption('');}}/>
-    <Button title={busy?'Wird eingereicht …':'Foto einreichen'}
-      disabled={busy||photoPickerBusy} style={{flex:1}} onPress={submitDraftPhoto}/>
+const heroPhoto=photos.find(p=>p.moderation_status==='approved'&&photosUrls[p.id]);
+return <><ScrollView ref={profileScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+ <View style={styles.profileHero}>
+  <View pointerEvents="none" style={styles.profileHeroSun}/>
+  <Text style={styles.profileEyebrow}>✦ DAS SIND WIR</Text>
+  <Row style={{alignItems:'flex-start',marginTop:14}}>
+   <Avatar size={72} name={profile?.display_name} uri={heroPhoto?photosUrls[heroPhoto.id]:null}/>
+   <View style={{flex:1,paddingTop:3}}>
+    <Text style={styles.profileName}>{profile?.display_name||'Deine Familie'}</Text>
+    <Text style={styles.profileRegion}>⌖ {profile?.region_label||'Region noch nicht angegeben'}</Text>
+    <Text style={styles.profileStatus}>{active?'✓ Profil freigegeben':'⌛ Prüfung ausstehend'}</Text>
+   </View>
   </Row>
-</View>:<Text style={[styles.micro,{marginTop:10}]}>
-  Nach der Fotoauswahl kannst du eine Beschreibung ergänzen und beides zusammen einreichen.
-</Text>}
-<View style={[styles.photoGrid,{marginTop:15}]}>{photos.map(p=><Card key={p.id} style={styles.photoCard}>
-{photosUrls[p.id]?<Image source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
-<Text style={styles.micro} numberOfLines={2}>{p.caption||'Profilbild'}</Text><Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'Freigegeben':p.moderation_status==='pending'?'In Prüfung':'Abgelehnt'}</Text>
-<Button title="Löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
-</Card>)}</View>
-{photos.length===0?<Text style={[styles.micro,{marginTop:10}]}>Noch keine Bilder hochgeladen.</Text>:null}
-</Card>
-<Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Sicherheit und Einstellungen</Text>
-<Button title="Elternwissen öffnen" mode="outline" onPress={openInfo}/>
-<Text style={[styles.label,{marginTop:18}]}>Passwort ändern</Text><Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none"/>
-<Button title="Passwort ändern" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
-{blocks.length>0?<View style={{marginTop:18}}><Text style={styles.label}>Blockierte Konten</Text>{blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}><Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text><Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/></Row>)}</View>:null}
-<View style={{height:16}}/><Button title="Abmelden" mode="ghost" onPress={signOut}/>
-</Card>
-</ScrollView>;
+  <Text style={styles.profileAbout}>{profile?.about||'Erzählt anderen Familien etwas über euch und eure Lieblingsausflüge.'}</Text>
+  <View style={styles.chipsRow}>{(profile?.interests||[]).slice(0,8).map(i=><Chip key={i} text={i}/>)}</View>
+  <Text style={[styles.micro,{marginTop:16,color:'#8B6327'}]}>Euer Familienprofil: {(profile?.interests||[]).length} Interessen · {photos.length} Momente</Text>
+ </View>
+ {!active?<Info warning>Angaben und Bilder sind erst nach Freigabe für andere Familien sichtbar.</Info>:null}
+ <Text style={[styles.sectionTitle,{marginTop:22,marginBottom:7}]}>Dein Familienbereich</Text>
+ <Text style={[styles.sub,{marginTop:0,marginBottom:15}]}>Wähle aus, was du ergänzen oder einstellen möchtest.</Text>
+ <View style={styles.profileMenuGrid}>{PROFILE_MENUS.map(([id,number,title,subtitle])=><Pressable key={id}
+  accessibilityRole="button" accessibilityLabel={title} accessibilityState={{selected:activeMenu===id}}
+  onPress={()=>{setActiveMenu(id);requestAnimationFrame(()=>profileScrollRef.current?.scrollTo({y:Math.max(0,profilePanelYRef.current-14),animated:true}));}} style={({pressed})=>[styles.profileMenuTile,activeMenu===id&&styles.profileMenuTileActive,pressed&&{opacity:.8}]}>
+   <Text style={styles.profileMenuNumber}>{number}</Text>
+   <Text style={styles.profileMenuTitle}>{title}</Text>
+   <Text style={styles.profileMenuSubtitle}>{subtitle}</Text>
+  </Pressable>)}</View>
+ <View onLayout={e=>{profilePanelYRef.current=e.nativeEvent.layout.y;}}>
+ {activeMenu==='momente'?<Card style={{marginTop:18}}>
+  <Row style={{alignItems:'flex-start',justifyContent:'space-between'}}>
+   <View style={{flex:1}}>
+    <Text style={styles.sectionTitle}>☀ Unsere Momente</Text>
+    <Text style={[styles.sub,{marginTop:-7,marginBottom:13}]}>Einblicke in euer Familienleben – keine öffentliche Pinnwand.</Text>
+   </View>
+  </Row>
+  <Button title={addingMoment?'✕ Fotoeingabe schließen':'＋ Erinnerung hinzufügen'} mode="outline" onPress={()=>setAddingMoment(v=>!v)}/>
+  {addingMoment?<View style={{marginTop:17}}>
+   <Text style={[styles.micro,{marginBottom:14}]}>Nur bestätigte Kontakte sehen freigegebene Bilder. Bitte in der Beta keine Kinderfotos hochladen.</Text>
+   <Button title={selectedPhoto?'Anderes Foto auswählen':'Foto auswählen'} disabled={busy||photoPickerBusy} mode="ghost" onPress={selectDraftPhoto}/>
+   {selectedPhoto?<View style={{marginTop:14}}>
+    <Image source={{uri:selectedPhoto.uri}} style={styles.photoDraftPreview} resizeMode="contain"/>
+    <Input label="Kleine Geschichte zum Foto (optional)" value={photoCaption} onChangeText={setPhotoCaption} maxLength={200} placeholder="Was habt ihr Schönes erlebt?"/>
+    <Text style={[styles.micro,{marginBottom:12}]}>Foto und Beschreibung werden zunächst geprüft und bis zur Freigabe nicht für andere Familien angezeigt.</Text>
+    <Row style={{alignItems:'stretch'}}>
+     <Button title="Verwerfen" mode="ghost" small disabled={busy||photoPickerBusy} style={{flex:1}} onPress={()=>{setSelectedPhoto(null);setPhotoCaption('');}}/>
+     <Button title={busy?'Wird eingereicht …':'Foto einreichen'} disabled={busy||photoPickerBusy} small style={{flex:1}} onPress={submitDraftPhoto}/>
+    </Row>
+   </View>:null}
+  </View>:null}
+  {photos.length===0?<View style={styles.emptyMoments}><Text style={{fontSize:30,color:C.coral}}>♡</Text><Text style={[styles.cardTitle,{textAlign:'center'}]}>Euer erstes Foto fehlt noch</Text><Text style={[styles.sub,{textAlign:'center'}]}>Ein schöner Ausflug, ein Lieblingsort oder ein besonderer Moment.</Text></View>:
+  <View style={[styles.photoGrid,{marginTop:16}]}>{photos.map(p=><View key={p.id} style={styles.momentTile}>
+   <Pressable accessibilityRole="button" accessibilityLabel={'Foto vergrößern: '+(p.caption||'Familienmoment')}
+    disabled={!photosUrls[p.id]} onPress={()=>setViewingPhotoId(p.id)} style={styles.momentPreviewPressable}>
+    {photosUrls[p.id]?<Image source={{uri:photosUrls[p.id]}} style={styles.momentImage}/>:<View style={[styles.momentImage,{backgroundColor:C.pale,justifyContent:'center',alignItems:'center'}]}><Text style={styles.micro}>Bild wird geladen</Text></View>}
+    {photosUrls[p.id]?<View style={styles.momentZoomBadge}><Text style={styles.momentZoomText}>↗ Ansehen</Text></View>:null}
+   </Pressable>
+   <Text style={styles.momentCaption} numberOfLines={3}>{p.caption||'Ein Familienmoment'}</Text>
+   <Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'✓ Freigegeben':p.moderation_status==='pending'?'⌛ In Prüfung':'Nicht freigegeben'}</Text>
+   <Button title="Foto löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
+  </View>)}</View>}
+ </Card>:null}
+
+ {activeMenu==='steckbrief'?<Card style={{marginTop:17}}>
+  <Text style={styles.sectionTitle}>✎ Euer Familien-Steckbrief</Text>
+  <Text style={[styles.sub,{marginTop:-8,marginBottom:17}]}>Eine persönliche Vorstellung, ohne private Namen oder genaue Anschrift der Kinder preiszugeben.</Text>
+  <Input label="Familienname / Anzeigename" value={form.display_name} onChangeText={x=>setForm(p=>({...p,display_name:x}))} maxLength={60} placeholder="Wie sollen andere euch nennen?"/>
+  <Input label="Stadt / grobe Region" value={form.region_label} onChangeText={x=>setForm(p=>({...p,region_label:x}))} maxLength={80} placeholder="Bitte keine Wohnadresse eintragen"/>
+  <Input label="Das macht uns als Familie aus" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Wie verbringt ihr eure Freizeit? Was ist euch wichtig? Welche Begegnungen wünscht ihr euch?"/>
+  <Text style={[styles.micro,{marginBottom:16}]}>Noch {Math.max(0,500-(form.about||'').length)} Zeichen verfügbar. Diese Beschreibung kann in freigegebenen Familienprofilen angezeigt werden.</Text>
+  <Button title={busy?'Wird gespeichert …':'Steckbrief speichern'} disabled={busy} onPress={submit}/>
+ </Card>:null}
+ {['hobbys','unterwegs','treffen'].includes(activeMenu)?<Card style={{marginTop:17}}>
+  <Text style={styles.sectionTitle}>{activeMenu==='hobbys'?'♫ Hobbys & Interessen':activeMenu==='unterwegs'?'☀ Freizeit & Ausflüge':'♡ Treffen & Familienalltag'}</Text>
+  <Text style={[styles.sub,{marginTop:-7,marginBottom:14}]}>Wähle, was zu euch passt. Alle drei Bereiche teilen sich dieselben 12 Interessen für eure Familiensuche.</Text>
+  <View style={styles.profileInterestCount}><Text style={styles.profileInterestCountText}>{(form.interests||[]).length} von 12 ausgewählt</Text></View>
+  {(INTEREST_GROUPS[activeMenu]||[]).map(([heading,items])=><View key={heading} style={{marginBottom:17}}>
+   <Text style={styles.label}>{heading}</Text>
+   <View style={[styles.chipsRow,{marginTop:3}]}>{items.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
+  </View>)}
+  {(form.interests||[]).length>0?<View style={styles.profileSelectedInterests}>
+   <Text style={styles.label}>Eure bisherige Auswahl – zum Entfernen antippen</Text>
+   <View style={[styles.chipsRow,{marginTop:3,marginBottom:6}]}>{form.interests.map(i=><Chip key={i} text={i} selected onPress={()=>toggle(i)}/>)}</View>
+  </View>:null}
+  <Button title={busy?'Wird gespeichert …':'Interessen speichern'} disabled={busy} onPress={submit}/>
+ </Card>:null}
+ {activeMenu==='sichtbarkeit'?<Card style={{marginTop:17}}>
+  <Text style={styles.sectionTitle}>♡ Sichtbarkeit & Privatsphäre</Text>
+  <Text style={[styles.sub,{marginTop:-8,marginBottom:17}]}>Ihr entscheidet, ob eure Familie in der Suche vorgeschlagen wird.</Text>
+  <Row style={{alignItems:'center',justifyContent:'space-between',marginBottom:17}}>
+   <View style={{flex:1}}><Text style={styles.label}>In der Familiensuche erscheinen</Text>
+    <Text style={styles.micro}>Nur wenn euer Profil freigegeben ist und ihr sichtbar sein möchtet.</Text></View>
+   <Switch value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/>
+  </Row>
+  <View style={styles.profilePrivacyNote}>
+   <Text style={styles.label}>Was sehen andere Familien?</Text>
+   <Text style={styles.body}>Familienname, grobe Region, euer Beschreibungstext und ausgewählte Interessen können im freigegebenen Profil sichtbar sein.</Text>
+   <Text style={[styles.body,{marginTop:9}]}>Freigegebene Familienfotos zeigen wir in der App nur bestätigten Kontakten. Bitte in der Beta keine Kinderfotos einstellen.</Text>
+   <Text style={[styles.micro,{marginTop:11}]}>Das Ausschalten der Suche ersetzt kein Löschen des Profils. Die tatsächlichen Zugriffsmöglichkeiten müssen zusätzlich serverseitig geschützt sein.</Text>
+   <Text style={[styles.micro,{marginTop:11}]}>Automatische Sicherheitsprüfung: Für die Moderation können von dir eingegebene Texte und hochgeladene Fotos an den externen Dienst OpenAI übermittelt werden. Der Supabase-Datenbankstandort Frankfurt allein bedeutet daher nicht, dass sämtliche Verarbeitung in Deutschland stattfindet.</Text>
+  </View>
+  <Button title={busy?'Wird gespeichert …':'Sichtbarkeit speichern'} disabled={busy} onPress={submit}/>
+ </Card>:null}
+ {activeMenu==='neuigkeiten'?<Card style={{marginTop:17}}>
+  <Text style={styles.sectionTitle}>♡ Neuigkeiten & Benachrichtigungen</Text>
+  <Text style={styles.sub}>Neue Matches, Anfragen und Nachrichten findest du direkt hier. Du entscheidest, welche Hinweise du möchtest.</Text>
+  <Button title="Neuigkeiten & Einstellungen öffnen" mode="outline" onPress={openNotifications}/>
+  <Text style={[styles.micro,{marginTop:12}]}>Echte Pushs bei geschlossener App benötigen später eine eigene installierte Testversion außerhalb von Expo Go.</Text>
+ </Card>:null}
+ {activeMenu==='konto'?<Card style={{marginTop:17}}>
+  <Text style={styles.sectionTitle}>⚙ Konto, Sicherheit & Hilfe</Text>
+  <Text style={[styles.micro,{marginTop:-7,marginBottom:17}]}>Mitgliedschaft: {membership?.status||'–'} · Verifizierung: {verification?.status||'–'}</Text>
+  <Text style={styles.label}>Informationen & Hilfen</Text>
+  <Button title="Familien-Kompass öffnen" mode="outline" onPress={openInfo}/>
+  <View style={styles.profilePrivacyNote}>
+   <Text style={styles.label}>Datenschutz in der privaten Beta</Text>
+   <Text style={styles.body}>Dein Familienprofil enthält nur freiwillige Angaben. Für Bilder gilt ein privater Speicher mit zeitlich begrenzten Fotolinks. Freigegebene Bilder können bestätigte Kontakte sehen.</Text>
+   <Text style={[styles.body,{marginTop:9}]}>Texte und Fotos werden zur Sicherheitsprüfung teilweise an OpenAI übermittelt. Vor einer öffentlichen Veröffentlichung müssen Datenschutzhinweise, Vereinbarungen mit Dienstleistern, mögliche internationale Datenübermittlung sowie Lösch- und Auskunftsprozesse rechtlich geprüft werden.</Text>
+   <Text style={[styles.micro,{marginTop:11}]}>Vermeide vollständige Namen und Wohnanschriften von Kindern. Bitte vorerst keine Kinderfotos hochladen.</Text>
+  </View>
+  <View style={styles.profileSettingsDivider}/>
+  <Text style={styles.label}>Passwort ändern</Text>
+  <Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none" autoCorrect={false}/>
+  <Button title="Passwort aktualisieren" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
+  {blocks.length>0?<View style={{marginTop:21}}>
+   <Text style={styles.label}>Blockierte Konten</Text>
+   {blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}>
+    <Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text>
+    <Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/>
+   </Row>)}
+  </View>:null}
+  <View style={styles.profileSettingsDivider}/>
+  <Text style={[styles.micro,{marginBottom:11}]}>Melde dich nur ab, wenn du dein Konto verlassen möchtest. Deine gespeicherten Profilangaben bleiben bestehen.</Text>
+  <Button title="Abmelden" mode="ghost" onPress={signOut}/>
+ </Card>:null}
+ </View>
+</ScrollView>
+<MomentViewer photos={photos} urls={photosUrls} activeId={viewingPhotoId} onSelect={setViewingPhotoId}
+ onClose={()=>setViewingPhotoId(null)} isOwner/>
+</>;
 }
-function InfoScreen(){
-const links=[
-['Elterngeld & Elternzeit','Familienportal des Bundes','https://familienportal.de/'],
-['Kindergeld & Kinderzuschlag','Bundesagentur für Arbeit','https://www.arbeitsagentur.de/familie-und-kinder'],
-['Bundesgesetze nachlesen','Gesetze im Internet','https://www.gesetze-im-internet.de/'],
-['Kita und Schule','Deutscher Bildungsserver','https://www.bildungsserver.de/'],
+const KOMPASS_TOPICS=[
+ {id:'schwangerschaft',label:'Wir erwarten ein Baby',symbol:'01',desc:'Schon vor der Geburt Wichtiges vorbereiten'},
+ {id:'geburt',label:'Unser Kind ist geboren',symbol:'02',desc:'Die ersten Anmeldungen und Anträge'},
+ {id:'elternzeit',label:'Elternzeit & Elterngeld',symbol:'03',desc:'Arbeitgeber und Elterngeldstelle'},
+ {id:'betreuung',label:'Kita & Betreuung',symbol:'04',desc:'Platzsuche, Bedarf und Anträge'},
+ {id:'finanzen',label:'Finanzielle Hilfen',symbol:'05',desc:'Leistungen entdecken und prüfen'},
+ {id:'besonders',label:'Besondere Lebenslagen',symbol:'06',desc:'Hilfe bei besonderen Familiensituationen'}
 ];
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}><H sub="Verlässliche Quellen statt ungeprüfter Diskussionen.">Elternwissen</H>
-<Info>Die Links führen zu öffentlichen Informationsangeboten. Familienfunke bietet derzeit keine individuelle Rechtsberatung oder Antragsübermittlung an.</Info>
-{links.map(([name,subtitle,url])=><Pressable key={name} onPress={()=>Linking.openURL(url)}><Card style={{marginBottom:12}}><Row><View style={{flex:1}}><Text style={styles.cardTitle}>{name}</Text><Text style={styles.sub}>{subtitle}</Text></View><Text style={{fontSize:25,color:C.accent}}>↗</Text></Row></Card></Pressable>)}
+// Alle Daten werden redaktionell gepflegt. Keine automatische Anspruchsprüfung oder Eingabe
+// privater Kinderdaten. Bei einem rechtlichen oder regionalen Update Quellen neu prüfen.
+const KOMPASS_STEPS=[
+ {id:'elternzeit',title:'Elternzeit beim Arbeitgeber anmelden',topics:['schwangerschaft','elternzeit'],type:'Rechtliche Frist',when:'Grundsätzlich 7 Wochen vor Beginn; für Zeiträume zwischen dem 3. und 8. Geburtstag in der Regel 13 Wochen vorher. Sonderfälle beachten.',office:'Dein Arbeitgeber',docs:'Geplante Beginn- und Enddaten der Elternzeit und gegebenenfalls Angaben zum Bindungszeitraum.',tip:'Das ist eine Anmeldung beim Arbeitgeber, kein Antrag beim Jugendamt.',url:'https://familienportal.de/familienportal/familienleistungen/elternzeit/faq/wann-und-wie-muss-ich-elternzeit-beantragen--124810',source:'Familienportal des Bundes'},
+ {id:'mutterschaft',title:'Mutterschaftsleistungen prüfen',topics:['schwangerschaft','elternzeit'],type:'Vor der Geburt prüfen',when:'Die gewöhnliche Schutzfrist beginnt 6 Wochen vor und endet 8 Wochen nach der Geburt. Es gibt Ausnahmen.',office:'Je nach Versicherungsstatus Krankenkasse, Arbeitgeber oder zuständige Bundesstelle.',docs:'Bescheinigung über den voraussichtlichen Geburtstermin sowie weitere Nachweise nach Einzelfall.',tip:'Der Anspruch und die Antragsstelle hängen unter anderem vom Versicherungsstatus ab.',url:'https://familienportal.de/familienportal/familienleistungen/mutterschaftsleistungen',source:'Familienportal des Bundes'},
+ {id:'standesamt',title:'Geburt beim Standesamt anzeigen',topics:['geburt'],type:'Rechtliche Frist',when:'Grundsätzlich innerhalb einer Woche nach der Geburt.',office:'Standesamt am Geburtsort, häufig erledigt die Geburtsklinik die Anzeige.',docs:'Geburtsbescheinigung und standesamtlich erforderliche Identitäts- und Personenstandsnachweise.',tip:'Geburtsurkunden werden für verschiedene weitere Anträge benötigt.',url:'https://familienportal.de/familienportal/lebenslagen/schwangerschaft-geburt/anmeldung-standesamt',source:'Familienportal des Bundes'},
+ {id:'versicherung',title:'Krankenversicherung des Babys klären',topics:['geburt'],type:'Zeitnah erledigen',when:'Nach der Geburt zeitnah die Versicherung des Kindes klären.',office:'Deine Krankenversicherung beziehungsweise die Versicherung des anderen Elternteils.',docs:'Angaben zur Geburt und gegebenenfalls Geburtsurkunde, Versicherungsnachweise.',tip:'Ob eine kostenfreie Familienversicherung möglich ist, hängt von eurer Situation ab.',url:'https://familienportal.de/familienportal/lebenslagen/kinder-jugendliche/staatliche-leistungen/kann-ich-meine-familie-bei-meiner-krankenversicherung-und-pflegeversicherung-mitversichern--125576',source:'Familienportal des Bundes'},
+ {id:'elterngeld',title:'Elterngeld beantragen',topics:['geburt','elternzeit','finanzen'],type:'Wichtiger Zeitraum',when:'Nach der Geburt, möglichst in den ersten 3 Lebensmonaten. Höchstens 3 Lebensmonate rückwirkend.',office:'Die für den Wohnort zuständige Elterngeldstelle.',docs:'In der Regel Geburtsurkunde, Einkommensnachweise sowie je nach Situation Bescheinigungen zu Mutterschaftsleistungen oder Arbeitszeit.',tip:'Bei Elterngeld zählen Lebensmonate des Kindes, nicht automatisch Kalendermonate.',url:'https://familienportal.de/familienportal/familienleistungen/elterngeld/faq/wie-kann-ich-elterngeld-beantragen--124762',source:'Familienportal des Bundes'},
+ {id:'kindergeld',title:'Kindergeld beantragen',topics:['geburt','finanzen'],type:'Zeitnah beantragen',when:'Nach der Geburt möglichst zeitnah. Rückwirkende Auszahlung grundsätzlich maximal 6 Monate.',office:'Familienkasse der Bundesagentur für Arbeit.',docs:'Steuer-Identifikationsnummern und weitere Angaben je Antragsfall.',tip:'Der Kindergeldantrag kann häufig online gestellt werden.',url:'https://www.arbeitsagentur.de/familie-und-kinder/infos-rund-um-kindergeld/kindergeld-anspruch-hoehe-dauer',source:'Bundesagentur für Arbeit'},
+ {id:'kita',title:'Kita-Betreuung organisieren',topics:['betreuung'],type:'Regional unterschiedlich',when:'Fristen zur Platzanmeldung und zu etwaigen Bedarfsfeststellungen hängen vom Wohnort und der gewünschten Betreuung ab.',office:'Kita-Träger, Kommune oder Jugendamt je nach Wohnort.',docs:'In der Regel Angaben zum Kind und Betreuungswunsch; weitere Nachweise je nach Kommune und Betreuungsumfang.',tip:'Ein Rechtsanspruch und eine Zusage für eine bestimmte Einrichtung sind nicht dasselbe. Informiere dich frühzeitig bei deiner Kommune.',url:'https://familienportal.de/familienportal/lebenslagen/kinder-jugendliche/kinderbetreuung',source:'Familienportal des Bundes'},
+ {id:'kinderzuschlag',title:'Kinderzuschlag prüfen',topics:['finanzen'],type:'Antrag wichtig',when:'Grundsätzlich nicht rückwirkend; Bewilligungszeitraum regelmäßig 6 Monate.',office:'Familienkasse der Bundesagentur für Arbeit.',docs:'Vor allem Einkommensnachweise der letzten 6 Monate, Angaben zu Wohnkosten und ggf. Vermögen.',tip:'Ein Anspruch hängt unter anderem von Haushalt und Einkommen ab. Online-Prüfung und Antrag sind getrennte Schritte.',url:'https://www.arbeitsagentur.de/familie-und-kinder/kinderzuschlag-verstehen/kinderzuschlag-anspruch-hoehe-dauer',source:'Bundesagentur für Arbeit'},
+ {id:'wohngeld',title:'Wohngeld prüfen',topics:['finanzen'],type:'Antragsmonat relevant',when:'In der Regel ab dem Monat der Antragstellung, nicht für beliebig frühere Monate.',office:'Wohngeldbehörde des Wohnorts.',docs:'Einkommensnachweise, Miet- oder Wohnkosten und Haushaltsangaben.',tip:'Je nach anderer Leistung kann ein Wohngeldanspruch ausgeschlossen sein.',url:'https://familienportal.de/familienportal/familienleistungen/weitere-leistungen/wohngeld',source:'Familienportal des Bundes'},
+ {id:'buteil',title:'Bildung und Teilhabe prüfen',topics:['betreuung','finanzen'],type:'Mögliche Unterstützung',when:'Bei bestehendem Leistungsanspruch möglichst frühzeitig bei der örtlich zuständigen Stelle erkundigen.',office:'Je nach Leistungsart örtliche Kommune, Jobcenter oder andere zuständige Stelle.',docs:'Nachweis über den Leistungsbezug und die jeweilige Aktivität oder Ausgabe, je nach Verfahren.',tip:'Unter anderem können Mittagessen in Kita oder Schule und Ausflüge unterstützt werden.',url:'https://familienportal.de/familienportal/familienleistungen/bildung-und-teilhabe',source:'Familienportal des Bundes'},
+ {id:'unterhaltsvorschuss',title:'Unterhaltsvorschuss prüfen',topics:['besonders','finanzen'],type:'Bei Bedarf prüfen',when:'Wenn ein Kind bei einem alleinerziehenden Elternteil lebt und Unterhalt ausbleibt oder zu wenig gezahlt wird, Voraussetzungen prüfen.',office:'Unterhaltsvorschussstelle, oft beim Jugendamt.',docs:'Je nach Fall Angaben zu Eltern, Kind, Unterhaltszahlungen und bisherigen Bemühungen.',tip:'Die Anspruchsvoraussetzungen unterscheiden sich nach Situation und Alter des Kindes.',url:'https://familienportal.de/familienportal/familienleistungen/unterhaltsvorschuss',source:'Familienportal des Bundes'},
+ {id:'mutterkind',title:'Bundesstiftung Mutter und Kind prüfen',topics:['schwangerschaft','besonders'],type:'Wichtiger Zeitpunkt',when:'Hilfe bei finanzieller Notlage nur während der Schwangerschaft beantragen.',office:'Anerkannte Schwangerschaftsberatungsstelle.',docs:'Individuelle Angaben zur Schwangerschaft und zur finanziellen Situation.',tip:'Nicht bis nach der Geburt warten, wenn diese Hilfe in Betracht kommt.',url:'https://familienportal.de/bmbfsfj/themen/familie/schwangerschaft-und-kinderwunsch/bundesstiftung-mutter-und-kind/bundesstiftung-mutter-und-kind-73522',source:'Bundesfamilienministerium'},
+ {id:'bayern-kita',land:'09',title:'Kita-Betreuungsbedarf in Bayern melden',topics:['betreuung'],type:'Landesrechtlicher Vorlauf',when:'In Bayern muss der Betreuungsbedarf mindestens 3 Monate vor dem gewünschten Betreuungsbeginn angemeldet werden.',office:'Je nach Gemeinde: Kommune oder örtlicher Träger. Bei erfolgloser Platzsuche hilft das Jugendamt des Landkreises oder der kreisfreien Stadt.',docs:'Betreuungswunsch, Daten des Kindes und je nach Verfahren weitere Nachweise. Konkrete Unterlagen bei der Kommune prüfen.',tip:'Eine Kita-Platzanmeldung und die formale Geltendmachung eines Rechtsanspruchs sind nicht automatisch dasselbe.',url:'https://www.stmas.bayern.de/themen/kindertagesbetreuung/angebote/',source:'Bayerisches Staatsministerium für Familie, Arbeit und Soziales'},
+ {id:'bayern-elterngeld',land:'09',title:'Bayerische Elterngeldstelle finden',topics:['geburt','elternzeit','finanzen'],type:'Zuständigkeit nach Region',when:'Nach der Geburt den Antrag bei der zuständigen Regionalstelle des ZBFS einreichen; bundesweit gelten die Regeln zur Rückwirkung.',office:'Zentrum Bayern Familie und Soziales (ZBFS), zuständige Regionalstelle nach Wohnort.',docs:'Der Zuständigkeitsfinder führt zur richtigen Regionalstelle und zum Antragsweg.',tip:'Die Bearbeitung erfolgt nicht grundsätzlich durch das örtliche Jugendamt. Die konkrete Regionalstelle hängt vom Wohnort ab.',url:'https://www.zbfs.bayern.de/zustaendigkeitenfinder.php',source:'ZBFS – Zentrum Bayern Familie und Soziales'},
+ {id:'landshut-kita',kreise:['09274'],title:'Kita-Beratung im Landkreis Landshut',topics:['betreuung'],type:'Lokaler Kontakt',when:'Bei Fragen zur Tagespflege oder zu Kita-Angeboten im Landkreis frühzeitig Kontakt aufnehmen; bundes- und landesrechtliche Fristen gesondert beachten.',office:'Kreisjugendamt Landshut, Fachbereich Kindertagesbetreuung.',docs:'Je nach Anliegen Angaben zum Wohnort, Betreuungstyp und gewünschten Beginn.',tip:'Das Landratsamt informiert zu Einrichtungen und Kindertagespflege im Landkreis. Für die Stadt Landshut können andere Stellen zuständig sein.',url:'https://www.landkreis-landshut.de/themen/kinder-jugend-und-familie/kindertagesstaetten-und-kinderbetreuung/',source:'Landkreis Landshut'},
+ {id:'landshut-elterngeld',kreise:['09261','09274'],title:'Elterngeldstelle für Landshut und Landkreis',topics:['geburt','elternzeit','finanzen'],type:'Regionalstelle bestätigt',when:'Bundesweite Antragsfristen beachten; die Zuständigkeitsseite informiert über den Antragsweg.',office:'ZBFS Region Niederbayern, Friedhofstraße 7, 84028 Landshut.',docs:'ZBFS-Zuständigkeitsfinder für die passende Stelle und Antragsunterlagen verwenden.',tip:'Nicht beim Kreisjugendamt Landshut beantragen; zuständig ist für diese Region das ZBFS.',url:'https://www.zbfs.bayern.de/behoerde/landesbehoerde/niederbayern/',source:'ZBFS Niederbayern'},
+ {id:'oder-spree-kita',regional:true,title:'Kita-Bedarfsfeststellung im Landkreis Oder-Spree',topics:['betreuung'],type:'Empfohlener Vorlauf',when:'Falls ein gesonderter Antrag nötig ist: etwa 6–8 Wochen vor Betreuungsbeginn einreichen. Dies ist nicht der Termin einer garantierten Bescheiderteilung.',office:'Jugendamt Landkreis Oder-Spree, Breitscheidstraße 7, 15848 Beeskow.',docs:'Bei Bedarf unter anderem Altersnachweis und Nachweise zur erforderlichen Betreuungszeit, je nach Fall.',tip:'Bei Kindern ab 1 Jahr bis zur Einschulung ist bis zu 30 Wochenstunden kein gesonderter Antrag zur Bedarfsfeststellung nötig; über 30 Stunden in der Regel schon. Andere Altersgruppen haben andere Regeln. Platzanmeldung separat klären.',url:'https://www.landkreis-oder-spree.de/Service-Aktuelles/Service/Was-erledige-ich-wo-/Rechtsanspruch-auf-Kindertagesbetreuung.php?FID=2426.44.1&ModID=10',source:'Landkreis Oder-Spree'}
+];
+function InfoScreen(){
+const [topic,setTopic]=useState('schwangerschaft');
+const [land,setLand]=useState(null);
+const [kreis,setKreis]=useState(null);
+const [picker,setPicker]=useState(null);
+const [pickerSearch,setPickerSearch]=useState('');
+const [expanded,setExpanded]=useState(null);
+const chosen=KOMPASS_TOPICS.find(t=>t.id===topic);
+const landName=BUNDESLAENDER.find(([id])=>id===land)?.[1];
+const kreisName=(KREISE_NACH_LAND[land]||[]).find(([id])=>id===kreis)?.[1];
+const pickerOptions=picker==='land'?BUNDESLAENDER:(KREISE_NACH_LAND[land]||[]);
+const filteredOptions=pickerOptions.filter(([,name])=>name.toLocaleLowerCase('de-DE').includes(pickerSearch.trim().toLocaleLowerCase('de-DE')));
+const tasks=KOMPASS_STEPS.filter(t=>t.topics.includes(topic)&&(!t.regional||kreis==='12067')&&(!t.land||t.land===land)&&(!t.kreise||t.kreise.includes(kreis)));
+function openPicker(which){setPickerSearch('');setPicker(which);}
+function selectRegion(id){
+  if(picker==='land'){setLand(id);setKreis(null);}
+  if(picker==='kreis')setKreis(id);
+  setExpanded(null);setPicker(null);setPickerSearch('');
+}
+function openSource(url){Linking.openURL(url).catch(()=>Alert.alert('Link nicht geöffnet','Bitte die offizielle Seite später erneut öffnen.'));}
+return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+ <View style={styles.kompassHero}>
+  <View style={styles.kompassSun} pointerEvents="none"/>
+  <Text style={styles.kompassEyebrow}>☀ FAMILIENFUNKE HILFT</Text>
+  <Text style={styles.kompassTitle}>Dein Familien-Kompass</Text>
+  <Text style={styles.kompassSubtitle}>Anträge, Fristen und zuständige Stellen – endlich übersichtlich an einem Ort.</Text>
+ </View>
+ <Text style={[styles.sectionTitle,{marginTop:8}]}>1. Was beschäftigt euch?</Text>
+ <View style={styles.kompassTopicGrid}>{KOMPASS_TOPICS.map(t=><Pressable key={t.id} accessibilityRole="button" accessibilityState={{selected:topic===t.id}}
+  onPress={()=>{setTopic(t.id);setExpanded(null);}} style={[styles.kompassTopic,topic===t.id&&styles.kompassTopicSelected]}>
+  <Text style={styles.kompassTopicNumber}>{t.symbol}</Text>
+  <Text style={styles.kompassTopicTitle}>{t.label}</Text>
+ </Pressable>)}</View>
+ <Text style={[styles.sectionTitle,{marginTop:24}]}>2. Wo wohnt ihr?</Text>
+ <Text style={[styles.sub,{marginTop:-7,marginBottom:14}]}>Wählt zuerst euer Bundesland und dann euren Landkreis oder eure kreisfreie Stadt.</Text>
+ <Text style={styles.label}>Bundesland</Text>
+ <Pressable accessibilityRole="button" accessibilityLabel={'Bundesland auswählen, '+(landName||'noch nicht ausgewählt')}
+   onPress={()=>openPicker('land')} style={styles.kompassPickerButton}>
+  <Text style={[styles.kompassPickerValue,!landName&&styles.kompassPickerPlaceholder]}>{landName||'Bundesland auswählen'}</Text>
+  <Text style={styles.kompassChevron}>⌄</Text>
+ </Pressable>
+ <Text style={[styles.label,{marginTop:17}]}>Landkreis oder kreisfreie Stadt</Text>
+ <Pressable accessibilityRole="button" accessibilityState={{disabled:!land}}
+   accessibilityLabel={'Landkreis oder kreisfreie Stadt auswählen, '+(kreisName||'noch nicht ausgewählt')}
+   disabled={!land} onPress={()=>openPicker('kreis')}
+   style={[styles.kompassPickerButton,!land&&styles.kompassPickerButtonDisabled]}>
+  <Text style={[styles.kompassPickerValue,!kreisName&&styles.kompassPickerPlaceholder]}>{kreisName||(land?'Landkreis / Stadt auswählen':'Bitte zuerst Bundesland auswählen')}</Text>
+  <Text style={styles.kompassChevron}>⌄</Text>
+ </Pressable>
+ {kreis==='12067'?<Text style={styles.kompassRegionNote}>✓ Pilotregion Landkreis Oder-Spree: lokale Kita-Bedarfsfeststellung recherchiert; weitere Themen folgen.</Text>:
+  kreis==='09274'?<Text style={styles.kompassRegionNote}>✓ Landkreis Landshut: bayerische Kita-Fristen sowie erste lokale Kontakte und die Elterngeldstelle recherchiert.</Text>:
+  kreis==='09261'?<Text style={styles.kompassRegionNote}>✓ Stadt Landshut: bayerische Regelungen und Elterngeldstelle recherchiert; städtische Kita-Stellen folgen.</Text>:
+  kreis?<Text style={styles.kompassRegionNote}>{land==='09'?'✓ Bayerische Kita-Fristen und ZBFS-Zuständigkeit sind erfasst. ':''}Für {kreisName} werden weitere lokale Anträge, Zuständigkeiten und Sonderfristen noch geprüft. Bis dahin gelten die bundesweiten Grundlagen.</Text>:
+  <Text style={styles.kompassRegionNote}>Die bundesweiten Informationen sind sofort nutzbar. Genaue lokale Behördenkontakte ergänzen wir Schritt für Schritt.</Text>}
+ <Text style={[styles.micro,{marginBottom:20}]}>Deine Auswahl bleibt vorerst nur in dieser Ansicht und wird nicht in deinem Profil gespeichert.</Text>
+ <Text style={styles.sectionTitle}>3. Euer möglicher Fahrplan</Text>
+ <Text style={[styles.sub,{marginTop:-8,marginBottom:16}]}>{chosen?.desc} · {tasks.length} Informationskarten</Text>
+ {tasks.map((item,i)=><Card key={item.id} style={{marginBottom:13,padding:16}}>
+  <Pressable accessibilityRole="button" accessibilityLabel={item.title+'. Details '+(expanded===item.id?'schließen':'öffnen')}
+   onPress={()=>setExpanded(v=>v===item.id?null:item.id)}>
+   <Row style={{alignItems:'flex-start'}}>
+    <View style={styles.kompassNumberCircle}><Text style={styles.kompassNumberText}>{i+1}</Text></View>
+    <View style={{flex:1}}>
+     <Text style={styles.cardTitle}>{item.title}</Text>
+     <Text style={styles.kompassDue}>{item.type}</Text>
+    </View>
+    <Text style={{fontSize:22,color:C.accentDark}}>{expanded===item.id?'−':'+'}</Text>
+   </Row>
+   <Text style={[styles.sub,{marginTop:10}]}>{item.when}</Text>
+   <Text style={[styles.micro,{marginTop:9,color:C.accentDark,fontWeight:'800'}]}>{expanded===item.id?'Details schließen':'Unterlagen, Zuständigkeit und Quelle ansehen'}</Text>
+  </Pressable>
+  {expanded===item.id?<View style={styles.kompassDetails}>
+   <Text style={styles.label}>Zuständige Stelle</Text>
+   <Text style={[styles.body,{marginBottom:13}]}>{item.office}</Text>
+   <Text style={styles.label}>Was wird häufig benötigt?</Text>
+   <Text style={[styles.body,{marginBottom:13}]}>{item.docs}</Text>
+   <Text style={styles.label}>Gut zu wissen</Text>
+   <Text style={[styles.body,{marginBottom:15}]}>{item.tip}</Text>
+   <Button title={'Offizielle Quelle öffnen ↗'} mode="outline" onPress={()=>openSource(item.url)}/>
+   <Text style={[styles.micro,{marginTop:10}]}>Quelle: {item.source} · redaktionell geprüft: 19.11.2026</Text>
+  </View>:null}
+ </Card>)}
+ <Info>Diese Übersicht dient der Orientierung. Sie bestätigt keinen individuellen Anspruch, reicht keine Anträge ein und ersetzt keine Beratung. Fristen und Formulare können sich ändern. Vor dem Antrag immer die verlinkte offizielle Seite prüfen.</Info>
+ <View style={{height:10}}/>
+ <Text style={[styles.micro,{textAlign:'center'}]}>Persönliche Fristen und Erinnerungen folgen in späteren Versionen. Es werden hier keine persönlichen Antragsdaten gespeichert.</Text>
+ <Modal visible={!!picker} animationType="slide" transparent onRequestClose={()=>setPicker(null)}>
+  <View style={styles.kompassPickerShade}>
+   <View style={styles.kompassPickerSheet}>
+    <Row style={{justifyContent:'space-between',alignItems:'center',marginBottom:15}}>
+     <View style={{flex:1}}><Text style={styles.cardTitle}>{picker==='land'?'Bundesland auswählen':'Landkreis oder Stadt auswählen'}</Text>
+      <Text style={styles.micro}>{picker==='land'?'16 Bundesländer':(landName||'')} · {filteredOptions.length} Treffer</Text>
+     </View>
+     <Button small mode="ghost" title="✕ Schließen" onPress={()=>setPicker(null)}/>
+    </Row>
+    <TextInput style={styles.kompassPickerSearch} autoCapitalize="none" autoCorrect={false}
+     placeholder={picker==='land'?'Bundesland suchen …':'Landkreis oder Stadt suchen …'}
+     placeholderTextColor={C.muted} value={pickerSearch} onChangeText={setPickerSearch}/>
+    <ScrollView keyboardShouldPersistTaps="handled" style={{flex:1}} contentContainerStyle={{paddingBottom:20}}>
+     {filteredOptions.length===0?<Text style={[styles.sub,{paddingVertical:18}]}>Keine passenden Orte gefunden.</Text>:null}
+     {filteredOptions.map(([id,name])=><Pressable accessibilityRole="button" key={id}
+       accessibilityState={{selected:id===(picker==='land'?land:kreis)}} onPress={()=>selectRegion(id)}
+       style={[styles.kompassOption,(id===(picker==='land'?land:kreis))&&styles.kompassOptionSelected]}>
+      <Text style={styles.kompassOptionName}>{name}</Text>
+      <Text style={styles.kompassOptionCheck}>{id===(picker==='land'?land:kreis)?'✓':''}</Text>
+     </Pressable>)}
+    </ScrollView>
+   </View>
+  </View>
+ </Modal>
 </ScrollView>;
 }
 const styles=StyleSheet.create({
@@ -605,22 +1227,22 @@ brand:{fontSize:33,fontWeight:'900',color:C.ink,letterSpacing:-1.15,textAlign:'c
 smallBrand:{fontSize:19,fontWeight:'900',color:C.ink,letterSpacing:-.7},tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:9},
 loginPage:{flexGrow:1,alignItems:'center',justifyContent:'center',padding:20,backgroundColor:C.bg},
 loginMark:{width:95,height:95,borderRadius:31,backgroundColor:C.coral,alignItems:'center',justifyContent:'center',marginBottom:22,transform:[{rotate:'-7deg'}]},
-topBar:{minHeight:74,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:19,flexDirection:'row',alignItems:'center',gap:10,paddingVertical:8},
+topBar:{minHeight:74,borderBottomWidth:1,borderBottomColor:'#F1E2CE',backgroundColor:'#FFFBF5',paddingHorizontal:19,flexDirection:'row',alignItems:'center',gap:10,paddingVertical:8},
 headerIdentity:{flex:1,flexDirection:'row',alignItems:'center',gap:10},
-headerHeartBadge:{width:37,height:37,borderRadius:13,backgroundColor:C.coral,alignItems:'center',justifyContent:'center'},
+headerHeartBadge:{width:38,height:38,borderRadius:13,backgroundColor:'#EC8775',alignItems:'center',justifyContent:'center'},
 headerHeart:{fontSize:21,fontWeight:'900',color:C.white},
 topHint:{fontSize:12,color:C.muted,marginTop:1,fontWeight:'600'},
 card:{backgroundColor:C.white,borderRadius:25,padding:18,borderColor:C.line,borderWidth:1,shadowColor:'#C28368',shadowOpacity:0.07,shadowRadius:11,shadowOffset:{width:0,height:3},elevation:2},
-hero:{backgroundColor:C.accentDark,borderRadius:29,paddingHorizontal:23,paddingVertical:27,marginBottom:25,overflow:'hidden',minHeight:238},
-heroDecorationOne:{position:'absolute',width:165,height:165,borderRadius:83,backgroundColor:'#137D85',top:-64,right:-64},
-heroDecorationTwo:{position:'absolute',width:88,height:88,borderRadius:44,backgroundColor:C.coral,opacity:0.65,bottom:-37,right:22},
-heroPill:{alignSelf:'flex-start',backgroundColor:C.sunny,borderRadius:40,paddingHorizontal:13,paddingVertical:7,marginBottom:12},
+hero:{backgroundColor:'#FFEEC8',borderRadius:28,paddingHorizontal:23,paddingVertical:27,marginBottom:25,overflow:'hidden',minHeight:238,borderColor:'#F5DDA7',borderWidth:1},
+heroDecorationOne:{position:'absolute',width:165,height:165,borderRadius:83,backgroundColor:'#FFD98D',top:-64,right:-64,opacity:.95},
+heroDecorationTwo:{position:'absolute',width:88,height:88,borderRadius:44,backgroundColor:'#F3A38B',opacity:0.65,bottom:-37,right:22},
+heroPill:{alignSelf:'flex-start',backgroundColor:'#FFF9EE',borderRadius:40,paddingHorizontal:13,paddingVertical:7,marginBottom:12,borderColor:'#EDD8AF',borderWidth:1},
 heroPillText:{fontSize:10.5,fontWeight:'900',letterSpacing:1.1,color:'#624315'},
 eyebrow:{fontSize:11,fontWeight:'900',letterSpacing:1.5,color:C.coralDeep},
-heroTitle:{fontSize:28,fontWeight:'900',color:C.white,letterSpacing:-.8,lineHeight:35,maxWidth:295},
-heroText:{color:'#E5F8F6',fontSize:14,lineHeight:21,marginTop:10,maxWidth:285},
-heroTagline:{alignSelf:'flex-start',backgroundColor:'rgba(255,255,255,0.13)',borderRadius:12,paddingVertical:8,paddingHorizontal:10,marginTop:18},
-heroTaglineText:{color:C.white,fontSize:11.5,fontWeight:'700'},
+heroTitle:{fontSize:28,fontWeight:'900',color:C.ink,letterSpacing:-.8,lineHeight:35,maxWidth:295},
+heroText:{color:'#536667',fontSize:14,lineHeight:21,marginTop:10,maxWidth:285},
+heroTagline:{alignSelf:'flex-start',backgroundColor:'#FFFFFF',borderRadius:12,paddingVertical:8,paddingHorizontal:10,marginTop:18,borderWidth:1,borderColor:'#F2DAB6'},
+heroTaglineText:{color:C.accentDark,fontSize:11.5,fontWeight:'800'},
 h:{fontSize:25,fontWeight:'900',color:C.ink,letterSpacing:-.6},
 sub:{fontSize:13.5,lineHeight:21,color:C.muted,marginTop:6},
 body:{fontSize:14.5,lineHeight:22,color:C.ink},
@@ -639,15 +1261,118 @@ chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},
 info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertical:14,marginHorizontal:12,marginTop:7,marginBottom:12},
 warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:C.accentDark},
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
-match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
-tabBar:{height:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
-tab:{flex:1,alignItems:'center',paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.pale},tabIcon:{fontSize:25,color:'#8E9FA4',fontWeight:'500'},tabLabel:{fontSize:10,color:'#8E9FA4',marginTop:3,fontWeight:'600'},
+match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7,maxWidth:125},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516',textAlign:'center'},
+matchTip:{backgroundColor:'#FFF2DB',padding:16,borderWidth:1,borderColor:'#EFD9AD',borderRadius:19,marginBottom:16,gap:9},
+matchTipTitle:{fontSize:16,fontWeight:'900',color:C.ink},
+matchTipText:{fontSize:12.5,lineHeight:19,color:C.muted},
+matchScopeBar:{flexDirection:'row',backgroundColor:'#FFECCB',borderRadius:17,padding:5,gap:6,marginBottom:17},
+matchScopeButton:{flex:1,alignItems:'center',justifyContent:'center',minHeight:46,paddingHorizontal:5,borderRadius:13},
+matchScopeSelected:{backgroundColor:C.white,borderWidth:1,borderColor:'#E6D0A8'},
+matchScopeText:{fontSize:12.5,fontWeight:'800',color:C.muted},
+matchScopeTextSelected:{color:C.accentDark,fontWeight:'900'},
+matchFilterTitle:{fontSize:13.5,color:C.ink,fontWeight:'900',marginBottom:10,marginTop:4},
+matchFilterRow:{flexDirection:'row',flexWrap:'wrap',gap:7,marginBottom:16},
+matchOptionsRow:{flexDirection:'row',gap:9,flexWrap:'wrap',marginTop:6,marginBottom:13},
+matchOptionPill:{borderWidth:1,borderColor:'#D9DCD3',backgroundColor:C.white,borderRadius:14,paddingVertical:10,paddingHorizontal:11},
+matchOptionActive:{backgroundColor:'#FFF0CE',borderColor:'#E9C386'},
+matchOptionText:{fontSize:11.5,fontWeight:'900',color:C.accentDark},
+matchCount:{fontSize:16.5,fontWeight:'900',color:C.ink,marginBottom:14},
+matchReasonBox:{backgroundColor:'#FFF9ED',borderWidth:1,borderColor:'#EEDBC1',borderRadius:15,padding:12,marginTop:13,gap:9},
+matchReasonTitle:{fontWeight:'900',fontSize:12.5,color:C.accentDark},
+matchReasonRow:{flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:8},
+matchReasonLabel:{fontSize:11.5,color:C.muted,fontWeight:'800'},
+matchReasonDetail:{fontSize:12.5,color:'#596B6B',fontWeight:'700',lineHeight:19},
+refreshButton:{width:39,height:39,alignItems:'center',justifyContent:'center',borderRadius:13,backgroundColor:C.pale},
+bellBadge:{position:'absolute',top:-5,right:-6,minWidth:18,height:18,borderRadius:9,backgroundColor:C.coralDeep,alignItems:'center',justifyContent:'center',paddingHorizontal:3},
+bellBadgeText:{fontSize:10,color:C.white,fontWeight:'900'},
+refreshText:{color:C.accentDark,fontSize:28,fontWeight:'700',lineHeight:31},
+tabBar:{minHeight:78,borderTopWidth:1,borderTopColor:'#EBDCC9',backgroundColor:'#FFFEF9',flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:4,paddingBottom:4},
+tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:64,paddingVertical:7,paddingHorizontal:1,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:'#FFF0D3'},tabPressed:{opacity:.75},tabLabel:{fontSize:10,color:'#7F9090',marginTop:5,fontWeight:'700'},tabLabelActive:{color:C.accentDark,fontWeight:'900'},
+tabIconWrap:{width:30,height:30,alignItems:'center',justifyContent:'center'},
+tabBadge:{position:'absolute',top:-8,right:-18,minWidth:19,height:19,borderRadius:10,alignItems:'center',justifyContent:'center',backgroundColor:C.coralDeep,borderColor:C.white,borderWidth:1.5,paddingHorizontal:3},
+tabBadgeText:{fontSize:10,color:C.white,fontWeight:'900'},
+chatUnreadBadge:{minWidth:23,height:23,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:C.coralDeep,paddingHorizontal:5},
+chatUnreadText:{color:C.white,fontWeight:'900',fontSize:11},
+activityCard:{padding:16,backgroundColor:'#FFF2DA',borderRadius:19,borderWidth:1,borderColor:'#EAC897',marginBottom:19},
+activityCardTitle:{color:C.ink,fontWeight:'900',fontSize:16},
+activityCardText:{color:C.muted,lineHeight:19,fontSize:13,marginTop:6},
+activityCardAction:{color:C.accentDark,fontWeight:'900',fontSize:12,marginTop:9},
+chatLimitBox:{paddingHorizontal:13,paddingTop:9,paddingBottom:6,backgroundColor:'#FFF9ED',borderTopColor:C.line,borderTopWidth:1},
+chatLimitText:{fontSize:12,color:C.accentDark,fontWeight:'700',lineHeight:18},
+chatLimitRefresh:{alignSelf:'flex-start',marginTop:7,paddingVertical:5,paddingHorizontal:8,borderRadius:9,backgroundColor:'#FFEAC5'},
+chatLimitRefreshText:{fontWeight:'900',fontSize:12,color:C.accentDark},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},
 theirs:{backgroundColor:'#FFF0E8',alignSelf:'flex-start',borderBottomLeftRadius:5},bubbleText:{color:C.ink,fontSize:14.5,lineHeight:21},
 photoGrid:{flexDirection:'row',flexWrap:'wrap',gap:10},photoCard:{width:'47%',padding:10},photoImage:{width:'100%',height:110,borderRadius:14,marginBottom:8},
+galleryPressable:{width:'47%'},
 photoDraftPreview:{width:'100%',height:230,backgroundColor:C.pale,borderRadius:18,marginBottom:14},
+madeInGermanyStamp:{width:82,minHeight:48,borderColor:'#DEB773',borderWidth:1.4,borderRadius:12,backgroundColor:'#FFF6E5',alignItems:'center',justifyContent:'center',paddingVertical:4},
+stampKicker:{fontSize:8,fontWeight:'800',color:'#916A2A',letterSpacing:1.2},
+stampCountry:{fontSize:11,fontWeight:'900',color:C.ink,letterSpacing:.5},
+stampDraft:{fontSize:6.5,fontWeight:'800',color:C.muted,letterSpacing:.4},
+profileHero:{padding:20,borderRadius:26,backgroundColor:'#FFF0D8',borderColor:'#F4D6A0',borderWidth:1,overflow:'hidden'},
+profileHeroSun:{position:'absolute',height:175,width:175,borderRadius:100,backgroundColor:'#FFDA8F',opacity:.68,top:-115,right:-55},
+profileEyebrow:{fontSize:11,fontWeight:'900',letterSpacing:1.4,color:'#A46C23'},
+profileName:{fontSize:23,fontWeight:'900',color:C.ink,letterSpacing:-.5},
+profileRegion:{fontSize:13,color:C.muted,fontWeight:'700',marginTop:6},
+profileStatus:{fontSize:12,color:C.accentDark,fontWeight:'800',marginTop:7},
+profileAbout:{fontSize:15,lineHeight:23,color:C.ink,marginTop:18},
+emptyMoments:{alignItems:'center',paddingVertical:30,paddingHorizontal:12,gap:7},
+momentTile:{width:'48%',backgroundColor:C.white,borderColor:C.line,borderWidth:1,borderRadius:18,padding:9,gap:6},
+momentImage:{width:'100%',height:140,borderRadius:12,resizeMode:'cover'},
+momentPreviewPressable:{position:'relative'},
+momentZoomBadge:{position:'absolute',bottom:7,right:7,backgroundColor:'rgba(18,55,62,.88)',borderRadius:11,paddingHorizontal:9,paddingVertical:5},
+momentZoomText:{color:'#FFFFFF',fontSize:10,fontWeight:'800'},
+momentCaption:{fontSize:13,fontWeight:'800',color:C.ink,lineHeight:19},
+outingSectionBar:{flexDirection:'row',padding:5,borderRadius:18,backgroundColor:'#FFF0D5',gap:5,marginBottom:20},
+outingSectionButton:{flex:1,minHeight:45,borderRadius:14,justifyContent:'center',alignItems:'center',paddingHorizontal:6},
+outingSectionButtonActive:{backgroundColor:'#FFFFFF',borderColor:'#E9D4B6',borderWidth:1},
+outingSectionText:{color:'#71807A',fontSize:12.5,fontWeight:'800',textAlign:'center'},
+outingSectionTextActive:{color:C.accentDark,fontWeight:'900'},
+profileMenuGrid:{flexDirection:'row',flexWrap:'wrap',gap:10,justifyContent:'space-between'},
+profileMenuTile:{width:'48%',backgroundColor:C.white,borderColor:C.line,borderWidth:1.5,borderRadius:19,paddingHorizontal:14,paddingVertical:15,minHeight:101,justifyContent:'center'},
+profileMenuTileActive:{backgroundColor:'#FFF1D5',borderColor:'#E7B96D'},
+profileMenuNumber:{color:'#B47E34',fontSize:11,fontWeight:'900',letterSpacing:1.2,marginBottom:8},
+profileMenuTitle:{color:C.ink,fontSize:15.5,fontWeight:'900',lineHeight:21},
+profileMenuSubtitle:{color:C.muted,fontSize:11.5,lineHeight:16,marginTop:3},
+profileInterestCount:{alignSelf:'flex-start',backgroundColor:'#FFF0D3',paddingHorizontal:12,paddingVertical:7,borderRadius:14,marginBottom:18},
+profileInterestCountText:{fontSize:12,color:'#855D26',fontWeight:'900'},
+profileSelectedInterests:{backgroundColor:'#FFF9F0',borderRadius:16,padding:13,marginTop:4,marginBottom:18,borderColor:C.line,borderWidth:1},
+profilePrivacyNote:{padding:15,borderRadius:17,backgroundColor:'#FFF5E6',marginBottom:19},
+profileSettingsDivider:{height:1,backgroundColor:C.line,marginVertical:23},
+kompassDiscoverCallout:{backgroundColor:'#FFF0D3',borderColor:'#EED19A',borderWidth:1,borderRadius:21,padding:17},
+kompassCalloutEyebrow:{fontSize:10.5,fontWeight:'900',color:'#A06A2B',letterSpacing:.8,marginBottom:8},
+kompassCalloutTitle:{fontSize:17,fontWeight:'900',color:C.ink},
+kompassCalloutText:{fontSize:12.5,color:C.muted,marginTop:5,lineHeight:19},
+kompassHero:{backgroundColor:'#FFEED2',borderColor:'#F2D59E',borderWidth:1,borderRadius:27,padding:22,overflow:'hidden',marginBottom:24},
+kompassSun:{position:'absolute',height:165,width:165,borderRadius:85,backgroundColor:'#FFD991',top:-90,right:-58,opacity:.9},
+kompassEyebrow:{fontSize:11,color:'#A16E29',fontWeight:'900',letterSpacing:1.2,marginBottom:12},
+kompassTitle:{fontSize:26,fontWeight:'900',color:C.ink,letterSpacing:-.6},
+kompassSubtitle:{fontSize:14,color:C.ink,lineHeight:22,marginTop:9,maxWidth:275},
+kompassTopicGrid:{flexDirection:'row',flexWrap:'wrap',gap:9},
+kompassTopic:{width:'48%',backgroundColor:C.white,borderColor:C.line,borderWidth:1.5,borderRadius:20,padding:13,minHeight:95,justifyContent:'center'},
+kompassTopicSelected:{backgroundColor:'#FFF3DA',borderColor:'#E7B96D'},
+kompassTopicNumber:{fontSize:11,fontWeight:'900',color:'#B47828',letterSpacing:1.2,marginBottom:6},
+kompassTopicTitle:{fontSize:14,fontWeight:'800',color:C.ink,lineHeight:19},
+kompassNumberCircle:{height:35,width:35,borderRadius:18,backgroundColor:'#FFE5AE',justifyContent:'center',alignItems:'center'},
+kompassNumberText:{fontWeight:'900',fontSize:14,color:'#825D2B'},
+kompassDue:{fontSize:11,fontWeight:'900',color:'#A36B29',marginTop:6},
+kompassDetails:{borderTopWidth:1,borderTopColor:C.line,marginTop:16,paddingTop:17},
+kompassPickerButton:{minHeight:55,borderRadius:17,borderWidth:1.5,borderColor:'#D9C5AD',backgroundColor:C.white,paddingHorizontal:15,flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12},
+kompassPickerButtonDisabled:{backgroundColor:'#F2ECE4',opacity:.8},
+kompassPickerValue:{fontSize:14.5,color:C.ink,fontWeight:'800',flex:1},
+kompassPickerPlaceholder:{fontWeight:'500',color:C.muted},
+kompassChevron:{fontSize:23,fontWeight:'800',color:C.accentDark},
+kompassRegionNote:{fontSize:12.5,lineHeight:19,fontWeight:'600',color:C.muted,marginTop:15,marginBottom:8},
+kompassPickerShade:{flex:1,backgroundColor:'rgba(15,44,52,.45)',justifyContent:'flex-end'},
+kompassPickerSheet:{height:'78%',backgroundColor:C.bg,borderTopLeftRadius:25,borderTopRightRadius:25,paddingTop:22,paddingHorizontal:20,paddingBottom:25},
+kompassPickerSearch:{backgroundColor:C.white,borderRadius:16,borderWidth:1,borderColor:C.line,minHeight:51,paddingHorizontal:14,fontSize:15,color:C.ink,marginBottom:14},
+kompassOption:{backgroundColor:C.white,padding:14,borderBottomWidth:1,borderBottomColor:C.line,minHeight:50,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
+kompassOptionSelected:{backgroundColor:'#FFF0D3'},
+kompassOptionName:{fontSize:14.5,fontWeight:'600',color:C.ink,flex:1},
+kompassOptionCheck:{fontSize:16,fontWeight:'800',color:C.accentDark,marginLeft:9},
 modalShade:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(15,44,52,.52)',justifyContent:'center',zIndex:100},
 });
 
