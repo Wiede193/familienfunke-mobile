@@ -33,7 +33,7 @@ export default function NotificationCenter({visible=false,items=[],preferences=n
      {items.length===0?<View style={styles.empty}>
        <Text style={styles.emptySymbol}>☀</Text>
        <Text style={styles.emptyTitle}>Alles ruhig – noch keine Neuigkeiten.</Text>
-       <Text style={styles.sub}>Sobald eine Familie Interesse zeigt oder eine Nachricht schreibt, findest du hier einen Hinweis.</Text>
+       <Text style={styles.sub}>Neue Kontaktanfragen, gegenseitige Matches und Nachrichten erscheinen hier. Einseitige Likes bleiben privat.</Text>
      </View>:
      items.slice(0,80).map(n=>{
        const info=KIND_INFO[n.kind]||KIND_INFO.request;
