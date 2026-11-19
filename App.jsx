@@ -414,7 +414,7 @@ return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content
 !blocked&&active?<Button title={connection?'Kontaktanfrage vorhanden':'Kontakt anfragen'} disabled={disabled||!!connection} onPress={onContact}/>:null}
 <Row style={{marginTop:12}}>{blocked?<Button title="Entsperren" mode="outline" small onPress={onUnblock}/>:<Button title="Blockieren" mode="outline" small onPress={onBlock}/>}<Button title="Melden" mode="ghost" small onPress={onReport}/></Row>
 </Card>
-{photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Pressable key={photo.id} accessibilityRole="button"
+{connection?.status==='accepted'&&photos?.length>0?<><H sub="Nur bestätigte Kontakte sehen freigegebene Familienbilder.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Pressable key={photo.id} accessibilityRole="button"
  accessibilityLabel={'Foto vergrößern: '+(photo.caption||'Familienmoment')} disabled={!photosUrls[photo.id]}
  onPress={()=>setViewingPhotoId(photo.id)} style={styles.galleryPressable}>
  <Card style={{padding:10}}>{photosUrls[photo.id]?<Image source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
@@ -422,7 +422,7 @@ return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content
  <Text style={[styles.micro,{color:C.accentDark,fontWeight:'800',marginTop:5}]}>Foto ansehen ›</Text>
  </Card></Pressable>)}</View></>:null}
 </ScrollView>
-<MomentViewer photos={photos||[]} urls={photosUrls||{}} activeId={viewingPhotoId} onSelect={setViewingPhotoId}
+<MomentViewer photos={connection?.status==='accepted'?(photos||[]):[]} urls={photosUrls||{}} activeId={viewingPhotoId} onSelect={setViewingPhotoId}
  onClose={()=>setViewingPhotoId(null)}/></>;
 }
 function ContactsScreen({pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat}){
