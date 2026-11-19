@@ -165,6 +165,7 @@ export default function App() {
 const [session,setSession]=useState(undefined);
 const [tab,setTab]=useState('market');
 const [selectedContact,setSelectedContact]=useState(null);
+const [chatReturnTab,setChatReturnTab]=useState('more');
 const [detailFamily,setDetailFamily]=useState(null);
 const [showEventForm,setShowEventForm]=useState(false);
 const [showInfo,setShowInfo]=useState(false);
@@ -275,7 +276,7 @@ if(session===undefined)return <View style={styles.center}><ActivityIndicator col
 if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/><Login error={error} setError={setError}/></SafeAreaView>;
 const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',inclusion:'Inklusion'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact)setSelectedContact(null);else if(showInfo)setShowInfo(false);else if(['profile','contacts','chat','inclusion'].includes(tab))setTab('more');}
+function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(['profile','contacts','chat','inclusion'].includes(tab))setTab('more');}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
@@ -297,7 +298,7 @@ imageUrl={photosUrls[photoOf(detailFamily)?.id]} photos={db.photos.filter(p=>p.o
 photosUrls={photosUrls} active={active} disabled={busy} blocked={blocked(detailFamily)}
 connection={db.contacts.find(c=>c.sender_id===detailFamily||c.recipient_id===detailFamily)}
 onContact={()=>sendRequest(detailFamily)} onBlock={()=>blockUser(detailFamily)} onUnblock={()=>unblockUser(detailFamily)}
-onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setDetailFamily(null);setSelectedContact(cid);setTab('chat');}}/>:
+onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setChatReturnTab('discover');setDetailFamily(null);setSelectedContact(cid);setTab('chat');}}/>:
 selectedContact?<ChatScreen contact={accepted.find(c=>c.id===selectedContact)} me={me} nameOf={findName}
 messages={db.messages.filter(m=>m.contact_id===selectedContact)} disabled={busy} blocked={blocked}
 send={(body)=>execute(async()=>{
@@ -327,7 +328,8 @@ createListing={(v,asset)=>execute(async()=>{
  if(asset)await uploadMarketPhoto(inserted.id,asset,me);
 },'Inserat eingereicht. Es erscheint nach Freigabe.')}
 uploadPendingPhoto={(listingId,asset)=>execute(async()=>{await uploadMarketPhoto(listingId,asset,me);},'Foto zur Prüfung eingereicht.')}
-onContact={sendRequest} nameOf={findName} blocked={blocked}/>:
+markListingSold={(id)=>execute(async()=>{const {data,error:e}=await supabase.rpc('ff_market_mark_sold',{p_listing_id:id});if(e)throw e;if(data!==true)throw new Error('Das Inserat konnte nicht abgeschlossen werden. Bitte aktualisiere den Basar.');},'Angebot abgeschlossen. Es ist für andere nicht mehr sichtbar.')}
+onContact={sendRequest} onChat={(cid)=>{setChatReturnTab('market');setSelectedContact(cid);setTab('chat');}} nameOf={findName} blocked={blocked}/>:
 tab==='partners'?<PartnersScreen organizations={db.organizations} partnerEvents={db.partnerEvents}
 me={me} active={active} busy={busy}
 applyOrg={(v)=>execute(async()=>{
@@ -346,9 +348,9 @@ myProfile={myProfile} verification={verification} membership={membership}
 showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked}/>:
 tab==='contacts'?<ContactsScreen pending={pending} accepted={accepted} me={me} nameOf={findName}
 respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onUnblock={unblockUser}
-onChat={(id)=>{setSelectedContact(id);setTab('chat');}}/>:
+onChat={(id)=>{setChatReturnTab('contacts');setSelectedContact(id);setTab('chat');}}/>:
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
-onChat={(id)=>setSelectedContact(id)} messages={db.messages}/>:
+onChat={(id)=>{setChatReturnTab('chat');setSelectedContact(id);}} messages={db.messages}/>:
 tab==='events'?<EventsScreen events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
 profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
 createEvent={(event)=>execute(async()=>{
@@ -482,7 +484,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
     </View>:null}
   </View>;
 }
-function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,createListing,uploadPendingPhoto,onContact,nameOf,blocked}){
+function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,createListing,uploadPendingPhoto,markListingSold,onContact,onChat,nameOf,blocked}){
   const [open,setOpen]=useState(false);
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('Alle');
@@ -492,6 +494,7 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
   const [maxPrice,setMaxPrice]=useState('');
   const [filterOpen,setFilterOpen]=useState(false);
   const [selectedListing,setSelectedListing]=useState(null);
+  const [onlyMine,setOnlyMine]=useState(false);
   const [title,setTitle]=useState('');
   const [description,setDescription]=useState('');
   const [region,setRegion]=useState('');
@@ -511,7 +514,7 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
   };
   const minimum=parsePrice(minPrice), maximum=parsePrice(maxPrice);
   const filtered=listings.filter(x=>
-    (x.moderation_status==='approved'||x.seller_id===me)
+    ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'))
     && !blocked(x.seller_id)
     && (filter==='Alle'||x.category===filter)
     && (tradeFilter==='all'||x.trade_type===tradeFilter)
@@ -549,11 +552,11 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
     return {own,org,contact,seller:org?org.name:nameOf(x.seller_id)};
   }
   function contactButton(x,contact){
-    if(x.seller_id===me)return null;
-    const label=contact
-      ?contact.status==='accepted'?'Kontakt vorhanden – Nachrichten unter Mehr'
-        :contact.status==='pending'?'Kontaktanfrage läuft':'Kontaktanfrage vorhanden'
-      :'Verkäufer kontaktieren';
+    if(x.seller_id===me || x.moderation_status!=='approved')return null;
+    if(contact?.status==='accepted'){
+      return <Button title="Nachricht an Verkäufer schreiben" disabled={busy||!active} mode="primary" onPress={()=>onChat(contact.id)}/>;
+    }
+    const label=contact?.status==='pending'?'Kontaktanfrage läuft':contact?'Kontaktanfrage vorhanden':'Verkäufer kontaktieren';
     return <Button title={label} disabled={busy||!active||!!contact} mode="primary" onPress={()=>onContact(x.seller_id)}/>;
   }
   const selected=selectedListing?shown.find(x=>x.id===selectedListing):null;
@@ -568,6 +571,13 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
       <Button title={open?'Schließen':'＋ Inserieren'} small disabled={!active} onPress={()=>{setOpen(v=>!v);setSelectedListing(null);}}/>
     </View>
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
+    <View style={{flexDirection:'row',gap:9,marginBottom:16}}>
+      <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine?'primary':'outline'} small
+        onPress={()=>{setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
+      <View style={{flex:1}}><Button title={'Meine Inserate ('+listings.filter(x=>x.seller_id===me).length+')'}
+        mode={onlyMine?'primary':'outline'} small
+        onPress={()=>{setOnlyMine(true);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
+    </View>
     {open?<Card style={{marginBottom:18}}>
       <Text style={styles.sectionTitle}>Anzeige aufgeben</Text>
       <Text style={[styles.sub,{marginBottom:17}]}>Kostenlos einstellen. Dein Inserat wird vor Veröffentlichung geprüft.</Text>
@@ -618,7 +628,16 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
           <Text style={styles.sectionTitle}>Anbieter</Text>
           <Text style={styles.body}>{seller.seller}{seller.org?' ✦':''}</Text>
           <Text style={[styles.micro,{marginTop:4}]}>Grobe Region: {selected.region_label||'auf Anfrage'}</Text>
-          {seller.own&&selected.moderation_status!=='approved'?<Info warning>Dein Inserat ist noch nicht freigegeben und nur für dich sichtbar.</Info>:null}
+          {seller.own&&selected.moderation_status==='pending'?<Info warning>Dein Inserat wartet auf Freigabe und ist nur für dich sichtbar.</Info>:null}
+          {seller.own&&selected.moderation_status==='sold'?<Info>Dieses Angebot ist vergeben und für andere nicht mehr sichtbar. Eine Zahlung über die App hat nicht stattgefunden.</Info>:null}
+          {seller.own&&selected.moderation_status==='rejected'?<Info warning>Dein Inserat wurde nicht freigegeben.</Info>:null}
+          {seller.own&&selected.moderation_status==='removed'?<Info warning>Dieses Inserat wurde entfernt.</Info>:null}
+          {seller.own&&selected.moderation_status==='approved'?
+            <View style={{marginTop:13}}><Button title="Als vergeben markieren" mode="outline" disabled={busy}
+              onPress={()=>Alert.alert('Angebot abschließen?','Das Inserat verschwindet für andere Familien aus dem Basar. Damit wird kein Kauf oder Zahlungsvorgang ausgelöst.',[
+                {text:'Abbrechen',style:'cancel'},
+                {text:'Als vergeben markieren',onPress:()=>markListingSold(selected.id)}
+              ])}/></View>:null}
           {seller.own&&selected.moderation_status==='pending'&&!selected.photo_path?
             <View style={{marginTop:12}}><Button title="Foto ergänzen" mode="outline" disabled={choosing||busy}
               onPress={()=>pick(asset=>uploadPendingPhoto(selected.id,asset))}/></View>:null}
@@ -679,7 +698,7 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
               <Text style={styles.micro} numberOfLines={1}>{x.item_condition} · {x.category}</Text>
               <Text style={[styles.micro,{marginTop:3}]} numberOfLines={1}>⌖ {x.region_label||'Region auf Anfrage'}</Text>
               {seller.org?<Text style={[styles.micro,{marginTop:3,color:C.accentDark}]} numberOfLines={1}>{seller.org.name} ✦</Text>:null}
-              {seller.own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{color:C.warningText,marginTop:4}]}>Nur für dich sichtbar</Text>:null}
+              {seller.own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{color:x.moderation_status==='sold'?C.accentDark:C.warningText,marginTop:4}]}>{x.moderation_status==='sold'?'Vergeben · nur für dich sichtbar':x.moderation_status==='pending'?'In Prüfung · nur für dich sichtbar':'Nicht veröffentlicht'}</Text>:null}
             </View>
           </Pressable>;
         })}
