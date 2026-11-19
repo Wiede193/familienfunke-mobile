@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
+import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
@@ -132,7 +133,7 @@ return <View style={{marginBottom:15}}>
 </View>;
 }
 function Blank({title,body}) {return <Card style={{alignItems:'center',paddingVertical:30}}><Text style={{fontSize:38,marginBottom:8,color:C.coral}}>♡</Text><Text style={styles.cardTitle}>{title}</Text><Text style={[styles.sub,{textAlign:'center'}]}>{body}</Text></Card>;}
-function Login({error,setError}) {
+function Login({error,setError,onHelp}) {
 const [email,setEmail]=useState('');
 const [password,setPassword]=useState('');
 const [busy,setBusy]=useState(false);
@@ -156,7 +157,7 @@ return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'pad
 <Input label="Passwort" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoComplete="current-password"/>
 {error?<Info warning>{error}</Info>:null}
 <Button title={busy?'Anmeldung läuft …':'Anmelden'} disabled={busy} onPress={submit}/>
-<Text style={[styles.micro,{textAlign:'center',marginTop:14}]}>Keine öffentliche Registrierung · Private Beta</Text>
+<View style={{marginTop:12}}><Button title="Hilfe bei der Anmeldung" mode="ghost" onPress={onHelp}/></View>
 </Card>
 </ScrollView>
 </KeyboardAvoidingView>;
@@ -169,6 +170,7 @@ const [chatReturnTab,setChatReturnTab]=useState('more');
 const [detailFamily,setDetailFamily]=useState(null);
 const [showEventForm,setShowEventForm]=useState(false);
 const [showInfo,setShowInfo]=useState(false);
+const [showLoginHelp,setShowLoginHelp]=useState(false);
 const [reportTarget,setReportTarget]=useState(null);
 const [reportDetails,setReportDetails]=useState('');
 const [error,setError]=useState('');
@@ -273,10 +275,16 @@ return execute(async()=>assertResult(await supabase.auth.updateUser({password}))
 }
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
 if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
-if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/><Login error={error} setError={setError}/></SafeAreaView>;
-const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',inclusion:'Inklusion'};
+if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
+{showLoginHelp?<><View style={styles.topBar}>
+  <View style={{flex:1}}><Text style={styles.smallBrand}>Familienfunke.</Text><Text style={styles.topHint}>Hilfe zur Anmeldung</Text></View>
+  <Button title="← Zur Anmeldung" small mode="ghost" onPress={()=>setShowLoginHelp(false)}/>
+</View><TechnicalHelpScreen initialCategory="Anmeldung & Konto"/></>:
+<Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
+</SafeAreaView>;
+const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',inclusion:'Inklusion',aboutApp:'Über uns',help:'Hilfe & FAQ'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(['profile','contacts','chat','inclusion'].includes(tab))setTab('more');}
+function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(['profile','contacts','chat','inclusion','aboutApp','help'].includes(tab))setTab('more');}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
@@ -287,7 +295,7 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{detailFamily||selectedContact||showInfo||['profile','contacts','chat','inclusion'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" onPress={()=>load()} small mode="ghost"/>}
+{detailFamily||selectedContact||showInfo||['profile','contacts','chat','inclusion','aboutApp','help'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" onPress={()=>load()} small mode="ghost"/>}
 </View>
 {error?<Pressable onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
 {notice?<Pressable onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
@@ -343,6 +351,8 @@ createPartnerEvent={(v)=>execute(async()=>{
 openInclusion={()=>setTab('inclusion')}/>:
 tab==='more'?<MoreScreen navigate={setTab} openInfo={()=>setShowInfo(true)}/>:
 tab==='inclusion'?<InclusionScreen/>:
+tab==='aboutApp'?<AboutFamilienfunkeScreen/>:
+tab==='help'?<TechnicalHelpScreen/>:
 tab==='discover'?<DiscoverScreen matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
 myProfile={myProfile} verification={verification} membership={membership}
 showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked}/>:
@@ -373,7 +383,7 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>su
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','inclusion'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','inclusion'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,tab===id&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','inclusion','aboutApp','help'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','inclusion','aboutApp','help'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,tab===id&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 {reportTarget?<View style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -828,7 +838,9 @@ function MoreScreen({navigate,openInfo}){
   const items=[['contacts','♡','Kontakte','Kontaktanfragen und Freundschaften verwalten'],
   ['chat','✉','Nachrichten','Private Unterhaltungen mit bestätigten Kontakten'],
   ['profile','◉','Mein Profil','Hobbys, Fotos und Privatsphäre einstellen'],
-  ['inclusion','✿','Familien & Inklusion','Anlaufstelle ohne Nachweis- oder Diagnosepflicht']];
+  ['inclusion','✿','Familien & Inklusion','Anlaufstelle ohne Nachweis- oder Diagnosepflicht'],
+  ['aboutApp','♡','Über Familienfunke','Wie unsere Idee entstanden ist'],
+  ['help','?','Hilfe & FAQ','Schritt-für-Schritt-Anleitungen zur App']];
   return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
     <H sub="Deine Kontakte, Einstellungen und unterstützenden Angebote.">Weitere Bereiche</H>
     {items.map(([id,icon,title,subtitle])=><Pressable accessibilityRole="button" accessibilityLabel={title} key={id} onPress={()=>navigate(id)}>
