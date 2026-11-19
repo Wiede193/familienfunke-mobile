@@ -49,13 +49,13 @@ export const VERIFIED_GUIDE_DETAILS={
     source:{label:'Ministerium Brandenburg – Rechtsanspruch & Anmeldung',url:'https://mbjs.brandenburg.de/kinder-und-jugend/kindertagesbetreuung/rechtsanspruch-und-anmeldung.html'}
   },
   kita_application:{
-    when:'Für Brandenburg gilt grundsätzlich der Betreuungsanspruch ab dem vollendeten 1. Lebensjahr. Im Landkreis Oder-Spree empfiehlt das Jugendamt, den Antrag auf Feststellung des Rechtsanspruchs etwa 6 bis 8 Wochen vor dem gewünschten Betreuungsbeginn einzureichen. Das ist ein regionaler Richtwert, keine bundesweite gesetzliche Kita-Anmeldefrist.',
-    where:'Für den Antrag auf Rechtsanspruch: Jugendamt des Landkreises Oder-Spree, wenn dort zuständig. Für die Anmeldung bei einer konkreten Kita zusätzlich die Kita beziehungsweise Kommune kontaktieren.',
-    documents:'Örtliches Antragsformular und gegebenenfalls Nachweise zum erweiterten Betreuungsbedarf; aktuelle Anlagen und Informationen beim Landkreis abrufen.',
-    depends:'Wohnort und zuständiger Jugendhilfeträger, Alter und benötigte Betreuungsstunden; die Platzvergabe der Wunschkita ist ein eigenes Verfahren.',
-    deadlineLabel:'Regionaler Planungsrichtwert Oder-Spree',
-    deadline:'Antrag auf Feststellung des Rechtsanspruchs etwa 6–8 Wochen vor Betreuungsbeginn – keine bundesweite Anmeldefrist.',
-    source:{label:'Landkreis Oder-Spree – Rechtsanspruch Kita',url:'https://www.landkreis-oder-spree.de/Service-Aktuelles/Service/Was-erledige-ich-wo-/Rechtsanspruch-auf-Kindertagesbetreuung.php?FID=2426.44.1&ModID=10'}
+    when:'Der Anspruch auf Kita-Betreuung und die Anmeldung sind unterschiedlich: Ein Rechtsanspruch bedeutet nicht automatisch einen Platz in der Wunschkita. In Brandenburg besteht ab dem vollendeten 1. Lebensjahr grundsätzlich ein Betreuungsanspruch von mindestens 6 Stunden täglich bis zur Einschulung. Die Fristen der Anmeldung und Bedarfsfeststellung unterscheiden sich regional.',
+    where:'Kita beziehungsweise Kommune für Platzanmeldung und das örtlich zuständige Jugendamt für die Feststellung des Rechtsanspruchs. Die konkreten Stellen unterscheiden sich je nach Wohnort.',
+    documents:'Örtliches Antragsformular und gegebenenfalls Nachweise zum erweiterten Betreuungsbedarf; die zuständige Stelle benennt die erforderlichen Anlagen.',
+    depends:'Bundesland, Wohnort, Alter und benötigte Betreuungsstunden; die Platzvergabe der Wunschkita ist ein eigenes Verfahren.',
+    deadlineLabel:'Rechtsanspruch in Brandenburg',
+    deadline:'Ab dem vollendeten 1. Lebensjahr grundsätzlich mindestens 6 Stunden tägliche Betreuung bis zur Einschulung; lokale Antragstermine separat prüfen.',
+    source:{label:'Ministerium Brandenburg – Rechtsanspruch & Anmeldung',url:'https://mbjs.brandenburg.de/kinder-und-jugend/kindertagesbetreuung/rechtsanspruch-und-anmeldung.html'}
   },
   settling_in:{
     when:'Die Eingewöhnung rechtzeitig vor dem beruflichen Wiedereinstieg beginnen. Das Land Brandenburg weist darauf hin, dass Kinder vor Aufnahme in eine Kindertagesstätte ärztlich untersucht werden müssen; die Einrichtung erklärt den Ablauf.',
