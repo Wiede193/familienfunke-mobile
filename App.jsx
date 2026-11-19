@@ -364,13 +364,20 @@ async function markAllNotifications(){
 }
 async function saveNotificationPreference(key,enabled){
  if(!['notify_matches','notify_requests','notify_messages'].includes(key))return;
- return execute(async()=>assertResult(await supabase.from('ff_notification_preferences')
-   .upsert({user_id:me,...{
-    notify_matches:notificationPrefs?.notify_matches!==false,
-    notify_requests:notificationPrefs?.notify_requests!==false,
-    notify_messages:notificationPrefs?.notify_messages!==false,
-    [key]:enabled
-   }},{onConflict:'user_id'})),'Einstellung gespeichert.');
+ const values={
+   notify_matches:notificationPrefs?.notify_matches!==false,
+   notify_requests:notificationPrefs?.notify_requests!==false,
+   notify_messages:notificationPrefs?.notify_messages!==false,
+   [key]:enabled
+ };
+ return execute(async()=>{
+   // Ein vorhandener Datensatz darf nur seine Einstellungsfelder ändern.
+   // Eine neue Einstellung legt der Benutzer ausschließlich für sich selbst an.
+   const result=notificationPrefs
+     ?await supabase.from('ff_notification_preferences').update(values).eq('user_id',me)
+     :await supabase.from('ff_notification_preferences').insert({user_id:me,...values});
+   assertResult(result);
+ },'Einstellung gespeichert.');
 }
 async function openNotification(item){
  if(!item)return;
