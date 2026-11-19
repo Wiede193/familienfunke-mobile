@@ -1,5 +1,7 @@
 # Familienfunke – Native iOS- und Android-App
 
+**Neu:** Für den Weg von der Codebasis zur installierbaren Test-App siehe [BUILD-UND-INSTALLATION.md](./BUILD-UND-INSTALLATION.md). Dort stehen die Android-APK, iPhone-Signierung und GitHub-Actions-Builds beschrieben.
+
 **Version:** 1.0.0-beta.1 (2026-11-15)  
 **Technik:** Expo SDK 58 / React Native 0.88 / Supabase  
 **Datenbank:** Nutzt die bereits angelegte Struktur **Familienfunke 0.2**. Das ist ein eigenständiges natives App-Projekt, kein WebView.
@@ -28,9 +30,9 @@ Es handelt sich um eine umfassende **implementierte Beta-Codebasis**, nicht um e
 
 ```
 index.js             Einstiegspunkt
-src/App.jsx          Vollständige native App
-src/supabase.js      Supabase Auth und Verbindung
-assets/              App-Symbol und Splashscreen
+App.jsx              Vollständige native App
+supabase.js          Supabase Auth und Verbindung
+icon.png, splash.png App-Symbol und Splashscreen
 app.json             iOS-/Android-Appdaten
 package.json         Abhängigkeiten
 babel.config.js      Expo Babel
@@ -77,7 +79,9 @@ Für diesen Schritt muss das Projekt mit deinem eigenen Expo-Konto und dem vorge
 
 ## Wenn du nur iPhone oder iPad hast
 
-Verwende das zweite Paket **`familienfunke-native-iphone-upload.zip`**. Es ist technisch dasselbe Projekt, enthält jedoch **alle Dateien ohne Unterordner**, damit die GitHub-Mehrfachauswahl auf dem iPhone funktioniert. Für die native App ein **neues** privates GitHub-Repository `familienfunke-mobile` anlegen. Nicht die funktionierende Web-App `Family-Sparkle` überschreiben. Das ZIP entpacken und alle Einzeldateien im neuen Repository hochladen. Nur das Projekt hochzuladen erstellt noch keinen signierten iPhone-Build. Für Weiterentwicklung/Build braucht es anschließend eine geeignete Cloud-Entwicklungsumgebung oder einen Computer.
+Das Repository `familienfunke-mobile` ist bereits auf GitHub vorhanden und mit einem Expo-EAS-Projekt verknüpft. Du musst weder ein neues Repository erstellen noch Dateien erneut hochladen. Ein Mac ist für Expo-Cloud-Builds nicht zwingend notwendig.
+
+Die **aktuellen** Schritte zum Testen, Signieren und Installieren stehen in [BUILD-UND-INSTALLATION.md](./BUILD-UND-INSTALLATION.md).
 
 ## Daten- und Datenschutzgrenzen
 
