@@ -105,8 +105,8 @@ BEGIN
                    WHERE p.user_id=v_uid AND p.is_discoverable) THEN
   RETURN;
  END IF;
- IF NOT EXISTS (SELECT 1 FROM private.ff_nearby_locations
-                WHERE user_id=v_uid AND enabled) THEN
+ IF NOT EXISTS (SELECT 1 FROM private.ff_nearby_locations l
+                WHERE l.user_id=v_uid AND l.enabled) THEN
   RETURN;
  END IF;
  RETURN QUERY
