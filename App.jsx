@@ -351,12 +351,16 @@ showInfo?<InfoScreen/>:
 tab==='market'?<MarketScreen listings={db.listings} me={me} active={active} busy={busy}
 organizations={db.organizations} photoUrls={marketPhotoUrls} contacts={db.contacts}
 createListing={(v,asset)=>execute(async()=>{
- await moderateTextOrThrow([v.title,v.description,v.region_label]);
+ // Alle Felder und das optionale Foto werden serverseitig als Einheit geprüft.
  const {data:inserted,error:insertError}=await supabase.from('ff_market_listings').insert({...v,seller_id:me}).select('id').single();
  if(insertError)throw insertError;
  if(asset)await uploadMarketPhoto(inserted.id,asset,me);
-},'Inserat eingereicht. Es erscheint nach Freigabe.')}
-uploadPendingPhoto={(listingId,asset)=>execute(async()=>{await uploadMarketPhoto(listingId,asset,me);},'Foto zur Prüfung eingereicht.')}
+ await moderateMarketListing(inserted.id);
+},'Inserat eingereicht. Den Prüfstatus findest du unter „Meine Inserate“.')}
+uploadPendingPhoto={(listingId,asset)=>execute(async()=>{
+ await uploadMarketPhoto(listingId,asset,me);
+ await moderateMarketListing(listingId);
+},'Foto eingereicht. Den Prüfstatus findest du unter „Meine Inserate“.')}
 markListingSold={(id)=>execute(async()=>{const {data,error:e}=await supabase.rpc('ff_market_mark_sold',{p_listing_id:id});if(e)throw e;if(data!==true)throw new Error('Das Inserat konnte nicht abgeschlossen werden. Bitte aktualisiere den Basar.');},'Angebot abgeschlossen. Es ist für andere nicht mehr sichtbar.')}
 onContact={sendRequest} onChat={(cid)=>{setChatReturnTab('market');setSelectedContact(cid);setTab('chat');}} nameOf={findName} blocked={blocked}/>:
 tab==='partners'?<PartnersScreen organizations={db.organizations} partnerEvents={db.partnerEvents}
@@ -471,7 +475,32 @@ await supabase.storage.from('familienfunke-photos').remove([photo.storage_path])
 ]);
 }
 
-/** Der Markt wird erst nach Betreiberfreigabe anderen Mitgliedern gezeigt.
+/** Die Serverfunktion prüft Titel, Beschreibung und ggf. Foto im Zusammenhang.
+ * Im Fehlerfall bleibt das Inserat gesperrt (pending), statt ungeprüft online zu gehen.
+ * Das Ergebnis kommt ausschließlich vom Server, nicht vom Gerät. */
+async function moderateMarketListing(listingId){
+  try{
+    const {data,error}=await supabase.functions.invoke('moderate-market-listing',{
+      body:{listing_id:listingId},
+    });
+    if(error||!['approved','rejected','review_required'].includes(data?.status)){
+      Alert.alert('Prüfung noch offen','Die automatische Prüfung ist gerade nicht verfügbar. Dein Inserat bleibt bis zur Freigabe für andere unsichtbar.');
+    }else if(data.status==='rejected'){
+      const animal=data.reason==='live_animal';
+      Alert.alert('Angebot nicht zulässig',animal?
+        'Lebende Tiere dürfen bei Familienfunke weder verkauft noch verschenkt, getauscht oder vermittelt werden. Kuscheltiere und Tierzubehör sind selbstverständlich erlaubt.':
+        'Die Anzeige verstößt gegen die Regeln des Familienbasars und wurde nicht veröffentlicht.');
+    }else if(data.status==='review_required'){
+      Alert.alert('Manuelle Prüfung','Die automatische Prüfung ist sich nicht sicher. Dein Inserat bleibt für andere unsichtbar, bis es geprüft wurde.');
+    }
+    return data?.status||'review_required';
+  }catch{
+    Alert.alert('Prüfung noch offen','Der automatische Sicherheitscheck konnte nicht beendet werden. Dein Inserat bleibt bis zur Freigabe für andere unsichtbar.');
+    return 'review_required';
+  }
+}
+
+/** Erst nach serverseitiger Freigabe für andere Mitglieder sichtbar.
  * Bezahlen ist absichtlich NICHT implementiert. */
 async function uploadMarketPhoto(listingId,asset,me){
   if(!asset?.uri) return;
@@ -612,12 +641,12 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
     </View>
     {open?<Card style={{marginBottom:18}}>
       <Text style={styles.sectionTitle}>Anzeige aufgeben</Text>
-      <Text style={[styles.sub,{marginBottom:17}]}>Kostenlos einstellen. Dein Inserat wird vor Veröffentlichung geprüft.</Text>
+      <Text style={[styles.sub,{marginBottom:17}]}>Kostenlos einstellen. Titel, Beschreibung und Foto werden gemeinsam automatisch geprüft.</Text>
       <View style={{marginBottom:15}}>
         <Button title={photo?'✓ Foto ausgewählt – ändern':'＋ Artikelfoto auswählen'} mode="outline" disabled={choosing||busy}
           onPress={()=>pick(setPhoto)}/>
         {photo?<Image source={{uri:photo.uri}} style={[styles.photoDraftPreview,{marginTop:10}]} resizeMode="contain"/>:null}
-        <Text style={[styles.micro,{marginTop:8}]}>Ein Foto pro Inserat ist in dieser Beta möglich.</Text>
+        <Text style={[styles.micro,{marginTop:8}]}>Ein Foto pro Inserat ist möglich.</Text>
       </View>
       <Input label="Anzeigentitel" value={title} onChangeText={setTitle} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
       <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={setCategory} options={MARKET_CATEGORIES}/>
@@ -638,7 +667,7 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
         <Chip text="Privat" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
       </View></>:null}
-      <Info>Keine Onlinezahlung und keine Verkaufsprovision aktiv. Die Anzeige ist erst nach Freigabe öffentlich für geprüfte Mitglieder sichtbar.</Info>
+      <Info>Keine Onlinezahlung und keine Verkaufsprovision aktiv. Unauffällige Anzeigen werden automatisch freigegeben. Unklare Fälle bleiben zur manuellen Prüfung zurückgehalten. Echte Tiere dürfen nicht angeboten werden.</Info>
       <Button title={busy?'Wird gespeichert …':'Anzeige kostenlos einreichen'} disabled={busy||choosing||!active} onPress={submit}/>
     </Card>:null}
     {selected?<View>
