@@ -26,9 +26,12 @@ const sameRegion = (a,b) => {
   const x=normalizeLabel(a), y=normalizeLabel(b);
   return !!x && (x===y || REGION_CLUSTERS.some(group=>group.includes(x)&&group.includes(y)));
 };
-const TABS = [['discover','Entdecken','⌕'],['contacts','Kontakte','♡'],['chat','Nachrichten','✉'],['events','Kalender','▦'],['profile','Profil','◉']];
+const TABS = [['market','Basar','♧'],['partners','Kitas','✿'],['discover','Familien','♡'],['events','Treffen','▦'],['more','Mehr','◉']];
+const MARKET_CATEGORIES=['Kleidung','Spielzeug','Bücher','Babyausstattung','Möbel','Sonstiges'];
+const ORG_KINDS=[['kita','Kita / Kindergarten'],['foerderverein','Förderverein'],['familienzentrum','Familienzentrum'],['verein','Familienverein']];
+const SECTION_MESSAGES={market:'Von Familien für Familien: kostenlos einstellen, verschenken und tauschen. Unsere Gebühren sind offen – aktuell gibt es keine Onlinezahlungen. Wir verkaufen keine persönlichen Daten.',partners:'Kitas und Fördervereine stellen sich vor, zeigen freie Plätze und laden zu Flohmärkten ein. Ein Stern erscheint nur bei bestätigter Einrichtung.',discover:'Neue Familien kennenlernen – freiwillig, respektvoll und ohne genaue Standortfreigabe.',events:'Gemeinsam etwas unternehmen statt endlose Diskussionen. Veranstaltungen werden vor der Veröffentlichung geprüft.',inclusion:'Für Familien mit und ohne Behinderung: willkommen, respektiert und ohne Pflicht zur Offenlegung persönlicher Diagnosen.'};
 const blankProfile = {display_name:'',region_label:'',about:'',interests:[],is_discoverable:false};
-const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[]};
+const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[],listings:[],organizations:[],partnerEvents:[]};
 const formatDate = (value) => { if (!value) return '–'; const d = new Date(value); return isNaN(d) ? '–' : d.toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
 const initial = (name) => String(name||'F').split(/\s+/).slice(0,2).map(s=>s[0]||'').join('').toUpperCase();
 const safeString = (value, length) => String(value||'').trim().slice(0,length);
@@ -91,7 +94,7 @@ style={({pressed})=>[styles.button,styles[`button_${mode}`],small&&styles.button
 </Pressable>;
 }
 function Chip({text,selected,onPress}) {
-return <Pressable disabled={!onPress} onPress={onPress} style={[styles.chip,selected&&styles.chipSelected]}>
+return <Pressable accessibilityRole="button" accessibilityLabel={text} accessibilityState={{selected:!!selected,disabled:!onPress}} disabled={!onPress} onPress={onPress} style={[styles.chip,selected&&styles.chipSelected]}>
 <Text style={[styles.chipText,selected&&{color:C.white}]}>{selected?'✓ ':''}{text}</Text>
 </Pressable>;
 }
@@ -102,7 +105,7 @@ function Avatar({name,size=52,uri}) {return <View style={[styles.avatar,{width:s
 function Row({children,style}) {return <View style={[{flexDirection:'row',alignItems:'center',gap:10},style]}>{children}</View>;}
 function Input({label,multiline=false,style,...props}) {
 return <View style={[{marginBottom:13},style]}><Text style={styles.label}>{label}</Text><TextInput
-placeholderTextColor="#9AAFB4" style={[styles.input,multiline&&{height:95,textAlignVertical:'top',paddingTop:12}]}
+accessibilityLabel={label} placeholderTextColor="#9AAFB4" style={[styles.input,multiline&&{height:95,textAlignVertical:'top',paddingTop:12}]}
 multiline={multiline} {...props}/></View>;
 }
 function RegionPicker({value,onChange}) {
@@ -176,6 +179,7 @@ const [myProfile,setMyProfile]=useState(null);
 const [verification,setVerification]=useState(null);
 const [membership,setMembership]=useState(null);
 const [photosUrls,setPhotosUrls]=useState({});
+const [marketPhotoUrls,setMarketPhotoUrls]=useState({});
 const me=session?.user?.id;
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
@@ -191,13 +195,17 @@ supabase.from('profile_photos').select('*').order('created_at',{ascending:false}
 supabase.from('blocks').select('*').limit(200),
 supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
+supabase.from('ff_market_listings').select('*').order('created_at',{ascending:false}).limit(160),
+supabase.from('ff_organizations').select('*').order('created_at',{ascending:false}).limit(100),
+supabase.from('ff_partner_events').select('*').order('starts_at',{ascending:true}).limit(100),
 ]);
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow]=queries;
+const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,organizations,partnerEvents]=queries;
 const profileRow=profiles.data.find(p=>p.user_id===me)||null;
 setDb({profiles:profiles.data||[],contacts:contacts.data||[],messages:messages.data||[],
-events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[]});
+events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],
+listings:listings.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');
 const images=await Promise.all((photos.data||[]).map(async(p)=>{
@@ -205,6 +213,11 @@ try {const {data,error:e}=await supabase.storage.from('familienfunke-photos').cr
 return [p.id,e?null:data?.signedUrl||null];} catch {return [p.id,null];}
 }));
 setPhotosUrls(Object.fromEntries(images));
+const marketImages=await Promise.all((listings.data||[]).filter(x=>x.photo_path).map(async(x)=>{
+ try {const {data,error:e}=await supabase.storage.from('ff-market-photos').createSignedUrl(x.photo_path,600);return [x.id,e?null:data?.signedUrl||null];}
+ catch{return [x.id,null];}
+}));
+setMarketPhotoUrls(Object.fromEntries(marketImages));
 } catch(e){setError(humanError(e));}
 finally{setLoading(false);}
 },[me]);
@@ -219,7 +232,7 @@ setSession(data?.session||null);
 const {data:listener}=supabase.auth.onAuthStateChange((_event,next)=>{if(alive)setSession(next);});
 return ()=>{alive=false;listener.subscription.unsubscribe();};
 },[]);
-useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);}},[me,load]);
+useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});}},[me,load]);
 const active=verification?.status==='verified'&&myProfile?.moderation_status==='approved'&&membership?.status!=='suspended';
 const blocked=(uid)=>db.blocks.some(b=>b.blocker_id===me&&b.blocked_id===uid);
 const findName=(uid)=>db.profiles.find(p=>p.user_id===uid)?.display_name||'Familienprofil';
@@ -260,8 +273,9 @@ return execute(async()=>assertResult(await supabase.auth.updateUser({password}))
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
 if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
 if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/><Login error={error} setError={setError}/></SafeAreaView>;
-const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1];
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact)setSelectedContact(null);else if(showInfo)setShowInfo(false);}
+const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',inclusion:'Inklusion'};
+const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
+function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact)setSelectedContact(null);else if(showInfo)setShowInfo(false);else if(['profile','contacts','chat','inclusion'].includes(tab))setTab('more');}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
@@ -272,7 +286,7 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{detailFamily||selectedContact||showInfo?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" onPress={()=>load()} small mode="ghost"/>}
+{detailFamily||selectedContact||showInfo||['profile','contacts','chat','inclusion'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" onPress={()=>load()} small mode="ghost"/>}
 </View>
 {error?<Pressable onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
 {notice?<Pressable onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
@@ -304,6 +318,28 @@ send={(body)=>execute(async()=>{
 },'Nachricht gesendet.')}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
+tab==='market'?<MarketScreen listings={db.listings} me={me} active={active} busy={busy}
+organizations={db.organizations} photoUrls={marketPhotoUrls} contacts={db.contacts}
+createListing={(v,asset)=>execute(async()=>{
+ await moderateTextOrThrow([v.title,v.description,v.region_label]);
+ const inserted=assertResult(await supabase.from('ff_market_listings').insert({...v,seller_id:me}).select('id').single());
+ if(asset)await uploadMarketPhoto(inserted.id,asset,me);
+},'Inserat eingereicht. Es erscheint nach Freigabe.')}
+uploadPendingPhoto={(listingId,asset)=>execute(async()=>{await uploadMarketPhoto(listingId,asset,me);},'Foto zur Prüfung eingereicht.')}
+onContact={sendRequest} nameOf={findName} blocked={blocked}/>:
+tab==='partners'?<PartnersScreen organizations={db.organizations} partnerEvents={db.partnerEvents}
+me={me} active={active} busy={busy}
+applyOrg={(v)=>execute(async()=>{
+ await moderateTextOrThrow([v.name,v.description,v.region_label]);
+ assertResult(await supabase.from('ff_organizations').insert({...v,owner_id:me}));
+},'Partneranfrage gespeichert. Die Einrichtung wird vor Freigabe geprüft.')}
+createPartnerEvent={(v)=>execute(async()=>{
+ await moderateTextOrThrow([v.title,v.description,v.region_label]);
+ assertResult(await supabase.from('ff_partner_events').insert({...v,creator_id:me}));
+},'Veranstaltung eingereicht. Sie erscheint nach Freigabe.')}
+openInclusion={()=>setTab('inclusion')}/>:
+tab==='more'?<MoreScreen navigate={setTab} openInfo={()=>setShowInfo(true)}/>:
+tab==='inclusion'?<InclusionScreen/>:
 tab==='discover'?<DiscoverScreen matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
 myProfile={myProfile} verification={verification} membership={membership}
 showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked}/>:
@@ -334,7 +370,7 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>su
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setTab(id);setShowEventForm(false);}}
-style={[styles.tab,tab===id&&styles.tabActive]}><Text style={[styles.tabIcon,tab===id&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','inclusion'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','inclusion'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,tab===id&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 {reportTarget?<View style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -437,7 +473,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <View style={styles.heroTagline}><Text style={styles.heroTaglineText}>♥  Aus Nachbarschaft wird Freundschaft.</Text></View>
 </View>
 {!active?<Info warning>Dein Konto wartet noch auf persönliche Erwachsenenprüfung oder Profilfreigabe. Profilstatus: {myProfile?.moderation_status||'–'} · Verifizierung: {verification?.status||'–'}.</Info>:null}
-<H sub="Nur freigegebene, freiwillig sichtbare Familienprofile.">Familien entdecken</H>
+<Info>{SECTION_MESSAGES.discover}</Info><H sub="Nur freigegebene, freiwillig sichtbare Familienprofile.">Familien entdecken</H>
 <Input label="Suche nach Familie, Region oder Interesse" placeholder="z. B. Natur, Beeskow …" value={query} onChangeText={value=>updateFilter(setQuery,value)} />
 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:13}}>
 {['Alle',...INTERESTS].map(i=><View key={i} style={{marginRight:6}}><Chip text={i} selected={interest===i} onPress={()=>updateFilter(setInterest,i)}/></View>)}
@@ -538,7 +574,7 @@ if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');}
 }
 const upcoming=events.filter(e=>new Date(e.ends_at)>new Date());
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-<H sub="Gemeinsame Aktivitäten statt öffentlicher Diskussionen.">Familienkalender</H>
+<Info>{SECTION_MESSAGES.events}</Info><H sub="Gemeinsame Aktivitäten statt öffentlicher Diskussionen.">Familienkalender</H>
 <Button title={showForm?'Formular schließen':'＋ Aktivität erstellen'} disabled={!active} onPress={()=>setShowForm(!showForm)}/>
 {showForm?<Card style={{marginTop:14}}>
 <Text style={styles.cardTitle}>Neue Aktivität</Text><Text style={[styles.sub,{marginBottom:15}]}>Vor Veröffentlichung wird der Termin geprüft. Bitte keine Privatadressen veröffentlichen.</Text>
