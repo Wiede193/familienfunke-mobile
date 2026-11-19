@@ -345,6 +345,7 @@ onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setDetailFamily(nu
  onPhotosViewed={()=>markActivity('photos')}/>:
 selectedContact?<ChatScreen contact={accepted.find(c=>c.id===selectedContact)} me={me} nameOf={findName}
 messages={db.messages.filter(m=>m.contact_id===selectedContact)} disabled={busy} blocked={blocked}
+onRefresh={()=>load(true)}
 send={(body)=>execute(async()=>{
   // Die Nachricht wird ausschliesslich von der authentifizierten Edge Function
   // geprueft und gespeichert. Kein direkter INSERT in public.messages mehr.
@@ -364,6 +365,7 @@ send={(body)=>execute(async()=>{
     if(status===422)throw new Error('Diese Nachricht wurde wegen unserer Inhaltsregeln zurückgehalten. Bitte formuliere sie anders.');
     if(status===401)throw new Error('Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.');
     if(status===403)throw new Error('Nachrichten sind für diesen Kontakt momentan nicht erlaubt.');
+    if(status===429)throw new Error('Du hast bereits fünf Nachrichten ohne Antwort geschickt. Warte bitte, bis die andere Familie antwortet.');
     if(status===503)throw new Error('Die Sicherheitsprüfung ist momentan nicht verfügbar. Bitte später erneut versuchen.');
     throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
   }
@@ -564,12 +566,19 @@ contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;const las
 </Pressable>;})}
 </ScrollView>;
 }
-function ChatScreen({contact,me,nameOf,messages,disabled,blocked,send,onReport,onBlock}) {
+function ChatScreen({contact,me,nameOf,messages,disabled,blocked,send,onReport,onBlock,onRefresh}) {
 const [text,setText]=useState('');
 if(!contact)return <Blank title="Gespräch nicht verfügbar" body="Kontakt ist nicht mehr bestätigt oder wurde verborgen."/>;
 const other=contact.sender_id===me?contact.recipient_id:contact.sender_id;
-const sorted=[...messages].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-async function submit(){const body=text.trim();if(!body)return; const ok=await send(body);if(ok)setText('');}
+const sorted=[...messages].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)||String(a.id).localeCompare(String(b.id)));
+let consecutiveFromMe=0;
+for(let i=sorted.length-1;i>=0;i--){
+  if(sorted[i].sender_id!==me)break;
+  consecutiveFromMe++;
+  if(consecutiveFromMe>=5)break;
+}
+const waitingForReply=consecutiveFromMe>=5;
+async function submit(){const body=text.trim();if(!body||waitingForReply)return; const ok=await send(body);if(ok)setText('');}
 return <View style={{flex:1}}>
 <Row style={styles.chatHeader}><Avatar name={nameOf(other)} size={38}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other)}</Text><Text style={styles.micro}>Privates Gespräch</Text></View><Button title="Blockieren" small mode="ghost" onPress={()=>onBlock(other)}/></Row>
 <ScrollView style={{flex:1}} contentContainerStyle={{padding:16}} keyboardShouldPersistTaps="handled">
@@ -578,9 +587,20 @@ return <View style={{flex:1}}>
 <Row style={{justifyContent:'space-between',marginTop:7}}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>{formatDate(m.created_at)}</Text><Pressable onPress={()=>onReport(m.id)}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>Melden</Text></Pressable></Row>
 </View>)}
 </ScrollView>
-{blocked(other)?<Info warning>Du hast diese Person blockiert. Neue Nachrichten sind nicht erlaubt.</Info>:
-<Row style={styles.chatComposer}><TextInput placeholder="Nachricht schreiben …" value={text} onChangeText={setText} maxLength={2000} multiline
-placeholderTextColor="#9AAFB4" style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]}/><Button title="Senden" small disabled={disabled||!text.trim()} onPress={submit}/></Row>}
+{blocked(other)?<Info warning>Du hast diese Person blockiert. Neue Nachrichten sind nicht erlaubt.</Info>:<>
+<View style={styles.chatLimitBox}>
+ <Text style={styles.chatLimitText}>{waitingForReply?
+  'Du hast fünf Nachrichten hintereinander geschickt. Bitte warte auf eine Antwort.':
+  consecutiveFromMe>0?`${consecutiveFromMe} von 5 Nachrichten ohne Antwort gesendet.`:
+  'Bis zu fünf Nachrichten hintereinander sind möglich.'}</Text>
+ {waitingForReply?<Pressable accessibilityRole="button" accessibilityLabel="Neue Antworten prüfen" onPress={onRefresh}
+  style={styles.chatLimitRefresh}><Text style={styles.chatLimitRefreshText}>↻ Antworten prüfen</Text></Pressable>:null}
+</View>
+<Row style={styles.chatComposer}><TextInput placeholder={waitingForReply?'Antwort abwarten …':'Nachricht schreiben …'}
+ value={text} onChangeText={setText} maxLength={2000} multiline editable={!waitingForReply&&!disabled}
+placeholderTextColor="#9AAFB4" style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]} />
+<Button title="Senden" small disabled={disabled||waitingForReply||!text.trim()} onPress={submit}/></Row>
+</>}
 </View>;
 }
 function EventsScreen({events,eventRequests,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
@@ -986,6 +1006,10 @@ activityCard:{padding:16,backgroundColor:'#FFF2DA',borderRadius:19,borderWidth:1
 activityCardTitle:{color:C.ink,fontWeight:'900',fontSize:16},
 activityCardText:{color:C.muted,lineHeight:19,fontSize:13,marginTop:6},
 activityCardAction:{color:C.accentDark,fontWeight:'900',fontSize:12,marginTop:9},
+chatLimitBox:{paddingHorizontal:13,paddingTop:9,paddingBottom:6,backgroundColor:'#FFF9ED',borderTopColor:C.line,borderTopWidth:1},
+chatLimitText:{fontSize:12,color:C.accentDark,fontWeight:'700',lineHeight:18},
+chatLimitRefresh:{alignSelf:'flex-start',marginTop:7,paddingVertical:5,paddingHorizontal:8,borderRadius:9,backgroundColor:'#FFEAC5'},
+chatLimitRefreshText:{fontWeight:'900',fontSize:12,color:C.accentDark},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},
