@@ -10,9 +10,10 @@
 -- keine Moderation und keine Prüfung, ob die Kontaktanfrage angenommen wurde.
 -- Die bestehende send-message Edge Function bleibt erhalten.
 --
--- HINWEIS: Für die Sortierung wird created_at + id verwendet. Die bestehende
--- DB sollte die Erstellung von created_at/sender_id serverseitig kontrollieren,
--- damit Clients die Reihenfolge nicht durch manipulierte Zeitstempel umgehen.
+-- Die Nachricht erhält die tatsächliche Serverzeit erst NACH dem
+-- kontaktbezogenen Lock. Ein clientseitig gesetzter created_at-Wert wird
+-- überschrieben, damit die Reihenfolge nicht über Zeitstempel gefälscht wird.
+-- Die Echtheit der sender_id muss weiterhin die send-message-Funktion/RLS prüfen.
 
 BEGIN;
 
@@ -42,6 +43,10 @@ BEGIN
       USING ERRCODE = '23503',
             HINT = 'Eine zugehörige Kontaktanfrage ist erforderlich.';
   END IF;
+
+  -- Erzeugt einen serverseitigen Zeitpunkt nach dem Lock, sodass
+  -- konkurrierende Sendevorgänge nicht aneinander vorbeisortiert werden.
+  NEW.created_at := clock_timestamp();
 
   SELECT COUNT(*) INTO previous_by_sender
     FROM (
