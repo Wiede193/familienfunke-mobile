@@ -752,8 +752,16 @@ async function selectDraftPhoto(){
 }
 async function submitDraftPhoto(){
  if(!selectedPhoto||busy||photoPickerBusy)return;
- const ok=await uploadPhoto(selectedPhoto,photoCaption);
- if(ok){setSelectedPhoto(null);setPhotoCaption('');setAddingMoment(false);}
+ // Explain actual third-party processing before starting a nonreversible upload.
+ Alert.alert('Hinweis zur Foto-Sicherheitsprüfung',
+  'Vor der Freigabe werden hochgeladene Fotos durch einen externen Moderationsdienst von OpenAI automatisch geprüft. Dabei wird der Bildinhalt an diesen Dienst übermittelt. Bitte in der Beta keine Kinderfotos hochladen. Du kannst den Upload jetzt abbrechen.',
+  [
+   {text:'Abbrechen',style:'cancel'},
+   {text:'Foto hochladen',onPress:async()=>{
+     const ok=await uploadPhoto(selectedPhoto,photoCaption);
+     if(ok){setSelectedPhoto(null);setPhotoCaption('');setAddingMoment(false);}
+   }}
+  ]);
 }
 const heroPhoto=photos.find(p=>p.moderation_status==='approved'&&photosUrls[p.id]);
 return <><ScrollView ref={profileScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -853,6 +861,7 @@ return <><ScrollView ref={profileScrollRef} style={styles.scroll} contentContain
    <Text style={styles.body}>Familienname, grobe Region, euer Beschreibungstext und ausgewählte Interessen können im freigegebenen Profil sichtbar sein.</Text>
    <Text style={[styles.body,{marginTop:9}]}>Freigegebene Familienfotos zeigen wir in der App nur bestätigten Kontakten. Bitte in der Beta keine Kinderfotos einstellen.</Text>
    <Text style={[styles.micro,{marginTop:11}]}>Das Ausschalten der Suche ersetzt kein Löschen des Profils. Die tatsächlichen Zugriffsmöglichkeiten müssen zusätzlich serverseitig geschützt sein.</Text>
+   <Text style={[styles.micro,{marginTop:11}]}>Automatische Sicherheitsprüfung: Für die Moderation können von dir eingegebene Texte und hochgeladene Fotos an den externen Dienst OpenAI übermittelt werden. Der Supabase-Datenbankstandort Frankfurt allein bedeutet daher nicht, dass sämtliche Verarbeitung in Deutschland stattfindet.</Text>
   </View>
   <Button title={busy?'Wird gespeichert …':'Sichtbarkeit speichern'} disabled={busy} onPress={submit}/>
  </Card>:null}
@@ -861,6 +870,12 @@ return <><ScrollView ref={profileScrollRef} style={styles.scroll} contentContain
   <Text style={[styles.micro,{marginTop:-7,marginBottom:17}]}>Mitgliedschaft: {membership?.status||'–'} · Verifizierung: {verification?.status||'–'}</Text>
   <Text style={styles.label}>Informationen & Hilfen</Text>
   <Button title="Familien-Kompass öffnen" mode="outline" onPress={openInfo}/>
+  <View style={styles.profilePrivacyNote}>
+   <Text style={styles.label}>Datenschutz in der privaten Beta</Text>
+   <Text style={styles.body}>Dein Familienprofil enthält nur freiwillige Angaben. Für Bilder gilt ein privater Speicher mit zeitlich begrenzten Fotolinks. Freigegebene Bilder können bestätigte Kontakte sehen.</Text>
+   <Text style={[styles.body,{marginTop:9}]}>Texte und Fotos werden zur Sicherheitsprüfung teilweise an OpenAI übermittelt. Vor einer öffentlichen Veröffentlichung müssen Datenschutzhinweise, Vereinbarungen mit Dienstleistern, mögliche internationale Datenübermittlung sowie Lösch- und Auskunftsprozesse rechtlich geprüft werden.</Text>
+   <Text style={[styles.micro,{marginTop:11}]}>Vermeide vollständige Namen und Wohnanschriften von Kindern. Bitte vorerst keine Kinderfotos hochladen.</Text>
+  </View>
   <View style={styles.profileSettingsDivider}/>
   <Text style={styles.label}>Passwort ändern</Text>
   <Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none" autoCorrect={false}/>
