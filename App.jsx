@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
 ActivityIndicator, Alert, Image, KeyboardAvoidingView, Linking,
-Platform, Pressable, RefreshControl, SafeAreaView, ScrollView,
+Modal, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView,
 StatusBar, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
+import { BUNDESLAENDER, KREISE_NACH_LAND } from './data/regionen';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFFAF2',white:'#FFFFFF',ink:'#243E43',muted:'#687E80',
@@ -635,10 +636,23 @@ const KOMPASS_STEPS=[
 ];
 function InfoScreen(){
 const [topic,setTopic]=useState('schwangerschaft');
-const [region,setRegion]=useState('bund');
+const [land,setLand]=useState(null);
+const [kreis,setKreis]=useState(null);
+const [picker,setPicker]=useState(null);
+const [pickerSearch,setPickerSearch]=useState('');
 const [expanded,setExpanded]=useState(null);
 const chosen=KOMPASS_TOPICS.find(t=>t.id===topic);
-const tasks=KOMPASS_STEPS.filter(t=>t.topics.includes(topic)&&(!t.regional||region==='oder-spree'));
+const landName=BUNDESLAENDER.find(([id])=>id===land)?.[1];
+const kreisName=(KREISE_NACH_LAND[land]||[]).find(([id])=>id===kreis)?.[1];
+const pickerOptions=picker==='land'?BUNDESLAENDER:(KREISE_NACH_LAND[land]||[]);
+const filteredOptions=pickerOptions.filter(([,name])=>name.toLocaleLowerCase('de-DE').includes(pickerSearch.trim().toLocaleLowerCase('de-DE')));
+const tasks=KOMPASS_STEPS.filter(t=>t.topics.includes(topic)&&(!t.regional||kreis==='12067'));
+function openPicker(which){setPickerSearch('');setPicker(which);}
+function selectRegion(id){
+  if(picker==='land'){setLand(id);setKreis(null);}
+  if(picker==='kreis')setKreis(id);
+  setExpanded(null);setPicker(null);setPickerSearch('');
+}
 function openSource(url){Linking.openURL(url).catch(()=>Alert.alert('Link nicht geöffnet','Bitte die offizielle Seite später erneut öffnen.'));}
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
  <View style={styles.kompassHero}>
@@ -654,11 +668,25 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
   <Text style={styles.kompassTopicTitle}>{t.label}</Text>
  </Pressable>)}</View>
  <Text style={[styles.sectionTitle,{marginTop:24}]}>2. Wo wohnt ihr?</Text>
- <View style={[styles.chipsRow,{marginTop:0,marginBottom:7}]}>
-  <Chip text="Bundesweit" selected={region==='bund'} onPress={()=>{setRegion('bund');setExpanded(null);}}/>
-  <Chip text="Beispiel: Landkreis Oder-Spree" selected={region==='oder-spree'} onPress={()=>{setRegion('oder-spree');setExpanded(null);}}/>
- </View>
- <Text style={[styles.micro,{marginBottom:18}]}>Die Region Oder-Spree ist zunächst nur ein Musterfall. Für andere Regionen gelten möglicherweise andere Zuständigkeiten und Fristen.</Text>
+ <Text style={[styles.sub,{marginTop:-7,marginBottom:14}]}>Wählt zuerst euer Bundesland und dann euren Landkreis oder eure kreisfreie Stadt.</Text>
+ <Text style={styles.label}>Bundesland</Text>
+ <Pressable accessibilityRole="button" accessibilityLabel={'Bundesland auswählen, '+(landName||'noch nicht ausgewählt')}
+   onPress={()=>openPicker('land')} style={styles.kompassPickerButton}>
+  <Text style={[styles.kompassPickerValue,!landName&&styles.kompassPickerPlaceholder]}>{landName||'Bundesland auswählen'}</Text>
+  <Text style={styles.kompassChevron}>⌄</Text>
+ </Pressable>
+ <Text style={[styles.label,{marginTop:17}]}>Landkreis oder kreisfreie Stadt</Text>
+ <Pressable accessibilityRole="button" accessibilityState={{disabled:!land}}
+   accessibilityLabel={'Landkreis oder kreisfreie Stadt auswählen, '+(kreisName||'noch nicht ausgewählt')}
+   disabled={!land} onPress={()=>openPicker('kreis')}
+   style={[styles.kompassPickerButton,!land&&styles.kompassPickerButtonDisabled]}>
+  <Text style={[styles.kompassPickerValue,!kreisName&&styles.kompassPickerPlaceholder]}>{kreisName||(land?'Landkreis / Stadt auswählen':'Bitte zuerst Bundesland auswählen')}</Text>
+  <Text style={styles.kompassChevron}>⌄</Text>
+ </Pressable>
+ {kreis==='12067'?<Text style={styles.kompassRegionNote}>✓ Für Landkreis Oder-Spree sind erste geprüfte lokale Informationen verfügbar (Kita-Bedarf). Weitere Behördenwege folgen.</Text>:
+  kreis?<Text style={styles.kompassRegionNote}>Für {kreisName} sind lokale Anträge, Zuständigkeiten und Sonderfristen noch in Recherche. Bis dahin zeigen wir dir bundesweite Grundlagen mit offiziellen Quellen.</Text>:
+  <Text style={styles.kompassRegionNote}>Die bundesweiten Informationen sind sofort nutzbar. Genaue lokale Behördenkontakte ergänzen wir Schritt für Schritt.</Text>}
+ <Text style={[styles.micro,{marginBottom:20}]}>Deine Auswahl bleibt vorerst nur in dieser Ansicht und wird nicht in deinem Profil gespeichert.</Text>
  <Text style={styles.sectionTitle}>3. Euer möglicher Fahrplan</Text>
  <Text style={[styles.sub,{marginTop:-8,marginBottom:16}]}>{chosen?.desc} · {tasks.length} Informationskarten</Text>
  {tasks.map((item,i)=><Card key={item.id} style={{marginBottom:13,padding:16}}>
@@ -688,7 +716,31 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
  </Card>)}
  <Info>Diese Übersicht dient der Orientierung. Sie bestätigt keinen individuellen Anspruch, reicht keine Anträge ein und ersetzt keine Beratung. Fristen und Formulare können sich ändern. Vor dem Antrag immer die verlinkte offizielle Seite prüfen.</Info>
  <View style={{height:10}}/>
- <Text style={[styles.micro,{textAlign:'center'}]}>Weitere Regionen, persönliche Fristen und Erinnerungen folgen in späteren Versionen. Es werden hier keine persönlichen Antragsdaten gespeichert.</Text>
+ <Text style={[styles.micro,{textAlign:'center'}]}>Persönliche Fristen und Erinnerungen folgen in späteren Versionen. Es werden hier keine persönlichen Antragsdaten gespeichert.</Text>
+ <Modal visible={!!picker} animationType="slide" transparent onRequestClose={()=>setPicker(null)}>
+  <View style={styles.kompassPickerShade}>
+   <View style={styles.kompassPickerSheet}>
+    <Row style={{justifyContent:'space-between',alignItems:'center',marginBottom:15}}>
+     <View style={{flex:1}}><Text style={styles.cardTitle}>{picker==='land'?'Bundesland auswählen':'Landkreis oder Stadt auswählen'}</Text>
+      <Text style={styles.micro}>{picker==='land'?'16 Bundesländer':(landName||'')} · {filteredOptions.length} Treffer</Text>
+     </View>
+     <Button small mode="ghost" title="✕ Schließen" onPress={()=>setPicker(null)}/>
+    </Row>
+    <TextInput style={styles.kompassPickerSearch} autoCapitalize="none" autoCorrect={false}
+     placeholder={picker==='land'?'Bundesland suchen …':'Landkreis oder Stadt suchen …'}
+     placeholderTextColor={C.muted} value={pickerSearch} onChangeText={setPickerSearch}/>
+    <ScrollView keyboardShouldPersistTaps="handled" style={{flex:1}} contentContainerStyle={{paddingBottom:20}}>
+     {filteredOptions.length===0?<Text style={[styles.sub,{paddingVertical:18}]}>Keine passenden Orte gefunden.</Text>:null}
+     {filteredOptions.map(([id,name])=><Pressable accessibilityRole="button" key={id}
+       accessibilityState={{selected:id===(picker==='land'?land:kreis)}} onPress={()=>selectRegion(id)}
+       style={[styles.kompassOption,(id===(picker==='land'?land:kreis))&&styles.kompassOptionSelected]}>
+      <Text style={styles.kompassOptionName}>{name}</Text>
+      <Text style={styles.kompassOptionCheck}>{id===(picker==='land'?land:kreis)?'✓':''}</Text>
+     </Pressable>)}
+    </ScrollView>
+   </View>
+  </View>
+ </Modal>
 </ScrollView>;
 }
 const styles=StyleSheet.create({
@@ -774,6 +826,19 @@ kompassNumberCircle:{height:35,width:35,borderRadius:18,backgroundColor:'#FFE5AE
 kompassNumberText:{fontWeight:'900',fontSize:14,color:'#825D2B'},
 kompassDue:{fontSize:11,fontWeight:'900',color:'#A36B29',marginTop:6},
 kompassDetails:{borderTopWidth:1,borderTopColor:C.line,marginTop:16,paddingTop:17},
+kompassPickerButton:{minHeight:55,borderRadius:17,borderWidth:1.5,borderColor:'#D9C5AD',backgroundColor:C.white,paddingHorizontal:15,flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12},
+kompassPickerButtonDisabled:{backgroundColor:'#F2ECE4',opacity:.8},
+kompassPickerValue:{fontSize:14.5,color:C.ink,fontWeight:'800',flex:1},
+kompassPickerPlaceholder:{fontWeight:'500',color:C.muted},
+kompassChevron:{fontSize:23,fontWeight:'800',color:C.accentDark},
+kompassRegionNote:{fontSize:12.5,lineHeight:19,fontWeight:'600',color:C.muted,marginTop:15,marginBottom:8},
+kompassPickerShade:{flex:1,backgroundColor:'rgba(15,44,52,.45)',justifyContent:'flex-end'},
+kompassPickerSheet:{height:'78%',backgroundColor:C.bg,borderTopLeftRadius:25,borderTopRightRadius:25,paddingTop:22,paddingHorizontal:20,paddingBottom:25},
+kompassPickerSearch:{backgroundColor:C.white,borderRadius:16,borderWidth:1,borderColor:C.line,minHeight:51,paddingHorizontal:14,fontSize:15,color:C.ink,marginBottom:14},
+kompassOption:{backgroundColor:C.white,padding:14,borderBottomWidth:1,borderBottomColor:C.line,minHeight:50,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
+kompassOptionSelected:{backgroundColor:'#FFF0D3'},
+kompassOptionName:{fontSize:14.5,fontWeight:'600',color:C.ink,flex:1},
+kompassOptionCheck:{fontSize:16,fontWeight:'800',color:C.accentDark,marginLeft:9},
 modalShade:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(15,44,52,.52)',justifyContent:'center',zIndex:100},
 });
 
