@@ -19,7 +19,13 @@ lavender:'#F2EEFF',warning:'#FFF1D6',warningText:'#75521D',
 const INTERESTS = ['Spielplatz','Natur','Radfahren','Wandern','Kochen','Musik','Basteln','Sport','Tiere','Lesen','Ausflüge','Spieleabende','Schwimmen','Fußball','Tanzen','Camping','Gärtnern','Fotografie','Brettspiele','Museen','Backen','Picknick','Kino','Yoga','Familiencafés','Handarbeiten','Konzerte','Reisen'];
 const REGIONS = ['Landkreis Oder-Spree','Fürstenwalde/Spree','Beeskow','Eisenhüttenstadt','Bad Saarow','Storkow (Mark)','Frankfurt (Oder)','Landkreis Dahme-Spreewald','Landkreis Märkisch-Oderland','Berlin','Potsdam','Cottbus'];
 const normalizeLabel = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
-const sameRegion = (a,b) => !!normalizeLabel(a) && normalizeLabel(a)===normalizeLabel(b);
+const REGION_CLUSTERS = [
+  ['Landkreis Oder-Spree','Fürstenwalde/Spree','Fürstenwalde (Spree)','Fürstenwalde','Beeskow','Eisenhüttenstadt','Bad Saarow','Storkow (Mark)','Storkow'],
+].map(group=>group.map(normalizeLabel));
+const sameRegion = (a,b) => {
+  const x=normalizeLabel(a), y=normalizeLabel(b);
+  return !!x && (x===y || REGION_CLUSTERS.some(group=>group.includes(x)&&group.includes(y)));
+};
 const TABS = [['discover','Entdecken','⌕'],['contacts','Kontakte','♡'],['chat','Nachrichten','✉'],['events','Kalender','▦'],['profile','Profil','◉']];
 const blankProfile = {display_name:'',region_label:'',about:'',interests:[],is_discoverable:false};
 const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[]};
@@ -113,8 +119,8 @@ return <View style={{marginBottom:15}}>
 {open?<View style={styles.regionDropdown}>
 <TextInput style={[styles.input,{marginBottom:8}]} placeholder="Stadt oder Landkreis suchen" placeholderTextColor="#9AAFB4" value={search} onChangeText={setSearch} maxLength={80} autoCorrect={false}/>
 <ScrollView style={{maxHeight:210}} keyboardShouldPersistTaps="always" nestedScrollEnabled>
-{options.map(r=><Pressable accessibilityRole="button" key={r} onPress={()=>choose(r)} style={styles.regionOption}><Text style={styles.body}>{r}</Text>{sameRegion(r,value)?<Text style={{color:C.accent}}>✓</Text>:null}</Pressable>)}
-{search.trim().length>=2&&!REGIONS.some(r=>sameRegion(r,search))?
+{options.map(r=><Pressable accessibilityRole="button" key={r} onPress={()=>choose(r)} style={styles.regionOption}><Text style={styles.body}>{r}</Text>{normalizeLabel(r)===normalizeLabel(value)?<Text style={{color:C.accent}}>✓</Text>:null}</Pressable>)}
+{search.trim().length>=2&&!REGIONS.some(r=>normalizeLabel(r)===normalizeLabel(search))?
 <Pressable accessibilityRole="button" onPress={()=>choose(search.trim())} style={styles.regionOption}><Text style={[styles.body,{color:C.accentDark}]}>„{search.trim()}“ übernehmen</Text></Pressable>:null}
 {options.length===0&&search.trim().length<2?<Text style={styles.micro}>Bitte mindestens zwei Zeichen eingeben.</Text>:null}
 </ScrollView>
@@ -438,7 +444,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </ScrollView>
 <View style={styles.filterPanel}>
 <Row style={{justifyContent:'space-between',marginBottom:10}}>
-<View style={{flex:1}}><Text style={styles.label}>Nur meine Region</Text><Text style={styles.micro}>{myRegion?'Exakt dieselbe grobe Regionsangabe':'Bitte zuerst deine Region im Profil auswählen'}</Text></View>
+<View style={{flex:1}}><Text style={styles.label}>Nur meine Region</Text><Text style={styles.micro}>{myRegion?'Gleiche Region oder bekannter Ort im selben Landkreis':'Bitte zuerst deine Region im Profil auswählen'}</Text></View>
 <Switch disabled={!myRegion} value={onlyRegion&&!!myRegion} onValueChange={value=>updateFilter(setOnlyRegion,value)} trackColor={{true:C.accent}}/>
 </Row>
 <Row style={{justifyContent:'space-between'}}>
@@ -460,7 +466,7 @@ mode==='cards'?<>
 <Button title="Nächste Familie →" mode="outline" disabled={index===filtered.length-1} style={{flex:1}} onPress={()=>setCardIndex(index+1)}/>
 </Row>
 </>:filtered.map(p=>familyCard(p))}
-<Text style={[styles.micro,{marginTop:17,textAlign:'center'}]}>„Meine Region“ vergleicht Regionsnamen, nicht Kilometer. Exakte Standorte werden nicht abgefragt.</Text>
+<Text style={[styles.micro,{marginTop:17,textAlign:'center'}]}>„Meine Region“ nutzt freiwillige Regionsnamen und bekannte Landkreis-Zuordnungen, keine Kilometerentfernungen. Exakte Standorte werden nicht abgefragt.</Text>
 </ScrollView>;
 }
 function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
@@ -569,8 +575,8 @@ const [selectedPhoto,setSelectedPhoto]=useState(null);
 const [photoPickerBusy,setPhotoPickerBusy]=useState(false);
 const [newPassword,setNewPassword]=useState('');
 const [profileSection,setProfileSection]=useState('about');
-useEffect(()=>{if(profile)setForm({...blankProfile,...profile});},[profile?.updated_at,profile?.user_id]);
-async function submit(){if(form.display_name.trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
+useEffect(()=>{if(profile)setForm({...blankProfile,...profile,interests:Array.isArray(profile.interests)?profile.interests:[]});},[profile?.updated_at,profile?.user_id]);
+async function submit(){if((form.display_name||'').trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
 await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});}
 function toggle(i){setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):f.interests.length>=12?f.interests:[...f.interests,i]}));}
 async function updatePassword(){if(newPassword.length<12)return Alert.alert('Passwort','Bitte mindestens 12 Zeichen verwenden.');const ok=await changePassword(newPassword);if(ok)setNewPassword('');}
@@ -598,14 +604,14 @@ async function submitDraftPhoto(){
     setPhotoCaption('');
   }
 }
-const completed=[form.display_name?.trim().length>=2,!!form.region_label?.trim(),!!form.about?.trim(),(form.interests||[]).length>0,!!form.is_discoverable].filter(Boolean).length;
+const completed=[form.display_name?.trim().length>=2,!!form.region_label?.trim(),!!form.about?.trim(),(form.interests||[]).length>0].filter(Boolean).length;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 <H sub="Du entscheidest, was andere Familien von euch erfahren.">Mein Familienprofil</H>
 <Card>
 <Row><Avatar size={65} name={profile?.display_name}/><View style={{flex:1}}><Text style={styles.cardTitle}>{profile?.display_name||'Deine Familie'}</Text><Text style={styles.micro}>{active?'✓ Erwachsener geprüft, Profil freigegeben':'⌛ Prüfung oder Freigabe ausstehend'}</Text><Text style={styles.micro}>Mitgliedschaft: {membership?.status||'–'}</Text></View></Row>
 <View style={{marginTop:15}}>
-<Row style={{justifyContent:'space-between',marginBottom:6}}><Text style={styles.label}>Profil gestalten</Text><Text style={styles.micro}>{completed} von 5 Angaben</Text></Row>
-<View style={styles.progressTrack}><View style={[styles.progressFill,{width:(completed*20)+'%'}]}/></View>
+<Row style={{justifyContent:'space-between',marginBottom:6}}><Text style={styles.label}>Profil gestalten</Text><Text style={styles.micro}>{completed} von 4 freiwilligen Angaben</Text></Row>
+<View style={styles.progressTrack}><View style={[styles.progressFill,{width:(completed*25)+'%'}]}/></View>
 </View>
 {!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
 </Card>
