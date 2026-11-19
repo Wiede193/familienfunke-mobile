@@ -221,8 +221,12 @@ const markActivity=useCallback((type,contactId=null)=>{
 },[me]);
 // Hooks must always execute before any authentication-dependent early return.
 useEffect(()=>{
-  if(selectedContact&&me&&seen)markActivity('chat',selectedContact);
-},[selectedContact,me,accountCache?.db?.messages,seen,markActivity]);
+  // Prevent a loop: marking a chat read updates "seen", so depend only on
+  // the loaded/not-loaded flag, not the changing seen-state object itself.
+  const belongsToCurrentAccount=accountCache?.userId===me;
+  const isOwnAcceptedContact=accountCache?.db?.contacts?.some(c=>c.id===selectedContact&&c.status==='accepted'&&(c.sender_id===me||c.recipient_id===me));
+  if(selectedContact&&me&&seen&&belongsToCurrentAccount&&isOwnAcceptedContact)markActivity('chat',selectedContact);
+},[selectedContact,me,accountCache?.db?.messages,accountCache?.db?.contacts,accountCache?.userId,!!seen,markActivity]);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
 const requestId=++loadEpochRef.current;
