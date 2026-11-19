@@ -657,6 +657,9 @@ return <View style={{flex:1}}>
  value={text} onChangeText={setText} maxLength={2000} multiline editable={!waitingForReply&&!disabled}
 placeholderTextColor="#9AAFB4" style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]} />
 <Button title="Senden" small disabled={disabled||waitingForReply||!text.trim()} onPress={submit}/></Row>
+<Text style={[styles.micro,{textAlign:'center',paddingHorizontal:13,paddingBottom:9,paddingTop:5}]}>
+ Nachrichten können vor dem Speichern durch den externen Dienst OpenAI auf problematische Inhalte geprüft werden. Dieser Chat ist nicht Ende-zu-Ende-verschlüsselt.
+</Text>
 </>}
 </View>;
 }
