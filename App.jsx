@@ -437,7 +437,7 @@ onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
 tab==='discover'?<DiscoverScreen matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
 myProfile={myProfile} verification={verification} membership={membership}
-showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked} openKompass={()=>setShowInfo(true)}/>:
+showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked} openKompass={()=>setShowInfo(true)} onContacts={()=>setTab('contacts')}/>:
 tab==='contacts'?<ContactsScreen pending={pending} accepted={accepted} me={me} nameOf={findName}
 respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onUnblock={unblockUser}
 onChat={openChat} onShowFamily={setDetailFamily} newPhotoCount={freshPhotoCount} onViewPhotos={()=>markActivity('photos')}/>:
@@ -537,7 +537,7 @@ await supabase.storage.from('familienfunke-photos').remove([photo.storage_path])
 },'Foto entfernt.')},
 ]);
 }
-function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked,openKompass}) {
+function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked,openKompass,onContacts}) {
 const [query,setQuery]=useState('');
 const [interest,setInterest]=useState('Alle');
 const [focus,setFocus]=useState('all');
@@ -575,7 +575,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </View>
 {discoverMode==='nearby'?<NearbySwipe
   userId={me} active={active} profiles={matches} requests={requests}
-  imageFor={imageFor} onShowProfile={showFamily} onContact={onContact}/>:<>
+  imageFor={imageFor} onShowProfile={showFamily} onContact={onContact} onContacts={onContacts}/>:<>
 <View style={styles.hero}>
   <View style={styles.heroDecorationOne} pointerEvents="none"/>
   <View style={styles.heroDecorationTwo} pointerEvents="none"/>
