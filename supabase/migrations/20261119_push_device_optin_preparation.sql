@@ -42,7 +42,7 @@ BEGIN
     RAISE EXCEPTION 'Profile not eligible for push registration'
       USING ERRCODE='42501';
  END IF;
- IF p_token IS NULL OR p_token !~ '^(Expo|Exponent)PushToken[[][a-zA-Z0-9_-]{15,220}[]]
+ IF p_token IS NULL OR p_token !~ '^(Expo|Exponent)PushToken[[][a-zA-Z0-9_-]{15,220}[]]$' THEN
     RAISE EXCEPTION 'Invalid Expo push token' USING ERRCODE='22023';
  END IF;
  -- A physical phone can be reassigned to a new signed-in account.
