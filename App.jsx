@@ -15,6 +15,7 @@ import MomentViewer from './components/MomentViewer';
 import FamilyTabIcon from './components/FamilyTabIcon';
 import FamilyOutingIdeas from './components/FamilyOutingIdeas';
 import NearbySwipe from './components/NearbySwipe';
+import NotificationCenter from './components/NotificationCenter';
 import { computeActivity, isValidSeenState, markSeen, newSeenState, storageKey } from './lib/activityIndicators';
 import { matchingReasons, normalized, rankFamilyProfiles } from './lib/familyMatching';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
@@ -48,12 +49,13 @@ const PROFILE_MENUS=[
  ['treffen','04','Treffideen','Gemeinsam statt allein'],
  ['momente','05','Unsere Momente','Fotos & Geschichten'],
  ['sichtbarkeit','06','Privatsphäre','Wer euch finden kann'],
- ['konto','07','Konto & Hilfe','Sicherheit & Zugang']
+ ['konto','07','Konto & Hilfe','Sicherheit & Zugang'],
+ ['neuigkeiten','08','Neuigkeiten','Mitteilungen & Push-Info']
 ];
 
 const TABS = [['discover','Entdecken'],['contacts','Kontakte'],['chat','Nachrichten'],['events','Kalender'],['profile','Profil']];
 const blankProfile = {display_name:'',region_label:'',about:'',interests:[],is_discoverable:false};
-const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[]};
+const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[],notifications:[]};
 const formatDate = (value) => { if (!value) return '–'; const d = new Date(value); return isNaN(d) ? '–' : d.toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
 const initial = (name) => String(name||'F').split(/\s+/).slice(0,2).map(s=>s[0]||'').join('').toUpperCase();
 const safeString = (value, length) => String(value||'').trim().slice(0,length);
@@ -168,6 +170,7 @@ const [selectedContact,setSelectedContact]=useState(null);
 const [detailFamily,setDetailFamily]=useState(null);
 const [showEventForm,setShowEventForm]=useState(false);
 const [showInfo,setShowInfo]=useState(false);
+const [showNotifications,setShowNotifications]=useState(false);
 const [reportTarget,setReportTarget]=useState(null);
 const [reportDetails,setReportDetails]=useState('');
 const [error,setError]=useState('');
@@ -188,6 +191,7 @@ const db=currentAccount?.db||blankData;
 const myProfile=currentAccount?.myProfile||null;
 const verification=currentAccount?.verification||null;
 const membership=currentAccount?.membership||null;
+const notificationPrefs=currentAccount?.notificationPrefs||null;
 const photosUrls=currentAccount?.photosUrls||{};
 
 // Ungelesen-Markierungen bleiben in dieser Beta lokal auf dem jeweiligen Gerät.
@@ -245,10 +249,12 @@ supabase.from('profile_photos').select('*').order('created_at',{ascending:false}
 supabase.from('blocks').select('*').limit(200),
 supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
+supabase.from('ff_notifications').select('id,user_id,actor_id,kind,contact_id,message_id,created_at,read_at').eq('user_id',me).order('created_at',{ascending:false}).limit(100),
+supabase.from('ff_notification_preferences').select('*').eq('user_id',me).maybeSingle(),
 ]);
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow]=queries;
+const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,notifications,prefs]=queries;
 if(!stillCurrent())return;
 const profileRow=(profiles.data||[]).find(p=>p.user_id===me)||null;
 const photosForMe=(photos.data||[]).filter(photo=>photo.owner_id===me);
@@ -268,9 +274,9 @@ if(!stillCurrent())return;
 setAccountCache({
   userId:me,
   db:{profiles:profiles.data||[],contacts:contacts.data||[],messages:messages.data||[],
-      events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[]},
+      events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],notifications:notifications.data||[]},
   myProfile:profileRow,verification:verificationRow.data,membership:membershipRow.data,
-  photosUrls:Object.fromEntries(images),
+  notificationPrefs:prefs.data, photosUrls:Object.fromEntries(images),
 });
 setError('');
 } catch(e){if(stillCurrent())setError(humanError(e));}
@@ -291,6 +297,7 @@ useEffect(()=>{
   setSelectedContact(null);
   setDetailFamily(null);
   setShowInfo(false);
+  setShowNotifications(false);
   setReportTarget(null);
   setTab('discover');
   setError('');
@@ -322,6 +329,7 @@ const activities=useMemo(()=>computeActivity({
  myProfile,seen,blockedUserIds:db.blocks.filter(b=>b.blocker_id===me).map(b=>b.blocked_id)
 }),[me,db,matches,myProfile,seen]);
 const freshPhotoCount=activities.newPhotos;
+const unreadNoticeCount=(db.notifications||[]).filter(n=>!n.read_at).length;
 async function execute(fn,success){
 if(busy)return;
 setBusy(true);setError('');setNotice('');
@@ -336,6 +344,43 @@ const ok=await execute(async()=>assertResult(await supabase.from('reports').inse
 if(ok){setReportTarget(null);setReportDetails('');}
 }
 async function sendRequest(uid){return execute(async()=>assertResult(await supabase.from('contact_requests').insert({sender_id:me,recipient_id:uid})),'Kontaktanfrage verschickt.');}
+async function swipeLike(uid){
+ if(!supabase||!me)throw new Error('Bitte anmelden.');
+ const {data,error:e}=await supabase.rpc('ff_swipe_interest',{p_target:uid});
+ if(e)throw e;
+ if(!data||typeof data.state!=='string')throw new Error('Keine gültige Match-Antwort erhalten.');
+ if(data.state==='matched')await load(true);
+ return data;
+}
+async function markNotificationRead(id){
+ return execute(async()=>assertResult(await supabase.from('ff_notifications')
+  .update({read_at:new Date().toISOString()}).eq('id',id).eq('user_id',me)),'');
+}
+async function markAllNotifications(){
+ const ids=(db.notifications||[]).filter(n=>!n.read_at).map(n=>n.id);
+ if(!ids.length)return;
+ return execute(async()=>assertResult(await supabase.from('ff_notifications')
+   .update({read_at:new Date().toISOString()}).eq('user_id',me).in('id',ids)),'');
+}
+async function saveNotificationPreference(key,enabled){
+ if(!['notify_matches','notify_requests','notify_messages'].includes(key))return;
+ return execute(async()=>assertResult(await supabase.from('ff_notification_preferences')
+   .upsert({user_id:me,...{
+    notify_matches:notificationPrefs?.notify_matches!==false,
+    notify_requests:notificationPrefs?.notify_requests!==false,
+    notify_messages:notificationPrefs?.notify_messages!==false,
+    [key]:enabled
+   }},{onConflict:'user_id'})),'Einstellung gespeichert.');
+}
+async function openNotification(item){
+ if(!item)return;
+ if(!item.read_at)await markNotificationRead(item.id);
+ setShowNotifications(false);
+ const contact=db.contacts.find(c=>c.id===item.contact_id);
+ if(item.kind==='message'&&contact?.status==='accepted'){openChat(item.contact_id);return;}
+ if(item.kind==='match'&&contact?.status==='accepted'){openChat(item.contact_id);return;}
+ setTab('contacts');
+}
 async function replyRequest(id,status){await execute(async()=>assertResult(await supabase.from('contact_requests').update({status}).eq('id',id)),'Kontaktanfrage aktualisiert.');}
 async function blockUser(uid){
 Alert.alert('Kontakt blockieren?','Die Person kann dir dann keine neuen Nachrichten schicken.',[
@@ -391,7 +436,13 @@ return <SafeAreaView style={styles.screen}>
   </View>
 </View>
 {detailFamily||selectedContact||showInfo?<Button title="← Zurück" onPress={back} small mode="ghost"/>:
-<Row style={{gap:6}}><Pressable accessibilityRole="button" accessibilityLabel="Neuigkeiten aktualisieren" onPress={()=>load(true)}
+<Row style={{gap:6}}>
+<Pressable accessibilityRole="button" accessibilityLabel={'Benachrichtigungen öffnen, '+unreadNoticeCount+' neue Hinweise'}
+ onPress={()=>setShowNotifications(true)} style={styles.refreshButton}>
+  <Text style={[styles.refreshText,{fontSize:22}]}>♧</Text>
+  {unreadNoticeCount>0?<View style={styles.bellBadge}><Text style={styles.bellBadgeText}>{unreadNoticeCount>99?'99+':unreadNoticeCount}</Text></View>:null}
+</Pressable>
+<Pressable accessibilityRole="button" accessibilityLabel="Neuigkeiten aktualisieren" onPress={()=>load(true)}
  style={styles.refreshButton}><Text style={styles.refreshText}>↻</Text></Pressable><MadeInGermanyStamp/></Row>}
 </View>
 {error?<Pressable onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
@@ -437,7 +488,9 @@ onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
 tab==='discover'?<DiscoverScreen matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
 myProfile={myProfile} verification={verification} membership={membership}
-showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked} openKompass={()=>setShowInfo(true)} onContacts={()=>setTab('contacts')}/>:
+showFamily={setDetailFamily} onContact={sendRequest} onLike={swipeLike} onOpenChat={openChat}
+onReport={(uid)=>report('profile',uid)} onBlock={blockUser}
+imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked} openKompass={()=>setShowInfo(true)} onContacts={()=>setTab('contacts')}/>:
 tab==='contacts'?<ContactsScreen pending={pending} accepted={accepted} me={me} nameOf={findName}
 respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onUnblock={unblockUser}
 onChat={openChat} onShowFamily={setDetailFamily} newPhotoCount={freshPhotoCount} onViewPhotos={()=>markActivity('photos')}/>:
@@ -461,8 +514,12 @@ save={(value)=>execute(async()=>{
 uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,execute)}
 reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,execute)}
 blocks={db.blocks} onUnblock={unblockUser}
-changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>supabase.auth.signOut()}/>}
+changePassword={changePassword} openInfo={()=>setShowInfo(true)} openNotifications={()=>setShowNotifications(true)} signOut={()=>supabase.auth.signOut()}/>}
 </KeyboardAvoidingView>
+<NotificationCenter visible={showNotifications} items={db.notifications||[]}
+ preferences={notificationPrefs} busy={busy} onClose={()=>setShowNotifications(false)}
+ onOpen={openNotification} onMarkRead={markNotificationRead} onMarkAll={markAllNotifications}
+ onSavePreference={saveNotificationPreference}/>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title])=><Pressable accessibilityRole="tab" accessibilityLabel={title+(activities[id]>0?', '+activities[id]+' Hinweise':'')}
 accessibilityState={{selected:tab===id}} key={id} onPress={()=>chooseTab(id)}
@@ -537,7 +594,7 @@ await supabase.storage.from('familienfunke-photos').remove([photo.storage_path])
 },'Foto entfernt.')},
 ]);
 }
-function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked,openKompass,onContacts}) {
+function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,onLike,onOpenChat,onReport,onBlock,imageFor,blocked,openKompass,onContacts}) {
 const [query,setQuery]=useState('');
 const [interest,setInterest]=useState('Alle');
 const [focus,setFocus]=useState('all');
@@ -575,7 +632,8 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </View>
 {discoverMode==='nearby'?<NearbySwipe
   userId={me} active={active} profiles={matches} requests={requests}
-  imageFor={imageFor} onShowProfile={showFamily} onContact={onContact} onContacts={onContacts}/>:<>
+  imageFor={imageFor} onShowProfile={showFamily} onLike={onLike} onOpenChat={onOpenChat}
+  onReport={onReport} onBlock={onBlock} onContacts={onContacts}/>:<>
 <View style={styles.hero}>
   <View style={styles.heroDecorationOne} pointerEvents="none"/>
   <View style={styles.heroDecorationTwo} pointerEvents="none"/>
@@ -829,7 +887,7 @@ request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request
 </>}
 </ScrollView>;
 }
-function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
+function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,openNotifications,signOut}){
 const [form,setForm]=useState(blankProfile);
 const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
@@ -976,6 +1034,12 @@ return <><ScrollView ref={profileScrollRef} style={styles.scroll} contentContain
    <Text style={[styles.micro,{marginTop:11}]}>Automatische Sicherheitsprüfung: Für die Moderation können von dir eingegebene Texte und hochgeladene Fotos an den externen Dienst OpenAI übermittelt werden. Der Supabase-Datenbankstandort Frankfurt allein bedeutet daher nicht, dass sämtliche Verarbeitung in Deutschland stattfindet.</Text>
   </View>
   <Button title={busy?'Wird gespeichert …':'Sichtbarkeit speichern'} disabled={busy} onPress={submit}/>
+ </Card>:null}
+ {activeMenu==='neuigkeiten'?<Card style={{marginTop:17}}>
+  <Text style={styles.sectionTitle}>♡ Neuigkeiten & Benachrichtigungen</Text>
+  <Text style={styles.sub}>Neue Matches, Anfragen und Nachrichten findest du direkt hier. Du entscheidest, welche Hinweise du möchtest.</Text>
+  <Button title="Neuigkeiten & Einstellungen öffnen" mode="outline" onPress={openNotifications}/>
+  <Text style={[styles.micro,{marginTop:12}]}>Echte Pushs bei geschlossener App benötigen später eine eigene installierte Testversion außerhalb von Expo Go.</Text>
  </Card>:null}
  {activeMenu==='konto'?<Card style={{marginTop:17}}>
   <Text style={styles.sectionTitle}>⚙ Konto, Sicherheit & Hilfe</Text>
@@ -1212,6 +1276,8 @@ matchReasonRow:{flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:8},
 matchReasonLabel:{fontSize:11.5,color:C.muted,fontWeight:'800'},
 matchReasonDetail:{fontSize:12.5,color:'#596B6B',fontWeight:'700',lineHeight:19},
 refreshButton:{width:39,height:39,alignItems:'center',justifyContent:'center',borderRadius:13,backgroundColor:C.pale},
+bellBadge:{position:'absolute',top:-5,right:-6,minWidth:18,height:18,borderRadius:9,backgroundColor:C.coralDeep,alignItems:'center',justifyContent:'center',paddingHorizontal:3},
+bellBadgeText:{fontSize:10,color:C.white,fontWeight:'900'},
 refreshText:{color:C.accentDark,fontSize:28,fontWeight:'700',lineHeight:31},
 tabBar:{minHeight:78,borderTopWidth:1,borderTopColor:'#EBDCC9',backgroundColor:'#FFFEF9',flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:4,paddingBottom:4},
 tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:64,paddingVertical:7,paddingHorizontal:1,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:'#FFF0D3'},tabPressed:{opacity:.75},tabLabel:{fontSize:10,color:'#7F9090',marginTop:5,fontWeight:'700'},tabLabelActive:{color:C.accentDark,fontWeight:'900'},
