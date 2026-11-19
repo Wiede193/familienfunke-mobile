@@ -351,15 +351,23 @@ send={(body)=>execute(async()=>{
   const {data, error:sendError} = await supabase.functions.invoke('send-message', {
     body: {contact_id:selectedContact, body},
   });
+  // Die Datenbank meldet diese Kennung nach fünf Nachrichten ohne Antwort.
+  // Die Edge Function muss die Kennung ausdrücklich weiterreichen. Solange die
+  // Migration nicht ausgerollt ist, wird hier keine serverseitige Sperre behauptet.
+  const serverCode=[data?.code,data?.error?.code,data?.error_code,sendError?.code,
+    sendError?.message,sendError?.context?.message]
+    .filter(value=>typeof value==='string').join(' ');
+  if(serverCode.includes('FF_MSG_LIMIT_5'))
+    throw new Error('Du hast bereits fünf Nachrichten hintereinander geschrieben. Sobald die andere Familie antwortet, kannst du wieder schreiben.');
   if(sendError){
-    const status = sendError.context?.status;
-    if(status===422)throw new Error('Diese Nachricht wurde wegen unserer Inhaltsregeln zurueckgehalten. Bitte formuliere sie anders.');
+    const status=sendError.context?.status;
+    if(status===422)throw new Error('Diese Nachricht wurde wegen unserer Inhaltsregeln zurückgehalten. Bitte formuliere sie anders.');
     if(status===401)throw new Error('Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.');
-    if(status===403)throw new Error('Nachrichten sind fuer diesen Kontakt momentan nicht erlaubt.');
-    if(status===503)throw new Error('Die Sicherheitspruefung ist momentan nicht verfuegbar. Bitte spaeter erneut versuchen.');
+    if(status===403)throw new Error('Nachrichten sind für diesen Kontakt momentan nicht erlaubt.');
+    if(status===503)throw new Error('Die Sicherheitsprüfung ist momentan nicht verfügbar. Bitte später erneut versuchen.');
     throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
   }
-  if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
+  if(!data?.message?.id)throw new Error('Keine eindeutige Bestätigung vom Nachrichtenserver erhalten.');
 },'Nachricht gesendet.')}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
