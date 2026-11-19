@@ -354,6 +354,14 @@ if(!currentAccount)return <SafeAreaView style={styles.screen}><ExpoStatusBar sty
     </Text>
     {!loading?<Button title="Erneut versuchen" onPress={()=>load()} mode="outline"/>:null}
   </View></SafeAreaView>;
+if(membership?.status==='suspended')return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
+  <View style={{flex:1,justifyContent:'center',padding:27,alignItems:'center'}}>
+    <Text style={[styles.h,{textAlign:'center'}]}>Dieses Familienkonto ist gesperrt</Text>
+    <Text style={[styles.sub,{textAlign:'center',marginTop:15,marginBottom:24}]}>
+      Die Nutzung ist derzeit eingeschränkt. Bei Fragen wende dich an die Familienfunke-Administration.
+    </Text>
+    <Button title="Abmelden" mode="outline" onPress={()=>supabase.auth.signOut()}/>
+  </View></SafeAreaView>;
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Familien-Kompass':TABS.find(t=>t[0]===tab)?.[1];
 function chooseTab(id){
   setTab(id);
