@@ -271,7 +271,7 @@ const matches=useMemo(()=>db.profiles.filter(p=>p.user_id!==me&&p.moderation_sta
 async function execute(fn,success){
 if(busy)return;
 setBusy(true);setError('');setNotice('');
-try{await fn();if(success)setNotice(success);await load(true);return true;}
+try{const outcome=await fn();if(success)setNotice(typeof success==='function'?success(outcome):success);await load(true);return true;}
 catch(e){setError(humanError(e));return false;}
 finally{setBusy(false);}
 }
@@ -280,6 +280,18 @@ async function sendReport(){
 if(!reportTarget||reportDetails.trim().length<10)return setError('Bitte den Vorfall mit mindestens 10 Zeichen beschreiben.');
 const ok=await execute(async()=>assertResult(await supabase.from('reports').insert({reporter_id:me,subject_type:reportTarget.type,subject_id:reportTarget.id,details:reportDetails.trim()})),'Danke. Deine Meldung wurde gespeichert.');
 if(ok){setReportTarget(null);setReportDetails('');}
+}
+async function reviewMarketListing(listingId){
+  // Die Freigabeentscheidung kommt ausschließlich aus der geschützten
+  // Edge Function. Bei Ausfall bleibt das Inserat unsichtbar auf pending.
+  try{
+    const {data,error:e}=await supabase.functions.invoke('moderate-market-listing',{
+      body:{listing_id:listingId},
+    });
+    if(e) return 'pending';
+    return ['approved','rejected','review_required'].includes(data?.status)
+      ? data.status : 'pending';
+  }catch{return 'pending';}
 }
 async function sendRequest(uid){await execute(async()=>assertResult(await supabase.from('contact_requests').insert({sender_id:me,recipient_id:uid})),'Kontaktanfrage verschickt.');}
 async function replyRequest(id,status){await execute(async()=>assertResult(await supabase.from('contact_requests').update({status}).eq('id',id)),'Kontaktanfrage aktualisiert.');}
@@ -355,8 +367,16 @@ createListing={(v,asset)=>execute(async()=>{
  const {data:inserted,error:insertError}=await supabase.from('ff_market_listings').insert({...v,seller_id:me}).select('id').single();
  if(insertError)throw insertError;
  if(asset)await uploadMarketPhoto(inserted.id,asset,me);
-},'Inserat eingereicht. Es erscheint nach Freigabe.')}
-uploadPendingPhoto={(listingId,asset)=>execute(async()=>{await uploadMarketPhoto(listingId,asset,me);},'Foto zur Prüfung eingereicht.')}
+ return await reviewMarketListing(inserted.id);
+},(status)=>status==='approved'?'Inserat automatisch geprüft und freigegeben.':
+  status==='rejected'?'Das Inserat verstößt gegen unsere Marktregeln und wurde nicht freigegeben.':
+  'Inserat gespeichert. Es bleibt bis zur abgeschlossenen Prüfung unsichtbar.')}
+uploadPendingPhoto={(listingId,asset)=>execute(async()=>{
+  await uploadMarketPhoto(listingId,asset,me);
+  return await reviewMarketListing(listingId);
+},(status)=>status==='approved'?'Artikel und Foto geprüft und freigegeben.':
+  status==='rejected'?'Das Inserat wurde nach der Bild- und Inhaltsprüfung nicht freigegeben.':
+  'Foto eingereicht. Das Inserat bleibt bis zur Prüfung unsichtbar.')}
 markListingSold={(id)=>execute(async()=>{const {data,error:e}=await supabase.rpc('ff_market_mark_sold',{p_listing_id:id});if(e)throw e;if(data!==true)throw new Error('Das Inserat konnte nicht abgeschlossen werden. Bitte aktualisiere den Basar.');},'Angebot abgeschlossen. Es ist für andere nicht mehr sichtbar.')}
 onContact={sendRequest} onChat={(cid)=>{setChatReturnTab('market');setSelectedContact(cid);setTab('chat');}} nameOf={findName} blocked={blocked}/>:
 tab==='partners'?<PartnersScreen organizations={db.organizations} partnerEvents={db.partnerEvents}
@@ -612,7 +632,8 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
     </View>
     {open?<Card style={{marginBottom:18}}>
       <Text style={styles.sectionTitle}>Anzeige aufgeben</Text>
-      <Text style={[styles.sub,{marginBottom:17}]}>Kostenlos einstellen. Dein Inserat wird vor Veröffentlichung geprüft.</Text>
+      <Text style={[styles.sub,{marginBottom:10}]}>Kostenlos einstellen. Titel, Beschreibung und Artikelfoto werden vor Veröffentlichung geprüft.</Text>
+      <Info>Keine lebenden Tiere – auch nicht zum Verschenken oder Tauschen. Ebenso verboten sind illegale, gefährliche, rassistische und sexualisierte Angebote. Tierzubehör und Stofftiere sind erlaubt.</Info>
       <View style={{marginBottom:15}}>
         <Button title={photo?'✓ Foto ausgewählt – ändern':'＋ Artikelfoto auswählen'} mode="outline" disabled={choosing||busy}
           onPress={()=>pick(setPhoto)}/>
@@ -638,7 +659,7 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
         <Chip text="Privat" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
       </View></>:null}
-      <Info>Keine Onlinezahlung und keine Verkaufsprovision aktiv. Die Anzeige ist erst nach Freigabe öffentlich für geprüfte Mitglieder sichtbar.</Info>
+      <Info>Keine Onlinezahlung und keine Verkaufsprovision aktiv. Die Anzeige ist erst nach abgeschlossener Inhalts- und Bildprüfung für geprüfte Mitglieder sichtbar. Unklare Angebote werden zurückgehalten.</Info>
       <Button title={busy?'Wird gespeichert …':'Anzeige kostenlos einreichen'} disabled={busy||choosing||!active} onPress={submit}/>
     </Card>:null}
     {selected?<View>
