@@ -13,11 +13,12 @@ function Action({text,onPress,disabled,secondary=false}){
  </Pressable>;
 }
 
-export default function NearbySwipe({ userId, active, profiles=[], requests=[], imageFor, onShowProfile, onContact }) {
+export default function NearbySwipe({ userId, active, profiles=[], requests=[], imageFor, onShowProfile, onContact, onContacts }) {
  const [enabled,setEnabled]=useState(false);
  const [statusKnown,setStatusKnown]=useState(false);
  const [radius,setRadius]=useState(25);
  const [postcode,setPostcode]=useState('');
+ const [changeAreaOpen,setChangeAreaOpen]=useState(false);
  const [candidates,setCandidates]=useState([]);
  const [skipped,setSkipped]=useState([]);
  const [busy,setBusy]=useState(false);
@@ -59,6 +60,7 @@ export default function NearbySwipe({ userId, active, profiles=[], requests=[], 
    setCandidates([]);
    setSkipped([]);
    setPostcode('');
+   setChangeAreaOpen(false);
    setNotice('');
    setError('');
    if(!userId||!supabase){setStatusKnown(true);return()=>{alive=false;};}
@@ -113,11 +115,14 @@ export default function NearbySwipe({ userId, active, profiles=[], requests=[], 
      if(data!==nextEnabled)throw Error('Invalid setting response');
      setEnabled(nextEnabled);
      setPostcode(''); // Do not retain the entered postcode in local storage.
+     setChangeAreaOpen(false);
      setNotice(nextEnabled?'Nähe-Suche ist aktiv. Andere freigegebene Familien in deinem Umkreis können dich ebenfalls entdecken.'
        :'Nähe-Suche deaktiviert. Der gespeicherte ungefähre Standort wurde gelöscht.');
    }catch(e){
      if(mountedUserRef.current!==userId)return;
-     setError('Einstellung konnte nicht gespeichert werden. Prüfe bitte deine Profilfreigabe oder versuche es später erneut.');
+     setError(e?.code==='P0001'&&String(e?.message||'').includes('FF_NEARBY_CHANGE_LIMIT')?
+       'Du kannst deinen PLZ-Bereich aus Sicherheitsgründen nur einmal innerhalb von 24 Stunden wechseln. Ausschalten ist jederzeit möglich.':
+       'Einstellung konnte nicht gespeichert werden. Prüfe bitte deine Profilfreigabe oder versuche es später erneut.');
    }finally {
      pendingRef.current=false;
      if(mountedUserRef.current===userId)setBusy(false);
@@ -132,6 +137,8 @@ export default function NearbySwipe({ userId, active, profiles=[], requests=[], 
  const act=async side=>{
    const item=current;
    if(!item||pendingRef.current)return;
+   if(side==='yes'&&existing?.status==='accepted'){onShowProfile?.(item.profile.user_id);swipeX.setValue(0);return;}
+   if(side==='yes'&&existing?.status==='pending'&&existing.recipient_id===userId){onContacts?.();swipeX.setValue(0);return;}
    if(side==='yes'&&!existing){
      pendingRef.current=true;setBusy(true);
      try{
@@ -194,6 +201,15 @@ export default function NearbySwipe({ userId, active, profiles=[], requests=[], 
         <Text style={[styles.radiusText,radius===r&&styles.radiusTextActive]}>{r} km</Text>
       </Pressable>)}</View>
       <Text style={styles.hint}>Ungefähre PLZ-Gebietsmitten, keine exakten Entfernungen. Nur Familien, die diese Suche ebenfalls aktiviert haben.</Text>
+      <Pressable accessibilityRole="button" onPress={()=>setChangeAreaOpen(v=>!v)} style={styles.changeLink}>
+        <Text style={styles.changeLinkText}>{changeAreaOpen?'PLZ-Bereich ändern schließen':'Eigenen PLZ-Bereich ändern ›'}</Text>
+      </Pressable>
+      {changeAreaOpen?<View style={styles.changePanel}>
+        <Text style={styles.help}>Ein anderes PLZ-Gebiet auswählen. Um Rückschlüsse auf Wohnorte zu verhindern, ist ein Wechsel höchstens einmal innerhalb von 24 Stunden möglich. Ausschalten bleibt jederzeit möglich.</Text>
+        <TextInput value={postcode} onChangeText={x=>setPostcode(x.replace(/\D/g,'').slice(0,5))}
+          keyboardType="number-pad" maxLength={5} style={styles.zipInput} accessibilityLabel="Neue Postleitzahl" placeholder="Neue PLZ (5 Ziffern)" placeholderTextColor="#8B9C9A"/>
+        <Action text="Neuen PLZ-Bereich speichern" disabled={busy||postcode.length!==5} onPress={()=>changeSetting(true)}/>
+      </View>:null}
       {checking?<ActivityIndicator style={{marginVertical:30}} color={COLORS.teal}/>:
        current?<View style={styles.cardStage}>
          <Animated.View {...responder.panHandlers}
@@ -219,7 +235,9 @@ export default function NearbySwipe({ userId, active, profiles=[], requests=[], 
          <Text style={styles.swipeHint}>← Weiterwischen · Zum Kennenlernen nach rechts →</Text>
          <View style={styles.actionRow}>
            <Action text="✕ Weiter" secondary disabled={busy} onPress={()=>act('no')}/>
-           <Action text={existing?'✓ Bereits angefragt':'♡ Kennenlernen'} disabled={busy} onPress={()=>act('yes')}/>
+           <Action text={existing?.status==='accepted'?'✓ Schon verbunden':
+            existing?.status==='pending'&&existing.recipient_id===userId?'♡ Anfrage beantworten':
+            existing?'✓ Bereits angefragt':'♡ Kennenlernen'} disabled={busy} onPress={()=>act('yes')}/>
          </View>
        </View>:
        <View style={styles.emptyCard}>
@@ -286,6 +304,9 @@ const styles=StyleSheet.create({
  actionRow:{flexDirection:'row',gap:11},
  emptyCard:{backgroundColor:'#FFFFFF',borderWidth:1,borderColor:'#EADCCA',borderRadius:21,padding:23,gap:13,alignItems:'center'},
  emptyIcon:{fontSize:33,color:COLORS.coral},
+ changeLink:{alignSelf:'flex-start',paddingVertical:9,marginBottom:12},
+ changeLinkText:{color:COLORS.teal,fontWeight:'900',fontSize:12.5},
+ changePanel:{padding:15,borderWidth:1,borderColor:'#EFDBBF',borderRadius:16,backgroundColor:'#FFF6E8',gap:12,marginBottom:17},
  turnOff:{alignItems:'center',marginTop:22,paddingVertical:10,paddingHorizontal:12},
  turnOffText:{fontSize:11.5,color:COLORS.muted,fontWeight:'800',textAlign:'center',textDecorationLine:'underline'},
  notice:{backgroundColor:'#EBF6E7',borderRadius:13,padding:12,marginTop:13,fontSize:12.5,lineHeight:18,color:'#42624A'},
