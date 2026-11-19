@@ -445,7 +445,7 @@ return <SafeAreaView style={styles.screen}>
 {detailFamily||selectedContact||showInfo?<Button title="← Zurück" onPress={back} small mode="ghost"/>:
 <Row style={{gap:6}}>
 <Pressable accessibilityRole="button" accessibilityLabel={'Benachrichtigungen öffnen, '+unreadNoticeCount+' neue Hinweise'}
- onPress={()=>setShowNotifications(true)} style={styles.refreshButton}>
+ onPress={()=>{setShowNotifications(true);load(true);}} style={styles.refreshButton}>
   <Text style={[styles.refreshText,{fontSize:22}]}>♧</Text>
   {unreadNoticeCount>0?<View style={styles.bellBadge}><Text style={styles.bellBadgeText}>{unreadNoticeCount>99?'99+':unreadNoticeCount}</Text></View>:null}
 </Pressable>
