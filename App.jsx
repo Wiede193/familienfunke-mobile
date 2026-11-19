@@ -515,8 +515,8 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
     && !blocked(x.seller_id)
     && (filter==='Alle'||x.category===filter)
     && (tradeFilter==='all'||x.trade_type===tradeFilter)
-    && (minimum===null||x.trade_type!=='sell'||x.price_cents>=minimum)
-    && (maximum===null||x.trade_type!=='sell'||x.price_cents<=maximum)
+    && (minimum===null||(x.trade_type==='sell'&&x.price_cents>=minimum))
+    && (maximum===null||(x.trade_type==='sell'&&x.price_cents<=maximum))
     && normalizeLabel([x.title,x.description,x.region_label,x.category].join(' ')).includes(normalizeLabel(query))
   );
   const shown=[...filtered].sort((a,b)=>{
@@ -1155,7 +1155,7 @@ marketImagePlaceholder:{backgroundColor:'#F4F1EB',alignItems:'center',justifyCon
 marketPricePill:{position:'absolute',top:8,left:7,right:7,backgroundColor:'#FFFFFFF2',borderRadius:11,paddingVertical:6,paddingHorizontal:9,alignSelf:'flex-start'},
 marketPricePillText:{fontSize:14,fontWeight:'900',color:C.ink},
 marketTileBody:{padding:11,paddingBottom:14,gap:4},
-marketTileTitle:{fontSize:15,fontWeight:'850',color:C.ink,lineHeight:19,minHeight:38},
+marketTileTitle:{fontSize:15,fontWeight:'800',color:C.ink,lineHeight:19,minHeight:38},
 marketDetailCard:{padding:17,marginBottom:18},
 marketDetailImage:{height:285,backgroundColor:'#F4F1EB',borderRadius:18,overflow:'hidden'},
 marketFullImage:{width:'100%',height:'100%'},
