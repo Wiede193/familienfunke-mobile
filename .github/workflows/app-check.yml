@@ -1,16 +1,15 @@
 name: Familienfunke – technischer App-Check
 
+# Nur ein automatischer Check pro Änderung im Entwicklungsbranch.
+# Keine zusätzlichen PR-Prüfläufe und damit keine doppelten (PR)-Fehlmails.
 on:
   push:
     branches:
       - design/profil-momente-benachrichtigungen
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: familienfunke-check-${{ github.ref }}
@@ -36,24 +35,6 @@ jobs:
 
       - name: Abhängigkeiten aus Lockfile installieren
         run: npm ci --no-audit --no-fund
-
-      - name: SDK-58-Entwicklungsbibliotheken einmalig installieren
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'design/profil-momente-benachrichtigungen' }}
-        run: |
-          if node -e "const p=require('./package.json'); if(!['expo-dev-client','expo-notifications','expo-device','expo-constants'].every(n=>Boolean(p.dependencies?.[n])))process.exit(1)"; then
-            echo "Entwicklungsbibliotheken sind bereits eingetragen."
-          else
-            git fetch origin design/profil-momente-benachrichtigungen
-            git checkout -B design/profil-momente-benachrichtigungen origin/design/profil-momente-benachrichtigungen
-            npx expo install expo-dev-client expo-notifications expo-device expo-constants
-            npm ci --no-audit --no-fund
-            npx expo install --check
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add package.json package-lock.json
-            git diff --cached --quiet || git commit -m "fix: SDK58 Entwicklungspakete mit npm-Lockdatei synchronisieren"
-            git push origin HEAD:design/profil-momente-benachrichtigungen
-          fi
 
       - name: Matching- und Datenschutzregeln testen
         run: node --test tests/*.test.cjs
