@@ -25,7 +25,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Du kannst freiwillig Profilfotos auswählen."
+          "photosPermission": "Du kannst freiwillig Profilfotos auswählen.",
+          "microphonePermission": false
         }
       ]
     ],
