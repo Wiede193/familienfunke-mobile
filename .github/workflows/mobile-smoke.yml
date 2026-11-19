@@ -1,0 +1,48 @@
+name: Mobile smoke check
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check database schema source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          sql = Path('database/ff_market_partner_beta.sql').read_text()
+          assert sql.count('create table if not exists public.ff_market_listings') == 1, 'Market table defined more than once'
+          assert sql.count('create table if not exists public.ff_partner_events') == 1, 'Partner events table defined more than once'
+          assert "[.]jpg$'" in sql, 'Photo path regex is incomplete'
+          assert "l.photo_path is null" in sql, 'Private photo upload policy must require a pending listing'
+          print('SQL source checks passed')
+          PY
+
+      - name: Bundle iOS
+        env:
+          CI: '1'
+        run: npx expo export --platform ios --output-dir ci-ios-export
+
+      - name: Bundle Android
+        env:
+          CI: '1'
+        run: npx expo export --platform android --output-dir ci-android-export
