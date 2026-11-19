@@ -229,7 +229,7 @@ return execute(async()=>assertResult(await supabase.auth.updateUser({password}))
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
 if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
 if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/><Login error={error} setError={setError}/></SafeAreaView>;
-const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1];
+const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Familien-Kompass':TABS.find(t=>t[0]===tab)?.[1];
 function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact)setSelectedContact(null);else if(showInfo)setShowInfo(false);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
@@ -275,7 +275,7 @@ onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
 tab==='discover'?<DiscoverScreen matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
 myProfile={myProfile} verification={verification} membership={membership}
-showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked}/>:
+showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked} openKompass={()=>setShowInfo(true)}/>:
 tab==='contacts'?<ContactsScreen pending={pending} accepted={accepted} me={me} nameOf={findName}
 respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onUnblock={unblockUser}
 onChat={(id)=>{setSelectedContact(id);setTab('chat');}}/>:
@@ -368,7 +368,7 @@ await supabase.storage.from('familienfunke-photos').remove([photo.storage_path])
 },'Foto entfernt.')},
 ]);
 }
-function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked}) {
+function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked,openKompass}) {
 const [query,setQuery]=useState('');
 const [interest,setInterest]=useState('Alle');
 const filtered=matches.filter(p=>(!query||`${p.display_name} ${p.region_label} ${(p.interests||[]).join(' ')}`.toLowerCase().includes(query.toLowerCase()))&&(interest==='Alle'||p.interests?.includes(interest)));
@@ -381,6 +381,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
   <Text style={styles.heroText}>Finde neue Freundschaften statt endloser Feeds.</Text>
   <View style={styles.heroTagline}><Text style={styles.heroTaglineText}>♥  Aus Nachbarschaft wird Freundschaft.</Text></View>
 </View>
+<Pressable accessibilityRole="button" onPress={openKompass} style={{marginBottom:19}}><View style={styles.kompassDiscoverCallout}><Text style={styles.kompassCalloutEyebrow}>☀ NEU: FAMILIEN-KOMPASS</Text><Row style={{alignItems:'center',justifyContent:'space-between'}}><View style={{flex:1}}><Text style={styles.kompassCalloutTitle}>Wegweiser für Anträge & Fristen</Text><Text style={styles.kompassCalloutText}>Elterngeld, Kita, Kindergeld und mehr – mit offiziellen Links.</Text></View><Text style={{fontSize:23,color:C.ink}}>›</Text></Row></View></Pressable>
 {!active?<Info warning>Dein Konto wartet noch auf persönliche Erwachsenenprüfung oder Profilfreigabe. Profilstatus: {myProfile?.moderation_status||'–'} · Verifizierung: {verification?.status||'–'}.</Info>:null}
 <H sub="Passende Interessen – keine exakten Standorte, keine öffentlichen Beiträge.">Familien entdecken</H>
 <Input label="Suche nach Name, Region oder Interesse" placeholder="z. B. Natur, Potsdam …" value={query} onChangeText={setQuery}/>
@@ -598,7 +599,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
  {settingsOpen?<Card style={{marginTop:16}}>
   <Text style={styles.sectionTitle}>⚙ Sicherheit und Einstellungen</Text>
   <Text style={[styles.micro,{marginBottom:12}]}>Mitgliedschaft: {membership?.status||'–'} · Verifizierung: {verification?.status||'–'}</Text>
-  <Button title="Elternwissen öffnen" mode="outline" onPress={openInfo}/>
+  <Button title="Familien-Kompass öffnen" mode="outline" onPress={openInfo}/>
   <Text style={[styles.label,{marginTop:18}]}>Passwort ändern</Text>
   <Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none"/>
   <Button title="Passwort ändern" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
@@ -607,16 +608,87 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
  </Card>:null}
 </ScrollView>;
 }
-function InfoScreen(){
-const links=[
-['Elterngeld & Elternzeit','Familienportal des Bundes','https://familienportal.de/'],
-['Kindergeld & Kinderzuschlag','Bundesagentur für Arbeit','https://www.arbeitsagentur.de/familie-und-kinder'],
-['Bundesgesetze nachlesen','Gesetze im Internet','https://www.gesetze-im-internet.de/'],
-['Kita und Schule','Deutscher Bildungsserver','https://www.bildungsserver.de/'],
+const KOMPASS_TOPICS=[
+ {id:'schwangerschaft',label:'Wir erwarten ein Baby',symbol:'01',desc:'Schon vor der Geburt Wichtiges vorbereiten'},
+ {id:'geburt',label:'Unser Kind ist geboren',symbol:'02',desc:'Die ersten Anmeldungen und Anträge'},
+ {id:'elternzeit',label:'Elternzeit & Elterngeld',symbol:'03',desc:'Arbeitgeber und Elterngeldstelle'},
+ {id:'betreuung',label:'Kita & Betreuung',symbol:'04',desc:'Platzsuche, Bedarf und Anträge'},
+ {id:'finanzen',label:'Finanzielle Hilfen',symbol:'05',desc:'Leistungen entdecken und prüfen'},
+ {id:'besonders',label:'Besondere Lebenslagen',symbol:'06',desc:'Hilfe bei besonderen Familiensituationen'}
 ];
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}><H sub="Verlässliche Quellen statt ungeprüfter Diskussionen.">Elternwissen</H>
-<Info>Die Links führen zu öffentlichen Informationsangeboten. Familienfunke bietet derzeit keine individuelle Rechtsberatung oder Antragsübermittlung an.</Info>
-{links.map(([name,subtitle,url])=><Pressable key={name} onPress={()=>Linking.openURL(url)}><Card style={{marginBottom:12}}><Row><View style={{flex:1}}><Text style={styles.cardTitle}>{name}</Text><Text style={styles.sub}>{subtitle}</Text></View><Text style={{fontSize:25,color:C.accent}}>↗</Text></Row></Card></Pressable>)}
+// Alle Daten werden redaktionell gepflegt. Keine automatische Anspruchsprüfung oder Eingabe
+// privater Kinderdaten. Bei einem rechtlichen oder regionalen Update Quellen neu prüfen.
+const KOMPASS_STEPS=[
+ {id:'elternzeit',title:'Elternzeit beim Arbeitgeber anmelden',topics:['schwangerschaft','elternzeit'],type:'Rechtliche Frist',when:'Grundsätzlich 7 Wochen vor Beginn; für Zeiträume zwischen dem 3. und 8. Geburtstag in der Regel 13 Wochen vorher. Sonderfälle beachten.',office:'Dein Arbeitgeber',docs:'Geplante Beginn- und Enddaten der Elternzeit und gegebenenfalls Angaben zum Bindungszeitraum.',tip:'Das ist eine Anmeldung beim Arbeitgeber, kein Antrag beim Jugendamt.',url:'https://familienportal.de/familienportal/familienleistungen/elternzeit/faq/wann-und-wie-muss-ich-elternzeit-beantragen--124810',source:'Familienportal des Bundes'},
+ {id:'mutterschaft',title:'Mutterschaftsleistungen prüfen',topics:['schwangerschaft','elternzeit'],type:'Vor der Geburt prüfen',when:'Die gewöhnliche Schutzfrist beginnt 6 Wochen vor und endet 8 Wochen nach der Geburt. Es gibt Ausnahmen.',office:'Je nach Versicherungsstatus Krankenkasse, Arbeitgeber oder zuständige Bundesstelle.',docs:'Bescheinigung über den voraussichtlichen Geburtstermin sowie weitere Nachweise nach Einzelfall.',tip:'Der Anspruch und die Antragsstelle hängen unter anderem vom Versicherungsstatus ab.',url:'https://familienportal.de/familienportal/familienleistungen/mutterschaftsleistungen',source:'Familienportal des Bundes'},
+ {id:'standesamt',title:'Geburt beim Standesamt anzeigen',topics:['geburt'],type:'Rechtliche Frist',when:'Grundsätzlich innerhalb einer Woche nach der Geburt.',office:'Standesamt am Geburtsort, häufig erledigt die Geburtsklinik die Anzeige.',docs:'Geburtsbescheinigung und standesamtlich erforderliche Identitäts- und Personenstandsnachweise.',tip:'Geburtsurkunden werden für verschiedene weitere Anträge benötigt.',url:'https://familienportal.de/familienportal/lebenslagen/schwangerschaft-geburt/anmeldung-standesamt',source:'Familienportal des Bundes'},
+ {id:'versicherung',title:'Krankenversicherung des Babys klären',topics:['geburt'],type:'Zeitnah erledigen',when:'Nach der Geburt zeitnah die Versicherung des Kindes klären.',office:'Deine Krankenversicherung beziehungsweise die Versicherung des anderen Elternteils.',docs:'Angaben zur Geburt und gegebenenfalls Geburtsurkunde, Versicherungsnachweise.',tip:'Ob eine kostenfreie Familienversicherung möglich ist, hängt von eurer Situation ab.',url:'https://familienportal.de/familienportal/lebenslagen/kinder-jugendliche/staatliche-leistungen/kann-ich-meine-familie-bei-meiner-krankenversicherung-und-pflegeversicherung-mitversichern--125576',source:'Familienportal des Bundes'},
+ {id:'elterngeld',title:'Elterngeld beantragen',topics:['geburt','elternzeit','finanzen'],type:'Wichtiger Zeitraum',when:'Nach der Geburt, möglichst in den ersten 3 Lebensmonaten. Höchstens 3 Lebensmonate rückwirkend.',office:'Die für den Wohnort zuständige Elterngeldstelle.',docs:'In der Regel Geburtsurkunde, Einkommensnachweise sowie je nach Situation Bescheinigungen zu Mutterschaftsleistungen oder Arbeitszeit.',tip:'Bei Elterngeld zählen Lebensmonate des Kindes, nicht automatisch Kalendermonate.',url:'https://familienportal.de/familienportal/familienleistungen/elterngeld/faq/wie-kann-ich-elterngeld-beantragen--124762',source:'Familienportal des Bundes'},
+ {id:'kindergeld',title:'Kindergeld beantragen',topics:['geburt','finanzen'],type:'Zeitnah beantragen',when:'Nach der Geburt möglichst zeitnah. Rückwirkende Auszahlung grundsätzlich maximal 6 Monate.',office:'Familienkasse der Bundesagentur für Arbeit.',docs:'Steuer-Identifikationsnummern und weitere Angaben je Antragsfall.',tip:'Der Kindergeldantrag kann häufig online gestellt werden.',url:'https://www.arbeitsagentur.de/familie-und-kinder/infos-rund-um-kindergeld/kindergeld-anspruch-hoehe-dauer',source:'Bundesagentur für Arbeit'},
+ {id:'kita',title:'Kita-Betreuung organisieren',topics:['betreuung'],type:'Regional unterschiedlich',when:'Fristen zur Platzanmeldung und zu etwaigen Bedarfsfeststellungen hängen vom Wohnort und der gewünschten Betreuung ab.',office:'Kita-Träger, Kommune oder Jugendamt je nach Wohnort.',docs:'In der Regel Angaben zum Kind und Betreuungswunsch; weitere Nachweise je nach Kommune und Betreuungsumfang.',tip:'Ein Rechtsanspruch und eine Zusage für eine bestimmte Einrichtung sind nicht dasselbe. Informiere dich frühzeitig bei deiner Kommune.',url:'https://familienportal.de/familienportal/lebenslagen/kinder-jugendliche/kinderbetreuung',source:'Familienportal des Bundes'},
+ {id:'kinderzuschlag',title:'Kinderzuschlag prüfen',topics:['finanzen'],type:'Antrag wichtig',when:'Grundsätzlich nicht rückwirkend; Bewilligungszeitraum regelmäßig 6 Monate.',office:'Familienkasse der Bundesagentur für Arbeit.',docs:'Vor allem Einkommensnachweise der letzten 6 Monate, Angaben zu Wohnkosten und ggf. Vermögen.',tip:'Ein Anspruch hängt unter anderem von Haushalt und Einkommen ab. Online-Prüfung und Antrag sind getrennte Schritte.',url:'https://www.arbeitsagentur.de/familie-und-kinder/kinderzuschlag-verstehen/kinderzuschlag-anspruch-hoehe-dauer',source:'Bundesagentur für Arbeit'},
+ {id:'wohngeld',title:'Wohngeld prüfen',topics:['finanzen'],type:'Antragsmonat relevant',when:'In der Regel ab dem Monat der Antragstellung, nicht für beliebig frühere Monate.',office:'Wohngeldbehörde des Wohnorts.',docs:'Einkommensnachweise, Miet- oder Wohnkosten und Haushaltsangaben.',tip:'Je nach anderer Leistung kann ein Wohngeldanspruch ausgeschlossen sein.',url:'https://familienportal.de/familienportal/familienleistungen/weitere-leistungen/wohngeld',source:'Familienportal des Bundes'},
+ {id:'buteil',title:'Bildung und Teilhabe prüfen',topics:['betreuung','finanzen'],type:'Mögliche Unterstützung',when:'Bei bestehendem Leistungsanspruch möglichst frühzeitig bei der örtlich zuständigen Stelle erkundigen.',office:'Je nach Leistungsart örtliche Kommune, Jobcenter oder andere zuständige Stelle.',docs:'Nachweis über den Leistungsbezug und die jeweilige Aktivität oder Ausgabe, je nach Verfahren.',tip:'Unter anderem können Mittagessen in Kita oder Schule und Ausflüge unterstützt werden.',url:'https://familienportal.de/familienportal/familienleistungen/bildung-und-teilhabe',source:'Familienportal des Bundes'},
+ {id:'unterhaltsvorschuss',title:'Unterhaltsvorschuss prüfen',topics:['besonders','finanzen'],type:'Bei Bedarf prüfen',when:'Wenn ein Kind bei einem alleinerziehenden Elternteil lebt und Unterhalt ausbleibt oder zu wenig gezahlt wird, Voraussetzungen prüfen.',office:'Unterhaltsvorschussstelle, oft beim Jugendamt.',docs:'Je nach Fall Angaben zu Eltern, Kind, Unterhaltszahlungen und bisherigen Bemühungen.',tip:'Die Anspruchsvoraussetzungen unterscheiden sich nach Situation und Alter des Kindes.',url:'https://familienportal.de/familienportal/familienleistungen/unterhaltsvorschuss',source:'Familienportal des Bundes'},
+ {id:'mutterkind',title:'Bundesstiftung Mutter und Kind prüfen',topics:['schwangerschaft','besonders'],type:'Wichtiger Zeitpunkt',when:'Hilfe bei finanzieller Notlage nur während der Schwangerschaft beantragen.',office:'Anerkannte Schwangerschaftsberatungsstelle.',docs:'Individuelle Angaben zur Schwangerschaft und zur finanziellen Situation.',tip:'Nicht bis nach der Geburt warten, wenn diese Hilfe in Betracht kommt.',url:'https://familienportal.de/bmbfsfj/themen/familie/schwangerschaft-und-kinderwunsch/bundesstiftung-mutter-und-kind/bundesstiftung-mutter-und-kind-73522',source:'Bundesfamilienministerium'},
+ {id:'oder-spree-kita',regional:true,title:'Kita-Bedarfsfeststellung im Landkreis Oder-Spree',topics:['betreuung'],type:'Empfohlener Vorlauf',when:'Falls ein gesonderter Antrag nötig ist: etwa 6–8 Wochen vor Betreuungsbeginn einreichen. Dies ist nicht der Termin einer garantierten Bescheiderteilung.',office:'Jugendamt Landkreis Oder-Spree, Breitscheidstraße 7, 15848 Beeskow.',docs:'Bei Bedarf unter anderem Altersnachweis und Nachweise zur erforderlichen Betreuungszeit, je nach Fall.',tip:'Bei Kindern ab 1 Jahr bis zur Einschulung ist bis zu 30 Wochenstunden kein gesonderter Antrag zur Bedarfsfeststellung nötig; über 30 Stunden in der Regel schon. Andere Altersgruppen haben andere Regeln. Platzanmeldung separat klären.',url:'https://www.landkreis-oder-spree.de/Service-Aktuelles/Service/Was-erledige-ich-wo-/Rechtsanspruch-auf-Kindertagesbetreuung.php?FID=2426.44.1&ModID=10',source:'Landkreis Oder-Spree'}
+];
+function InfoScreen(){
+const [topic,setTopic]=useState('schwangerschaft');
+const [region,setRegion]=useState('bund');
+const [expanded,setExpanded]=useState(null);
+const chosen=KOMPASS_TOPICS.find(t=>t.id===topic);
+const tasks=KOMPASS_STEPS.filter(t=>t.topics.includes(topic)&&(!t.regional||region==='oder-spree'));
+function openSource(url){Linking.openURL(url).catch(()=>Alert.alert('Link nicht geöffnet','Bitte die offizielle Seite später erneut öffnen.'));}
+return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+ <View style={styles.kompassHero}>
+  <View style={styles.kompassSun} pointerEvents="none"/>
+  <Text style={styles.kompassEyebrow}>☀ FAMILIENFUNKE HILFT</Text>
+  <Text style={styles.kompassTitle}>Dein Familien-Kompass</Text>
+  <Text style={styles.kompassSubtitle}>Anträge, Fristen und zuständige Stellen – endlich übersichtlich an einem Ort.</Text>
+ </View>
+ <Text style={[styles.sectionTitle,{marginTop:8}]}>1. Was beschäftigt euch?</Text>
+ <View style={styles.kompassTopicGrid}>{KOMPASS_TOPICS.map(t=><Pressable key={t.id} accessibilityRole="button" accessibilityState={{selected:topic===t.id}}
+  onPress={()=>{setTopic(t.id);setExpanded(null);}} style={[styles.kompassTopic,topic===t.id&&styles.kompassTopicSelected]}>
+  <Text style={styles.kompassTopicNumber}>{t.symbol}</Text>
+  <Text style={styles.kompassTopicTitle}>{t.label}</Text>
+ </Pressable>)}</View>
+ <Text style={[styles.sectionTitle,{marginTop:24}]}>2. Wo wohnt ihr?</Text>
+ <View style={[styles.chipsRow,{marginTop:0,marginBottom:7}]}>
+  <Chip text="Bundesweit" selected={region==='bund'} onPress={()=>{setRegion('bund');setExpanded(null);}}/>
+  <Chip text="Beispiel: Landkreis Oder-Spree" selected={region==='oder-spree'} onPress={()=>{setRegion('oder-spree');setExpanded(null);}}/>
+ </View>
+ <Text style={[styles.micro,{marginBottom:18}]}>Die Region Oder-Spree ist zunächst nur ein Musterfall. Für andere Regionen gelten möglicherweise andere Zuständigkeiten und Fristen.</Text>
+ <Text style={styles.sectionTitle}>3. Euer möglicher Fahrplan</Text>
+ <Text style={[styles.sub,{marginTop:-8,marginBottom:16}]}>{chosen?.desc} · {tasks.length} Informationskarten</Text>
+ {tasks.map((item,i)=><Card key={item.id} style={{marginBottom:13,padding:16}}>
+  <Pressable accessibilityRole="button" accessibilityLabel={item.title+'. Details '+(expanded===item.id?'schließen':'öffnen')}
+   onPress={()=>setExpanded(v=>v===item.id?null:item.id)}>
+   <Row style={{alignItems:'flex-start'}}>
+    <View style={styles.kompassNumberCircle}><Text style={styles.kompassNumberText}>{i+1}</Text></View>
+    <View style={{flex:1}}>
+     <Text style={styles.cardTitle}>{item.title}</Text>
+     <Text style={styles.kompassDue}>{item.type}</Text>
+    </View>
+    <Text style={{fontSize:22,color:C.accentDark}}>{expanded===item.id?'−':'+'}</Text>
+   </Row>
+   <Text style={[styles.sub,{marginTop:10}]}>{item.when}</Text>
+   <Text style={[styles.micro,{marginTop:9,color:C.accentDark,fontWeight:'800'}]}>{expanded===item.id?'Details schließen':'Unterlagen, Zuständigkeit und Quelle ansehen'}</Text>
+  </Pressable>
+  {expanded===item.id?<View style={styles.kompassDetails}>
+   <Text style={styles.label}>Zuständige Stelle</Text>
+   <Text style={[styles.body,{marginBottom:13}]}>{item.office}</Text>
+   <Text style={styles.label}>Was wird häufig benötigt?</Text>
+   <Text style={[styles.body,{marginBottom:13}]}>{item.docs}</Text>
+   <Text style={styles.label}>Gut zu wissen</Text>
+   <Text style={[styles.body,{marginBottom:15}]}>{item.tip}</Text>
+   <Button title={'Offizielle Quelle öffnen ↗'} mode="outline" onPress={()=>openSource(item.url)}/>
+   <Text style={[styles.micro,{marginTop:10}]}>Quelle: {item.source} · redaktionell geprüft: 19.11.2026</Text>
+  </View>:null}
+ </Card>)}
+ <Info>Diese Übersicht dient der Orientierung. Sie bestätigt keinen individuellen Anspruch, reicht keine Anträge ein und ersetzt keine Beratung. Fristen und Formulare können sich ändern. Vor dem Antrag immer die verlinkte offizielle Seite prüfen.</Info>
+ <View style={{height:10}}/>
+ <Text style={[styles.micro,{textAlign:'center'}]}>Weitere Regionen, persönliche Fristen und Erinnerungen folgen in späteren Versionen. Es werden hier keine persönlichen Antragsdaten gespeichert.</Text>
 </ScrollView>;
 }
 const styles=StyleSheet.create({
@@ -684,6 +756,24 @@ emptyMoments:{alignItems:'center',paddingVertical:30,paddingHorizontal:12,gap:7}
 momentTile:{width:'48%',backgroundColor:C.white,borderColor:C.line,borderWidth:1,borderRadius:18,padding:9,gap:6},
 momentImage:{width:'100%',height:140,borderRadius:12,resizeMode:'cover'},
 momentCaption:{fontSize:13,fontWeight:'800',color:C.ink,lineHeight:19},
+kompassDiscoverCallout:{backgroundColor:'#FFF0D3',borderColor:'#EED19A',borderWidth:1,borderRadius:21,padding:17},
+kompassCalloutEyebrow:{fontSize:10.5,fontWeight:'900',color:'#A06A2B',letterSpacing:.8,marginBottom:8},
+kompassCalloutTitle:{fontSize:17,fontWeight:'900',color:C.ink},
+kompassCalloutText:{fontSize:12.5,color:C.muted,marginTop:5,lineHeight:19},
+kompassHero:{backgroundColor:'#FFEED2',borderColor:'#F2D59E',borderWidth:1,borderRadius:27,padding:22,overflow:'hidden',marginBottom:24},
+kompassSun:{position:'absolute',height:165,width:165,borderRadius:85,backgroundColor:'#FFD991',top:-90,right:-58,opacity:.9},
+kompassEyebrow:{fontSize:11,color:'#A16E29',fontWeight:'900',letterSpacing:1.2,marginBottom:12},
+kompassTitle:{fontSize:26,fontWeight:'900',color:C.ink,letterSpacing:-.6},
+kompassSubtitle:{fontSize:14,color:C.ink,lineHeight:22,marginTop:9,maxWidth:275},
+kompassTopicGrid:{flexDirection:'row',flexWrap:'wrap',gap:9},
+kompassTopic:{width:'48%',backgroundColor:C.white,borderColor:C.line,borderWidth:1.5,borderRadius:20,padding:13,minHeight:95,justifyContent:'center'},
+kompassTopicSelected:{backgroundColor:'#FFF3DA',borderColor:'#E7B96D'},
+kompassTopicNumber:{fontSize:11,fontWeight:'900',color:'#B47828',letterSpacing:1.2,marginBottom:6},
+kompassTopicTitle:{fontSize:14,fontWeight:'800',color:C.ink,lineHeight:19},
+kompassNumberCircle:{height:35,width:35,borderRadius:18,backgroundColor:'#FFE5AE',justifyContent:'center',alignItems:'center'},
+kompassNumberText:{fontWeight:'900',fontSize:14,color:'#825D2B'},
+kompassDue:{fontSize:11,fontWeight:'900',color:'#A36B29',marginTop:6},
+kompassDetails:{borderTopWidth:1,borderTopColor:C.line,marginTop:16,paddingTop:17},
 modalShade:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(15,44,52,.52)',justifyContent:'center',zIndex:100},
 });
 
