@@ -172,14 +172,21 @@ const [error,setError]=useState('');
 const [notice,setNotice]=useState('');
 const [busy,setBusy]=useState(false);
 const [loading,setLoading]=useState(false);
-const [db,setDb]=useState(blankData);
-const [myProfile,setMyProfile]=useState(null);
-const [verification,setVerification]=useState(null);
-const [membership,setMembership]=useState(null);
-const [photosUrls,setPhotosUrls]=useState({});
+// Privacy: account-scoped cache. Old account data cannot be rendered under
+// another account even for a single frame before logout effects complete.
+const [accountCache,setAccountCache]=useState(null);
 const [seen,setSeen]=useState(null);
 const seenRef=useRef(null);
+const loadEpochRef=useRef(0);
 const me=session?.user?.id;
+const currentUserRef=useRef(me);
+currentUserRef.current=me;
+const currentAccount=me&&accountCache?.userId===me?accountCache:null;
+const db=currentAccount?.db||blankData;
+const myProfile=currentAccount?.myProfile||null;
+const verification=currentAccount?.verification||null;
+const membership=currentAccount?.membership||null;
+const photosUrls=currentAccount?.photosUrls||{};
 
 // Ungelesen-Markierungen bleiben in dieser Beta lokal auf dem jeweiligen Gerät.
 // Der erste Besuch legt nur einen Ausgangspunkt an, nicht künstlich neue Hinweise.
@@ -212,8 +219,14 @@ const markActivity=useCallback((type,contactId=null)=>{
   setSeen(next);
   AsyncStorage.setItem(storageKey(me),JSON.stringify(next)).catch(()=>{});
 },[me]);
+// Hooks must always execute before any authentication-dependent early return.
+useEffect(()=>{
+  if(selectedContact&&me&&seen)markActivity('chat',selectedContact);
+},[selectedContact,me,accountCache?.db?.messages,seen,markActivity]);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
+const requestId=++loadEpochRef.current;
+const stillCurrent=()=>currentUserRef.current===me&&loadEpochRef.current===requestId;
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
@@ -230,18 +243,32 @@ supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
 const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow]=queries;
-const profileRow=profiles.data.find(p=>p.user_id===me)||null;
-setDb({profiles:profiles.data||[],contacts:contacts.data||[],messages:messages.data||[],
-events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[]});
-setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
-setError('');
-const images=await Promise.all((photos.data||[]).map(async(p)=>{
-try {const {data,error:e}=await supabase.storage.from('familienfunke-photos').createSignedUrl(p.storage_path,1800);
+if(!stillCurrent())return;
+const profileRow=(profiles.data||[]).find(p=>p.user_id===me)||null;
+const photosForMe=(photos.data||[]).filter(photo=>photo.owner_id===me);
+const approvedOthers=(photos.data||[]).filter(photo=>photo.owner_id!==me&&photo.moderation_status==='approved');
+const acceptedIds=new Set((contacts.data||[]).filter(c=>c.status==='accepted')
+  .map(c=>c.sender_id===me?c.recipient_id:c.sender_id));
+const blockedByMe=new Set((blocks.data||[]).filter(b=>b.blocker_id===me).map(b=>b.blocked_id));
+// Create signed links only for own pictures or approved pictures of unblocked contacts.
+// Supabase Storage RLS is the ultimate authorization layer.
+const viewablePhotos=[...photosForMe,...approvedOthers.filter(photo=>
+  acceptedIds.has(photo.owner_id)&&!blockedByMe.has(photo.owner_id))];
+const images=await Promise.all(viewablePhotos.map(async(p)=>{
+try {const {data,error:e}=await supabase.storage.from('familienfunke-photos').createSignedUrl(p.storage_path,600);
 return [p.id,e?null:data?.signedUrl||null];} catch {return [p.id,null];}
 }));
-setPhotosUrls(Object.fromEntries(images));
-} catch(e){setError(humanError(e));}
-finally{setLoading(false);}
+if(!stillCurrent())return;
+setAccountCache({
+  userId:me,
+  db:{profiles:profiles.data||[],contacts:contacts.data||[],messages:messages.data||[],
+      events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[]},
+  myProfile:profileRow,verification:verificationRow.data,membership:membershipRow.data,
+  photosUrls:Object.fromEntries(images),
+});
+setError('');
+} catch(e){if(stillCurrent())setError(humanError(e));}
+finally{if(stillCurrent())setLoading(false);}
 },[me]);
 useEffect(()=>{
 if(!supabase){setSession(null);return;}
@@ -254,7 +281,21 @@ setSession(data?.session||null);
 const {data:listener}=supabase.auth.onAuthStateChange((_event,next)=>{if(alive)setSession(next);});
 return ()=>{alive=false;listener.subscription.unsubscribe();};
 },[]);
-useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);}},[me,load]);
+useEffect(()=>{
+  setSelectedContact(null);
+  setDetailFamily(null);
+  setShowInfo(false);
+  setReportTarget(null);
+  setTab('discover');
+  setError('');
+  setNotice('');
+  if(me)load();
+  else{
+    loadEpochRef.current++;
+    setAccountCache(null);
+    setLoading(false);
+  }
+},[me,load]);
 const active=verification?.status==='verified'&&myProfile?.moderation_status==='approved'&&membership?.status!=='suspended';
 const blocked=(uid)=>db.blocks.some(b=>b.blocker_id===me&&b.blocked_id===uid);
 const findName=(uid)=>db.profiles.find(p=>p.user_id===uid)?.display_name||'Familienprofil';
@@ -301,6 +342,14 @@ return execute(async()=>assertResult(await supabase.auth.updateUser({password}))
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
 if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
 if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/><Login error={error} setError={setError}/></SafeAreaView>;
+if(!currentAccount)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
+  <View style={{flex:1,justifyContent:'center',padding:24,alignItems:'center'}}>
+    {loading?<ActivityIndicator color={C.accent} size="large"/>:null}
+    <Text style={[styles.sub,{textAlign:'center',marginTop:16}]}>
+      {error||'Dein geschütztes Familienprofil wird geladen …'}
+    </Text>
+    {!loading?<Button title="Erneut versuchen" onPress={()=>load()} mode="outline"/>:null}
+  </View></SafeAreaView>;
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Familien-Kompass':TABS.find(t=>t[0]===tab)?.[1];
 function chooseTab(id){
   setTab(id);
@@ -313,11 +362,6 @@ function openChat(id){
   setTab('chat');
   markActivity('chat',id);
 }
-useEffect(()=>{
-  if(selectedContact&&me&&seen){
-    markActivity('chat',selectedContact);
-  }
-},[selectedContact,me,db.messages,markActivity]);
 function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact)setSelectedContact(null);else if(showInfo)setShowInfo(false);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
@@ -340,7 +384,7 @@ return <SafeAreaView style={styles.screen}>
 {detailFamily?<FamilyDetail p={db.profiles.find(p=>p.user_id===detailFamily)}
 imageUrl={photosUrls[photoOf(detailFamily)?.id]} photos={db.photos.filter(p=>p.owner_id===detailFamily&&p.moderation_status==='approved')}
 photosUrls={photosUrls} active={active} disabled={busy} blocked={blocked(detailFamily)}
-connection={db.contacts.find(c=>c.sender_id===detailFamily||c.recipient_id===detailFamily)}
+connection={db.contacts.find(c=>(c.sender_id===me&&c.recipient_id===detailFamily)||(c.recipient_id===me&&c.sender_id===detailFamily))}
 onContact={()=>sendRequest(detailFamily)} onBlock={()=>blockUser(detailFamily)} onUnblock={()=>unblockUser(detailFamily)}
 onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setDetailFamily(null);openChat(cid);}}
  onPhotosViewed={()=>markActivity('photos')}/>:
