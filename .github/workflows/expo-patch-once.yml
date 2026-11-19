@@ -1,0 +1,36 @@
+name: Einmaliges Expo-Patch-Update
+
+on:
+  push:
+    branches:
+      - design/profil-momente-benachrichtigungen
+
+permissions:
+  contents: write
+
+jobs:
+  patch-dependencies:
+    if: ${{ github.event.head_commit.message == 'chore: Expo-Patchversionen synchronisieren (einmalig)' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: design/profil-momente-benachrichtigungen
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Expo-Patchversionen und Lockdatei konsistent aktualisieren
+        run: npm install --save --save-prefix='~' 'expo@~58.0.26' 'expo-file-system@~58.0.14' --no-audit --no-fund
+      - name: Paketinstallation und Expo-Versionen überprüfen
+        run: |
+          npm ci --no-audit --no-fund
+          npx expo install --check
+      - name: Nur Manifest und Lockdatei speichern
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git diff --cached --quiet || git commit -m "fix: Expo- und Dateisystem-Patches mit konsistenter Lockdatei"
+          git push origin HEAD:design/profil-momente-benachrichtigungen
