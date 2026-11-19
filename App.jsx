@@ -10,6 +10,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { BUNDESLAENDER, KREISE_NACH_LAND } from './data/regionen';
+import MomentViewer from './components/MomentViewer';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFFAF2',white:'#FFFFFF',ink:'#243E43',muted:'#687E80',
@@ -404,16 +405,25 @@ return <Card key={p.user_id} style={{marginBottom:12}}>
 </ScrollView>;
 }
 function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
+const [viewingPhotoId,setViewingPhotoId]=useState(null);
 if(!p)return <Blank title="Profil nicht verfügbar" body="Das Profil kann verborgen oder gesperrt worden sein."/>;
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <Card style={{alignItems:'center',paddingTop:26}}><Avatar name={p.display_name} size={88} uri={photosUrls?.[photos?.[0]?.id]}/><Text style={[styles.h,{marginTop:12,textAlign:'center'}]}>{p.display_name}</Text><Text style={styles.sub}>⌖ {p.region_label||'Grobe Region nicht angegeben'}</Text><Text style={[styles.body,{textAlign:'center',marginTop:14}]}>{p.about||'Noch keine Beschreibung'}</Text>
 <View style={[styles.chipsRow,{justifyContent:'center'}]}>{(p.interests||[]).map(i=><Chip text={i} key={i}/>)}</View>
 {connection?.status==='accepted'?<Button title="Private Nachricht schreiben" onPress={()=>onChat(connection.id)}/>:
 !blocked&&active?<Button title={connection?'Kontaktanfrage vorhanden':'Kontakt anfragen'} disabled={disabled||!!connection} onPress={onContact}/>:null}
 <Row style={{marginTop:12}}>{blocked?<Button title="Entsperren" mode="outline" small onPress={onUnblock}/>:<Button title="Blockieren" mode="outline" small onPress={onBlock}/>}<Button title="Melden" mode="ghost" small onPress={onReport}/></Row>
 </Card>
-{photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
-</ScrollView>;
+{photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Pressable key={photo.id} accessibilityRole="button"
+ accessibilityLabel={'Foto vergrößern: '+(photo.caption||'Familienmoment')} disabled={!photosUrls[photo.id]}
+ onPress={()=>setViewingPhotoId(photo.id)} style={styles.galleryPressable}>
+ <Card style={{padding:10}}>{photosUrls[photo.id]?<Image source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
+ <Text style={styles.micro} numberOfLines={2}>{photo.caption||'Familienmoment'}</Text>
+ <Text style={[styles.micro,{color:C.accentDark,fontWeight:'800',marginTop:5}]}>Foto ansehen ›</Text>
+ </Card></Pressable>)}</View></>:null}
+</ScrollView>
+<MomentViewer photos={photos||[]} urls={photosUrls||{}} activeId={viewingPhotoId} onSelect={setViewingPhotoId}
+ onClose={()=>setViewingPhotoId(null)}/></>;
 }
 function ContactsScreen({pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat}){
 const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
@@ -511,6 +521,7 @@ const [newPassword,setNewPassword]=useState('');
 const [editing,setEditing]=useState(false);
 const [settingsOpen,setSettingsOpen]=useState(false);
 const [addingMoment,setAddingMoment]=useState(false);
+const [viewingPhotoId,setViewingPhotoId]=useState(null);
 useEffect(()=>{if(profile)setForm({...blankProfile,...profile});},[profile?.updated_at,profile?.user_id]);
 async function submit(){
  if(form.display_name.trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
@@ -534,7 +545,7 @@ async function submitDraftPhoto(){
  if(ok){setSelectedPhoto(null);setPhotoCaption('');setAddingMoment(false);}
 }
 const heroPhoto=photos.find(p=>p.moderation_status==='approved'&&photosUrls[p.id]);
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
  <View style={styles.profileHero}>
   <View pointerEvents="none" style={styles.profileHeroSun}/>
   <Text style={styles.profileEyebrow}>✦ DAS SIND WIR</Text>
@@ -577,7 +588,11 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
   </View>:null}
   {photos.length===0?<View style={styles.emptyMoments}><Text style={{fontSize:30,color:C.coral}}>♡</Text><Text style={[styles.cardTitle,{textAlign:'center'}]}>Euer erstes Foto fehlt noch</Text><Text style={[styles.sub,{textAlign:'center'}]}>Ein schöner Ausflug, ein Lieblingsort oder ein besonderer Moment.</Text></View>:
   <View style={[styles.photoGrid,{marginTop:16}]}>{photos.map(p=><View key={p.id} style={styles.momentTile}>
-   {photosUrls[p.id]?<Image source={{uri:photosUrls[p.id]}} style={styles.momentImage}/>:<View style={[styles.momentImage,{backgroundColor:C.pale,justifyContent:'center',alignItems:'center'}]}><Text style={styles.micro}>Bild wird geladen</Text></View>}
+   <Pressable accessibilityRole="button" accessibilityLabel={'Foto vergrößern: '+(p.caption||'Familienmoment')}
+    disabled={!photosUrls[p.id]} onPress={()=>setViewingPhotoId(p.id)} style={styles.momentPreviewPressable}>
+    {photosUrls[p.id]?<Image source={{uri:photosUrls[p.id]}} style={styles.momentImage}/>:<View style={[styles.momentImage,{backgroundColor:C.pale,justifyContent:'center',alignItems:'center'}]}><Text style={styles.micro}>Bild wird geladen</Text></View>}
+    {photosUrls[p.id]?<View style={styles.momentZoomBadge}><Text style={styles.momentZoomText}>↗ Ansehen</Text></View>:null}
+   </Pressable>
    <Text style={styles.momentCaption} numberOfLines={3}>{p.caption||'Ein Familienmoment'}</Text>
    <Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'✓ Freigegeben':p.moderation_status==='pending'?'⌛ In Prüfung':'Nicht freigegeben'}</Text>
    <Button title="Foto löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
@@ -607,7 +622,10 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
   {blocks.length>0?<View style={{marginTop:18}}><Text style={styles.label}>Blockierte Konten</Text>{blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}><Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text><Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/></Row>)}</View>:null}
   <View style={{height:16}}/><Button title="Abmelden" mode="ghost" onPress={signOut}/>
  </Card>:null}
-</ScrollView>;
+</ScrollView>
+<MomentViewer photos={photos} urls={photosUrls} activeId={viewingPhotoId} onSelect={setViewingPhotoId}
+ onClose={()=>setViewingPhotoId(null)} isOwner/>
+</>;
 }
 const KOMPASS_TOPICS=[
  {id:'schwangerschaft',label:'Wir erwarten ein Baby',symbol:'01',desc:'Schon vor der Geburt Wichtiges vorbereiten'},
@@ -798,6 +816,7 @@ chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},
 theirs:{backgroundColor:'#FFF0E8',alignSelf:'flex-start',borderBottomLeftRadius:5},bubbleText:{color:C.ink,fontSize:14.5,lineHeight:21},
 photoGrid:{flexDirection:'row',flexWrap:'wrap',gap:10},photoCard:{width:'47%',padding:10},photoImage:{width:'100%',height:110,borderRadius:14,marginBottom:8},
+galleryPressable:{width:'47%'},
 photoDraftPreview:{width:'100%',height:230,backgroundColor:C.pale,borderRadius:18,marginBottom:14},
 madeInGermanyStamp:{width:82,minHeight:48,borderColor:'#DEB773',borderWidth:1.4,borderRadius:12,backgroundColor:'#FFF6E5',alignItems:'center',justifyContent:'center',paddingVertical:4},
 stampKicker:{fontSize:8,fontWeight:'800',color:'#916A2A',letterSpacing:1.2},
@@ -813,6 +832,9 @@ profileAbout:{fontSize:15,lineHeight:23,color:C.ink,marginTop:18},
 emptyMoments:{alignItems:'center',paddingVertical:30,paddingHorizontal:12,gap:7},
 momentTile:{width:'48%',backgroundColor:C.white,borderColor:C.line,borderWidth:1,borderRadius:18,padding:9,gap:6},
 momentImage:{width:'100%',height:140,borderRadius:12,resizeMode:'cover'},
+momentPreviewPressable:{position:'relative'},
+momentZoomBadge:{position:'absolute',bottom:7,right:7,backgroundColor:'rgba(18,55,62,.88)',borderRadius:11,paddingHorizontal:9,paddingVertical:5},
+momentZoomText:{color:'#FFFFFF',fontSize:10,fontWeight:'800'},
 momentCaption:{fontSize:13,fontWeight:'800',color:C.ink,lineHeight:19},
 kompassDiscoverCallout:{backgroundColor:'#FFF0D3',borderColor:'#EED19A',borderWidth:1,borderRadius:21,padding:17},
 kompassCalloutEyebrow:{fontSize:10.5,fontWeight:'900',color:'#A06A2B',letterSpacing:.8,marginBottom:8},
