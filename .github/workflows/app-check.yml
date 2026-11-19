@@ -37,9 +37,6 @@ jobs:
       - name: Abhängigkeiten aus Lockfile installieren
         run: npm ci --no-audit --no-fund
 
-      - name: Expo-Versionen prüfen
-        run: npx expo install --check
-
       - name: App-Konfiguration prüfen
         run: npx expo config --json > /dev/null
 
@@ -48,3 +45,6 @@ jobs:
 
       - name: iOS-Bundle erstellen
         run: npx expo export --platform ios --output-dir /tmp/familienfunke-ios
+
+      - name: Expo-Versionen prüfen (auch wenn Bundles erfolgreich sind)
+        run: npx expo install --check
