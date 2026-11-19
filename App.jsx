@@ -641,7 +641,7 @@ return <ScrollView ref={eventsScroll} style={styles.scroll} contentContainerStyl
     <Text style={[styles.outingSectionText,section==='ideen'&&styles.outingSectionTextActive]}>Ausflugsideen</Text>
   </Pressable>
 </View>
-{section==='ideen'?<FamilyOutingIdeas initialRegion={initialRegion} onPlan={planIdea}/>:<>
+{section==='ideen'?<FamilyOutingIdeas initialRegion={initialRegion} onPlan={planIdea} userId={me}/>:<>
 <Text style={[styles.micro,{marginBottom:15}]}>Termine werden vor ihrer Veröffentlichung geprüft. Öffentliche Privatadressen bitte vermeiden.</Text>
 <Button title={showForm?'Formular schließen':'＋ Aktivität erstellen'} disabled={!active} onPress={()=>setShowForm(!showForm)}/>
 {showForm?<Card style={{marginTop:14}}>
