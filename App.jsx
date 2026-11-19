@@ -459,10 +459,39 @@ async function selectMarketPhoto(){
   const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],quality:0.8,exif:false});
   return result.canceled?null:result.assets?.[0]||null;
 }
+
+function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
+  const [expanded,setExpanded]=useState(false);
+  const items=allOption?['Alle Kategorien',...options]:options;
+  const selected=value==='Alle'?'Alle Kategorien':value;
+  return <View style={{marginBottom:13}}>
+    <Text style={styles.label}>{label}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={label+': '+selected}
+      accessibilityState={{expanded}} onPress={()=>setExpanded(v=>!v)}
+      style={styles.marketDropdown}>
+      <Text style={[styles.body,{fontWeight:'700',flex:1}]}>{selected}</Text>
+      <Text style={{fontSize:19,fontWeight:'800',color:C.accentDark}}>{expanded?'⌃':'⌄'}</Text>
+    </Pressable>
+    {expanded?<View style={styles.marketDropdownOptions}>
+      {items.map(option=><Pressable accessibilityRole="button" key={option}
+        accessibilityState={{selected:option===selected}} style={styles.marketDropdownOption}
+        onPress={()=>{onChange(option==='Alle Kategorien'?'Alle':option);setExpanded(false);}}>
+        <Text style={[styles.body,option===selected&&{color:C.accentDark,fontWeight:'900'}]}>{option}</Text>
+        {option===selected?<Text style={{color:C.accentDark,fontWeight:'900'}}>✓</Text>:null}
+      </Pressable>)}
+    </View>:null}
+  </View>;
+}
 function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,createListing,uploadPendingPhoto,onContact,nameOf,blocked}){
   const [open,setOpen]=useState(false);
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('Alle');
+  const [tradeFilter,setTradeFilter]=useState('all');
+  const [sortBy,setSortBy]=useState('newest');
+  const [minPrice,setMinPrice]=useState('');
+  const [maxPrice,setMaxPrice]=useState('');
+  const [filterOpen,setFilterOpen]=useState(false);
+  const [selectedListing,setSelectedListing]=useState(null);
   const [title,setTitle]=useState('');
   const [description,setDescription]=useState('');
   const [region,setRegion]=useState('');
@@ -474,11 +503,27 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
   const [photo,setPhoto]=useState(null);
   const [choosing,setChoosing]=useState(false);
   const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
-  const shown=listings.filter(x=>(x.moderation_status==='approved'||x.seller_id===me)
-     &&!blocked(x.seller_id)
-     &&(filter==='Alle'||x.category===filter)
-     &&normalizeLabel([x.title,x.description,x.region_label,x.category].join(' ')).includes(normalizeLabel(query)));
-  const priceLabel=x=>x.trade_type==='gift'?'Zu verschenken':x.trade_type==='swap'?'Tausch':(x.price_cents/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
+  const priceLabel=x=>x.trade_type==='gift'?'Zu verschenken':x.trade_type==='swap'?'Tausch':
+    (x.price_cents/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
+  const parsePrice=value=>{
+    const raw=String(value).trim().replace(',','.');
+    return raw!==''&&Number.isFinite(Number(raw))?Math.round(Number(raw)*100):null;
+  };
+  const minimum=parsePrice(minPrice), maximum=parsePrice(maxPrice);
+  const filtered=listings.filter(x=>
+    (x.moderation_status==='approved'||x.seller_id===me)
+    && !blocked(x.seller_id)
+    && (filter==='Alle'||x.category===filter)
+    && (tradeFilter==='all'||x.trade_type===tradeFilter)
+    && (minimum===null||x.trade_type!=='sell'||x.price_cents>=minimum)
+    && (maximum===null||x.trade_type!=='sell'||x.price_cents<=maximum)
+    && normalizeLabel([x.title,x.description,x.region_label,x.category].join(' ')).includes(normalizeLabel(query))
+  );
+  const shown=[...filtered].sort((a,b)=>{
+    if(sortBy==='low')return (a.price_cents-b.price_cents)||new Date(b.created_at)-new Date(a.created_at);
+    if(sortBy==='high')return (b.price_cents-a.price_cents)||new Date(b.created_at)-new Date(a.created_at);
+    return new Date(b.created_at)-new Date(a.created_at);
+  });
   async function pick(fn){
     if(choosing)return;
     setChoosing(true);
@@ -489,73 +534,179 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
   async function submit(){
     if(!active)return;
     if(title.trim().length<4||title.trim().length>100)return Alert.alert('Titel prüfen','Bitte mindestens 4 Zeichen eingeben.');
-    const num=Number(price.trim().replace(',','.'));
-    if(trade==='sell'&&(!Number.isFinite(num)||num<0||num>100000||!price.trim()))return Alert.alert('Preis prüfen','Bitte einen Preis in Euro eingeben.');
-    const cents=trade==='sell'?Math.round(num*100):0;
+    const cents=parsePrice(price);
+    if(trade==='sell'&&(cents===null||cents<0||cents>10000000))
+      return Alert.alert('Preis prüfen','Bitte einen Preis in Euro zwischen 0 und 100.000 angeben.');
     const ok=await createListing({title:safeString(title,100),description:safeString(description,1500),
-      category,item_condition:condition,trade_type:trade,price_cents:cents,
+      category,item_condition:condition,trade_type:trade,price_cents:trade==='sell'?cents:0,
       region_label:safeString(region,80),organization_id:organizationId||null},photo);
     if(ok){setTitle('');setDescription('');setPrice('');setPhoto(null);setOrganizationId('');setOpen(false);}
   }
+  function sellerInformation(x){
+    const own=x.seller_id===me;
+    const org=organizations.find(o=>o.id===x.organization_id&&o.status==='approved');
+    const contact=contacts.find(c=>(c.sender_id===me&&c.recipient_id===x.seller_id)||(c.recipient_id===me&&c.sender_id===x.seller_id));
+    return {own,org,contact,seller:org?org.name:nameOf(x.seller_id)};
+  }
+  function contactButton(x,contact){
+    if(x.seller_id===me)return null;
+    const label=contact
+      ?contact.status==='accepted'?'Kontakt vorhanden – Nachrichten unter Mehr'
+        :contact.status==='pending'?'Kontaktanfrage läuft':'Kontaktanfrage vorhanden'
+      :'Verkäufer kontaktieren';
+    return <Button title={label} disabled={busy||!active||!!contact} mode="primary" onPress={()=>onContact(x.seller_id)}/>;
+  }
+  const selected=selectedListing?shown.find(x=>x.id===selectedListing):null;
   return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-    <H sub="Kinderkleidung, Spielzeug, Bücher und Babyausstattung aus deiner Umgebung.">Familienbasar</H>
+    <H sub="Kinderkleidung, Spielzeug und vieles mehr – direkt von Familien in deiner Nähe.">Familienbasar</H>
     <Info>{SECTION_MESSAGES.market}</Info>
-    <Card style={{marginBottom:15}}>
-      <Text style={styles.cardTitle}>Fair handeln, bewusst vertrauen.</Text>
-      <Text style={styles.sub}>Inserate sind kostenlos. Onlinezahlung und Verkaufsprovisionen sind noch nicht aktiviert. Identitätsprüfung ersetzt keinen Käuferschutz: vereinbare sichere Übergaben und gib keine Privatadresse öffentlich an.</Text>
-      <View style={{marginTop:15}}><Button title={open?'Inserat schließen':'＋ Artikel einstellen'} disabled={!active} onPress={()=>setOpen(x=>!x)}/></View>
-    </Card>
-    {!active?<Info warning>Nur freigegebene erwachsene Mitglieder können Inserate einstellen und andere kontaktieren.</Info>:null}
-    {open?<Card style={{marginBottom:16}}>
-      <Text style={styles.sectionTitle}>Neues Inserat</Text>
-      <Input label="Was bietest du an?" value={title} onChangeText={setTitle} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
-      <Input label="Beschreibung" multiline value={description} onChangeText={setDescription} maxLength={1500} placeholder="Zustand, Größe, Hinweise zur Übergabe …"/>
-      <Text style={styles.label}>Kategorie</Text>
-      <View style={styles.chipsRow}>{MARKET_CATEGORIES.map(c=><Chip key={c} text={c} selected={category===c} onPress={()=>setCategory(c)}/>)}</View>
-      <Text style={[styles.label,{marginTop:18}]}>Angebot</Text>
-      <View style={styles.chipsRow}><Chip text="Verkaufen" selected={trade==='sell'} onPress={()=>setTrade('sell')}/><Chip text="Verschenken" selected={trade==='gift'} onPress={()=>setTrade('gift')}/><Chip text="Tauschen" selected={trade==='swap'} onPress={()=>setTrade('swap')}/></View>
-      {trade==='sell'?<View style={{marginTop:15}}><Input label="Preis in Euro" value={price} onChangeText={setPrice} keyboardType="decimal-pad" placeholder="z. B. 12,50"/></View>:null}
+    <View style={styles.marketTopActions}>
+      <View style={{flex:1}}>
+        <Text style={styles.marketTopTitle}>Entdecken & weitergeben</Text>
+        <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
+      </View>
+      <Button title={open?'Schließen':'＋ Inserieren'} small disabled={!active} onPress={()=>{setOpen(v=>!v);setSelectedListing(null);}}/>
+    </View>
+    {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
+    {open?<Card style={{marginBottom:18}}>
+      <Text style={styles.sectionTitle}>Anzeige aufgeben</Text>
+      <Text style={[styles.sub,{marginBottom:17}]}>Kostenlos einstellen. Dein Inserat wird vor Veröffentlichung geprüft.</Text>
+      <View style={{marginBottom:15}}>
+        <Button title={photo?'✓ Foto ausgewählt – ändern':'＋ Artikelfoto auswählen'} mode="outline" disabled={choosing||busy}
+          onPress={()=>pick(setPhoto)}/>
+        {photo?<Image source={{uri:photo.uri}} style={[styles.photoDraftPreview,{marginTop:10}]} resizeMode="contain"/>:null}
+        <Text style={[styles.micro,{marginTop:8}]}>Ein Foto pro Inserat ist in dieser Beta möglich.</Text>
+      </View>
+      <Input label="Anzeigentitel" value={title} onChangeText={setTitle} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
+      <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={setCategory} options={MARKET_CATEGORIES}/>
+      <Text style={styles.label}>Ich möchte</Text>
+      <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
+        <Chip text="Verkaufen" selected={trade==='sell'} onPress={()=>setTrade('sell')}/>
+        <Chip text="Verschenken" selected={trade==='gift'} onPress={()=>setTrade('gift')}/>
+        <Chip text="Tauschen" selected={trade==='swap'} onPress={()=>setTrade('swap')}/>
+      </View>
+      {trade==='sell'?<Input label="Preis in €" value={price} onChangeText={setPrice} keyboardType="decimal-pad" placeholder="z. B. 12,50"/>:null}
       <Text style={styles.label}>Zustand</Text>
-      <View style={styles.chipsRow}>{['Neu','Sehr gut','Gut','Gebraucht'].map(x=><Chip key={x} text={x} selected={condition===x} onPress={()=>setCondition(x)}/>)}</View>
-      <View style={{marginTop:17}}><Input label="Ort / Region (ohne Adresse)" value={region} onChangeText={setRegion} maxLength={80} placeholder="z. B. Fürstenwalde/Spree"/></View>
-      {myOrgs.length>0?<><Text style={styles.label}>Verkaufen als</Text><View style={styles.chipsRow}>
-         <Chip text="Privates Familienkonto" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
-         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
+      <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
+        {['Neu','Sehr gut','Gut','Gebraucht'].map(x=><Chip key={x} text={x} selected={condition===x} onPress={()=>setCondition(x)}/>)}
+      </View>
+      <Input label="Beschreibung" multiline value={description} onChangeText={setDescription} maxLength={1500} placeholder="Größe, Farbe, Zustand, Abholung …"/>
+      <Input label="Ort / Region – keine Privatadresse" value={region} onChangeText={setRegion} maxLength={80} placeholder="z. B. Fürstenwalde/Spree"/>
+      {myOrgs.length>0?<><Text style={styles.label}>Anbieten als</Text><View style={[styles.chipsRow,{marginTop:0,marginBottom:15}]}>
+        <Chip text="Privat" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
+        {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
       </View></>:null}
-      <View style={{marginTop:17}}><Button title={photo?'✓ Foto gewählt – anderes auswählen':'Foto auswählen (optional)'}
-        mode="outline" disabled={choosing||busy} onPress={()=>pick(setPhoto)}/></View>
-      {photo?<Image source={{uri:photo.uri}} style={styles.photoDraftPreview} resizeMode="contain"/>:null}
-      <Text style={[styles.micro,{marginTop:10,marginBottom:13}]}>Das Inserat und das Foto bleiben zunächst privat. Erst nach Prüfung wird das Angebot für andere freigegeben. Über Familienfunke können derzeit keine Zahlungen durchgeführt werden.</Text>
-      <Button title={busy?'Speichert …':'Kostenlos zur Prüfung einreichen'} disabled={!active||busy||choosing} onPress={submit}/>
+      <Info>Keine Onlinezahlung und keine Verkaufsprovision aktiv. Die Anzeige ist erst nach Freigabe öffentlich für geprüfte Mitglieder sichtbar.</Info>
+      <Button title={busy?'Wird gespeichert …':'Anzeige kostenlos einreichen'} disabled={busy||choosing||!active} onPress={submit}/>
     </Card>:null}
-    <Input label="Angebote durchsuchen" placeholder="z. B. Spielzeug, Storkow …" value={query} onChangeText={setQuery}/>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}}>
-      {['Alle',...MARKET_CATEGORIES].map(x=><View key={x} style={{marginRight:7}}><Chip text={x} selected={x===filter} onPress={()=>setFilter(x)}/></View>)}
-    </ScrollView>
-    <Text style={[styles.micro,{marginBottom:10}]}>{shown.length} {shown.length===1?'Angebot':'Angebote'} verfügbar (einschließlich eigener Entwürfe)</Text>
-    {shown.length===0?<Blank title="Der Basar startet hier" body="Sobald Familien ihre ersten Angebote eingereicht haben und diese geprüft sind, kannst du hier stöbern. Du kannst schon einen Artikel anbieten."/>:shown.map(x=>{
-      const own=x.seller_id===me;
-      const sellerOrg=organizations.find(o=>o.id===x.organization_id&&o.status==='approved');
-      const connected=contacts.find(c=>(c.sender_id===me&&c.recipient_id===x.seller_id)||(c.recipient_id===me&&c.sender_id===x.seller_id));
-      return <Card key={x.id} style={{marginBottom:12}}>
-        {photoUrls[x.id]?<Image source={{uri:photoUrls[x.id]}} style={{width:'100%',height:175,borderRadius:16,marginBottom:12}} resizeMode="cover"/>:null}
-        <Row style={{justifyContent:'space-between',alignItems:'flex-start'}}>
-           <View style={{flex:1}}><Text style={styles.cardTitle}>{x.title}</Text>
-             <Text style={styles.micro}>{x.category} · Zustand: {x.item_condition}</Text>
-           </View><Text style={[styles.cardTitle,{color:C.accentDark}]}>{priceLabel(x)}</Text>
+    {selected?<View>
+      <Pressable accessibilityRole="button" onPress={()=>setSelectedListing(null)} style={{marginBottom:14,paddingVertical:8}}>
+        <Text style={{color:C.accentDark,fontWeight:'800',fontSize:15}}>‹ Zurück zu den Anzeigen</Text>
+      </Pressable>
+      <Card style={styles.marketDetailCard}>
+        <View style={styles.marketDetailImage}>
+          {photoUrls[selected.id]?<Image source={{uri:photoUrls[selected.id]}} style={styles.marketFullImage} resizeMode="contain"/>:
+            <View style={[styles.marketFullImage,styles.marketImagePlaceholder]}><Text style={{fontSize:34}}>♧</Text><Text style={styles.micro}>Kein Foto hinterlegt</Text></View>}
+        </View>
+        <Text style={[styles.marketPrice,{fontSize:26,marginTop:15}]}>{priceLabel(selected)}</Text>
+        <Text style={[styles.h,{marginTop:5}]}>{selected.title}</Text>
+        <Text style={[styles.sub,{marginTop:8}]}>{selected.item_condition} · {selected.category} · {selected.region_label||'Region auf Anfrage'}</Text>
+        <View style={{height:1,backgroundColor:C.line,marginVertical:18}}/>
+        <Text style={styles.sectionTitle}>Beschreibung</Text>
+        <Text style={styles.body}>{selected.description||'Keine weiteren Angaben.'}</Text>
+        {(()=>{const seller=sellerInformation(selected);return <View style={{marginTop:20}}>
+          <Text style={styles.sectionTitle}>Anbieter</Text>
+          <Text style={styles.body}>{seller.seller}{seller.org?' ✦':''}</Text>
+          <Text style={[styles.micro,{marginTop:4}]}>Grobe Region: {selected.region_label||'auf Anfrage'}</Text>
+          {seller.own&&selected.moderation_status!=='approved'?<Info warning>Dein Inserat ist noch nicht freigegeben und nur für dich sichtbar.</Info>:null}
+          {seller.own&&selected.moderation_status==='pending'&&!selected.photo_path?
+            <View style={{marginTop:12}}><Button title="Foto ergänzen" mode="outline" disabled={choosing||busy}
+              onPress={()=>pick(asset=>uploadPendingPhoto(selected.id,asset))}/></View>:null}
+          <View style={{marginTop:17}}>{contactButton(selected,seller.contact)}</View>
+        </View>;})()}
+        <Text style={[styles.micro,{marginTop:20}]}>Keine Zahlung über Familienfunke möglich. Prüfe Artikel und Übergabe sorgfältig.</Text>
+      </Card>
+    </View>:<>
+      <View style={styles.marketSearchBox}>
+        <Text style={{fontSize:19,color:C.accentDark,marginRight:10}}>⌕</Text>
+        <TextInput accessibilityLabel="Angebote durchsuchen" style={styles.marketSearchInput}
+          placeholder="Was suchst du?" placeholderTextColor="#647D82" value={query} onChangeText={setQuery} returnKeyType="search"/>
+        {query.length>0?<Pressable accessibilityRole="button" accessibilityLabel="Suche löschen" onPress={()=>setQuery('')}>
+          <Text style={{fontSize:20,color:C.muted}}>×</Text>
+        </Pressable>:null}
+      </View>
+      <MarketCategoryDropdown label="Kategorie" value={filter} onChange={setFilter} options={MARKET_CATEGORIES} allOption/>
+      <View style={styles.marketFilters}>
+        <Pressable accessibilityRole="button" accessibilityState={{expanded:filterOpen}} onPress={()=>setFilterOpen(v=>!v)}
+          style={[styles.marketFilterToggle,filterOpen&&{borderColor:C.accent}]}>
+          <Text style={styles.marketFilterLabel}>⚙  Filter {filterOpen?'ausblenden':'anzeigen'}</Text>
+        </Pressable>
+        <View style={{flex:1}}>
+          <MarketSortSelect value={sortBy} onChange={setSortBy}/>
+        </View>
+      </View>
+      {filterOpen?<Card style={{marginBottom:15,padding:15}}>
+        <Text style={styles.label}>Art des Angebots</Text>
+        <View style={[styles.chipsRow,{marginTop:0,marginBottom:14}]}>
+          {[['all','Alle'],['sell','Verkaufen'],['gift','Verschenken'],['swap','Tauschen']].map(([id,label])=>
+            <Chip key={id} text={label} selected={tradeFilter===id} onPress={()=>setTradeFilter(id)}/>)}
+        </View>
+        <Row style={{gap:12,alignItems:'flex-start'}}>
+          <View style={{flex:1}}><Input label="Preis ab (€)" value={minPrice} onChangeText={setMinPrice} keyboardType="decimal-pad" placeholder="0"/></View>
+          <View style={{flex:1}}><Input label="Preis bis (€)" value={maxPrice} onChangeText={setMaxPrice} keyboardType="decimal-pad" placeholder="100"/></View>
         </Row>
-        {x.description?<Text style={[styles.body,{marginTop:9}]}>{x.description}</Text>:null}
-        <Text style={[styles.micro,{marginTop:10}]}>⌖ {x.region_label||'Region auf Anfrage'} · {sellerOrg?sellerOrg.name:nameOf(x.seller_id)}
-          {sellerOrg?' ✦':''}</Text>
-        {own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{marginTop:7,color:C.warningText}]}>Nur für dich sichtbar · {x.moderation_status==='pending'?'wartet auf Freigabe':x.moderation_status==='rejected'?'nicht freigegeben':'nicht veröffentlicht'}</Text>:null}
-        {own&&x.moderation_status==='pending'&&!x.photo_path?
-          <View style={{marginTop:11}}><Button title="Foto ergänzen" mode="outline" small disabled={choosing||busy} onPress={()=>pick(asset=>uploadPendingPhoto(x.id,asset))}/></View>:null}
-        {!own?<View style={{marginTop:12}}><Button title={connected?connected.status==='accepted'?'Nachrichten unter Mehr öffnen':connected.status==='pending'?'Kontaktanfrage offen':'Kontakt bereits angefragt':'Verkäufer kontaktieren'}
-           disabled={!!connected||busy||!active} mode="outline" onPress={()=>onContact(x.seller_id)}/></View>:null}
-      </Card>;
-    })}
+        <Button mode="ghost" title="Filter zurücksetzen" small
+          onPress={()=>{setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');setSortBy('newest');}}/>
+      </Card>:null}
+      <Row style={{justifyContent:'space-between',marginBottom:12}}>
+        <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
+        <Text style={styles.micro}>Neu und gebraucht</Text>
+      </Row>
+      {shown.length===0?<Blank title="Noch keine passenden Angebote" body="Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe."/>:
+        <View style={styles.marketGrid}>
+        {shown.map(x=>{
+          const seller=sellerInformation(x);
+          return <Pressable key={x.id} accessibilityRole="button"
+            accessibilityLabel={x.title+', '+priceLabel(x)+', '+x.item_condition+', '+(x.region_label||'Region nicht angegeben')}
+            onPress={()=>setSelectedListing(x.id)} style={styles.marketTile}>
+            <View style={styles.marketTileImage}>
+              {photoUrls[x.id]?<Image source={{uri:photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
+                <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>Noch kein Foto</Text></View>}
+              <View style={styles.marketPricePill}><Text style={styles.marketPricePillText} numberOfLines={1}>{priceLabel(x)}</Text></View>
+            </View>
+            <View style={styles.marketTileBody}>
+              <Text style={styles.marketTileTitle} numberOfLines={2}>{x.title}</Text>
+              <Text style={styles.micro} numberOfLines={1}>{x.item_condition} · {x.category}</Text>
+              <Text style={[styles.micro,{marginTop:3}]} numberOfLines={1}>⌖ {x.region_label||'Region auf Anfrage'}</Text>
+              {seller.org?<Text style={[styles.micro,{marginTop:3,color:C.accentDark}]} numberOfLines={1}>{seller.org.name} ✦</Text>:null}
+              {seller.own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{color:C.warningText,marginTop:4}]}>Nur für dich sichtbar</Text>:null}
+            </View>
+          </Pressable>;
+        })}
+        </View>}
+    </>}
   </ScrollView>;
 }
+function MarketSortSelect({value,onChange}){
+  const [open,setOpen]=useState(false);
+  const options=[['newest','Neueste zuerst'],['low','Preis aufsteigend'],['high','Preis absteigend']];
+  const selected=options.find(x=>x[0]===value)?.[1]||'Neueste zuerst';
+  return <View style={{position:'relative'}}>
+    <Pressable accessibilityRole="button" accessibilityLabel={'Sortierung: '+selected} accessibilityState={{expanded:open}}
+      onPress={()=>setOpen(x=>!x)} style={styles.marketFilterToggle}>
+      <Text style={styles.marketFilterLabel} numberOfLines={1}>{selected} ⌄</Text>
+    </Pressable>
+    {open?<View style={styles.marketSortOptions}>
+      {options.map(([id,label])=><Pressable key={id} accessibilityRole="button"
+        accessibilityState={{selected:value===id}} onPress={()=>{onChange(id);setOpen(false);}}
+        style={styles.marketDropdownOption}>
+        <Text style={[styles.body,value===id&&{color:C.accentDark,fontWeight:'800'}]}>{label}</Text>
+        {value===id?<Text style={{color:C.accentDark}}>✓</Text>:null}
+      </Pressable>)}
+    </View>:null}
+  </View>;
+}
+
 function PartnersScreen({organizations,partnerEvents,me,active,busy,applyOrg,createPartnerEvent,openInclusion}){
   const [applying,setApplying]=useState(false);
   const [kind,setKind]=useState('kita');
@@ -984,6 +1135,32 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 </ScrollView>;
 }
 const styles=StyleSheet.create({
+
+marketTopActions:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:C.white,padding:15,borderRadius:20,borderWidth:1,borderColor:C.line,marginBottom:17},
+marketTopTitle:{fontSize:17,fontWeight:'900',color:C.ink,marginBottom:3},
+marketDropdown:{minHeight:50,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:15,paddingVertical:10,backgroundColor:C.white,borderRadius:14,borderWidth:1,borderColor:'#D0DFDE'},
+marketDropdownOptions:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:14,marginTop:4,overflow:'hidden'},
+marketDropdownOption:{minHeight:48,paddingHorizontal:15,paddingVertical:11,borderBottomWidth:1,borderBottomColor:C.line,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
+marketSearchBox:{minHeight:53,backgroundColor:C.white,borderRadius:17,borderWidth:1,borderColor:'#D0DFDE',paddingHorizontal:15,flexDirection:'row',alignItems:'center',marginBottom:14},
+marketSearchInput:{fontSize:16,color:C.ink,flex:1,minHeight:50},
+marketFilters:{flexDirection:'row',alignItems:'flex-start',gap:10,marginBottom:14},
+marketFilterToggle:{minHeight:47,borderRadius:14,borderWidth:1,borderColor:'#D0DFDE',backgroundColor:C.white,paddingHorizontal:10,justifyContent:'center',alignItems:'center'},
+marketFilterLabel:{fontSize:12.5,fontWeight:'800',color:C.accentDark},
+marketSortOptions:{backgroundColor:C.white,borderColor:C.line,borderWidth:1,borderRadius:14,marginTop:5},
+marketGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:13},
+marketTile:{width:'48.3%',borderRadius:18,borderWidth:1,borderColor:C.line,backgroundColor:C.white,overflow:'hidden',minHeight:246,shadowColor:'#986D52',shadowOpacity:0.07,shadowRadius:8,shadowOffset:{width:0,height:2},elevation:1},
+marketTileImage:{width:'100%',height:154,backgroundColor:'#F1F3EF',position:'relative'},
+marketTilePhoto:{width:'100%',height:'100%'},
+marketImagePlaceholder:{backgroundColor:'#F4F1EB',alignItems:'center',justifyContent:'center',gap:5},
+marketPricePill:{position:'absolute',top:8,left:7,right:7,backgroundColor:'#FFFFFFF2',borderRadius:11,paddingVertical:6,paddingHorizontal:9,alignSelf:'flex-start'},
+marketPricePillText:{fontSize:14,fontWeight:'900',color:C.ink},
+marketTileBody:{padding:11,paddingBottom:14,gap:4},
+marketTileTitle:{fontSize:15,fontWeight:'850',color:C.ink,lineHeight:19,minHeight:38},
+marketDetailCard:{padding:17,marginBottom:18},
+marketDetailImage:{height:285,backgroundColor:'#F4F1EB',borderRadius:18,overflow:'hidden'},
+marketFullImage:{width:'100%',height:'100%'},
+marketPrice:{fontWeight:'900',color:C.accentDark},
+
 regionDropdown:{marginTop:8,padding:10,backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:17},
 regionOption:{minHeight:43,paddingHorizontal:12,paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.line,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
 progressTrack:{height:8,backgroundColor:C.pale,borderRadius:10,overflow:'hidden'},
