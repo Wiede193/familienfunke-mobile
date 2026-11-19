@@ -20,7 +20,8 @@
         "foregroundImage": "./adaptive-icon.png",
         "backgroundColor": "#F4FAFA"
       },
-      "permissions": [
+      "permissions": [],
+      "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -28,7 +29,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Du kannst freiwillig Profilfotos auswählen."
+          "photosPermission": "Du kannst freiwillig Profilfotos auswählen.",
+          "microphonePermission": false
         }
       ]
     ],
