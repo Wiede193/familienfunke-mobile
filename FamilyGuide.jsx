@@ -1,6 +1,7 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {VERIFIED_GUIDE_DETAILS, ODER_SPREE_GUIDE} from './FamilyGuideVerified';
 
 const P={bg:'#FFF9F3',paper:'#FFFFFF',ink:'#193C48',muted:'#647D82',teal:'#087F87',tealDark:'#075D67',pale:'#E4F5F1',coral:'#EE7867',sun:'#FFE4AA',line:'#F0E5DC',warn:'#FFF1D6'};
 const TYPES={
@@ -72,7 +73,7 @@ const PHASES=[
     ]
   },
 ];
-const ALL_STEPS=PHASES.flatMap(phase=>phase.steps.map(step=>({...step,phaseId:phase.id,phaseName:phase.name})));
+const ALL_STEPS=PHASES.flatMap(phase=>phase.steps.map(step=>({...step,...(VERIFIED_GUIDE_DETAILS[step.id]||{}),phaseId:phase.id,phaseName:phase.name})));
 const clampStatus=(value)=>STATUSES.some(s=>s.id===value)?value:'open';
 
 export default function FamilyGuideScreen({userId,regionLabel}){
@@ -80,6 +81,7 @@ export default function FamilyGuideScreen({userId,regionLabel}){
   const [ready,setReady]=useState(false);
   const [phaseId,setPhaseId]=useState('pregnancy');
   const [stepId,setStepId]=useState(null);
+  const [showOderSpree,setShowOderSpree]=useState(false);
   const storageKey='familienfunke.guide.status.v1.'+userId;
   useEffect(()=>{
     let active=true;
@@ -106,7 +108,8 @@ export default function FamilyGuideScreen({userId,regionLabel}){
   const openLink=(url)=>Linking.openURL(url).catch(()=>{});
   if(!ready)return <View style={st.loading}><ActivityIndicator color={P.teal}/><Text style={st.small}>Deinen Wegweiser laden …</Text></View>;
   if(activeStep){
-    const source=LINKS[activeStep.link];
+    const source=activeStep.source||LINKS[activeStep.link];
+    const localNote=showOderSpree?ODER_SPREE_GUIDE.steps[activeStep.id]:null;
     return <ScrollView style={st.page} contentContainerStyle={st.content}>
       <Pressable accessibilityRole="button" onPress={()=>{setStepId(null);setPhaseId(activeStep.phaseId);}} style={st.back}><Text style={st.backText}>‹ Zurück zur Zeitleiste</Text></Pressable>
       <View style={st.detailCard}>
@@ -114,6 +117,16 @@ export default function FamilyGuideScreen({userId,regionLabel}){
         <Text style={st.detailTitle}>{activeStep.title}</Text>
         <View style={[st.tag,{backgroundColor:TYPES[activeStep.kind].bg,alignSelf:'flex-start'}]}><Text style={[st.tagText,{color:TYPES[activeStep.kind].color}]}>{TYPES[activeStep.kind].label}</Text></View>
         <Text style={[st.body,{marginTop:15}]}>{activeStep.intro}</Text>
+        {activeStep.deadline?<View style={st.deadlineCard}>
+          <Text style={st.deadlineLabel}>{activeStep.deadlineLabel}</Text>
+          <Text style={st.deadlineText}>{activeStep.deadline}</Text>
+          <Text style={st.deadlineHint}>Diese Information bezieht sich auf die genannte Situation – sie ist nicht für jede Familie eine Pflicht zur Antragstellung.</Text>
+        </View>:null}
+        {localNote?<View style={st.localNotice}>
+          <Text style={st.question}>Hinweis für den Landkreis Oder-Spree</Text>
+          <Text style={st.body}>{localNote}</Text>
+          {['parental_allowance','childcare_search','kita_application'].includes(activeStep.id)?<Pressable accessibilityRole="link" onPress={()=>openLink(ODER_SPREE_GUIDE.offices[activeStep.id==='parental_allowance'?0:1].url)}><Text style={st.localLink}>Zuständige Landkreis-Seite öffnen ↗</Text></Pressable>:null}
+        </View>:null}
         <View style={st.detailDivider}/>
         {[
           ['Was ist zu tun?',activeStep.intro],
@@ -126,7 +139,7 @@ export default function FamilyGuideScreen({userId,regionLabel}){
         <View style={st.source}>
           <Text style={st.question}>Quelle & Geltungsbereich</Text>
           <Text style={st.small}>{source.label} · Deutschland. Zuständigkeiten und Verfahren können je nach Region abweichen.</Text>
-          <Text style={[st.small,{marginTop:4}]}>Fachliche Aktualitätsprüfung: vor der Veröffentlichung erforderlich.</Text>
+          <Text style={[st.small,{marginTop:4}]}>{activeStep.source?'Quelle im November 2026 abgeglichen. Vor einem verbindlichen Antrag die aktuell gültigen Regeln auf der offiziellen Seite prüfen.':'Allgemeine Orientierung; einzelne Angaben wurden nicht als verbindliche Fristen geprüft.'}</Text>
           <Pressable accessibilityRole="link" onPress={()=>openLink(source.url)} style={st.sourceButton}><Text style={st.sourceButtonText}>Offizielle Informationsseite öffnen ↗</Text></Pressable>
         </View>
         <Text style={[st.question,{marginTop:18}]}>Dein Stand</Text>
@@ -154,6 +167,23 @@ export default function FamilyGuideScreen({userId,regionLabel}){
     <View style={st.legend}>{[
       TYPES.recommended,TYPES.voluntary,TYPES.individual
     ].map(t=><View key={t.short} style={[st.tag,{backgroundColor:t.bg}]}><Text style={[st.tagText,{color:t.color}]}>{t.short}</Text></View>)}</View>
+    <View style={st.regionCard}>
+      <Text style={st.regionTitle}>Regionale Informationen</Text>
+      <Text style={st.small}>Zusätzliche Ansprechpartner und Kita-Regeln für Brandenburg und den Landkreis Oder-Spree. Diese Auswahl ändert nichts an deinem Familienprofil.</Text>
+      <Pressable accessibilityRole="button" accessibilityState={{expanded:showOderSpree}} onPress={()=>setShowOderSpree(value=>!value)} style={st.regionButton}>
+        <Text style={st.regionButtonText}>{showOderSpree?'Landkreis-Infos ausblenden':'Brandenburg / Oder-Spree anzeigen'}</Text>
+      </Pressable>
+      {showOderSpree?<View style={st.regionDetails}>
+        <Text style={st.regionTitle}>{ODER_SPREE_GUIDE.title}</Text>
+        <Text style={st.small}>{ODER_SPREE_GUIDE.description}</Text>
+        <Text style={[st.small,{marginTop:7}]}>{ODER_SPREE_GUIDE.reviewed}</Text>
+        {ODER_SPREE_GUIDE.offices.map(office=><View key={office.id} style={st.officeCard}>
+          <Text style={st.question}>{office.title}</Text>
+          <Text style={st.small}>{office.detail}</Text>
+          <Pressable accessibilityRole="link" onPress={()=>openLink(office.url)} style={st.officeLink}><Text style={st.localLink}>Offizielle Seite öffnen ↗</Text></Pressable>
+        </View>)}
+      </View>:null}
+    </View>
     <Text style={st.sectionHeading}>Eure Zeitleiste</Text>
     {PHASES.map((p,index)=>{
       const selected=p.id===phaseId;
@@ -233,6 +263,19 @@ const st=StyleSheet.create({
   statusButton:{paddingHorizontal:11,paddingVertical:10,borderRadius:13,backgroundColor:'#EDF3F2'},
   statusSelected:{backgroundColor:P.teal},
   statusText:{color:P.tealDark,fontSize:12,fontWeight:'900'},
+  deadlineCard:{backgroundColor:'#FFF4D8',borderRadius:15,padding:15,marginTop:17},
+  deadlineLabel:{fontSize:11,fontWeight:'900',color:'#7C5420',textTransform:'uppercase',letterSpacing:0.6},
+  deadlineText:{fontSize:15,fontWeight:'900',color:P.ink,lineHeight:22,marginTop:7},
+  deadlineHint:{fontSize:11.5,lineHeight:18,color:P.muted,marginTop:9},
+  localNotice:{borderWidth:1,borderColor:'#D2E8E0',backgroundColor:'#F4FBF8',borderRadius:15,padding:14,marginTop:15},
+  localLink:{fontSize:12.5,fontWeight:'900',color:P.tealDark,marginTop:9},
+  regionCard:{backgroundColor:P.paper,borderWidth:1,borderColor:P.line,borderRadius:19,padding:15,marginBottom:21},
+  regionTitle:{fontSize:16,fontWeight:'900',color:P.ink,marginBottom:6},
+  regionButton:{backgroundColor:P.teal,paddingVertical:12,paddingHorizontal:12,borderRadius:12,alignItems:'center',marginTop:12},
+  regionButtonText:{fontWeight:'900',color:P.paper,fontSize:13},
+  regionDetails:{marginTop:15},
+  officeCard:{paddingVertical:12,borderTopWidth:1,borderTopColor:P.line},
+  officeLink:{marginTop:3},
   note:{backgroundColor:P.warn,padding:15,borderRadius:16,marginTop:16},
   noteText:{color:'#6A542E',lineHeight:20,fontSize:12.5},
 });
