@@ -1,91 +1,88 @@
--- Familienfunke · Chat-Schutz: höchstens fünf eigene Nachrichten hintereinander.
--- BETASTAND 2026-11-19 · Noch NICHT auf das Supabase-Projekt angewendet.
--- Vor Anwendung Schema/Trigger/Edge-Function im Zielprojekt prüfen.
---
--- Auf Ebene der public.messages-Tabelle erzwungen, nicht nur in der mobilen App.
--- Erlaubt bis zu 5 aufeinanderfolgende Nachrichten derselben sender_id pro contact_id.
--- Eine Antwort der anderen Familie setzt diese Zählung automatisch zurück.
---
--- WICHTIG: Dieser Trigger ersetzt KEINE Authentifizierung, keine RLS-Policies,
--- keine Moderation und keine Prüfung, ob die Kontaktanfrage angenommen wurde.
--- Die bestehende send-message Edge Function bleibt erhalten.
---
--- Die Nachricht erhält die tatsächliche Serverzeit erst NACH dem
--- kontaktbezogenen Lock. Ein clientseitig gesetzter created_at-Wert wird
--- überschrieben, damit die Reihenfolge nicht über Zeitstempel gefälscht wird.
--- Die Echtheit der sender_id muss weiterhin die send-message-Funktion/RLS prüfen.
+-- Familienfunke · Chat-Schutz (Stand 19.11.2026)
+-- Höchstens fünf Nachrichten in Folge, bis eine Antwort des anderen Kontakts kommt.
+-- Diese Grenze wird in der Datenbank selbst geprüft, also auch für den Edge-Function-Aufruf.
+-- Die Funktion befindet sich im NICHT für REST freigegebenen Schema private.
 
 BEGIN;
 
 CREATE INDEX IF NOT EXISTS ff_messages_contact_recent_idx
   ON public.messages (contact_id, created_at DESC, id DESC);
 
-CREATE OR REPLACE FUNCTION public.ff_guard_five_unanswered_messages()
+CREATE OR REPLACE FUNCTION private.ff_guard_five_unanswered_messages()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
-AS $function$
+AS $body$
 DECLARE
-  previous_by_sender integer;
+  participants record;
+  last_five_by_sender integer;
+  latest_at timestamptz;
 BEGIN
-  -- Sperre nur die zugehörige Kontakt-Zeile und nicht alle Chats.
-  -- Zwei nahezu gleichzeitig eingereichte Nachrichten desselben Chats
-  -- werden hierdurch serialisiert; die zweite sieht anschließend
-  -- die erste bereits gespeicherte Nachricht.
-  PERFORM 1
-    FROM public.contact_requests
-   WHERE id = NEW.contact_id
+  -- Sperre für genau diese Konversation: parallele Inserts werden serialisiert.
+  -- SECURITY DEFINER ist hier erforderlich, weil die send-message-Service-Rolle
+  -- keine UPDATE-/FOR-UPDATE-Rechte auf contact_requests erhält.
+  SELECT c.sender_id, c.recipient_id, c.status
+    INTO participants
+    FROM public.contact_requests AS c
+   WHERE c.id = NEW.contact_id
    FOR UPDATE;
-
   IF NOT FOUND THEN
     RAISE EXCEPTION 'FF_CONTACT_NOT_FOUND'
-      USING ERRCODE = '23503',
-            HINT = 'Eine zugehörige Kontaktanfrage ist erforderlich.';
+      USING ERRCODE = '23503';
   END IF;
 
-  -- Erzeugt einen serverseitigen Zeitpunkt nach dem Lock, sodass
-  -- konkurrierende Sendevorgänge nicht aneinander vorbeisortiert werden.
-  NEW.created_at := clock_timestamp();
+  IF participants.status <> 'accepted'
+     OR NEW.sender_id NOT IN (participants.sender_id, participants.recipient_id) THEN
+    RAISE EXCEPTION 'FF_CONTACT_NOT_ACCEPTED'
+      USING ERRCODE = '42501';
+  END IF;
 
-  SELECT COUNT(*) INTO previous_by_sender
+  SELECT COUNT(*) INTO last_five_by_sender
     FROM (
       SELECT m.sender_id
         FROM public.messages AS m
        WHERE m.contact_id = NEW.contact_id
        ORDER BY m.created_at DESC, m.id DESC
        LIMIT 5
-    ) AS previous_messages
-   WHERE previous_messages.sender_id = NEW.sender_id;
+    ) AS recent
+   WHERE recent.sender_id = NEW.sender_id;
 
-  IF previous_by_sender >= 5 THEN
+  IF last_five_by_sender >= 5 THEN
     RAISE EXCEPTION 'FF_MSG_LIMIT_5'
       USING ERRCODE = 'P0001',
-            DETAIL = 'Fünf Nachrichten ohne Antwort sind bereits gesendet.',
-            HINT = 'Nach einer Antwort der anderen Familie kannst du wieder schreiben.';
+            DETAIL = 'Fuenf Nachrichten hintereinander ohne Antwort.',
+            HINT = 'Bitte auf die Antwort des anderen Kontakts warten.';
   END IF;
 
+  -- Gegen clientseitig vorgegebene oder wegen paralleler Transaktionen
+  -- veraltete Timestamps: jede neu akzeptierte Nachricht wird nach dem
+  -- zuletzt gespeicherten Eintrag einsortiert, unabhängig von Clientwerten.
+  SELECT MAX(m.created_at) INTO latest_at
+    FROM public.messages AS m
+   WHERE m.contact_id = NEW.contact_id;
+  NEW.created_at := GREATEST(
+    clock_timestamp(),
+    COALESCE(latest_at + interval '1 microsecond', clock_timestamp())
+  );
   RETURN NEW;
 END;
-$function$;
+$body$;
 
--- Nicht als aufrufbare API veröffentlichen. Als Trigger bleibt die Funktion nutzbar.
-REVOKE ALL ON FUNCTION public.ff_guard_five_unanswered_messages() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.ff_guard_five_unanswered_messages() FROM anon, authenticated;
-
+-- Die Funktion soll ausschließlich als Trigger aufgerufen werden.
+REVOKE ALL ON FUNCTION private.ff_guard_five_unanswered_messages() FROM PUBLIC;
+REVOKE ALL ON FUNCTION private.ff_guard_five_unanswered_messages() FROM anon, authenticated;
 DROP TRIGGER IF EXISTS ff_limit_unanswered_messages ON public.messages;
 CREATE TRIGGER ff_limit_unanswered_messages
   BEFORE INSERT ON public.messages
   FOR EACH ROW
-  EXECUTE FUNCTION public.ff_guard_five_unanswered_messages();
+  EXECUTE FUNCTION private.ff_guard_five_unanswered_messages();
 
 COMMIT;
 
--- Vor Produktivbetrieb:
--- 1. Im DB-Editor Struktur/Schema bestätigen (Kontakt-Tabelle, Nachrichten-Spalten).
--- 2. In einer staging/test DB mit zwei Familien testen.
--- 3. Bestehende Edge Function prüfen, dass Postgres-Fehler nicht verschluckt werden.
--- 4. Schreibrechte/RLS prüfen; kein direkter DELETE/UPDATE von Nachrichten zulassen,
---    durch den der Nachrichtenverlauf und damit die Zählung manipuliert werden könnte.
--- 5. Bei hohem Durchsatz Test auf parallele INSERTs für denselben contact_id.
--- 6. Nur nach Freigabe auf der echten Datenbank ausführen.
+-- Akzeptanzkriterien: 5 gleichgerichtete Nachrichten erlaubt, 6. blockiert;
+-- sobald B antwortet, darf A wieder bis zu fünf senden.
+-- Unbefugte Sender / nicht akzeptierte Kontaktanfragen werden abgelehnt.
+-- DELETE/UPDATE auf public.messages bleiben für Client-Rollen gesperrt.
+-- Vor produktiven Tests: bestehende Supabase-Funktion send-message muss
+-- FF_MSG_LIMIT_5 als 429 weitergeben, damit die App korrekt informieren kann.
