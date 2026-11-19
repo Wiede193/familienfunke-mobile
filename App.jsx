@@ -5,6 +5,7 @@ Modal, Platform, Pressable, RefreshControl, SafeAreaView, ScrollView,
 StatusBar, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
@@ -12,6 +13,7 @@ import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { BUNDESLAENDER, KREISE_NACH_LAND } from './data/regionen';
 import MomentViewer from './components/MomentViewer';
 import FamilyTabIcon from './components/FamilyTabIcon';
+import { computeActivity, isValidSeenState, markSeen, newSeenState, storageKey } from './lib/activityIndicators';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFFAF2',white:'#FFFFFF',ink:'#243E43',muted:'#687E80',
@@ -174,7 +176,41 @@ const [myProfile,setMyProfile]=useState(null);
 const [verification,setVerification]=useState(null);
 const [membership,setMembership]=useState(null);
 const [photosUrls,setPhotosUrls]=useState({});
+const [seen,setSeen]=useState(null);
+const seenRef=useRef(null);
 const me=session?.user?.id;
+
+// Ungelesen-Markierungen bleiben in dieser Beta lokal auf dem jeweiligen Gerät.
+// Der erste Besuch legt nur einen Ausgangspunkt an, nicht künstlich neue Hinweise.
+useEffect(()=>{
+  let alive=true;
+  seenRef.current=null;
+  setSeen(null);
+  if(!me)return ()=>{alive=false;};
+  AsyncStorage.getItem(storageKey(me)).then(raw=>{
+    let stored=null;
+    try{stored=raw?JSON.parse(raw):null;}catch{stored=null;}
+    const initialSeen=isValidSeenState(stored,me)?stored:newSeenState(me);
+    if(!alive)return;
+    seenRef.current=initialSeen;
+    setSeen(initialSeen);
+    if(!isValidSeenState(stored,me))AsyncStorage.setItem(storageKey(me),JSON.stringify(initialSeen)).catch(()=>{});
+  }).catch(()=>{
+    if(!alive)return;
+    const initialSeen=newSeenState(me);
+    seenRef.current=initialSeen;setSeen(initialSeen);
+  });
+  return ()=>{alive=false;};
+},[me]);
+const markActivity=useCallback((type,contactId=null)=>{
+  const current=seenRef.current;
+  if(!current||current.userId!==me)return;
+  const next=markSeen(current,type,Date.now(),contactId);
+  if(next===current)return;
+  seenRef.current=next;
+  setSeen(next);
+  AsyncStorage.setItem(storageKey(me),JSON.stringify(next)).catch(()=>{});
+},[me]);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
 if(!silent)setLoading(true);
@@ -226,6 +262,12 @@ const accepted=db.contacts.filter(x=>x.status==='accepted');
 const pending=db.contacts.filter(x=>x.status==='pending');
 const photoOf=(uid)=>db.photos.find(p=>p.owner_id===uid&&p.moderation_status==='approved')||db.photos.find(p=>p.owner_id===uid&&uid===me);
 const ownPhotos=db.photos.filter(p=>p.owner_id===me);
+const activities=useMemo(()=>computeActivity({
+  me,db,contacts:db.contacts,matches:db.profiles.filter(p=>p.user_id!==me&&p.moderation_status==='approved'&&p.is_discoverable)
+    .map(p=>({...p,match:(p.interests||[]).filter(i=>myProfile?.interests?.includes(i)).length})),
+  myProfile,seen,blockedUserIds:db.blocks.filter(b=>b.blocker_id===me).map(b=>b.blocked_id)
+}),[me,db,myProfile,seen]);
+const freshPhotoCount=activities.newPhotos;
 const matches=useMemo(()=>db.profiles.filter(p=>p.user_id!==me&&p.moderation_status==='approved'&&p.is_discoverable)
 .map(p=>({...p,match:(p.interests||[]).filter(x=>myProfile?.interests?.includes(x)).length}))
 .sort((a,b)=>b.match-a.match||String(a.display_name).localeCompare(String(b.display_name))),[db.profiles,me,myProfile]);
@@ -259,6 +301,22 @@ if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:
 if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
 if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/><Login error={error} setError={setError}/></SafeAreaView>;
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Familien-Kompass':TABS.find(t=>t[0]===tab)?.[1];
+function chooseTab(id){
+  setTab(id);
+  setShowEventForm(false);
+  if(id==='discover')markActivity('discover');
+  if(id==='events')markActivity('events');
+}
+function openChat(id){
+  setSelectedContact(id);
+  setTab('chat');
+  markActivity('chat',id);
+}
+useEffect(()=>{
+  if(selectedContact&&me&&seen){
+    markActivity('chat',selectedContact);
+  }
+},[selectedContact,me,db.messages,markActivity]);
 function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact)setSelectedContact(null);else if(showInfo)setShowInfo(false);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
@@ -270,7 +328,9 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{detailFamily||selectedContact||showInfo?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<MadeInGermanyStamp/>}
+{detailFamily||selectedContact||showInfo?<Button title="← Zurück" onPress={back} small mode="ghost"/>:
+<Row style={{gap:6}}><Pressable accessibilityRole="button" accessibilityLabel="Neuigkeiten aktualisieren" onPress={()=>load(true)}
+ style={styles.refreshButton}><Text style={styles.refreshText}>↻</Text></Pressable><MadeInGermanyStamp/></Row>}
 </View>
 {error?<Pressable onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
 {notice?<Pressable onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
@@ -281,7 +341,8 @@ imageUrl={photosUrls[photoOf(detailFamily)?.id]} photos={db.photos.filter(p=>p.o
 photosUrls={photosUrls} active={active} disabled={busy} blocked={blocked(detailFamily)}
 connection={db.contacts.find(c=>c.sender_id===detailFamily||c.recipient_id===detailFamily)}
 onContact={()=>sendRequest(detailFamily)} onBlock={()=>blockUser(detailFamily)} onUnblock={()=>unblockUser(detailFamily)}
-onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setDetailFamily(null);setSelectedContact(cid);setTab('chat');}}/>:
+onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setDetailFamily(null);openChat(cid);}}
+ onPhotosViewed={()=>markActivity('photos')}/>:
 selectedContact?<ChatScreen contact={accepted.find(c=>c.id===selectedContact)} me={me} nameOf={findName}
 messages={db.messages.filter(m=>m.contact_id===selectedContact)} disabled={busy} blocked={blocked}
 send={(body)=>execute(async()=>{
@@ -307,9 +368,9 @@ myProfile={myProfile} verification={verification} membership={membership}
 showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked} openKompass={()=>setShowInfo(true)}/>:
 tab==='contacts'?<ContactsScreen pending={pending} accepted={accepted} me={me} nameOf={findName}
 respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onUnblock={unblockUser}
-onChat={(id)=>{setSelectedContact(id);setTab('chat');}}/>:
+onChat={openChat} newPhotoCount={freshPhotoCount} onViewPhotos={()=>{markActivity('photos');setTab('contacts');}}/>:
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
-onChat={(id)=>setSelectedContact(id)} messages={db.messages}/>:
+onChat={openChat} messages={db.messages} chatCounts={activities.chatCounts}/>:
 tab==='events'?<EventsScreen events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
 profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
 createEvent={(event)=>execute(async()=>{
@@ -331,10 +392,13 @@ blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>supabase.auth.signOut()}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title])=><Pressable accessibilityRole="tab" accessibilityLabel={title}
-accessibilityState={{selected:tab===id}} key={id} onPress={()=>{setTab(id);setShowEventForm(false);}}
+{TABS.map(([id,title])=><Pressable accessibilityRole="tab" accessibilityLabel={title+(activities[id]>0?', '+activities[id]+' Hinweise':'')}
+accessibilityState={{selected:tab===id}} key={id} onPress={()=>chooseTab(id)}
 style={({pressed})=>[styles.tab,tab===id&&styles.tabActive,pressed&&styles.tabPressed]}>
+<View style={styles.tabIconWrap}>
 <FamilyTabIcon name={id} color={tab===id?C.accentDark:'#839293'} size={26}/>
+{activities[id]>0?<View style={styles.tabBadge}><Text style={styles.tabBadgeText}>{activities[id]>99?'99+':activities[id]}</Text></View>:null}
+</View>
 <Text numberOfLines={1} style={[styles.tabLabel,tab===id&&styles.tabLabelActive]}>{title}</Text>
 </Pressable>)}
 </View>:null}
@@ -435,7 +499,7 @@ return <Card key={p.user_id} style={{marginBottom:12}}>
 })}
 </ScrollView>;
 }
-function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
+function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat,onPhotosViewed}){
 const [viewingPhotoId,setViewingPhotoId]=useState(null);
 if(!p)return <Blank title="Profil nicht verfügbar" body="Das Profil kann verborgen oder gesperrt worden sein."/>;
 return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
@@ -447,7 +511,7 @@ return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content
 </Card>
 {connection?.status==='accepted'&&photos?.length>0?<><H sub="Nur bestätigte Kontakte sehen freigegebene Familienbilder.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Pressable key={photo.id} accessibilityRole="button"
  accessibilityLabel={'Foto vergrößern: '+(photo.caption||'Familienmoment')} disabled={!photosUrls[photo.id]}
- onPress={()=>setViewingPhotoId(photo.id)} style={styles.galleryPressable}>
+ onPress={()=>{setViewingPhotoId(photo.id);onPhotosViewed?.();}} style={styles.galleryPressable}>
  <Card style={{padding:10}}>{photosUrls[photo.id]?<Image source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
  <Text style={styles.micro} numberOfLines={2}>{photo.caption||'Familienmoment'}</Text>
  <Text style={[styles.micro,{color:C.accentDark,fontWeight:'800',marginTop:5}]}>Foto ansehen ›</Text>
@@ -456,10 +520,15 @@ return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content
 <MomentViewer photos={connection?.status==='accepted'?(photos||[]):[]} urls={photosUrls||{}} activeId={viewingPhotoId} onSelect={setViewingPhotoId}
  onClose={()=>setViewingPhotoId(null)}/></>;
 }
-function ContactsScreen({pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat}){
+function ContactsScreen({pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat,newPhotoCount,onViewPhotos}){
 const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <H sub="Nachrichten sind erst nach gegenseitiger Bestätigung möglich.">Deine Kontakte</H>
+{newPhotoCount>0?<Pressable accessibilityRole="button" onPress={onViewPhotos} style={styles.activityCard}>
+  <Text style={styles.activityCardTitle}>☀ Neue Familienmomente</Text>
+  <Text style={styles.activityCardText}>{newPhotoCount} neue freigegebene {newPhotoCount===1?'Aufnahme':'Aufnahmen'} bei deinen bestätigten Kontakten. Öffne ein Familienprofil, um sie anzusehen.</Text>
+  <Text style={styles.activityCardAction}>Hinweis als gesehen markieren ✓</Text>
+ </Pressable>:null}
 <Text style={styles.sectionTitle}>Offene Anfragen</Text>
 {pending.length===0?<Blank title="Keine offenen Anfragen" body="Neue Kontaktwünsche erscheinen hier."/>:pending.map(c=><Card key={c.id} style={{marginBottom:10}}>
 <Row><Avatar name={nameOf(other(c))}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other(c))}</Text><Text style={styles.micro}>{c.recipient_id===me?'Möchte dich kennenlernen':'Von dir angefragt'}</Text></View></Row>
@@ -472,12 +541,14 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 </Card>;})}
 </ScrollView>;
 }
-function ChatList({contacts,me,nameOf,messages,onChat,blocked}){
+function ChatList({contacts,me,nameOf,messages,onChat,blocked,chatCounts={}}){
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
 {contacts.length===0?<Blank title="Noch keine Gespräche" body="Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben."/>:
 contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;const last=messages.filter(m=>m.contact_id===c.id)[0];return <Pressable key={c.id} onPress={()=>onChat(c.id)}>
-<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':last?.body||'Noch keine Nachrichten'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
+<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':last?.body||'Noch keine Nachrichten'}</Text></View>
+{chatCounts[c.id]>0?<View style={styles.chatUnreadBadge}><Text style={styles.chatUnreadText}>{chatCounts[c.id]>99?'99+':chatCounts[c.id]}</Text></View>:<Text style={{fontSize:23,color:C.accent}}>›</Text>}
+</Row></Card>
 </Pressable>;})}
 </ScrollView>;
 }
@@ -890,8 +961,19 @@ info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertica
 warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:C.accentDark},
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
+refreshButton:{width:39,height:39,alignItems:'center',justifyContent:'center',borderRadius:13,backgroundColor:C.pale},
+refreshText:{color:C.accentDark,fontSize:28,fontWeight:'700',lineHeight:31},
 tabBar:{minHeight:78,borderTopWidth:1,borderTopColor:'#EBDCC9',backgroundColor:'#FFFEF9',flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:4,paddingBottom:4},
 tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:64,paddingVertical:7,paddingHorizontal:1,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:'#FFF0D3'},tabPressed:{opacity:.75},tabLabel:{fontSize:10,color:'#7F9090',marginTop:5,fontWeight:'700'},tabLabelActive:{color:C.accentDark,fontWeight:'900'},
+tabIconWrap:{width:30,height:30,alignItems:'center',justifyContent:'center'},
+tabBadge:{position:'absolute',top:-8,right:-18,minWidth:19,height:19,borderRadius:10,alignItems:'center',justifyContent:'center',backgroundColor:C.coralDeep,borderColor:C.white,borderWidth:1.5,paddingHorizontal:3},
+tabBadgeText:{fontSize:10,color:C.white,fontWeight:'900'},
+chatUnreadBadge:{minWidth:23,height:23,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:C.coralDeep,paddingHorizontal:5},
+chatUnreadText:{color:C.white,fontWeight:'900',fontSize:11},
+activityCard:{padding:16,backgroundColor:'#FFF2DA',borderRadius:19,borderWidth:1,borderColor:'#EAC897',marginBottom:19},
+activityCardTitle:{color:C.ink,fontWeight:'900',fontSize:16},
+activityCardText:{color:C.muted,lineHeight:19,fontSize:13,marginTop:6},
+activityCardAction:{color:C.accentDark,fontWeight:'900',fontSize:12,marginTop:9},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},
