@@ -16,7 +16,16 @@ accent:'#087F87',accentDark:'#075D67',pale:'#E4F5F1',line:'#F0E5DC',
 coral:'#EE7867',coralDeep:'#B9474C',sunny:'#FFE4AA',
 lavender:'#F2EEFF',warning:'#FFF1D6',warningText:'#75521D',
 };
-const INTERESTS = ['Spielplatz','Natur','Radfahren','Wandern','Kochen','Musik','Basteln','Sport','Tiere','Lesen','Ausflüge','Spieleabende'];
+const INTERESTS = ['Spielplatz','Natur','Radfahren','Wandern','Kochen','Musik','Basteln','Sport','Tiere','Lesen','Ausflüge','Spieleabende','Schwimmen','Fußball','Tanzen','Camping','Gärtnern','Fotografie','Brettspiele','Museen','Backen','Picknick','Kino','Yoga','Familiencafés','Handarbeiten','Konzerte','Reisen'];
+const REGIONS = ['Landkreis Oder-Spree','Fürstenwalde/Spree','Beeskow','Eisenhüttenstadt','Bad Saarow','Storkow (Mark)','Frankfurt (Oder)','Landkreis Dahme-Spreewald','Landkreis Märkisch-Oderland','Berlin','Potsdam','Cottbus'];
+const normalizeLabel = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+const REGION_CLUSTERS = [
+  ['Landkreis Oder-Spree','Fürstenwalde/Spree','Fürstenwalde (Spree)','Fürstenwalde','Beeskow','Eisenhüttenstadt','Bad Saarow','Storkow (Mark)','Storkow'],
+].map(group=>group.map(normalizeLabel));
+const sameRegion = (a,b) => {
+  const x=normalizeLabel(a), y=normalizeLabel(b);
+  return !!x && (x===y || REGION_CLUSTERS.some(group=>group.includes(x)&&group.includes(y)));
+};
 const TABS = [['discover','Entdecken','⌕'],['contacts','Kontakte','♡'],['chat','Nachrichten','✉'],['events','Kalender','▦'],['profile','Profil','◉']];
 const blankProfile = {display_name:'',region_label:'',about:'',interests:[],is_discoverable:false};
 const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[]};
@@ -95,6 +104,29 @@ function Input({label,multiline=false,style,...props}) {
 return <View style={[{marginBottom:13},style]}><Text style={styles.label}>{label}</Text><TextInput
 placeholderTextColor="#9AAFB4" style={[styles.input,multiline&&{height:95,textAlignVertical:'top',paddingTop:12}]}
 multiline={multiline} {...props}/></View>;
+}
+function RegionPicker({value,onChange}) {
+const [open,setOpen]=useState(false);
+const [search,setSearch]=useState('');
+const options=REGIONS.filter(r=>normalizeLabel(r).includes(normalizeLabel(search)));
+function choose(value){onChange(value);setSearch('');setOpen(false);}
+return <View style={{marginBottom:15}}>
+<Text style={styles.label}>Wo wohnt ihr? (Stadt oder Landkreis)</Text>
+<Pressable accessibilityRole="button" accessibilityLabel="Region auswählen" onPress={()=>{setOpen(v=>!v);setSearch('');}} style={[styles.input,{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}]}>
+<Text style={{color:value?C.ink:C.muted,flex:1}} numberOfLines={1}>{value||'Region auswählen oder selbst eingeben'}</Text>
+<Text style={{color:C.accent,fontWeight:'900'}}>{open?'⌃':'⌄'}</Text>
+</Pressable>
+{open?<View style={styles.regionDropdown}>
+<TextInput style={[styles.input,{marginBottom:8}]} placeholder="Stadt oder Landkreis suchen" placeholderTextColor="#9AAFB4" value={search} onChangeText={setSearch} maxLength={80} autoCorrect={false}/>
+<ScrollView style={{maxHeight:210}} keyboardShouldPersistTaps="always" nestedScrollEnabled>
+{options.map(r=><Pressable accessibilityRole="button" key={r} onPress={()=>choose(r)} style={styles.regionOption}><Text style={styles.body}>{r}</Text>{normalizeLabel(r)===normalizeLabel(value)?<Text style={{color:C.accent}}>✓</Text>:null}</Pressable>)}
+{search.trim().length>=2&&!REGIONS.some(r=>normalizeLabel(r)===normalizeLabel(search))?
+<Pressable accessibilityRole="button" onPress={()=>choose(search.trim())} style={styles.regionOption}><Text style={[styles.body,{color:C.accentDark}]}>„{search.trim()}“ übernehmen</Text></Pressable>:null}
+{options.length===0&&search.trim().length<2?<Text style={styles.micro}>Bitte mindestens zwei Zeichen eingeben.</Text>:null}
+</ScrollView>
+</View>:null}
+<Text style={[styles.micro,{marginTop:6}]}>Gib bitte keine Straße oder Hausnummer an. Deine Region ist freiwillig.</Text>
+</View>;
 }
 function Blank({title,body}) {return <Card style={{alignItems:'center',paddingVertical:30}}><Text style={{fontSize:38,marginBottom:8,color:C.coral}}>♡</Text><Text style={styles.cardTitle}>{title}</Text><Text style={[styles.sub,{textAlign:'center'}]}>{body}</Text></Card>;}
 function Login({error,setError}) {
@@ -197,8 +229,8 @@ const pending=db.contacts.filter(x=>x.status==='pending');
 const photoOf=(uid)=>db.photos.find(p=>p.owner_id===uid&&p.moderation_status==='approved')||db.photos.find(p=>p.owner_id===uid&&uid===me);
 const ownPhotos=db.photos.filter(p=>p.owner_id===me);
 const matches=useMemo(()=>db.profiles.filter(p=>p.user_id!==me&&p.moderation_status==='approved'&&p.is_discoverable)
-.map(p=>({...p,match:(p.interests||[]).filter(x=>myProfile?.interests?.includes(x)).length}))
-.sort((a,b)=>b.match-a.match||String(a.display_name).localeCompare(String(b.display_name))),[db.profiles,me,myProfile]);
+.map(p=>({...p,match:(p.interests||[]).filter(x=>myProfile?.interests?.includes(x)).length,localMatch:sameRegion(p.region_label,myProfile?.region_label)}))
+.sort((a,b)=>Number(b.localMatch)-Number(a.localMatch)||b.match-a.match||String(a.display_name).localeCompare(String(b.display_name))),[db.profiles,me,myProfile]);
 async function execute(fn,success){
 if(busy)return;
 setBusy(true);setError('');setNotice('');
@@ -370,34 +402,71 @@ await supabase.storage.from('familienfunke-photos').remove([photo.storage_path])
 function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked}) {
 const [query,setQuery]=useState('');
 const [interest,setInterest]=useState('Alle');
-const filtered=matches.filter(p=>(!query||`${p.display_name} ${p.region_label} ${(p.interests||[]).join(' ')}`.toLowerCase().includes(query.toLowerCase()))&&(interest==='Alle'||p.interests?.includes(interest)));
+const [onlyRegion,setOnlyRegion]=useState(false);
+const [onlyShared,setOnlyShared]=useState(false);
+const [mode,setMode]=useState('cards');
+const [cardIndex,setCardIndex]=useState(0);
+const myRegion=myProfile?.region_label||'';
+const filtered=matches.filter(p=>
+!blocked(p.user_id)&&
+(!query||normalizeLabel(p.display_name+' '+(p.region_label||'')+' '+(p.interests||[]).join(' ')).includes(normalizeLabel(query)))&&
+(interest==='Alle'||p.interests?.includes(interest))&&
+(!onlyRegion||sameRegion(p.region_label,myRegion))&&
+(!onlyShared||p.match>0)
+);
+const index=Math.min(cardIndex,Math.max(0,filtered.length-1));
+function updateFilter(setter,value){setter(value);setCardIndex(0);}
+function familyCard(p){
+const existing=requests.find(c=>(c.sender_id===me&&c.recipient_id===p.user_id)||(c.recipient_id===me&&c.sender_id===p.user_id));
+const regional=sameRegion(p.region_label,myRegion);
+return <Card key={p.user_id} style={{marginBottom:12}}>
+<Row><Avatar name={p.display_name} size={64} uri={imageFor(p.user_id)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{p.display_name}</Text><Text style={styles.micro}>⌖ {p.region_label||'Region nicht angegeben'}</Text>{regional?<Text style={[styles.micro,{color:C.accentDark,fontWeight:'800',marginTop:3}]}>✓ Gleiche Region</Text>:null}</View>{p.match>0?<View style={styles.match}><Text style={styles.matchText}>{p.match} gemeinsam</Text></View>:null}</Row>
+{p.about?<Text style={[styles.body,{marginTop:13}]} numberOfLines={mode==='cards'?5:3}>{p.about}</Text>:null}
+<View style={styles.chipsRow}>{(p.interests||[]).slice(0,mode==='cards'?8:5).map(i=><Chip key={i} text={i}/>)}</View>
+<Row style={{marginTop:16}}><Button title="Profil ansehen" mode="outline" small style={{flex:1}} onPress={()=>showFamily(p.user_id)}/>
+<Button title={existing?existing.status==='accepted'?'Verbunden':existing.status==='pending'?'Anfrage offen':'Angefragt':'Kontakt anfragen'} small disabled={busy||!!existing} style={{flex:1}} onPress={()=>onContact(p.user_id)}/></Row>
+</Card>;
+}
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 <View style={styles.hero}>
-  <View style={styles.heroDecorationOne} pointerEvents="none"/>
-  <View style={styles.heroDecorationTwo} pointerEvents="none"/>
-  <View style={styles.heroPill}><Text style={styles.heroPillText}>✦ GEMEINSAM MEHR ERLEBEN</Text></View>
-  <Text style={styles.heroTitle}>Familien in deiner Nähe entdecken.</Text>
-  <Text style={styles.heroText}>Finde neue Freundschaften statt endloser Feeds.</Text>
-  <View style={styles.heroTagline}><Text style={styles.heroTaglineText}>♥  Aus Nachbarschaft wird Freundschaft.</Text></View>
+<View style={styles.heroDecorationOne} pointerEvents="none"/>
+<View style={styles.heroDecorationTwo} pointerEvents="none"/>
+<View style={styles.heroPill}><Text style={styles.heroPillText}>✦ GEMEINSAM MEHR ERLEBEN</Text></View>
+<Text style={styles.heroTitle}>Familien entdecken, die zu euch passen.</Text>
+<Text style={styles.heroText}>Entdecke gemeinsame Hobbys und Familien aus deiner Region – ganz ohne Standortfreigabe.</Text>
+<View style={styles.heroTagline}><Text style={styles.heroTaglineText}>♥  Aus Nachbarschaft wird Freundschaft.</Text></View>
 </View>
 {!active?<Info warning>Dein Konto wartet noch auf persönliche Erwachsenenprüfung oder Profilfreigabe. Profilstatus: {myProfile?.moderation_status||'–'} · Verifizierung: {verification?.status||'–'}.</Info>:null}
-<H sub="Passende Interessen – keine exakten Standorte, keine öffentlichen Beiträge.">Familien entdecken</H>
-<Input label="Suche nach Name, Region oder Interesse" placeholder="z. B. Natur, Potsdam …" value={query} onChangeText={setQuery}/>
+<H sub="Nur freigegebene, freiwillig sichtbare Familienprofile.">Familien entdecken</H>
+<Input label="Suche nach Familie, Region oder Interesse" placeholder="z. B. Natur, Beeskow …" value={query} onChangeText={value=>updateFilter(setQuery,value)} />
 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:13}}>
-{['Alle',...INTERESTS].map(i=><View key={i} style={{marginRight:6}}><Chip text={i} selected={interest===i} onPress={()=>setInterest(i)}/></View>)}
+{['Alle',...INTERESTS].map(i=><View key={i} style={{marginRight:6}}><Chip text={i} selected={interest===i} onPress={()=>updateFilter(setInterest,i)}/></View>)}
 </ScrollView>
+<View style={styles.filterPanel}>
+<Row style={{justifyContent:'space-between',marginBottom:10}}>
+<View style={{flex:1}}><Text style={styles.label}>Nur meine Region</Text><Text style={styles.micro}>{myRegion?'Gleiche Region oder bekannter Ort im selben Landkreis':'Bitte zuerst deine Region im Profil auswählen'}</Text></View>
+<Switch disabled={!myRegion} value={onlyRegion&&!!myRegion} onValueChange={value=>updateFilter(setOnlyRegion,value)} trackColor={{true:C.accent}}/>
+</Row>
+<Row style={{justifyContent:'space-between'}}>
+<View style={{flex:1}}><Text style={styles.label}>Gemeinsame Hobbys</Text><Text style={styles.micro}>Mindestens ein gemeinsames Interesse</Text></View>
+<Switch value={onlyShared} onValueChange={value=>updateFilter(setOnlyShared,value)} trackColor={{true:C.accent}}/>
+</Row>
+</View>
+<Row style={{justifyContent:'space-between',marginBottom:14,marginTop:5}}>
+<Text style={[styles.micro,{fontWeight:'800'}]}>{filtered.length} {filtered.length===1?'Familie':'Familien'} gefunden</Text>
+<Row><Chip text="Karten" selected={mode==='cards'} onPress={()=>setMode('cards')}/><Chip text="Liste" selected={mode==='list'} onPress={()=>setMode('list')}/></Row>
+</Row>
 {!active?<Blank title="Zunächst Freigabe abwarten" body="Sobald das Konto geprüft ist, erscheinen freigegebene Familienprofile."/>:
-filtered.length===0?<Blank title="Noch keine passenden Familien" body="Andere freigegebene Familien werden hier angezeigt, sobald sie ihr Profil sichtbar schalten."/>:
-filtered.map(p=>{
-const existing=requests.find(c=>(c.sender_id===me&&c.recipient_id===p.user_id)||(c.recipient_id===me&&c.sender_id===p.user_id));
-return <Card key={p.user_id} style={{marginBottom:12}}>
-<Row><Avatar name={p.display_name} size={58} uri={imageFor(p.user_id)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{p.display_name}</Text><Text style={styles.micro}>⌖ {p.region_label||'Region nicht angegeben'}</Text></View>{p.match>0?<View style={styles.match}><Text style={styles.matchText}>{p.match} gemeinsam</Text></View>:null}</Row>
-{p.about?<Text style={[styles.body,{marginTop:11}]} numberOfLines={3}>{p.about}</Text>:null}
-<View style={styles.chipsRow}>{(p.interests||[]).slice(0,5).map(i=><Chip key={i} text={i}/>)}</View>
-<Row style={{marginTop:12}}><Button title="Profil ansehen" mode="outline" small style={{flex:1}} onPress={()=>showFamily(p.user_id)}/>
-{blocked(p.user_id)?<Text style={styles.micro}>Blockiert</Text>:<Button title={existing? existing.status==='accepted'?'Verbunden':existing.status==='pending'?'Anfrage offen':'Angefragt':'Kennenlernen'} small disabled={busy||!!existing} style={{flex:1}} onPress={()=>onContact(p.user_id)}/>}</Row>
-</Card>;
-})}
+filtered.length===0?<Blank title="Keine passenden Familien gefunden" body="Probiere andere Interessen, eine größere Region oder entferne die Filter."/>:
+mode==='cards'?<>
+<Text style={[styles.micro,{textAlign:'center',marginBottom:12}]}>Familie {index+1} von {filtered.length} · Du entscheidest, wen du kontaktierst.</Text>
+{familyCard(filtered[index])}
+<Row style={{justifyContent:'space-between',gap:12}}>
+<Button title="← Zurück" mode="outline" disabled={index===0} style={{flex:1}} onPress={()=>setCardIndex(index-1)}/>
+<Button title="Nächste Familie →" mode="outline" disabled={index===filtered.length-1} style={{flex:1}} onPress={()=>setCardIndex(index+1)}/>
+</Row>
+</>:filtered.map(p=>familyCard(p))}
+<Text style={[styles.micro,{marginTop:17,textAlign:'center'}]}>„Meine Region“ nutzt freiwillige Regionsnamen und bekannte Landkreis-Zuordnungen, keine Kilometerentfernungen. Exakte Standorte werden nicht abgefragt.</Text>
 </ScrollView>;
 }
 function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
@@ -505,8 +574,9 @@ const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
 const [photoPickerBusy,setPhotoPickerBusy]=useState(false);
 const [newPassword,setNewPassword]=useState('');
-useEffect(()=>{if(profile)setForm({...blankProfile,...profile});},[profile?.updated_at,profile?.user_id]);
-async function submit(){if(form.display_name.trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
+const [profileSection,setProfileSection]=useState('about');
+useEffect(()=>{if(profile)setForm({...blankProfile,...profile,interests:Array.isArray(profile.interests)?profile.interests:[]});},[profile?.updated_at,profile?.user_id]);
+async function submit(){if((form.display_name||'').trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
 await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});}
 function toggle(i){setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):f.interests.length>=12?f.interests:[...f.interests,i]}));}
 async function updatePassword(){if(newPassword.length<12)return Alert.alert('Passwort','Bitte mindestens 12 Zeichen verwenden.');const ok=await changePassword(newPassword);if(ok)setNewPassword('');}
@@ -534,21 +604,43 @@ async function submitDraftPhoto(){
     setPhotoCaption('');
   }
 }
+const completed=[form.display_name?.trim().length>=2,!!form.region_label?.trim(),!!form.about?.trim(),(form.interests||[]).length>0].filter(Boolean).length;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-<H sub="Du bestimmst, was andere Familien über euch erfahren.">Mein Familienprofil</H>
+<H sub="Du entscheidest, was andere Familien von euch erfahren.">Mein Familienprofil</H>
 <Card>
 <Row><Avatar size={65} name={profile?.display_name}/><View style={{flex:1}}><Text style={styles.cardTitle}>{profile?.display_name||'Deine Familie'}</Text><Text style={styles.micro}>{active?'✓ Erwachsener geprüft, Profil freigegeben':'⌛ Prüfung oder Freigabe ausstehend'}</Text><Text style={styles.micro}>Mitgliedschaft: {membership?.status||'–'}</Text></View></Row>
+<View style={{marginTop:15}}>
+<Row style={{justifyContent:'space-between',marginBottom:6}}><Text style={styles.label}>Profil gestalten</Text><Text style={styles.micro}>{completed} von 4 freiwilligen Angaben</Text></Row>
+<View style={styles.progressTrack}><View style={[styles.progressFill,{width:(completed*25)+'%'}]}/></View>
+</View>
 {!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
 </Card>
-<Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Angaben bearbeiten</Text>
+<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingVertical:12}} style={{marginTop:9,marginBottom:8}}>
+{[['about','Über uns'],['hobbies','Hobbys'],['privacy','Sichtbarkeit'],['photos','Fotos'],['security','Konto & Sicherheit']].map(([id,title])=><Chip key={id} text={title} selected={profileSection===id} onPress={()=>setProfileSection(id)}/>)}
+</ScrollView>
+{profileSection==='about'?<Card>
+<Text style={styles.sectionTitle}>Über eure Familie</Text>
+<Text style={[styles.sub,{marginBottom:14}]}>Ein paar freiwillige Angaben helfen beim Kennenlernen.</Text>
 <Input label="Anzeigename" value={form.display_name} onChangeText={x=>setForm(p=>({...p,display_name:x}))} maxLength={60}/>
-<Input label="Stadt / grobe Region" value={form.region_label} onChangeText={x=>setForm(p=>({...p,region_label:x}))} maxLength={80} placeholder="Keine Wohnadresse"/>
-<Input label="Über uns" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Was macht ihr gern?"/>
-<Text style={styles.label}>Interessen (bis zu 12)</Text><View style={[styles.chipsRow,{marginBottom:15}]}>{INTERESTS.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
-<Row style={{marginBottom:20,justifyContent:'space-between'}}><View style={{flex:1}}><Text style={styles.label}>Für andere Familien sichtbar</Text><Text style={styles.micro}>Erst nach Profilfreigabe sichtbar</Text></View><Switch value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/></Row>
-<Button title={busy?'Bitte warten …':'Profil speichern'} disabled={busy} onPress={submit}/>
-</Card>
-<Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Profilfotos</Text><Text style={[styles.sub,{marginBottom:13}]}>Nur bestätigte Kontakte sehen freigegebene Bilder. Bitte während der Beta keine Kinderfotos hochladen.</Text>
+<RegionPicker value={form.region_label} onChange={x=>setForm(p=>({...p,region_label:x}))}/>
+<Input label="Über uns" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Was macht ihr gern? Was möchtet ihr gemeinsam erleben?"/>
+<Button title={busy?'Bitte warten …':'Angaben speichern'} disabled={busy} onPress={submit}/>
+</Card>:null}
+{profileSection==='hobbies'?<Card>
+<Text style={styles.sectionTitle}>Hobbys & Interessen</Text>
+<Text style={[styles.sub,{marginBottom:14}]}>Wähle bis zu zwölf Themen. Danach findest du leichter Familien mit ähnlichen Interessen.</Text>
+<Text style={styles.label}>Ausgewählt: {(form.interests||[]).length} von 12</Text>
+<View style={[styles.chipsRow,{marginBottom:18}]}>{INTERESTS.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
+<Button title={busy?'Bitte warten …':'Interessen speichern'} disabled={busy} onPress={submit}/>
+</Card>:null}
+{profileSection==='privacy'?<Card>
+<Text style={styles.sectionTitle}>Privatsphäre & Sichtbarkeit</Text>
+<Text style={[styles.sub,{marginBottom:15}]}>Du bestimmst, ob andere freigegebene Familien euch entdecken können.</Text>
+<Row style={{marginBottom:18,justifyContent:'space-between'}}><View style={{flex:1}}><Text style={styles.label}>Für andere Familien sichtbar</Text><Text style={styles.micro}>Erst nach Profilfreigabe und nur mit grober Regionsangabe</Text></View><Switch value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/></Row>
+<Info>Deine genaue Adresse oder dein Live-Standort werden bei der Familiensuche nicht abgefragt. Kontaktanfragen musst du selbst annehmen.</Info>
+<Button title={busy?'Bitte warten …':'Sichtbarkeit speichern'} disabled={busy} onPress={submit}/>
+</Card>:null}
+{profileSection==='photos'?<><Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Profilfotos</Text><Text style={[styles.sub,{marginBottom:13}]}>Nur bestätigte Kontakte sehen freigegebene Bilder. Bitte während der Beta keine Kinderfotos hochladen.</Text>
 <Text style={styles.label}>1. Foto auswählen</Text>
 <Button title={selectedPhoto?'Anderes Foto auswählen':'＋ Foto auswählen'}
   disabled={busy||photoPickerBusy} mode="outline" onPress={selectDraftPhoto}/>
@@ -577,13 +669,15 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </Card>)}</View>
 {photos.length===0?<Text style={[styles.micro,{marginTop:10}]}>Noch keine Bilder hochgeladen.</Text>:null}
 </Card>
-<Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Sicherheit und Einstellungen</Text>
+</>:null}
+{profileSection==='security'?<><Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Sicherheit und Einstellungen</Text>
 <Button title="Elternwissen öffnen" mode="outline" onPress={openInfo}/>
 <Text style={[styles.label,{marginTop:18}]}>Passwort ändern</Text><Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none"/>
 <Button title="Passwort ändern" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
 {blocks.length>0?<View style={{marginTop:18}}><Text style={styles.label}>Blockierte Konten</Text>{blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}><Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text><Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/></Row>)}</View>:null}
 <View style={{height:16}}/><Button title="Abmelden" mode="ghost" onPress={signOut}/>
 </Card>
+</>:null}
 </ScrollView>;
 }
 function InfoScreen(){
@@ -599,6 +693,12 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 </ScrollView>;
 }
 const styles=StyleSheet.create({
+regionDropdown:{marginTop:8,padding:10,backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:17},
+regionOption:{minHeight:43,paddingHorizontal:12,paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.line,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
+progressTrack:{height:8,backgroundColor:C.pale,borderRadius:10,overflow:'hidden'},
+progressFill:{height:'100%',backgroundColor:C.coral,borderRadius:10},
+filterPanel:{borderRadius:20,backgroundColor:C.white,borderColor:C.line,borderWidth:1,padding:15,marginBottom:14},
+
 screen:{flex:1,backgroundColor:C.bg},center:{flex:1,alignItems:'center',justifyContent:'center',gap:15,backgroundColor:C.bg},
 scroll:{flex:1},content:{padding:19,paddingBottom:40},
 brand:{fontSize:33,fontWeight:'900',color:C.ink,letterSpacing:-1.15,textAlign:'center'},
