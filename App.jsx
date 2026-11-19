@@ -15,6 +15,7 @@ import MomentViewer from './components/MomentViewer';
 import FamilyTabIcon from './components/FamilyTabIcon';
 import FamilyOutingIdeas from './components/FamilyOutingIdeas';
 import { computeActivity, isValidSeenState, markSeen, newSeenState, storageKey } from './lib/activityIndicators';
+import { matchingReasons, normalized, rankFamilyProfiles } from './lib/familyMatching';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFFAF2',white:'#FFFFFF',ink:'#243E43',muted:'#687E80',
@@ -308,15 +309,18 @@ const accepted=db.contacts.filter(x=>x.status==='accepted');
 const pending=db.contacts.filter(x=>x.status==='pending');
 const photoOf=(uid)=>db.photos.find(p=>p.owner_id===uid&&p.moderation_status==='approved')||db.photos.find(p=>p.owner_id===uid&&uid===me);
 const ownPhotos=db.photos.filter(p=>p.owner_id===me);
+const matches=useMemo(()=>rankFamilyProfiles({
+ profiles:db.profiles,
+ viewerProfile:myProfile,
+ viewerId:me,
+ groups:INTEREST_GROUPS,
+ blockedIds:db.blocks.filter(b=>b.blocker_id===me).map(b=>b.blocked_id),
+}),[db.profiles,db.blocks,me,myProfile]);
 const activities=useMemo(()=>computeActivity({
-  me,db,contacts:db.contacts,matches:db.profiles.filter(p=>p.user_id!==me&&p.moderation_status==='approved'&&p.is_discoverable)
-    .map(p=>({...p,match:(p.interests||[]).filter(i=>myProfile?.interests?.includes(i)).length})),
-  myProfile,seen,blockedUserIds:db.blocks.filter(b=>b.blocker_id===me).map(b=>b.blocked_id)
-}),[me,db,myProfile,seen]);
+ me,db,contacts:db.contacts,matches,
+ myProfile,seen,blockedUserIds:db.blocks.filter(b=>b.blocker_id===me).map(b=>b.blocked_id)
+}),[me,db,matches,myProfile,seen]);
 const freshPhotoCount=activities.newPhotos;
-const matches=useMemo(()=>db.profiles.filter(p=>p.user_id!==me&&p.moderation_status==='approved'&&p.is_discoverable)
-.map(p=>({...p,match:(p.interests||[]).filter(x=>myProfile?.interests?.includes(x)).length}))
-.sort((a,b)=>b.match-a.match||String(a.display_name).localeCompare(String(b.display_name))),[db.profiles,me,myProfile]);
 async function execute(fn,success){
 if(busy)return;
 setBusy(true);setError('');setNotice('');
@@ -535,35 +539,112 @@ await supabase.storage.from('familienfunke-photos').remove([photo.storage_path])
 function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked,openKompass}) {
 const [query,setQuery]=useState('');
 const [interest,setInterest]=useState('Alle');
-const filtered=matches.filter(p=>(!query||`${p.display_name} ${p.region_label} ${(p.interests||[]).join(' ')}`.toLowerCase().includes(query.toLowerCase()))&&(interest==='Alle'||p.interests?.includes(interest)));
+const [focus,setFocus]=useState('all');
+const [scope,setScope]=useState('passend');
+const [sameRegionOnly,setSameRegionOnly]=useState(false);
+const [sortBy,setSortBy]=useState('passung');
+const ownInterests=Array.isArray(myProfile?.interests)?myProfile.interests:[];
+const hasRegion=!!normalized(myProfile?.region_label);
+const hasMatchingDetails=ownInterests.length>0||hasRegion;
+const options=[['all','Alle'],['hobbys','Hobbys'],['unterwegs','Freizeit'],['treffen','Treffideen']];
+const enriched=useMemo(()=>matches.map(p=>({...p,...matchingReasons(myProfile,p,INTEREST_GROUPS,focus)})),[matches,myProfile,focus]);
+const filtered=enriched.filter(p=>{
+ if(!!query&&![p.display_name,p.region_label,p.about,...(p.interests||[])].join(' ').toLocaleLowerCase('de-DE').includes(query.trim().toLocaleLowerCase('de-DE')))return false;
+ if(interest!=='Alle'&&!(p.interests||[]).some(i=>normalized(i)===normalized(interest)))return false;
+ if(sameRegionOnly&&!p.sameRegion)return false;
+ if(scope==='passend'){
+   if(focus==='all'&&!p.hasEvidence)return false;
+   if(focus!=='all'&&!p.sharedByTopic[focus]?.length&&!p.similarTopics.some(x=>x.category===focus))return false;
+ }
+ return true;
+}).sort((a,b)=>sortBy==='name'
+ ?String(a.display_name||'').localeCompare(String(b.display_name||''),'de')
+ :b.score-a.score||String(a.display_name||'').localeCompare(String(b.display_name||''),'de'));
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 <View style={styles.hero}>
   <View style={styles.heroDecorationOne} pointerEvents="none"/>
   <View style={styles.heroDecorationTwo} pointerEvents="none"/>
   <View style={styles.heroPill}><Text style={styles.heroPillText}>✦ GEMEINSAM MEHR ERLEBEN</Text></View>
-  <Text style={styles.heroTitle}>Familien in deiner Nähe entdecken.</Text>
-  <Text style={styles.heroText}>Finde neue Freundschaften statt endloser Feeds.</Text>
-  <View style={styles.heroTagline}><Text style={styles.heroTaglineText}>♥  Aus Nachbarschaft wird Freundschaft.</Text></View>
+  <Text style={styles.heroTitle}>Familien finden, die zu euch passen.</Text>
+  <Text style={styles.heroText}>Gemeinsame Hobbys, ähnliche Ideen und echte Begegnungen.</Text>
+  <View style={styles.heroTagline}><Text style={styles.heroTaglineText}>♥ Aus Gemeinsamkeiten wird Freundschaft.</Text></View>
 </View>
-<Pressable accessibilityRole="button" onPress={openKompass} style={{marginBottom:19}}><View style={styles.kompassDiscoverCallout}><Text style={styles.kompassCalloutEyebrow}>☀ NEU: FAMILIEN-KOMPASS</Text><Row style={{alignItems:'center',justifyContent:'space-between'}}><View style={{flex:1}}><Text style={styles.kompassCalloutTitle}>Wegweiser für Anträge & Fristen</Text><Text style={styles.kompassCalloutText}>Elterngeld, Kita, Kindergeld und mehr – mit offiziellen Links.</Text></View><Text style={{fontSize:23,color:C.ink}}>›</Text></Row></View></Pressable>
 {!active?<Info warning>Dein Konto wartet noch auf persönliche Erwachsenenprüfung oder Profilfreigabe. Profilstatus: {myProfile?.moderation_status||'–'} · Verifizierung: {verification?.status||'–'}.</Info>:null}
-<H sub="Passende Interessen – keine exakten Standorte, keine öffentlichen Beiträge.">Familien entdecken</H>
-<Input label="Suche nach Name, Region oder Interesse" placeholder="z. B. Natur, Potsdam …" value={query} onChangeText={setQuery}/>
-<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:13}}>
-{['Alle',...INTERESTS].map(i=><View key={i} style={{marginRight:6}}><Chip text={i} selected={interest===i} onPress={()=>setInterest(i)}/></View>)}
-</ScrollView>
+<H sub="Unsere Vorschläge beruhen nur auf freiwilligen Profilangaben – nicht auf deinem Standort.">Familien entdecken</H>
+{!hasMatchingDetails?<View style={styles.matchTip}>
+  <Text style={styles.matchTipTitle}>☀ Erzählt etwas mehr über euch</Text>
+  <Text style={styles.matchTipText}>Tragt im Profil eure Hobbys, Freizeitideen oder grobe Region ein, damit wir Gemeinsamkeiten erkennen können. Du kannst trotzdem alle freigegebenen Familien ansehen.</Text>
+</View>:null}
+<View style={styles.matchScopeBar}>
+  <Pressable accessibilityRole="button" accessibilityState={{selected:scope==='passend'}} style={[styles.matchScopeButton,scope==='passend'&&styles.matchScopeSelected]} onPress={()=>setScope('passend')}>
+    <Text style={[styles.matchScopeText,scope==='passend'&&styles.matchScopeTextSelected]}>Für euch passend</Text>
+  </Pressable>
+  <Pressable accessibilityRole="button" accessibilityState={{selected:scope==='alle'}} style={[styles.matchScopeButton,scope==='alle'&&styles.matchScopeSelected]} onPress={()=>setScope('alle')}>
+    <Text style={[styles.matchScopeText,scope==='alle'&&styles.matchScopeTextSelected]}>Alle Familien</Text>
+  </Pressable>
+</View>
+<Text style={styles.matchFilterTitle}>Was verbindet euch?</Text>
+<View style={styles.matchFilterRow}>{options.map(([id,label])=><View key={id} style={{marginRight:3,marginBottom:3}}>
+ <Chip text={label} selected={focus===id} onPress={()=>setFocus(id)}/>
+</View>)}</View>
+<Input label="Nach Familie, Ort oder Interesse suchen" placeholder="z. B. Wandern oder Beeskow" value={query} onChangeText={setQuery}/>
+{ownInterests.length>0?<><Text style={styles.matchFilterTitle}>Eines eurer Interessen auswählen</Text>
+<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:10}} contentContainerStyle={{gap:6}}>
+{['Alle',...ownInterests].map(i=><Chip key={i} text={i} selected={interest===i} onPress={()=>setInterest(i)}/>)}
+</ScrollView></>:null}
+<View style={styles.matchOptionsRow}>
+ <Pressable accessibilityRole="button" accessibilityState={{selected:sameRegionOnly}} disabled={!hasRegion}
+  style={[styles.matchOptionPill,sameRegionOnly&&styles.matchOptionActive,!hasRegion&&{opacity:.48}]}
+  onPress={()=>setSameRegionOnly(x=>!x)}>
+  <Text style={styles.matchOptionText}>{sameRegionOnly?'✓ Gleiche Region':'Gleiche Region'}</Text>
+ </Pressable>
+ <Pressable accessibilityRole="button" accessibilityLabel="Sortierung ändern" onPress={()=>setSortBy(v=>v==='passung'?'name':'passung')}
+  style={styles.matchOptionPill}>
+  <Text style={styles.matchOptionText}>{sortBy==='passung'?'Sortiert: Gemeinsamkeiten':'Sortiert: Name'} ↕</Text>
+ </Pressable>
+</View>
+<Text style={styles.matchCount}>{filtered.length} {filtered.length===1?'Familie':'Familien'} gefunden</Text>
 {!active?<Blank title="Zunächst Freigabe abwarten" body="Sobald das Konto geprüft ist, erscheinen freigegebene Familienprofile."/>:
-filtered.length===0?<Blank title="Noch keine passenden Familien" body="Andere freigegebene Familien werden hier angezeigt, sobald sie ihr Profil sichtbar schalten."/>:
+filtered.length===0?<View style={styles.matchTip}>
+ <Text style={styles.matchTipTitle}>Noch keine passenden Familien gefunden</Text>
+ <Text style={styles.matchTipText}>Probiere eine andere Suche oder entdecke alle Familien. Vielleicht fehlen in deiner Region gerade noch passende Profile.</Text>
+ <Button title="Alle Familien ansehen" mode="outline" small onPress={()=>{
+  setScope('alle');setQuery('');setInterest('Alle');setSameRegionOnly(false);setFocus('all');
+ }}/>
+</View>:
 filtered.map(p=>{
-const existing=requests.find(c=>(c.sender_id===me&&c.recipient_id===p.user_id)||(c.recipient_id===me&&c.sender_id===p.user_id));
-return <Card key={p.user_id} style={{marginBottom:12}}>
-<Row><Avatar name={p.display_name} size={58} uri={imageFor(p.user_id)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{p.display_name}</Text><Text style={styles.micro}>⌖ {p.region_label||'Region nicht angegeben'}</Text></View>{p.match>0?<View style={styles.match}><Text style={styles.matchText}>{p.match} gemeinsam</Text></View>:null}</Row>
-{p.about?<Text style={[styles.body,{marginTop:11}]} numberOfLines={3}>{p.about}</Text>:null}
-<View style={styles.chipsRow}>{(p.interests||[]).slice(0,5).map(i=><Chip key={i} text={i}/>)}</View>
-<Row style={{marginTop:12}}><Button title="Profil ansehen" mode="outline" small style={{flex:1}} onPress={()=>showFamily(p.user_id)}/>
-{blocked(p.user_id)?<Text style={styles.micro}>Blockiert</Text>:<Button title={existing? existing.status==='accepted'?'Verbunden':existing.status==='pending'?'Anfrage offen':'Angefragt':'Kennenlernen'} small disabled={busy||!!existing} style={{flex:1}} onPress={()=>onContact(p.user_id)}/>}</Row>
-</Card>;
+ const existing=requests.find(c=>(c.sender_id===me&&c.recipient_id===p.user_id)||(c.recipient_id===me&&c.sender_id===p.user_id));
+ return <Card key={p.user_id} style={{marginBottom:13}}>
+  <Row><Avatar name={p.display_name} size={58} uri={imageFor(p.user_id)}/>
+   <View style={{flex:1}}><Text style={styles.cardTitle}>{p.display_name}</Text>
+    <Text style={styles.micro}>⌖ {p.region_label||'Grobe Region nicht angegeben'}</Text>
+   </View>
+   {p.match>0?<View style={styles.match}><Text style={styles.matchText}>{p.match} gleiche {p.match===1?'Vorliebe':'Vorlieben'}</Text></View>:null}
+  </Row>
+  {p.about?<Text style={[styles.body,{marginTop:12}]} numberOfLines={3}>{p.about}</Text>:null}
+  {(p.sharedInterests.length>0||p.similarTopics.length>0||p.sameRegion)?<View style={styles.matchReasonBox}>
+    <Text style={styles.matchReasonTitle}>Warum diese Familie zu euch passen könnte</Text>
+    {p.sharedInterests.length>0?<View style={styles.matchReasonRow}><Text style={styles.matchReasonLabel}>Gemeinsam:</Text>
+      <View style={[styles.chipsRow,{flex:1,marginTop:0}]}>{p.sharedInterests.slice(0,5).map(tag=><Chip key={tag} text={tag}/>)}</View>
+    </View>:null}
+    {p.similarTopics.length>0?<Text style={styles.matchReasonDetail}>Ähnliche Themen: {p.similarTopics.slice(0,2).map(x=>x.label).join(' · ')}</Text>:null}
+    {p.sameRegion?<Text style={styles.matchReasonDetail}>✓ Gleiche selbst angegebene Region</Text>:null}
+  </View>:<Text style={[styles.micro,{marginTop:13}]}>Noch keine Gemeinsamkeiten hinterlegt. Kennenlernen ist trotzdem möglich.</Text>}
+  <Text style={[styles.micro,{marginTop:11}]}>Interessen dieser Familie</Text>
+  <View style={styles.chipsRow}>{(p.interests||[]).slice(0,5).map(i=><Chip key={i} text={i}/>)}</View>
+  <Row style={{marginTop:15}}><Button title="Profil ansehen" mode="outline" small style={{flex:1}} onPress={()=>showFamily(p.user_id)}/>
+   {blocked(p.user_id)?<Text style={styles.micro}>Blockiert</Text>:<Button title={existing? existing.status==='accepted'?'Verbunden':existing.status==='pending'?'Anfrage offen':'Angefragt':'Kennenlernen'} small disabled={busy||!!existing} style={{flex:1}} onPress={()=>onContact(p.user_id)}/>}
+  </Row>
+ </Card>;
 })}
+<Pressable accessibilityRole="button" onPress={openKompass} style={{marginTop:13}}>
+ <View style={styles.kompassDiscoverCallout}>
+  <Text style={styles.kompassCalloutEyebrow}>☀ FAMILIEN-KOMPASS</Text>
+  <Text style={styles.kompassCalloutTitle}>Wegweiser für Familienleistungen ›</Text>
+  <Text style={styles.kompassCalloutText}>Elterngeld, Kita, Kindergeld und mehr – mit offiziellen Links.</Text>
+ </View>
+</Pressable>
+<Text style={[styles.micro,{marginTop:13,textAlign:'center'}]}>Keine GPS-Daten, keine geschätzten Entfernungen und keine künstlichen Übereinstimmungs-Prozentwerte.</Text>
 </ScrollView>;
 }
 function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat,onPhotosViewed}){
@@ -1093,7 +1174,27 @@ chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},
 info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertical:14,marginHorizontal:12,marginTop:7,marginBottom:12},
 warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:C.accentDark},
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
-match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
+match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7,maxWidth:125},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516',textAlign:'center'},
+matchTip:{backgroundColor:'#FFF2DB',padding:16,borderWidth:1,borderColor:'#EFD9AD',borderRadius:19,marginBottom:16,gap:9},
+matchTipTitle:{fontSize:16,fontWeight:'900',color:C.ink},
+matchTipText:{fontSize:12.5,lineHeight:19,color:C.muted},
+matchScopeBar:{flexDirection:'row',backgroundColor:'#FFECCB',borderRadius:17,padding:5,gap:6,marginBottom:17},
+matchScopeButton:{flex:1,alignItems:'center',justifyContent:'center',minHeight:46,paddingHorizontal:5,borderRadius:13},
+matchScopeSelected:{backgroundColor:C.white,borderWidth:1,borderColor:'#E6D0A8'},
+matchScopeText:{fontSize:12.5,fontWeight:'800',color:C.muted},
+matchScopeTextSelected:{color:C.accentDark,fontWeight:'900'},
+matchFilterTitle:{fontSize:13.5,color:C.ink,fontWeight:'900',marginBottom:10,marginTop:4},
+matchFilterRow:{flexDirection:'row',flexWrap:'wrap',gap:7,marginBottom:16},
+matchOptionsRow:{flexDirection:'row',gap:9,flexWrap:'wrap',marginTop:6,marginBottom:13},
+matchOptionPill:{borderWidth:1,borderColor:'#D9DCD3',backgroundColor:C.white,borderRadius:14,paddingVertical:10,paddingHorizontal:11},
+matchOptionActive:{backgroundColor:'#FFF0CE',borderColor:'#E9C386'},
+matchOptionText:{fontSize:11.5,fontWeight:'900',color:C.accentDark},
+matchCount:{fontSize:16.5,fontWeight:'900',color:C.ink,marginBottom:14},
+matchReasonBox:{backgroundColor:'#FFF9ED',borderWidth:1,borderColor:'#EEDBC1',borderRadius:15,padding:12,marginTop:13,gap:9},
+matchReasonTitle:{fontWeight:'900',fontSize:12.5,color:C.accentDark},
+matchReasonRow:{flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:8},
+matchReasonLabel:{fontSize:11.5,color:C.muted,fontWeight:'800'},
+matchReasonDetail:{fontSize:12.5,color:'#596B6B',fontWeight:'700',lineHeight:19},
 refreshButton:{width:39,height:39,alignItems:'center',justifyContent:'center',borderRadius:13,backgroundColor:C.pale},
 refreshText:{color:C.accentDark,fontSize:28,fontWeight:'700',lineHeight:31},
 tabBar:{minHeight:78,borderTopWidth:1,borderTopColor:'#EBDCC9',backgroundColor:'#FFFEF9',flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:4,paddingBottom:4},
