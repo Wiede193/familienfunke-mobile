@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, PanResponder, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Modal, PanResponder, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { supabase } from '../supabase';
 import { lookupPostcode } from '../data/plzCentersGermany';
 
@@ -13,7 +13,7 @@ function Action({text,onPress,disabled,secondary=false}){
  </Pressable>;
 }
 
-export default function NearbySwipe({ userId, active, profiles=[], requests=[], imageFor, onShowProfile, onContact, onContacts }) {
+export default function NearbySwipe({ userId, active, profiles=[], requests=[], imageFor, onShowProfile, onLike, onOpenChat, onContacts, onReport, onBlock }) {
  const [enabled,setEnabled]=useState(false);
  const [statusKnown,setStatusKnown]=useState(false);
  const [radius,setRadius]=useState(25);
@@ -25,6 +25,7 @@ export default function NearbySwipe({ userId, active, profiles=[], requests=[], 
  const [checking,setChecking]=useState(false);
  const [error,setError]=useState('');
  const [notice,setNotice]=useState('');
+ const [mutualMatch,setMutualMatch]=useState(null);
  const pendingRef=useRef(false);
  const requestRef=useRef(0);
  const swipeX=useRef(new Animated.Value(0)).current;
@@ -63,6 +64,7 @@ export default function NearbySwipe({ userId, active, profiles=[], requests=[], 
    setChangeAreaOpen(false);
    setNotice('');
    setError('');
+   setMutualMatch(null);
    if(!userId||!supabase){setStatusKnown(true);return()=>{alive=false;};}
    supabase.rpc('ff_nearby_status').then(({data,error:e})=>{
      if(!alive||mountedUserRef.current!==userId)return;
@@ -140,13 +142,23 @@ export default function NearbySwipe({ userId, active, profiles=[], requests=[], 
    if(side==='yes'&&existing?.status==='accepted'){onShowProfile?.(item.profile.user_id);swipeX.setValue(0);return;}
    if(side==='yes'&&existing?.status==='pending'&&existing.recipient_id===userId){onContacts?.();swipeX.setValue(0);return;}
    if(side==='yes'&&!existing){
-     pendingRef.current=true;setBusy(true);
+     pendingRef.current=true;setBusy(true);setError('');
      try{
-       const ok=await onContact(item.candidate.user_id);
-       if(ok!==true){swipeX.setValue(0);return;}
-       setNotice('Kennenlern-Anfrage verschickt! Eine Unterhaltung ist erst nach Bestätigung möglich.');
+       const result=await onLike(item.candidate.user_id);
+       if(mountedUserRef.current!==userId)return;
+       if(result?.state==='matched'&&result.contact_id){
+         setMutualMatch({id:item.candidate.user_id, name:item.profile.display_name, contactId:result.contact_id});
+         setNotice('');
+       }else if(result?.state==='liked'){
+         setNotice('Dein Interesse ist gespeichert. Erst wenn beide möchten, entsteht ein Match. Die andere Familie erhält jetzt noch keinen Hinweis.');
+       }else if(result?.state==='needs_confirmation'){
+         setNotice('Es gibt bereits eine Kontaktanfrage. Die Familie kann sie bestätigen.');
+       }else {
+         setNotice('Ein Kennenlernen ist derzeit nicht möglich.');
+       }
      }catch(e){
-       setError('Die Anfrage konnte nicht verschickt werden.');
+       if(mountedUserRef.current!==userId)return;
+       setError('Dein Interesse konnte nicht gespeichert werden. Bitte versuche es erneut.');
        swipeX.setValue(0);return;
      }finally {pendingRef.current=false;setBusy(false);}
    }
@@ -220,6 +232,7 @@ export default function NearbySwipe({ userId, active, profiles=[], requests=[], 
              <View style={styles.distanceBadge}><Text style={styles.distanceText}>⌖ {current.candidate.distance_band} ungefähr</Text></View>
            </View>
            <View style={styles.cardBody}>
+             <Text style={styles.verifiedText}>✓ Geprüftes Erwachsenenprofil</Text>
              <Text style={styles.familyName} numberOfLines={2}>{current.profile.display_name}</Text>
              {current.profile.region_label?<Text style={styles.region}>{current.profile.region_label}</Text>:null}
              <Text style={styles.bio} numberOfLines={4}>{current.profile.about||'Diese Familie freut sich darauf, neue Bekanntschaften zu schließen.'}</Text>
@@ -230,6 +243,14 @@ export default function NearbySwipe({ userId, active, profiles=[], requests=[], 
              </Text>:null}
              <Pressable accessibilityRole="button" onPress={()=>onShowProfile(current.profile.user_id)}
                style={styles.profileLink}><Text style={styles.profileLinkText}>Profil vollständig ansehen ›</Text></Pressable>
+             <View style={styles.safetyRow}>
+               <Pressable accessibilityRole="button" onPress={()=>onReport?.(current.profile.user_id)} style={styles.safetyAction}>
+                 <Text style={styles.safetyText}>⚑ Melden</Text>
+               </Pressable>
+               <Pressable accessibilityRole="button" onPress={()=>onBlock?.(current.profile.user_id)} style={styles.safetyAction}>
+                 <Text style={styles.safetyText}>Blockieren</Text>
+               </Pressable>
+             </View>
            </View>
          </Animated.View>
          <Text style={styles.swipeHint}>← Weiterwischen · Zum Kennenlernen nach rechts →</Text>
@@ -237,7 +258,7 @@ export default function NearbySwipe({ userId, active, profiles=[], requests=[], 
            <Action text="✕ Weiter" secondary disabled={busy} onPress={()=>act('no')}/>
            <Action text={existing?.status==='accepted'?'✓ Schon verbunden':
             existing?.status==='pending'&&existing.recipient_id===userId?'♡ Anfrage beantworten':
-            existing?'✓ Bereits angefragt':'♡ Kennenlernen'} disabled={busy} onPress={()=>act('yes')}/>
+            existing?'✓ Bereits angefragt':'♡ Gefällt mir'} disabled={busy} onPress={()=>act('yes')}/>
          </View>
        </View>:
        <View style={styles.emptyCard}>
@@ -253,11 +274,37 @@ export default function NearbySwipe({ userId, active, profiles=[], requests=[], 
    {!!notice?<Text style={styles.notice}>{notice}</Text>:null}
    {!!error?<Text style={styles.error} accessibilityRole="alert">{error}</Text>:null}
    <Text style={styles.footer}>Die km-Angaben sind nur ungefähre Entfernungsbereiche. Aus Datenschutzgründen keine Straßenkarten mit Personenmarkierungen und keine genauen Wohnorte. Nachrichten sind erst nach gegenseitiger Bestätigung erlaubt.</Text>
+   <Modal visible={!!mutualMatch} animationType="fade" transparent onRequestClose={()=>setMutualMatch(null)}>
+      <SafeAreaView style={styles.matchBackdrop}>
+        <View style={styles.matchDialog}>
+          <Text style={styles.matchHeart}>♡</Text>
+          <Text style={styles.matchTitle}>Es hat gefunkt! 💛</Text>
+          <Text style={styles.matchDescription}>Ihr und {mutualMatch?.name||'diese Familie'} möchtet euch beide kennenlernen.</Text>
+          <Text style={styles.matchExplanation}>Ihr habt euch gegenseitig ausgewählt. Jetzt könnt ihr einander schreiben.</Text>
+          <Action text="Zum Chat" onPress={()=>{const cid=mutualMatch?.contactId;setMutualMatch(null);if(cid)onOpenChat?.(cid);}}/>
+          <Pressable accessibilityRole="button" style={styles.matchDismiss} onPress={()=>setMutualMatch(null)}>
+            <Text style={styles.matchDismissText}>Später</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+   </Modal>
  </View>;
 }
 
 const styles=StyleSheet.create({
  root:{paddingBottom:23},
+ verifiedText:{color:'#38705B',fontSize:11.5,fontWeight:'900',marginBottom:8},
+ safetyRow:{flexDirection:'row',alignItems:'center',gap:17,paddingTop:11,marginTop:13,borderTopWidth:1,borderTopColor:'#EBDCC9'},
+ safetyAction:{paddingVertical:7,paddingHorizontal:5},
+ safetyText:{fontSize:12,color:'#8C6862',fontWeight:'800'},
+ matchBackdrop:{flex:1,backgroundColor:'rgba(26,49,53,.78)',justifyContent:'center',padding:22},
+ matchDialog:{borderRadius:27,backgroundColor:'#FFF6E6',padding:25,alignItems:'center',gap:12,borderColor:'#F2D5A1',borderWidth:1},
+ matchHeart:{fontSize:76,color:'#E67E70',fontWeight:'900',lineHeight:88},
+ matchTitle:{fontSize:27,fontWeight:'900',color:COLORS.ink,textAlign:'center'},
+ matchDescription:{fontSize:16,color:COLORS.ink,lineHeight:24,textAlign:'center',fontWeight:'800'},
+ matchExplanation:{fontSize:13,color:COLORS.muted,lineHeight:20,textAlign:'center',marginBottom:10},
+ matchDismiss:{padding:10,alignItems:'center'},
+ matchDismissText:{fontSize:13,color:COLORS.teal,fontWeight:'900'},
  hero:{backgroundColor:'#FFEBC1',borderRadius:26,padding:22,overflow:'hidden',minHeight:170,borderWidth:1,borderColor:'#F4D5A0',marginBottom:17},
  sun:{position:'absolute',width:155,height:155,borderRadius:78,top:-65,right:-59,backgroundColor:'#FFD688'},
  eyebrow:{color:'#916123',fontWeight:'900',letterSpacing:1.2,fontSize:10,marginBottom:11},
