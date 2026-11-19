@@ -354,9 +354,29 @@ createListing={(v,asset)=>execute(async()=>{
  await moderateTextOrThrow([v.title,v.description,v.region_label]);
  const {data:inserted,error:insertError}=await supabase.from('ff_market_listings').insert({...v,seller_id:me}).select('id').single();
  if(insertError)throw insertError;
- if(asset)await uploadMarketPhoto(inserted.id,asset,me);
-},'Inserat eingereicht. Es erscheint nach Freigabe.')}
-uploadPendingPhoto={(listingId,asset)=>execute(async()=>{await uploadMarketPhoto(listingId,asset,me);},'Foto zur Prüfung eingereicht.')}
+ if(asset){
+   try{await uploadMarketPhoto(inserted.id,asset,me);}
+   catch(e){
+     setNotice('Das Inserat wurde gespeichert. Das Foto konnte nicht hochgeladen werden. Du kannst es unter „Meine Inserate“ ergänzen.');
+     return;
+   }
+ }
+ const {data:review,error:reviewError}=await supabase.functions.invoke('ff-market-review',{body:{listing_id:inserted.id}});
+ if(!reviewError&&review?.status==='approved'){
+   setNotice('Dein Inserat wurde automatisch geprüft und veröffentlicht.');
+ }else{
+   setNotice('Dein Inserat wurde gespeichert und bleibt bis zur Freigabe in Prüfung.');
+ }
+})}
+uploadPendingPhoto={(listingId,asset)=>execute(async()=>{
+ await uploadMarketPhoto(listingId,asset,me);
+ const {data:review,error:reviewError}=await supabase.functions.invoke('ff-market-review',{body:{listing_id:listingId}});
+ if(!reviewError&&review?.status==='approved'){
+   setNotice('Foto und Inserat geprüft. Dein Angebot ist jetzt sichtbar.');
+ }else{
+   setNotice('Das Foto wurde gespeichert. Das Inserat bleibt bis zur Freigabe in Prüfung.');
+ }
+})}
 markListingSold={(id)=>execute(async()=>{const {data,error:e}=await supabase.rpc('ff_market_mark_sold',{p_listing_id:id});if(e)throw e;if(data!==true)throw new Error('Das Inserat konnte nicht abgeschlossen werden. Bitte aktualisiere den Basar.');},'Angebot abgeschlossen. Es ist für andere nicht mehr sichtbar.')}
 onContact={sendRequest} onChat={(cid)=>{setChatReturnTab('market');setSelectedContact(cid);setTab('chat');}} nameOf={findName} blocked={blocked}/>:
 tab==='partners'?<PartnersScreen organizations={db.organizations} partnerEvents={db.partnerEvents}
@@ -612,7 +632,7 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
     </View>
     {open?<Card style={{marginBottom:18}}>
       <Text style={styles.sectionTitle}>Anzeige aufgeben</Text>
-      <Text style={[styles.sub,{marginBottom:17}]}>Kostenlos einstellen. Dein Inserat wird vor Veröffentlichung geprüft.</Text>
+      <Text style={[styles.sub,{marginBottom:17}]}>Kostenlos einstellen. Titel, Beschreibung und Foto werden vor Veröffentlichung geprüft. Unklare Angebote warten auf manuelle Freigabe.</Text>
       <View style={{marginBottom:15}}>
         <Button title={photo?'✓ Foto ausgewählt – ändern':'＋ Artikelfoto auswählen'} mode="outline" disabled={choosing||busy}
           onPress={()=>pick(setPhoto)}/>
@@ -638,7 +658,7 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
         <Chip text="Privat" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
       </View></>:null}
-      <Info>Keine Onlinezahlung und keine Verkaufsprovision aktiv. Die Anzeige ist erst nach Freigabe öffentlich für geprüfte Mitglieder sichtbar.</Info>
+      <Info>Nur familiengeeignete Gegenstände. Nicht erlaubt sind unter anderem Waffen, Drogen, Alkohol, Tabak, Arzneimittel, 18+-Waren, lebende Tiere, Fälschungen, gefährliche Stoffe und reine Werbung. Die Anzeige ist erst nach Prüfung sichtbar.</Info>
       <Button title={busy?'Wird gespeichert …':'Anzeige kostenlos einreichen'} disabled={busy||choosing||!active} onPress={submit}/>
     </Card>:null}
     {selected?<View>
