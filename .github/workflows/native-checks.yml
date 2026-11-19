@@ -1,0 +1,29 @@
+name: Native App prüfen
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: Expo prüfen und iOS-/Android-JS bauen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+          cache: npm
+      - name: Abhängigkeiten installieren
+        run: npm ci
+      - name: Expo-Paketversionen prüfen
+        run: npx expo install --check
+      - name: iOS-Bundle erstellen
+        run: npx expo export --platform ios --output-dir dist/ios
+      - name: Android-Bundle erstellen
+        run: npx expo export --platform android --output-dir dist/android

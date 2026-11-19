@@ -1,0 +1,43 @@
+name: Installierbare Test-App bauen
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Zielgerät auswählen'
+        required: true
+        type: choice
+        options:
+          - android
+          - ios
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    name: EAS Preview für ${{ inputs.platform }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+          cache: npm
+      - name: Expo-Zugang prüfen
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN fehlt. Lege ihn unter GitHub > Settings > Secrets and variables > Actions an."
+            exit 1
+          fi
+      - name: Expo einrichten
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Abhängigkeiten installieren
+        run: npm ci
+      - name: Installierbares Preview bei EAS bauen
+        run: eas build --platform ${{ inputs.platform }} --profile preview --non-interactive
