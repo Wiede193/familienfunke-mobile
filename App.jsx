@@ -368,7 +368,7 @@ myProfile={myProfile} verification={verification} membership={membership}
 showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked} openKompass={()=>setShowInfo(true)}/>:
 tab==='contacts'?<ContactsScreen pending={pending} accepted={accepted} me={me} nameOf={findName}
 respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onUnblock={unblockUser}
-onChat={openChat} newPhotoCount={freshPhotoCount} onViewPhotos={()=>{markActivity('photos');setTab('contacts');}}/>:
+onChat={openChat} onShowFamily={setDetailFamily} newPhotoCount={freshPhotoCount} onViewPhotos={()=>markActivity('photos')}/>:
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
 onChat={openChat} messages={db.messages} chatCounts={activities.chatCounts}/>:
 tab==='events'?<EventsScreen events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
@@ -520,7 +520,7 @@ return <><ScrollView style={styles.scroll} contentContainerStyle={styles.content
 <MomentViewer photos={connection?.status==='accepted'?(photos||[]):[]} urls={photosUrls||{}} activeId={viewingPhotoId} onSelect={setViewingPhotoId}
  onClose={()=>setViewingPhotoId(null)}/></>;
 }
-function ContactsScreen({pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat,newPhotoCount,onViewPhotos}){
+function ContactsScreen({pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat,onShowFamily,newPhotoCount,onViewPhotos}){
 const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <H sub="Nachrichten sind erst nach gegenseitiger Bestätigung möglich.">Deine Kontakte</H>
@@ -537,7 +537,11 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <Text style={styles.sectionTitle}>Bestätigte Kontakte</Text>
 {accepted.length===0?<Blank title="Noch keine Kontakte" body="Bestätigte Familien erscheinen hier."/>:accepted.map(c=>{const uid=other(c);return <Card key={c.id} style={{marginBottom:10}}>
 <Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text style={styles.micro}>{blocked(uid)?'Blockiert':'Kontakt bestätigt'}</Text></View></Row>
-<Row style={{marginTop:12}}><Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>{blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:<Button title="Blockieren" small mode="outline" onPress={()=>onBlock(uid)}/>}</Row>
+<Row style={{marginTop:12,flexWrap:'wrap'}}>
+<Button title="Profil ansehen" small mode="outline" disabled={blocked(uid)} onPress={()=>onShowFamily(uid)}/>
+<Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>
+{blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:<Button title="Blockieren" small mode="ghost" onPress={()=>onBlock(uid)}/>}
+</Row>
 </Card>;})}
 </ScrollView>;
 }
