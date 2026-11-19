@@ -21,12 +21,13 @@ const sensitiveRules: Array<[string, RegExp]> = [
   ["drugs", /\b(?:kokain|heroin|cannabis|marihuana|haschisch|lsd|mdma|ecstasy|drogen|betäubungsmittel[n]?)\b/i],
   ["medicine", /\b(?:arzneimittel|medikament[e]?|antibiotika|rezeptpflichtig|nahrungsergänzungsmittel|proteinpulver|hormonpräparat[e]?|anabolika|steroide)\b/i],
   ["adult", /\b(?:pornografisch|pornofilm[e]?|sexspielzeug|vibrator[e]?|dildo[s]?|bdsm|fetischartikel|fsk\s*18|usk\s*18|ab\s*18)\b/i],
-  ["animals", /\b(?:lebende\s+tiere?|tiervermittlung|welpen?|kätzchen|katzenbabys?|hundebabys?|tierbabys?|zuchttiere?|reinrassige\s+(?:hunde|katzen)|haustier(?:\s+abzugeben)?|hund\s+abzugeben|katze\s+abzugeben|kaninchen\s+abzugeben|meerschweinchen\s+abzugeben|reptilien\s+abzugeben|papagei\s+abzugeben)\b/i],
+  ["animals", /\b(?:lebende\s+tiere?|tiervermittlung|welpen?|kätzchen|katzenbabys?|hundebabys?|tierbabys?|zuchttiere?|reinrassige\s+(?:hunde|katzen)|haustier(?:\s+abzugeben)?|hund(?:e)?|katze(?:n)?|kaninchen|meerschweinchen|hamster|schildkröte|schlange|papagei|reptilien|aquarienfische|zuchtvögel)\b/i],
   ["illegal", /\b(?:plagiat[e]?|markenfälschung|gefälscht(?:e|er|es|en)?|raubkopie[n]?|gestohlen(?:e|er|es|en)?|diebe?sgut|fake\s+(?:ausweis|pass|markenartikel)|ausweispapiere)\b/i],
   ["extremism", /\b(?:hakenkreuz|nazipropaganda|heil\s+hitler|ss-?uniform|rechtsextrem(?:e|en)?)\b/i],
   ["finance", /\b(?:kredit(?:vergabe)?|darlehen|bitcoin|kryptowährung|casino|roulette|lotterie|wetten|spielaccount|gaming\s+account|account\s+verkauf)\b/i],
   ["commercial", /\b(?:network\s+marketing|pyramiden(?:system)?|multi\s*level\s*marketing|mlm|jobangebot|stellenangebot|escort|prostitution)\b/i],
   ["unsafe_product", /\b(?:produkt(?:rückruf|rueckruf)|zurückgerufen|unfall(?:beschädigt|schaden)|defekt(?:er|e|es)?\s+(?:kindersitz|autositz|babyschale))\b/i],
+  ["personal_data", /(?:https?:\/\/|\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b|\b(?:\+49|0)[\d\s/-]{9,}\d\b)/i],
 ];
 
 function normalize(input: string): string {
