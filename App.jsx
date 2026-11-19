@@ -163,7 +163,7 @@ return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'pad
 }
 export default function App() {
 const [session,setSession]=useState(undefined);
-const [tab,setTab]=useState('discover');
+const [tab,setTab]=useState('market');
 const [selectedContact,setSelectedContact]=useState(null);
 const [detailFamily,setDetailFamily]=useState(null);
 const [showEventForm,setShowEventForm]=useState(false);
@@ -550,7 +550,7 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
         {own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{marginTop:7,color:C.warningText}]}>Nur für dich sichtbar · {x.moderation_status==='pending'?'wartet auf Freigabe':x.moderation_status==='rejected'?'nicht freigegeben':'nicht veröffentlicht'}</Text>:null}
         {own&&x.moderation_status==='pending'&&!x.photo_path?
           <View style={{marginTop:11}}><Button title="Foto ergänzen" mode="outline" small disabled={choosing||busy} onPress={()=>pick(asset=>uploadPendingPhoto(x.id,asset))}/></View>:null}
-        {!own?<View style={{marginTop:12}}><Button title={connected?connected.status==='accepted'?'Über Nachrichten Kontakt aufnehmen':connected.status==='pending'?'Kontaktanfrage offen':'Kontakt bereits angefragt':'Verkäufer kontaktieren'}
+        {!own?<View style={{marginTop:12}}><Button title={connected?connected.status==='accepted'?'Nachrichten unter Mehr öffnen':connected.status==='pending'?'Kontaktanfrage offen':'Kontakt bereits angefragt':'Verkäufer kontaktieren'}
            disabled={!!connected||busy||!active} mode="outline" onPress={()=>onContact(x.seller_id)}/></View>:null}
       </Card>;
     })}
