@@ -101,7 +101,7 @@ type Listing = {
  id:string;seller_id:string;organization_id:string|null;
  title:string;description:string;category:string;item_condition:string;
  trade_type:string;price_cents:number;region_label:string;
- photo_path:string|null;moderation_status:string;
+ photo_path:string|null;moderation_status:string;review_version:number;
 };
 
 export default {
@@ -117,7 +117,7 @@ export default {
 
   const db=ctx.supabaseAdmin;
   const {data:listingData,error:readError}=await db.from("ff_market_listings")
-   .select("id,seller_id,organization_id,title,description,category,item_condition,trade_type,price_cents,region_label,photo_path,moderation_status")
+   .select("id,seller_id,organization_id,title,description,category,item_condition,trade_type,price_cents,region_label,photo_path,moderation_status,review_version")
    .eq("id",listingId).eq("seller_id",uid).maybeSingle();
   if(readError)return fail("Inserat konnte nicht geprüft werden");
   const listing=listingData as Listing|null;
@@ -155,11 +155,28 @@ export default {
   const inputs:Array<Record<string,unknown>>=[{
     type:"text", text:[listing.title,listing.description,listing.region_label].filter(Boolean).join("\n")
   }];
+  // Alle Bilder, einschließlich älterer Hauptfotos, müssen vor der Freigabe
+  // gemeinsam geprüft werden. Ein fehlendes oder manipuliertes Bild hält zurück.
+  const {data:extraPhotos,error:extraError}=await db.from("ff_market_photos")
+    .select("slot,photo_path,seller_id").eq("listing_id",listingId).order("slot",{ascending:true});
+  if(extraError)return fail("Weitere Artikelfotos nicht abrufbar");
+  if((extraPhotos||[]).length>4)return Response.json({status:"review_required",reason:"photo_count"});
+  const paths:string[]=[];
   if(listing.photo_path){
-    const path=uid+"/"+listingId+".jpg";
-    if(listing.photo_path!==path)return Response.json({status:"review_required",reason:"photo_path"});
+    const primary=uid+"/"+listingId+".jpg";
+    if(listing.photo_path!==primary)return Response.json({status:"review_required",reason:"photo_path"});
+    paths.push(primary);
+  }
+  for(const photo of extraPhotos||[]){
+    const expected=uid+"/"+listingId+"/"+photo.slot+".jpg";
+    if(photo.seller_id!==uid||![2,3,4,5].includes(photo.slot)||photo.photo_path!==expected)
+      return Response.json({status:"review_required",reason:"extra_photo_path"});
+    paths.push(expected);
+  }
+  // Ein Multipart-/Upload-Fehler darf niemals eine automatische Freigabe auslösen.
+  for(const path of paths){
     const {data:file,error:fileError}=await db.storage.from(BUCKET).download(path);
-    if(fileError||!file)return fail("Foto kann momentan nicht geprüft werden");
+    if(fileError||!file)return Response.json({status:"review_required",reason:"photo_missing"});
     if(file.size<3||file.size>MAX_BYTES)return Response.json({status:"review_required",reason:"photo_size"});
     const bytes=new Uint8Array(await file.arrayBuffer());
     if(bytes[0]!==255||bytes[1]!==216||bytes[2]!==255)
@@ -221,6 +238,7 @@ export default {
   // den Nutzer dürfen die Freigabe eines veralteten Prüfergebnisses nicht auslösen.
   let update=db.from("ff_market_listings").update({moderation_status:newStatus})
     .eq("id",listing.id).eq("seller_id",uid).eq("moderation_status","pending")
+    .eq("review_version",listing.review_version)
     .eq("title",listing.title).eq("description",listing.description)
     .eq("category",listing.category).eq("item_condition",listing.item_condition)
     .eq("trade_type",listing.trade_type).eq("price_cents",listing.price_cents)
