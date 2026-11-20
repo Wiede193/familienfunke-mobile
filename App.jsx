@@ -240,6 +240,15 @@ setSession(data?.session||null);
 const {data:listener}=supabase.auth.onAuthStateChange((_event,next)=>{if(alive)setSession(next);});
 return ()=>{alive=false;listener.subscription.unsubscribe();};
 },[]);
+// Nach jeder Anmeldung startet Familienfunke im Basar – auch nach einem Kontowechsel.
+useEffect(()=>{
+  setTab('market');
+  setSelectedContact(null);
+  setDetailFamily(null);
+  setShowInfo(false);
+  setShowLoginHelp(false);
+  setShowEventForm(false);
+},[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});}},[me,load]);
 // Einmalige Begrüßung je Konto auf diesem Gerät. Ein erneuter Aufruf unter „Mehr“ ist jederzeit möglich.
 useEffect(()=>{
