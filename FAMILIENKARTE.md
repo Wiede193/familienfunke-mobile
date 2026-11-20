@@ -44,6 +44,14 @@
 - Fotos, Bewertungssysteme, Nutzer-GPS, automatische Moderation der Beiträge und Streckenplanung sind noch nicht implementiert.
 - **Keine privaten Wohnadressen und keine Standorte von Kindern öffentlich eintragen.**
 
+## Navigation mit externen Kartendiensten
+- In den Ortsdetails stehen für **alle** Ortsquellen (recherchierte Ziele, OpenStreetMap und freigegebene Community-Vorschläge) zwei direkte Routenlinks bereit.
+- Google Maps: offizielles Directions-URL-Format `https://www.google.com/maps/dir/?api=1&destination=<lat>,<lon>` (https://developers.google.com/maps/documentation/urls/get-started).
+- Apple Karten: universeller Kartenlink `https://maps.apple.com/?daddr=<lat>,<lon>`, zur Routenplanung, mit plattformabhängiger Übergabe an Apple Karten beziehungsweise Browser. Alternativ unterstützt Apple den neueren `/directions?destination=`-Endpunkt für aktuelle OS-Versionen (https://developer.apple.com/documentation/mapkit/unified-map-urls).
+- Die URL enthält ausschließlich die **Zielkoordinaten**, nicht die GPS-Position eines Mitglieds. Standortfreigabe und Startpunkt sind Sache der externen Karten-App.
+- Wenn sich der Dienst nicht öffnen lässt, erscheint eine Fehlermeldung. Die bestehende Ansicht „In OpenStreetMap ansehen“ bleibt verfügbar.
+- Bei Fremd-Kartendiensten gelten deren Datenschutzbedingungen. Die tatsächliche Navigation muss auf dem Gerät getestet werden.
+
 ## Testpunkte
 1. Auf iOS/Android erscheint eine vektorbasierte Deutschlandkarte mit OSM-Attribution (WebGL in WebView); falls externe Dienste ausfallen, bleibt die App bedienbar.
 2. Stadt wählen, „Hier nach Orten suchen“ – vorhandene OSM-Spielplätze / Restaurants mit ausgewiesenem Wickeltisch / Ausflugsziele werden auf der Karte und in der Liste angezeigt.
