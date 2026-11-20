@@ -1,5 +1,26 @@
 # Familienkarte – Vektorkarte und familienfreundliche Orte
 
+## Kuratierte Orte: Pilotregion Oder-Spree (November 2026)
+- In `FamilyMapCurated.js` sind zehn **redaktionell recherchierte** Orte als statischer Anfangsbestand enthalten. Diese benötigen weder einen Community-Upload noch eine vom Nutzer frei manipulierbare `moderation_status`-Freigabe.
+- Nach Öffnen der Karte erscheinen ihre Marker und eine horizontale Liste mit Kurzbeschreibung, Region und Kartensprung. „Auf Karte“ fokussiert den regionalen Kartenausschnitt; die Ortsdetails verlinken zu offiziellen Informationsseiten.
+- Die kuratierten IDs sind stabil, z. B. `curated-irrlandia`. Bekannte `osm_key`-Kennungen vermeiden Dopplungen bei Overpass-Suchen.
+- Die Kategorien `outing` bzw. `playground` sind gesondert filterbar. Es sind KEINE Wickeltische, vollständige Barrierefreiheit, Kosten, Öffnungszeiten oder aktuelle Verfügbarkeit behauptet. Fehlende Wickeltischangaben bedeuten **unbekannt**, nicht „Nein“.
+- Landkreis Oder-Spree: IRRLANDIA (Storkow), Burg Storkow / Besucherzentrum, Binnendüne Waltersberge, Scharmuntzelland (Wendisch Rietz), Heimattiergarten Fürstenwalde, Wettermuseum Lindenberg, Burg Beeskow und Naturparkhaus Schlaubetal.
+- Nahe Umgebung außerhalb des Landkreises: Wildpark Frankfurt (Oder), Ziegenwerder mit Spielplatz (Pin bezeichnet den Parkbereich, nicht die einzelne Spielanlage).
+- Geokoordinaten stammen aus den amtlichen Naturpark-Seiten (Besucherzentrum, Naturparkhaus, Waltersberge) oder dokumentierten OSM-Karteneinträgen; Ortsbeschreibung und Existenz wurden mit den jeweiligen offiziellen Betreiber-/Tourismusseiten abgeglichen.
+- Quellen, zusätzlich zu den direkt im Code hinterlegten `info_url`-Adressen:
+  - https://www.dahme-heideseen-naturpark.de/themen/ausflugsziele-erlebnisse/besucherzentrum-burg-storkow-mark/
+  - https://www.natur-brandenburg.de/themen/ausflugsziele-erlebnisse/aussichtspunkt-binnenduene-waltersberge/
+  - https://www.schlaubetal-naturpark.de/themen/ausflugsziele-erlebnisse/naturparkhaus-schlaubetal/
+  - https://mapcarta.com/W800937029 (IRRLANDIA)
+  - https://mapcarta.com/W825399584 (Scharmuntzelland)
+  - https://mapcarta.com/W168737334 (Heimattiergarten)
+  - https://mapcarta.com/N1794101250 (Wettermuseum)
+  - https://mapcarta.com/36746242 (Burg Beeskow)
+  - https://mapcarta.com/W69221883 (Wildpark)
+  - https://www.frankfurt-slubice.eu/de/poi/102709/ziegenwerder
+- Diese Startdaten sind unabhängig von Overpass-Suchverfügbarkeit und erscheinen auch dann, wenn der Overpass-Endpunkt eine Fehlermeldung liefert. Die Karten-Vektorkacheln selbst benötigen weiterhin Internet.
+
 ## Technische Entscheidung
 - `react-native-webview` 14.0.1 ist im Expo SDK 58 / Expo Go enthalten; die Vektorkarte wird mit MapLibre GL JS 6.16.0 in einer WebView gerendert.
 - Kartenstil: `https://tiles.openfreemap.org/styles/liberty`. OpenFreeMap liefert OpenStreetMap-basierte **Vektorkacheln**.
