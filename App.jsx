@@ -606,7 +606,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
     </View>:null}
   </View>;
 }
-function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,createListing,uploadPendingPhoto,markListingSold,onContact,onChat,nameOf,blocked}){
+function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,onContact,onChat,nameOf,blocked}){
   const [open,setOpen]=useState(false);
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('Alle');
@@ -617,6 +617,9 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
   const [filterOpen,setFilterOpen]=useState(false);
   const [selectedListing,setSelectedListing]=useState(null);
   const [onlyMine,setOnlyMine]=useState(false);
+  const [onlyFavorites,setOnlyFavorites]=useState(false);
+  const [editingId,setEditingId]=useState(null);
+  const [galleryIndex,setGalleryIndex]=useState(0);
   const [title,setTitle]=useState('');
   const [description,setDescription]=useState('');
   const [region,setRegion]=useState('');
@@ -625,9 +628,32 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
   const [trade,setTrade]=useState('sell');
   const [price,setPrice]=useState('');
   const [organizationId,setOrganizationId]=useState('');
-  const [photo,setPhoto]=useState(null);
+  const [photo,setPhoto]=useState([]);
   const [choosing,setChoosing]=useState(false);
   const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
+  const favoriteIds=new Set(favorites.map(x=>x.listing_id));
+  const editingListing=editingId?listings.find(x=>x.id===editingId&&x.seller_id===me):null;
+  const existingPhotoCount=editingListing?(editingListing.photo_path?1:0)
+    +marketPhotos.filter(x=>x.listing_id===editingId).length:0;
+  const galleryOf=x=>{
+    const pictures=[];
+    if(photoUrls[x.id])pictures.push({id:'primary',uri:photoUrls[x.id]});
+    marketPhotos.filter(p=>p.listing_id===x.id).sort((a,b)=>a.slot-b.slot).forEach(p=>{
+      if(extraPhotoUrls[p.photo_path])pictures.push({id:p.photo_path,uri:extraPhotoUrls[p.photo_path]});
+    });
+    return pictures;
+  };
+  function resetForm(){
+    setEditingId(null);setTitle('');setDescription('');setRegion('');setCategory('Kleidung');
+    setCondition('Gut');setTrade('sell');setPrice('');setOrganizationId('');setPhoto([]);
+  }
+  function beginEdit(x){
+    resetForm();setEditingId(x.id);setOnlyMine(true);setOnlyFavorites(false);
+    setTitle(x.title);setDescription(x.description||'');setRegion(x.region_label||'');
+    setCategory(x.category);setCondition(x.item_condition);setTrade(x.trade_type);
+    setPrice(x.trade_type==='sell'?String((x.price_cents/100).toFixed(2)).replace('.',','):'');
+    setOrganizationId(x.organization_id||'');setOpen(true);setSelectedListing(null);
+  }
   const priceLabel=x=>x.trade_type==='gift'?'Zu verschenken':x.trade_type==='swap'?'Tausch':
     (x.price_cents/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
   const parsePrice=value=>{
@@ -636,7 +662,7 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
   };
   const minimum=parsePrice(minPrice), maximum=parsePrice(maxPrice);
   const filtered=listings.filter(x=>
-    ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'))
+    ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
     && !blocked(x.seller_id)
     && (filter==='Alle'||x.category===filter)
     && (tradeFilter==='all'||x.trade_type===tradeFilter)
@@ -649,11 +675,13 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
     if(sortBy==='high')return (b.price_cents-a.price_cents)||new Date(b.created_at)-new Date(a.created_at);
     return new Date(b.created_at)-new Date(a.created_at);
   });
-  async function pick(fn){
-    if(choosing)return;
+  async function pick(fn,max=5){
+    if(choosing||max<1)return;
     setChoosing(true);
-    try{const asset=await selectMarketPhoto();if(asset)await fn(asset);}
-    catch(e){Alert.alert('Fotoauswahl',humanError(e));}
+    try{
+      const assets=await selectMarketPhotos(max);
+      if(assets.length)await fn(assets);
+    }catch(e){Alert.alert('Fotoauswahl',humanError(e));}
     finally{setChoosing(false);}
   }
   async function submit(){
@@ -662,10 +690,11 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
     const cents=parsePrice(price);
     if(trade==='sell'&&(cents===null||cents<0||cents>10000000))
       return Alert.alert('Preis prüfen','Bitte einen Preis in Euro zwischen 0 und 100.000 angeben.');
-    const ok=await createListing({title:safeString(title,100),description:safeString(description,1500),
+    const values={title:safeString(title,100),description:safeString(description,1500),
       category,item_condition:condition,trade_type:trade,price_cents:trade==='sell'?cents:0,
-      region_label:safeString(region,80),organization_id:organizationId||null},photo);
-    if(ok){setTitle('');setDescription('');setPrice('');setPhoto(null);setOrganizationId('');setOpen(false);}
+      region_label:safeString(region,80),organization_id:organizationId||null};
+    const ok=editingId?await editListing(editingId,values,photo):await createListing(values,photo);
+    if(ok){resetForm();setOpen(false);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);}
   }
   function sellerInformation(x){
     const own=x.seller_id===me;
@@ -682,6 +711,8 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
     return <Button title={label} disabled={busy||!active||!!contact} mode="primary" onPress={()=>onContact(x.seller_id)}/>;
   }
   const selected=selectedListing?shown.find(x=>x.id===selectedListing):null;
+  const gallery=selected?galleryOf(selected):[];
+  const shownImage=gallery[Math.min(galleryIndex,Math.max(0,gallery.length-1))]?.uri;
   return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <H sub="Kinderkleidung, Spielzeug und vieles mehr – direkt von Familien in deiner Nähe.">Familienbasar</H>
     <Info>{SECTION_MESSAGES.market}</Info>
@@ -690,24 +721,39 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
         <Text style={styles.marketTopTitle}>Entdecken & weitergeben</Text>
         <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
       </View>
-      <Button title={open?'Schließen':'＋ Inserieren'} small disabled={!active} onPress={()=>{setOpen(v=>!v);setSelectedListing(null);}}/>
+      <Button title={open?'Schließen':'＋ Inserieren'} small disabled={!active} onPress={()=>{if(open){resetForm();setOpen(false);}else{resetForm();setOpen(true);setSelectedListing(null);}}}/>
     </View>
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
-    <View style={{flexDirection:'row',gap:9,marginBottom:16}}>
-      <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine?'primary':'outline'} small
-        onPress={()=>{setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
-      <View style={{flex:1}}><Button title={'Meine Inserate ('+listings.filter(x=>x.seller_id===me).length+')'}
+    <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
+      <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
+        onPress={()=>{setOnlyMine(false);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
+      <View style={{flex:1}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+')'}
         mode={onlyMine?'primary':'outline'} small
-        onPress={()=>{setOnlyMine(true);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
+        onPress={()=>{setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
+      <View style={{flex:1}}><Button title={'♡ Merkliste ('+favorites.length+')'}
+        mode={onlyFavorites?'primary':'outline'} small
+        onPress={()=>{setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
     {open?<Card style={{marginBottom:18}}>
-      <Text style={styles.sectionTitle}>Anzeige aufgeben</Text>
-      <Text style={[styles.sub,{marginBottom:17}]}>Kostenlos einstellen. Titel, Beschreibung und Foto werden vor Veröffentlichung geprüft. Unklare Angebote warten auf manuelle Freigabe.</Text>
+      <Text style={styles.sectionTitle}>{editingId?'Anzeige bearbeiten':'Anzeige aufgeben'}</Text>
+      <Text style={[styles.sub,{marginBottom:17}]}>{editingId?
+        'Beim Speichern wird deine Anzeige erneut vollständig geprüft und bis zur Freigabe ausgeblendet. Bereits hochgeladene Fotos bleiben erhalten.':
+        'Kostenlos einstellen. Titel, Beschreibung und alle Fotos werden vor Veröffentlichung geprüft.'}</Text>
       <View style={{marginBottom:15}}>
-        <Button title={photo?'✓ Foto ausgewählt – ändern':'＋ Artikelfoto auswählen'} mode="outline" disabled={choosing||busy}
-          onPress={()=>pick(setPhoto)}/>
-        {photo?<Image source={{uri:photo.uri}} style={[styles.photoDraftPreview,{marginTop:10}]} resizeMode="contain"/>:null}
-        <Text style={[styles.micro,{marginTop:8}]}>Ein Foto pro Inserat ist möglich.</Text>
+        <Button title={'＋ Fotos auswählen ('+(existingPhotoCount+photo.length)+'/5)'} mode="outline"
+          disabled={choosing||busy||existingPhotoCount+photo.length>=5}
+          onPress={()=>pick(assets=>setPhoto(old=>[...old,...assets].slice(0,5-existingPhotoCount)),
+            5-existingPhotoCount-photo.length)}/>
+        {photo.length>0?<ScrollView horizontal style={{marginTop:11}} contentContainerStyle={{gap:9}}>
+          {photo.map((asset,index)=><View key={asset.assetId||asset.uri+index} style={{width:100}}>
+            <Image source={{uri:asset.uri}} style={{width:100,height:100,borderRadius:13}} resizeMode="cover"/>
+            <Pressable accessibilityRole="button" accessibilityLabel={'Foto '+(index+1)+' entfernen'}
+              onPress={()=>setPhoto(p=>p.filter((_,i)=>i!==index))} style={{padding:7,alignItems:'center'}}>
+              <Text style={[styles.micro,{color:C.coralDeep,fontWeight:'900'}]}>Entfernen ×</Text>
+            </Pressable>
+          </View>)}
+        </ScrollView>:null}
+        <Text style={[styles.micro,{marginTop:8}]}>Bis zu fünf Bilder pro Angebot. Bei Änderungen werden alle Bilder erneut geprüft.</Text>
       </View>
       <Input label="Anzeigentitel" value={title} onChangeText={setTitle} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
       <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={setCategory} options={MARKET_CATEGORIES}/>
@@ -724,12 +770,12 @@ function MarketScreen({listings,me,active,busy,organizations,photoUrls,contacts,
       </View>
       <Input label="Beschreibung" multiline value={description} onChangeText={setDescription} maxLength={1500} placeholder="Größe, Farbe, Zustand, Abholung …"/>
       <Input label="Ort / Region – keine Privatadresse" value={region} onChangeText={setRegion} maxLength={80} placeholder="z. B. Fürstenwalde/Spree"/>
-      {myOrgs.length>0?<><Text style={styles.label}>Anbieten als</Text><View style={[styles.chipsRow,{marginTop:0,marginBottom:15}]}>
+      {myOrgs.length>0&&!editingId?<><Text style={styles.label}>Anbieten als</Text><View style={[styles.chipsRow,{marginTop:0,marginBottom:15}]}>
         <Chip text="Privat" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
       </View></>:null}
       <Info>Erlaubt sind auch Kuscheltiere, Tierfiguren und eindeutig harmloses Kinderspielzeug. Echte Tiere sind bei uns ausnahmslos verboten – ebenso Waffen, Drogen, Medikamente, 18+-Waren und andere gefährliche oder illegale Artikel. Die Anzeige erscheint erst nach Prüfung.</Info>
-      <Button title={busy?'Wird gespeichert …':'Anzeige kostenlos einreichen'} disabled={busy||choosing||!active} onPress={submit}/>
+      <Button title={busy?'Wird gespeichert …':editingId?'Änderungen zur Prüfung einreichen':'Anzeige kostenlos einreichen'} disabled={busy||choosing||!active} onPress={submit}/>
     </Card>:null}
     {selected?<View>
       <Pressable accessibilityRole="button" onPress={()=>setSelectedListing(null)} style={{marginBottom:14,paddingVertical:8}}>
