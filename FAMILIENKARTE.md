@@ -21,6 +21,19 @@
   - https://www.frankfurt-slubice.eu/de/poi/102709/ziegenwerder
 - Diese Startdaten sind unabhängig von Overpass-Suchverfügbarkeit und erscheinen auch dann, wenn der Overpass-Endpunkt eine Fehlermeldung liefert. Die Karten-Vektorkacheln selbst benötigen weiterhin Internet.
 
+## Bundesweite Familienziele – November 2026
+
+- `FamilyMapNational.js` ergänzt den Bestand um **24 dauerhaft interessante Ausflugsziele in Deutschland**, getrennt in Freizeitparks (13), Indoorspielplätze (5), Erlebnisbad (1) und interaktive Museen/Erlebniswelten (5).
+- Die Liste reicht vom Europa-Park über Phantasialand, Heide Park, HANSA-PARK, LEGOLAND, BELANTIS, Plohn, Tripsdrill, Filmpark Babelsberg, Karls Elstal, Serengeti-Park, Movie Park und PLAYMOBIL-FunPark bis zu Indoorspielplätzen (Holland-Park, rabatzz!, Tolliwood, INDOO, LEGOLAND Discovery Centre Berlin), Tropical Islands sowie Miniatur Wunderland, phaeno, OZEANEUM, Klimahaus und Universum Bremen.
+- Quellen: offizielle Betreiberseiten als `info_url` direkt im Datensatz; Geokoordinaten aus OpenStreetMap-/Mapcarta-Einträgen und vereinzelt amtlich veröffentlichten Anfahrtsdaten. Weitere Recherchegrundlagen: https://www.germany.travel/de/erleben-geniessen/freizeitparks.html ; https://www.adac.de/reise-freizeit/reiseplanung/inspirationen/deutschland/beste-freizeitparks/ ; https://mapcarta.com/ .
+- **Regionale Tipps werden nicht ersetzt:** Im UI erscheinen zuerst die bisherigen zehn Oder-Spree-Tipps, dann die separat filterbare „große Familien-Auswahl“.
+- Filter nach Ausflugsart (`theme`, `indoor`, `water`, `museum`) und Großregion (`north`, `east`, `west`, `south`); Auswahl beeinflusst Kartenpins und Ergebnisliste der bundesweiten Tipps, nicht die von Mitgliedern eingereichten lokalen Orte.
+- „Deutschland“ zeigt wieder den ganzen bundesweiten Anfangsbestand, Klick auf eine Karte fokussiert den gewählten Ort. Detailkarte enthält die offizielle Website sowie Google-Maps- und Apple-Karten-Routenlinks.
+- **Nicht behaupten:** individuelle Barrierefreiheit, Wickelräume, Eintrittspreise, Alterseignung, Fahrgeschäftzugang, Live-Verfügbarkeit oder aktuelle Öffnungszeiten. Ein saisonal geschlossener Park bleibt als dauerhaftes Ausflugsziel sichtbar; der Besuch ist bei den Betreibern zu prüfen.
+- Standortpunkte stehen für Eingänge, das jeweilige Gebäude oder das Geländezentrum – nicht zwingend für den erreichbaren Haupteingang oder Parkplatz. Vor Besuch ggf. offizielle Anfahrt nutzen.
+- Die Daten sind eine bewusst **kleine redaktionelle Auswahl**, kein automatischer deutschlandweiter Komplett-Import. Spätere Erweiterungen sollten die Daten strukturiert im Backend pflegen und Quelle/Prüfdatum dauerhaft speichern.
+- Testmatrix: Filterkombinationen; Kartenfokus; Pins; OSM-Dubletten; alle offiziellen Webseiten; externer Navigationsstart; bestehende Karte von Oder-Spree und Community-Vorschläge; Test auf iOS und Android. JS-Bundleerfolg allein ist kein Geräte- oder End-to-End-Test.
+
 ## Technische Entscheidung
 - `react-native-webview` 14.0.1 ist im Expo SDK 58 / Expo Go enthalten; die Vektorkarte wird mit MapLibre GL JS 6.16.0 in einer WebView gerendert.
 - Kartenstil: `https://tiles.openfreemap.org/styles/liberty`. OpenFreeMap liefert OpenStreetMap-basierte **Vektorkacheln**.
