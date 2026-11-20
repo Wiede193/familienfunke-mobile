@@ -3,6 +3,7 @@ import {ActivityIndicator,Alert,Linking,Pressable,ScrollView,StyleSheet,Switch,T
 import {WebView} from 'react-native-webview';
 import {supabase} from './supabase';
 import {CURATED_REGION,CURATED_FAMILY_PLACES} from './FamilyMapCurated';
+import {NATIONAL_FAMILY_PLACES,NATIONAL_TYPES,NATIONAL_AREAS} from './FamilyMapNational';
 
 const C={bg:'#FFF9F3',paper:'#FFFFFF',ink:'#193C48',muted:'#647D82',teal:'#087F87',dark:'#075D67',pale:'#E4F5F1',sun:'#FFE4AA',coral:'#EE7867',line:'#F0E5DC'};
 const TYPES=[['all','Alle','◎'],['playground','Spielplätze','♧'],['changing','Wickeltische','♡'],['outing','Ausflüge','✿'],['other','Sonstiges','◇']];
@@ -81,6 +82,8 @@ export default function FamilyMapScreen({userId,active,addPlace}){
   const [mapError,setMapError]=useState('');
   const [center,setCenter]=useState({latitude:51.2,longitude:10.45,zoom:5.3});
   const [types,setTypes]=useState('all');
+  const [nationalType,setNationalType]=useState('all');
+  const [nationalArea,setNationalArea]=useState('all');
   const [openForm,setOpenForm]=useState(false);
   const [draftPoint,setDraftPoint]=useState(null);
   const [name,setName]=useState('');
@@ -106,11 +109,16 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     }catch{setSearchError('Die eingereichten Familienorte konnten gerade nicht geladen werden.');}
   },[userId]);
   useEffect(()=>{fetchCommunity();},[fetchCommunity]);
+  const nationalShown=useMemo(()=>NATIONAL_FAMILY_PLACES.filter(p=>
+    (nationalType==='all'||p.kind===nationalType)
+    && (nationalArea==='all'||p.area===nationalArea)
+  ),[nationalType,nationalArea]);
   const all=useMemo(()=>{
-    const curatedOSM=new Set(CURATED_FAMILY_PLACES.map(p=>p.osm_key).filter(Boolean));
-    const places=[...CURATED_FAMILY_PLACES,...community,...osm.filter(p=>!curatedOSM.has(p.id))];
+    const curated=[...CURATED_FAMILY_PLACES,...nationalShown];
+    const curatedOSM=new Set(curated.map(p=>p.osm_key).filter(Boolean));
+    const places=[...curated,...community,...osm.filter(p=>!curatedOSM.has(p.id))];
     return places.filter(p=>inGermany(p.latitude,p.longitude) && (types==='all'||p.category===types));
-  },[community,osm,types]);
+  },[community,osm,types,nationalShown]);
   const selected=all.find(p=>p.id===selectedId)||null;
   useEffect(()=>{if(ready)map.current?.injectJavaScript(pinSetScript(all));},[all,ready]);
   useEffect(()=>{
@@ -145,6 +153,11 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     setNotice('');
     setSearchError('');
     // Nutzer tippt danach bewusst auf "Hier suchen", kein automatisches Massenabfragen.
+  }
+  function showAllGermany(){
+    setNationalType('all');setNationalArea('all');setTypes('all');setSelectedId(null);
+    setCenter({latitude:51.2,longitude:10.45,zoom:5.3});setSearchError('');
+    if(ready)map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo(51.2,10.45,5.3);true;');
   }
   function showCuratedRegion(){
     const {latitude,longitude,zoom}=CURATED_REGION;
@@ -260,6 +273,55 @@ export default function FamilyMapScreen({userId,active,addPlace}){
       </ScrollView>
       <Text style={[styles.micro,{marginTop:10}]}>Recherche: November 2026. Öffnungszeiten, Preise und Ausstattung bitte vor einem Besuch direkt prüfen.</Text>
     </View>
+    <View style={styles.nationalBox}>
+      <View style={[styles.row,{justifyContent:'space-between',gap:9,alignItems:'center'}]}>
+        <View style={{flex:1}}>
+          <Text style={styles.curatedEyebrow}>DEUTSCHLANDWEIT ENTDECKEN</Text>
+          <Text style={styles.curatedTitle}>Die große Familien-Auswahl</Text>
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Alle bundesweiten Ziele auf der Karte anzeigen"
+          style={styles.curatedMapBtn} onPress={showAllGermany}>
+          <Text style={styles.curatedMapBtnText}>⌖ Deutschland</Text>
+        </Pressable>
+      </View>
+      <Text style={[styles.micro,{marginTop:8,marginBottom:11}]}>
+        {NATIONAL_FAMILY_PLACES.length} recherchierte Familienziele: von Freizeitparks über Indoor-Spielwelten bis zu interaktiven Museen.
+      </Text>
+      <Text style={styles.nationalLabel}>Was möchtet ihr unternehmen?</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:10}}>
+        {NATIONAL_TYPES.map(x=><Chip key={x.id} label={x.icon+' '+x.label}
+          selected={nationalType===x.id} onPress={()=>{setNationalType(x.id);setSelectedId(null);}}/>)}
+      </ScrollView>
+      <Text style={[styles.nationalLabel,{marginTop:13}]}>Welche Region?</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:10}}>
+        {NATIONAL_AREAS.map(x=><Chip key={x.id} label={x.label}
+          selected={nationalArea===x.id} onPress={()=>{setNationalArea(x.id);setSelectedId(null);}}/>)}
+      </ScrollView>
+      <View style={[styles.row,{justifyContent:'space-between',marginTop:15,marginBottom:10}]}>
+        <Text style={styles.nationalCount}>{nationalShown.length} {nationalShown.length===1?'Ausflugsziel':'Ausflugsziele'}</Text>
+        {nationalShown.length<NATIONAL_FAMILY_PLACES.length?<Pressable accessibilityRole="button"
+          onPress={()=>{setNationalType('all');setNationalArea('all');setSelectedId(null);}}>
+          <Text style={styles.nationalReset}>Filter löschen ×</Text>
+        </Pressable>:null}
+      </View>
+      {nationalShown.length===0?<Text style={styles.micro}>Für diese Auswahl ist noch kein Ort erfasst. Probiere eine andere Region oder Kategorie.</Text>:
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:10,paddingRight:12}}>
+          {nationalShown.map(place=><View key={place.id} style={styles.nationalPlace}>
+            <View style={[styles.row,{gap:8}]}>
+              <Text style={styles.nationalPlaceIcon}>{NATIONAL_TYPES.find(t=>t.id===place.kind)?.icon||'✿'}</Text>
+              <Text style={styles.nationalKind}>{place.kind_label}</Text>
+            </View>
+            <Text style={styles.curatedPlaceTitle} numberOfLines={2}>{place.title}</Text>
+            <Text style={styles.micro} numberOfLines={2}>⌖ {place.region_label} · {place.state}</Text>
+            <Text style={[styles.micro,{flex:1,marginTop:8}]} numberOfLines={3}>{place.description}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={place.title+' auf der Karte zeigen'}
+              onPress={()=>showPlace(place)} style={styles.nationalPlaceButton}>
+              <Text style={styles.nationalPlaceButtonText}>Auf Karte ansehen  ›</Text>
+            </Pressable>
+          </View>)}
+        </ScrollView>}
+      <Text style={[styles.micro,{marginTop:12}]}>Recherchestand November 2026. Saison, Preise, Altersgrenzen und Öffnungszeiten bitte auf den verlinkten Anbieterseiten prüfen.</Text>
+    </View>
     <Text style={styles.section}>Stadt auswählen</Text>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:15}}>
       {CENTERS.map(c=><Chip key={c.name} label={c.name} selected={false} onPress={()=>visit(c)}/>)}
@@ -282,11 +344,12 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     </ScrollView>
     <Text style={[styles.micro,{marginTop:12}]}>Orte aus OpenStreetMap sind nicht von Familienfunke überprüft. Ein Wickeltisch ist nur dann als vorhanden markiert, wenn die Quelle oder der Eintrag das ausdrücklich angibt.</Text>
     {selected?<View style={styles.selectedCard}>
-      <Text style={styles.cardEyebrow}>{typeLabel(selected.category)} · {selected.source==='osm'?'OpenStreetMap':selected.source==='curated'?'Redaktioneller Ausflugstipp':selected.moderation_status==='pending'?'Dein Vorschlag in Prüfung':'Familien-Tipp'}</Text>
+      <Text style={styles.cardEyebrow}>{typeLabel(selected.category)} · {selected.source==='osm'?'OpenStreetMap':selected.source==='curated'?'Redaktioneller Ausflugstipp':selected.source==='national'?'Deutschlandweiter Ausflugstipp':selected.moderation_status==='pending'?'Dein Vorschlag in Prüfung':'Familien-Tipp'}</Text>
       <Text style={styles.selectedTitle}>{selected.title}</Text>
       <Text style={styles.micro}>{selected.description||'Keine Beschreibung hinterlegt.'}</Text>
       {selected.address?<Text style={[styles.micro,{marginTop:8}]}>⌖ {selected.address}</Text>:null}
-      {selected.source==='curated'?<Text style={[styles.micro,{marginTop:8}]}>Quelle geprüft im November 2026. Aktuelle Besuchsbedingungen beim Anbieter erfragen.</Text>:null}
+      {selected.source==='national'?<Text style={[styles.micro,{marginTop:7}]}>Kategorie: {selected.kind_label} · {selected.state}</Text>:null}
+      {['curated','national'].includes(selected.source)?<Text style={[styles.micro,{marginTop:8}]}>Recherchestand November 2026. Aktuelle Besuchsbedingungen beim Anbieter erfragen.</Text>:null}
       {selected.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(selected.info_url).catch(()=>{})}
         style={styles.minorBtn}><Text style={styles.minorBtnText}>Offizielle Informationen öffnen ↗</Text></Pressable>:null}
       {selected.has_changing_table?<Text style={styles.tagGood}>Wickelmöglichkeit angegeben</Text>:null}
@@ -312,7 +375,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
       <Text style={styles.micro}>Wähle eine Stadt, tippe auf „Hier nach Orten suchen“ oder trage einen neuen Ort ein.</Text>
     </View>:list.map(p=><Pressable key={p.id} accessibilityRole="button" onPress={()=>showPlace(p)} style={styles.placeRow}>
       <View style={styles.placeGlyph}><Text style={{fontSize:23,color:C.coral}}>{typeGlyph(p.category)}</Text></View>
-      <View style={{flex:1}}><Text style={styles.placeTitle}>{p.title}</Text><Text style={styles.micro}>{typeLabel(p.category)} · {p.source==='osm'?'OpenStreetMap':p.source==='curated'?'Recherchierter Ausflugstipp':p.moderation_status==='pending'?'Nur für dich · in Prüfung':'Familien-Tipp'}</Text></View><Text style={styles.chevron}>›</Text>
+      <View style={{flex:1}}><Text style={styles.placeTitle}>{p.title}</Text><Text style={styles.micro}>{typeLabel(p.category)} · {p.source==='osm'?'OpenStreetMap':p.source==='curated'?'Recherchierter Ausflugstipp':p.source==='national'?(p.kind_label||'Deutschlandweiter Ausflugstipp'):p.moderation_status==='pending'?'Nur für dich · in Prüfung':'Familien-Tipp'}</Text></View><Text style={styles.chevron}>›</Text>
     </Pressable>)}
     <View style={styles.suggestCard}>
       <Text style={styles.sectionNoMargin}>Kennt ihr noch einen tollen Ort?</Text>
@@ -347,6 +410,15 @@ export default function FamilyMapScreen({userId,active,addPlace}){
 }
 const styles=StyleSheet.create({
  page:{flex:1,backgroundColor:C.bg},body:{padding:16,paddingBottom:40},
+ nationalBox:{backgroundColor:'#F0F6F4',borderWidth:1,borderColor:'#D9EDE8',borderRadius:22,padding:16,marginTop:17},
+ nationalLabel:{fontSize:12,fontWeight:'900',color:C.ink,marginBottom:8},
+ nationalCount:{fontSize:12,fontWeight:'900',color:C.dark},
+ nationalReset:{fontSize:12,fontWeight:'900',color:C.teal,textDecorationLine:'underline'},
+ nationalPlace:{width:236,minHeight:224,borderRadius:17,backgroundColor:C.paper,borderWidth:1,borderColor:'#DDEAE6',padding:14},
+ nationalPlaceIcon:{fontSize:21},
+ nationalKind:{fontSize:11,fontWeight:'900',color:C.teal,flexShrink:1},
+ nationalPlaceButton:{paddingHorizontal:12,paddingVertical:10,backgroundColor:C.pale,borderRadius:11,marginTop:11},
+ nationalPlaceButtonText:{fontSize:12,fontWeight:'900',color:C.dark,textAlign:'center'},
  navigationRow:{flexDirection:'row',gap:9,alignItems:'stretch'},
  navigationGoogle:{flex:1,minHeight:48,backgroundColor:C.teal,borderRadius:14,justifyContent:'center',alignItems:'center',paddingHorizontal:8,paddingVertical:11},
  navigationApple:{flex:1,minHeight:48,backgroundColor:C.paper,borderRadius:14,justifyContent:'center',alignItems:'center',paddingHorizontal:8,paddingVertical:11,borderWidth:1,borderColor:C.teal},
