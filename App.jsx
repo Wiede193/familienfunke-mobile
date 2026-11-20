@@ -783,11 +783,29 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       </Pressable>
       <Card style={styles.marketDetailCard}>
         <View style={styles.marketDetailImage}>
-          {photoUrls[selected.id]?<Image source={{uri:photoUrls[selected.id]}} style={styles.marketFullImage} resizeMode="contain"/>:
+          {shownImage?<Image source={{uri:shownImage}} style={styles.marketFullImage} resizeMode="contain"/>:
             <View style={[styles.marketFullImage,styles.marketImagePlaceholder]}><Text style={{fontSize:34}}>♧</Text><Text style={styles.micro}>Kein Foto hinterlegt</Text></View>}
         </View>
+        {gallery.length>1?<View style={{marginTop:12}}>
+          <Row style={{justifyContent:'space-between',marginBottom:10}}>
+            <Button title="‹ Vorheriges" small mode="outline" onPress={()=>setGalleryIndex(i=>(i+gallery.length-1)%gallery.length)}/>
+            <Text style={[styles.micro,{fontWeight:'800'}]}>{(galleryIndex%gallery.length)+1} von {gallery.length} Bildern</Text>
+            <Button title="Nächstes ›" small mode="outline" onPress={()=>setGalleryIndex(i=>(i+1)%gallery.length)}/>
+          </Row>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:9}}>
+            {gallery.map((image,index)=><Pressable key={image.id} accessibilityRole="button"
+              accessibilityLabel={'Bild '+(index+1)+' anzeigen'} accessibilityState={{selected:galleryIndex===index}}
+              onPress={()=>setGalleryIndex(index)}>
+              <Image source={{uri:image.uri}} style={{width:66,height:66,borderRadius:12,borderWidth:galleryIndex===index?3:1,borderColor:galleryIndex===index?C.accent:C.line}} resizeMode="cover"/>
+            </Pressable>)}
+          </ScrollView>
+        </View>:null}
         <Text style={[styles.marketPrice,{fontSize:26,marginTop:15}]}>{priceLabel(selected)}</Text>
         <Text style={[styles.h,{marginTop:5}]}>{selected.title}</Text>
+        {selected.seller_id!==me&&selected.moderation_status==='approved'?
+          <View style={{marginTop:12}}><Button title={favoriteIds.has(selected.id)?'♥ Aus Merkliste entfernen':'♡ Zur Merkliste hinzufügen'}
+            mode={favoriteIds.has(selected.id)?'primary':'outline'} disabled={busy||!active}
+            onPress={()=>toggleFavorite(selected.id,favoriteIds.has(selected.id))}/></View>:null}
         <Text style={[styles.sub,{marginTop:8}]}>{selected.item_condition} · {selected.category} · {selected.region_label||'Region auf Anfrage'}</Text>
         <View style={{height:1,backgroundColor:C.line,marginVertical:18}}/>
         <Text style={styles.sectionTitle}>Beschreibung</Text>
@@ -800,15 +818,20 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           {seller.own&&selected.moderation_status==='sold'?<Info>Dieses Angebot ist vergeben und für andere nicht mehr sichtbar. Eine Zahlung über die App hat nicht stattgefunden.</Info>:null}
           {seller.own&&selected.moderation_status==='rejected'?<Info warning>Dein Inserat wurde nicht freigegeben.</Info>:null}
           {seller.own&&selected.moderation_status==='removed'?<Info warning>Dieses Inserat wurde entfernt.</Info>:null}
+          {seller.own&&['approved','pending','rejected'].includes(selected.moderation_status)?
+            <View style={{marginTop:13}}><Button title="Anzeige bearbeiten" mode="outline" disabled={busy||!active}
+              onPress={()=>beginEdit(selected)}/></View>:null}
           {seller.own&&selected.moderation_status==='approved'?
             <View style={{marginTop:13}}><Button title="Als vergeben markieren" mode="outline" disabled={busy}
               onPress={()=>Alert.alert('Angebot abschließen?','Das Inserat verschwindet für andere Familien aus dem Basar. Damit wird kein Kauf oder Zahlungsvorgang ausgelöst.',[
                 {text:'Abbrechen',style:'cancel'},
                 {text:'Als vergeben markieren',onPress:()=>markListingSold(selected.id)}
               ])}/></View>:null}
-          {seller.own&&selected.moderation_status==='pending'&&!selected.photo_path?
-            <View style={{marginTop:12}}><Button title="Foto ergänzen" mode="outline" disabled={choosing||busy}
-              onPress={()=>pick(asset=>uploadPendingPhoto(selected.id,asset))}/></View>:null}
+          {seller.own&&selected.moderation_status==='pending'&&
+            ((selected.photo_path?1:0)+marketPhotos.filter(x=>x.listing_id===selected.id).length<5)?
+            <View style={{marginTop:12}}><Button title="Weitere Fotos hinzufügen" mode="outline" disabled={choosing||busy}
+              onPress={()=>pick(assets=>addPendingPhotos(selected.id,assets),
+                5-(selected.photo_path?1:0)-marketPhotos.filter(x=>x.listing_id===selected.id).length)}/></View>:null}
           <View style={{marginTop:17}}>{contactButton(selected,seller.contact)}</View>
         </View>;})()}
         <Text style={[styles.micro,{marginTop:20}]}>Keine Zahlung über Familienfunke möglich. Prüfe Artikel und Übergabe sorgfältig.</Text>
@@ -855,14 +878,22 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           const seller=sellerInformation(x);
           return <Pressable key={x.id} accessibilityRole="button"
             accessibilityLabel={x.title+', '+priceLabel(x)+', '+x.item_condition+', '+(x.region_label||'Region nicht angegeben')}
-            onPress={()=>setSelectedListing(x.id)} style={styles.marketTile}>
+            onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={styles.marketTile}>
             <View style={styles.marketTileImage}>
               {photoUrls[x.id]?<Image source={{uri:photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
                 <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>Noch kein Foto</Text></View>}
               <View style={styles.marketPricePill}><Text style={styles.marketPricePillText} numberOfLines={1}>{priceLabel(x)}</Text></View>
+              {x.seller_id!==me&&x.moderation_status==='approved'?
+                <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'}
+                  disabled={busy||!active}
+                  onPress={event=>{event.stopPropagation();toggleFavorite(x.id,favoriteIds.has(x.id));}}
+                  style={{position:'absolute',right:7,top:8,backgroundColor:'#FFFFFFF2',borderRadius:20,paddingHorizontal:10,paddingVertical:7}}>
+                  <Text style={{fontSize:19,color:favoriteIds.has(x.id)?C.coralDeep:C.accentDark}}>{favoriteIds.has(x.id)?'♥':'♡'}</Text>
+                </Pressable>:null}
             </View>
             <View style={styles.marketTileBody}>
               <Text style={styles.marketTileTitle} numberOfLines={2}>{x.title}</Text>
+              {galleryOf(x).length>1?<Text style={[styles.micro,{fontWeight:'800',color:C.accentDark}]}>{galleryOf(x).length} Bilder</Text>:null}
               <Text style={styles.micro} numberOfLines={1}>{x.item_condition} · {x.category}</Text>
               <Text style={[styles.micro,{marginTop:3}]} numberOfLines={1}>⌖ {x.region_label||'Region auf Anfrage'}</Text>
               {seller.org?<Text style={[styles.micro,{marginTop:3,color:C.accentDark}]} numberOfLines={1}>{seller.org.name} ✦</Text>:null}
