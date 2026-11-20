@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {ActivityIndicator,Linking,Pressable,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
+import {ActivityIndicator,Alert,Linking,Pressable,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
 import {WebView} from 'react-native-webview';
 import {supabase} from './supabase';
 import {CURATED_REGION,CURATED_FAMILY_PLACES} from './FamilyMapCurated';
@@ -201,6 +201,20 @@ export default function FamilyMapScreen({userId,active,addPlace}){
       +'#map=16/'+encodeURIComponent(place.latitude)+'/'+encodeURIComponent(place.longitude);
     Linking.openURL(url).catch(()=>{});
   }
+  async function openDirections(place,service){
+    // Nur die Zielkoordinaten werden übergeben – kein GPS-Zugriff in Familienfunke.
+    const lat=Number(place.latitude),lon=Number(place.longitude);
+    if(!Number.isFinite(lat)||!Number.isFinite(lon)||!inGermany(lat,lon)){
+      Alert.alert('Navigation nicht möglich','Die Koordinaten dieses Ortes sind ungültig.');
+      return;
+    }
+    const destination=encodeURIComponent(lat+','+lon);
+    const url=service==='apple'
+      ?'https://maps.apple.com/?daddr='+destination
+      :'https://www.google.com/maps/dir/?api=1&destination='+destination;
+    try{await Linking.openURL(url);}
+    catch{Alert.alert('Karten-App nicht erreichbar','Der Kartendienst konnte nicht geöffnet werden. Bitte versuche es erneut.');}
+  }
   return <ScrollView style={styles.page} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
     <View style={styles.hero}><Text style={styles.eyebrow}>FAMILIENFUNKE ENTDECKT DEUTSCHLAND</Text>
       <Text style={styles.title}>Familienkarte ♡</Text>
@@ -276,6 +290,18 @@ export default function FamilyMapScreen({userId,active,addPlace}){
       {selected.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(selected.info_url).catch(()=>{})}
         style={styles.minorBtn}><Text style={styles.minorBtnText}>Offizielle Informationen öffnen ↗</Text></Pressable>:null}
       {selected.has_changing_table?<Text style={styles.tagGood}>Wickelmöglichkeit angegeben</Text>:null}
+      <Text style={[styles.micro,{fontWeight:'800',color:C.ink,marginTop:17,marginBottom:10}]}>Route zu diesem Ort planen</Text>
+      <View style={styles.navigationRow}>
+        <Pressable accessibilityRole="link" accessibilityLabel={'Route mit Google Maps zu '+selected.title}
+          onPress={()=>openDirections(selected,'google')} style={styles.navigationGoogle}>
+          <Text style={styles.navigationGoogleText}>⌖  Google Maps</Text>
+        </Pressable>
+        <Pressable accessibilityRole="link" accessibilityLabel={'Route mit Apple Karten zu '+selected.title}
+          onPress={()=>openDirections(selected,'apple')} style={styles.navigationApple}>
+          <Text style={styles.navigationAppleText}>⌖  Apple Karten</Text>
+        </Pressable>
+      </View>
+      <Text style={[styles.micro,{marginTop:8}]}>Der Kartendienst öffnet sich außerhalb von Familienfunke. Startpunkt und Verkehrsmittel wählst du dort.</Text>
       <Pressable accessibilityRole="link" onPress={()=>openInOSM(selected)} style={styles.minorBtn}><Text style={styles.minorBtnText}>In OpenStreetMap ansehen ↗</Text></Pressable>
     </View>:null}
     <View style={[styles.row,{justifyContent:'space-between',marginTop:24}]}>
@@ -321,6 +347,11 @@ export default function FamilyMapScreen({userId,active,addPlace}){
 }
 const styles=StyleSheet.create({
  page:{flex:1,backgroundColor:C.bg},body:{padding:16,paddingBottom:40},
+ navigationRow:{flexDirection:'row',gap:9,alignItems:'stretch'},
+ navigationGoogle:{flex:1,minHeight:48,backgroundColor:C.teal,borderRadius:14,justifyContent:'center',alignItems:'center',paddingHorizontal:8,paddingVertical:11},
+ navigationApple:{flex:1,minHeight:48,backgroundColor:C.paper,borderRadius:14,justifyContent:'center',alignItems:'center',paddingHorizontal:8,paddingVertical:11,borderWidth:1,borderColor:C.teal},
+ navigationGoogleText:{fontSize:13,fontWeight:'900',color:C.paper},
+ navigationAppleText:{fontSize:13,fontWeight:'900',color:C.dark},
  hero:{backgroundColor:'#FFF0CF',borderRadius:23,padding:19,marginBottom:12},
  eyebrow:{fontSize:10,fontWeight:'900',color:C.dark,letterSpacing:1.3,marginBottom:6},
  title:{fontSize:25,fontWeight:'900',color:C.ink},
