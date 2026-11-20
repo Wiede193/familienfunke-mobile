@@ -36,7 +36,7 @@ const MARKET_CATEGORIES=['Kleidung','Spielzeug','Bücher','Babyausstattung','Mö
 const ORG_KINDS=[['kita','Kita / Kindergarten'],['foerderverein','Förderverein'],['familienzentrum','Familienzentrum'],['verein','Familienverein']];
 const SECTION_MESSAGES={market:'Von Familien für Familien: kostenlos einstellen, verschenken und tauschen. Unsere Gebühren sind offen – aktuell gibt es keine Onlinezahlungen. Wir verkaufen keine persönlichen Daten.',partners:'Kitas und Fördervereine stellen sich vor, zeigen freie Plätze und laden zu Flohmärkten ein. Ein Stern erscheint nur bei bestätigter Einrichtung.',discover:'Neue Familien kennenlernen – freiwillig, respektvoll und ohne genaue Standortfreigabe.',events:'Gemeinsam etwas unternehmen statt endlose Diskussionen. Veranstaltungen werden vor der Veröffentlichung geprüft.',inclusion:'Für Familien mit und ohne Behinderung: willkommen, respektiert und ohne Pflicht zur Offenlegung persönlicher Diagnosen.'};
 const blankProfile = {display_name:'',region_label:'',about:'',interests:[],is_discoverable:false};
-const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[],listings:[],organizations:[],partnerEvents:[]};
+const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[],listings:[],marketPhotos:[],marketFavorites:[],organizations:[],partnerEvents:[]};
 const formatDate = (value) => { if (!value) return '–'; const d = new Date(value); return isNaN(d) ? '–' : d.toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
 const initial = (name) => String(name||'F').split(/\s+/).slice(0,2).map(s=>s[0]||'').join('').toUpperCase();
 const safeString = (value, length) => String(value||'').trim().slice(0,length);
@@ -188,6 +188,7 @@ const [verification,setVerification]=useState(null);
 const [membership,setMembership]=useState(null);
 const [photosUrls,setPhotosUrls]=useState({});
 const [marketPhotoUrls,setMarketPhotoUrls]=useState({});
+const [marketExtraPhotoUrls,setMarketExtraPhotoUrls]=useState({});
 const me=session?.user?.id;
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
@@ -204,16 +205,18 @@ supabase.from('blocks').select('*').limit(200),
 supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('ff_market_listings').select('*').order('created_at',{ascending:false}).limit(160),
+supabase.from('ff_market_photos').select('*').order('slot',{ascending:true}).limit(800),
+supabase.from('ff_market_favorites').select('*').eq('user_id',me).limit(800),
 supabase.from('ff_organizations').select('*').order('created_at',{ascending:false}).limit(100),
 supabase.from('ff_partner_events').select('*').order('starts_at',{ascending:true}).limit(100),
 ]);
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,organizations,partnerEvents]=queries;
+const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketPhotos,marketFavorites,organizations,partnerEvents]=queries;
 const profileRow=profiles.data.find(p=>p.user_id===me)||null;
 setDb({profiles:profiles.data||[],contacts:contacts.data||[],messages:messages.data||[],
 events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],
-listings:listings.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
+listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');
 const images=await Promise.all((photos.data||[]).map(async(p)=>{
@@ -226,6 +229,13 @@ const marketImages=await Promise.all((listings.data||[]).filter(x=>x.photo_path)
  catch{return [x.id,null];}
 }));
 setMarketPhotoUrls(Object.fromEntries(marketImages));
+const extraImages=await Promise.all((marketPhotos.data||[]).map(async(p)=>{
+ try{
+   const {data,error:e}=await supabase.storage.from('ff-market-photos').createSignedUrl(p.photo_path,600);
+   return [p.photo_path,e?null:data?.signedUrl||null];
+ }catch{return [p.photo_path,null];}
+}));
+setMarketExtraPhotoUrls(Object.fromEntries(extraImages));
 } catch(e){setError(humanError(e));}
 finally{setLoading(false);}
 },[me]);
@@ -249,7 +259,7 @@ useEffect(()=>{
   setShowLoginHelp(false);
   setShowEventForm(false);
 },[me]);
-useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});}},[me,load]);
+useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
 // Einmalige Begrüßung je Konto auf diesem Gerät. Ein erneuter Aufruf unter „Mehr“ ist jederzeit möglich.
 useEffect(()=>{
   let valid=true;
@@ -279,6 +289,15 @@ const ownPhotos=db.photos.filter(p=>p.owner_id===me);
 const matches=useMemo(()=>db.profiles.filter(p=>p.user_id!==me&&p.moderation_status==='approved'&&p.is_discoverable)
 .map(p=>({...p,match:(p.interests||[]).filter(x=>myProfile?.interests?.includes(x)).length,localMatch:sameRegion(p.region_label,myProfile?.region_label)}))
 .sort((a,b)=>Number(b.localMatch)-Number(a.localMatch)||b.match-a.match||String(a.display_name).localeCompare(String(b.display_name))),[db.profiles,me,myProfile]);
+async function reviewMarketListing(listingId){
+ const {data:review,error:reviewError}=await supabase.functions.invoke('ff-market-review',{body:{listing_id:listingId}});
+ if(!reviewError&&review?.status==='approved')setNotice('Deine Anzeige wurde geprüft und ist jetzt sichtbar.');
+ else if(!reviewError&&review?.status==='rejected'){
+   setNotice(review.reason==='live_animal'
+     ?'Lebende Tiere dürfen nicht angeboten oder vermittelt werden. Die Anzeige wurde abgelehnt.'
+     :'Die Anzeige wurde aufgrund der Basar-Regeln nicht freigegeben.');
+ }else setNotice('Deine Anzeige ist gespeichert und bleibt bis zur Freigabe in Prüfung.');
+}
 async function execute(fn,success){
 if(busy)return;
 setBusy(true);setError('');setNotice('');
@@ -365,41 +384,43 @@ tab==='map'?<FamilyMapScreen userId={me} active={active} addPlace={(v)=>execute(
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
 tab==='market'?<MarketScreen listings={db.listings} me={me} active={active} busy={busy}
-organizations={db.organizations} photoUrls={marketPhotoUrls} contacts={db.contacts}
-createListing={(v,asset)=>execute(async()=>{
+organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} favorites={db.marketFavorites} contacts={db.contacts}
+createListing={(v,assets)=>execute(async()=>{
  // Basar-Texte nicht wegen einzelner Wörter vorab blockieren.
  // Die verpflichtende Inhalts- und Produktprüfung findet auf dem Server statt.
  const {data:inserted,error:insertError}=await supabase.from('ff_market_listings').insert({...v,seller_id:me}).select('id').single();
  if(insertError)throw insertError;
- if(asset){
-   try{await uploadMarketPhoto(inserted.id,asset,me);}
+ if(assets?.length){
+   try{await uploadMarketPhotos(inserted.id,assets,me);}
    catch(e){
-     setNotice('Das Inserat wurde gespeichert. Das Foto konnte nicht hochgeladen werden. Du kannst es unter „Meine Inserate“ ergänzen.');
+     setNotice('Das Inserat ist gespeichert. Mindestens ein Foto konnte nicht vollständig hochgeladen werden. Es bleibt zur Sicherheit in Prüfung.');
      return;
    }
  }
- const {data:review,error:reviewError}=await supabase.functions.invoke('ff-market-review',{body:{listing_id:inserted.id}});
- if(!reviewError&&review?.status==='approved'){
-   setNotice('Dein Inserat wurde automatisch geprüft und veröffentlicht.');
- }else if(!reviewError&&review?.status==='rejected'){
-   setNotice(review.reason==='live_animal'?
-     'Lebende Tiere dürfen bei Familienfunke nicht angeboten oder vermittelt werden. Das Inserat wurde abgelehnt.':
-     'Das angebotene Produkt ist im Familienbasar nicht erlaubt. Das Inserat wurde nicht veröffentlicht.');
- }else{
-   setNotice('Dein Inserat wurde gespeichert und bleibt bis zur Freigabe in Prüfung.');
- }
+ await reviewMarketListing(inserted.id);
 })}
-uploadPendingPhoto={(listingId,asset)=>execute(async()=>{
- await uploadMarketPhoto(listingId,asset,me);
- const {data:review,error:reviewError}=await supabase.functions.invoke('ff-market-review',{body:{listing_id:listingId}});
- if(!reviewError&&review?.status==='approved'){
-   setNotice('Foto und Inserat geprüft. Dein Angebot ist jetzt sichtbar.');
- }else if(!reviewError&&review?.status==='rejected'){
-   setNotice('Das Angebot verstößt gegen die Familienbasar-Regeln und wurde nicht veröffentlicht.');
- }else{
-   setNotice('Das Foto wurde gespeichert. Das Inserat bleibt bis zur Freigabe in Prüfung.');
- }
+addPendingPhotos={(listingId,assets)=>execute(async()=>{
+ await uploadMarketPhotos(listingId,assets,me);
+ await reviewMarketListing(listingId);
 })}
+editListing={(listingId,v,assets)=>execute(async()=>{
+ const {data,error:e}=await supabase.rpc('ff_market_edit_listing',{
+   p_listing_id:listingId,p_title:v.title,p_description:v.description,
+   p_category:v.category,p_item_condition:v.item_condition,
+   p_trade_type:v.trade_type,p_price_cents:v.price_cents,p_region_label:v.region_label
+ });
+ if(e)throw e;
+ if(data!==true)throw new Error('Diese Anzeige darf nicht bearbeitet werden. Bitte prüfe ihren Status.');
+ if(assets?.length){
+   try{await uploadMarketPhotos(listingId,assets,me);}
+   catch(e){setNotice('Änderungen gespeichert, aber nicht alle Fotos konnten hochgeladen werden. Die Anzeige bleibt zur Prüfung zurückgehalten.');return;}
+ }
+ await reviewMarketListing(listingId);
+})}
+toggleFavorite={(listingId,isFavorite)=>execute(async()=>{
+ if(isFavorite)assertResult(await supabase.from('ff_market_favorites').delete().eq('user_id',me).eq('listing_id',listingId));
+ else assertResult(await supabase.from('ff_market_favorites').insert({user_id:me,listing_id:listingId}));
+},isFavorite?'Aus der Merkliste entfernt.':'In deiner Merkliste gespeichert.')}
 markListingSold={(id)=>execute(async()=>{const {data,error:e}=await supabase.rpc('ff_market_mark_sold',{p_listing_id:id});if(e)throw e;if(data!==true)throw new Error('Das Inserat konnte nicht abgeschlossen werden. Bitte aktualisiere den Basar.');},'Angebot abgeschlossen. Es ist für andere nicht mehr sichtbar.')}
 onContact={sendRequest} onChat={(cid)=>{setChatReturnTab('market');setSelectedContact(cid);setTab('chat');}} nameOf={findName} blocked={blocked}/>:
 tab==='partners'?<PartnersScreen organizations={db.organizations} partnerEvents={db.partnerEvents}
@@ -516,25 +537,51 @@ await supabase.storage.from('familienfunke-photos').remove([photo.storage_path])
 
 /** Der Markt wird erst nach Betreiberfreigabe anderen Mitgliedern gezeigt.
  * Bezahlen ist absichtlich NICHT implementiert. */
-async function uploadMarketPhoto(listingId,asset,me){
-  if(!asset?.uri) return;
-  const job=ImageManipulator.ImageManipulator.manipulate(asset.uri);
-  job.resize({width:1024,height:null});
-  const rendered=await job.renderAsync();
-  const saved=await rendered.saveAsync({format:ImageManipulator.SaveFormat.JPEG,compress:0.78});
-  const file=new File(saved.uri);
-  if(file.size>5*1024*1024)throw new Error('Das Bild darf maximal 5 MB groß sein.');
-  const path=`${me}/${listingId}.jpg`;
-  const {error:uploadError}=await supabase.storage.from('ff-market-photos')
-    .upload(path,new Uint8Array(await file.arrayBuffer()),{contentType:'image/jpeg',upsert:false});
-  if(uploadError)throw uploadError;
-  const {error:updateError}=await supabase.from('ff_market_listings')
-    .update({photo_path:path}).eq('id',listingId).eq('seller_id',me);
-  if(updateError)throw updateError;
+async function prepareMarketJpeg(asset){
+ const job=ImageManipulator.ImageManipulator.manipulate(asset.uri);
+ job.resize({width:900,height:null});
+ const rendered=await job.renderAsync();
+ const saved=await rendered.saveAsync({format:ImageManipulator.SaveFormat.JPEG,compress:0.7});
+ const file=new File(saved.uri);
+ if(file.size>5*1024*1024)throw new Error('Ein Foto ist größer als 5 MB. Bitte verwende ein kleineres Bild.');
+ return new Uint8Array(await file.arrayBuffer());
 }
-async function selectMarketPhoto(){
-  const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],quality:0.8,exif:false});
-  return result.canceled?null:result.assets?.[0]||null;
+async function uploadMarketPhotos(listingId,assets,me){
+ if(!assets?.length)return;
+ const [{data:listing,error:le},{data:extras,error:ee}]=await Promise.all([
+  supabase.from('ff_market_listings').select('photo_path,moderation_status').eq('id',listingId).eq('seller_id',me).single(),
+  supabase.from('ff_market_photos').select('slot').eq('listing_id',listingId)
+ ]);
+ if(le)throw le;if(ee)throw ee;
+ if(listing.moderation_status!=='pending')throw new Error('Fotos können nur bei Inseraten in Prüfung hinzugefügt werden.');
+ const used=new Set((extras||[]).map(x=>x.slot));
+ const present=(listing.photo_path?1:0)+used.size;
+ if(present+assets.length>5)throw new Error('Maximal fünf Bilder pro Inserat sind möglich.');
+ let primary=!!listing.photo_path;
+ for(const asset of assets){
+  const bytes=await prepareMarketJpeg(asset);
+  if(!primary){
+   const path=`${me}/${listingId}.jpg`;
+   assertResult(await supabase.storage.from('ff-market-photos').upload(path,bytes,{contentType:'image/jpeg',upsert:false}));
+   assertResult(await supabase.from('ff_market_listings')
+     .update({photo_path:path}).eq('id',listingId).eq('seller_id',me));
+   primary=true;
+  }else{
+   const slot=[2,3,4,5].find(n=>!used.has(n));
+   if(!slot)throw new Error('Maximal fünf Bilder pro Inserat sind möglich.');
+   const path=`${me}/${listingId}/${slot}.jpg`;
+   assertResult(await supabase.storage.from('ff-market-photos').upload(path,bytes,{contentType:'image/jpeg',upsert:false}));
+   assertResult(await supabase.from('ff_market_photos').insert({listing_id:listingId,seller_id:me,slot,photo_path:path}));
+   used.add(slot);
+  }
+ }
+}
+async function selectMarketPhotos(max=5){
+ const result=await ImagePicker.launchImageLibraryAsync({
+  mediaTypes:['images'],allowsMultipleSelection:true,selectionLimit:Math.max(1,Math.min(5,max)),
+  quality:0.8,exif:false
+ });
+ return result.canceled?[]:(result.assets||[]).slice(0,Math.max(1,Math.min(5,max)));
 }
 
 function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
