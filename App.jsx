@@ -730,7 +730,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <View style={{flex:1}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+')'}
         mode={onlyMine?'primary':'outline'} small
         onPress={()=>{setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
-      <View style={{flex:1}}><Button title={'♡ Merkliste ('+favorites.length+')'}
+      <View style={{flex:1}}><Button title={'♡ Merkliste ('+favorites.filter(f=>listings.some(x=>x.id===f.listing_id&&x.moderation_status==='approved')).length+')'}
         mode={onlyFavorites?'primary':'outline'} small
         onPress={()=>{setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
@@ -788,9 +788,9 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         </View>
         {gallery.length>1?<View style={{marginTop:12}}>
           <Row style={{justifyContent:'space-between',marginBottom:10}}>
-            <Button title="‹ Vorheriges" small mode="outline" onPress={()=>setGalleryIndex(i=>(i+gallery.length-1)%gallery.length)}/>
+            <Button title="‹ Zurück" small mode="outline" onPress={()=>setGalleryIndex(i=>(i+gallery.length-1)%gallery.length)}/>
             <Text style={[styles.micro,{fontWeight:'800'}]}>{(galleryIndex%gallery.length)+1} von {gallery.length} Bildern</Text>
-            <Button title="Nächstes ›" small mode="outline" onPress={()=>setGalleryIndex(i=>(i+1)%gallery.length)}/>
+            <Button title="Weiter ›" small mode="outline" onPress={()=>setGalleryIndex(i=>(i+1)%gallery.length)}/>
           </Row>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:9}}>
             {gallery.map((image,index)=><Pressable key={image.id} accessibilityRole="button"
@@ -872,7 +872,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
         <Text style={styles.micro}>Neu und gebraucht</Text>
       </Row>
-      {shown.length===0?<Blank title="Noch keine passenden Angebote" body="Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe."/>:
+      {shown.length===0?<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>:
         <View style={styles.marketGrid}>
         {shown.map(x=>{
           const seller=sellerInformation(x);
@@ -1375,7 +1375,7 @@ marketTile:{width:'48.3%',borderRadius:18,borderWidth:1,borderColor:C.line,backg
 marketTileImage:{width:'100%',height:154,backgroundColor:'#F1F3EF',position:'relative'},
 marketTilePhoto:{width:'100%',height:'100%'},
 marketImagePlaceholder:{backgroundColor:'#F4F1EB',alignItems:'center',justifyContent:'center',gap:5},
-marketPricePill:{position:'absolute',top:8,left:7,right:7,backgroundColor:'#FFFFFFF2',borderRadius:11,paddingVertical:6,paddingHorizontal:9,alignSelf:'flex-start'},
+marketPricePill:{position:'absolute',top:8,left:7,right:50,backgroundColor:'#FFFFFFF2',borderRadius:11,paddingVertical:6,paddingHorizontal:9,alignSelf:'flex-start'},
 marketPricePillText:{fontSize:14,fontWeight:'900',color:C.ink},
 marketTileBody:{padding:11,paddingBottom:14,gap:4},
 marketTileTitle:{fontSize:15,fontWeight:'800',color:C.ink,lineHeight:19,minHeight:38},
