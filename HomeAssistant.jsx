@@ -173,6 +173,14 @@ export default function HomeAssistant({onNavigate}){
       </View>
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
     </View>
+    <Pressable accessibilityRole="button" accessibilityLabel="Persönlichen Familienausflug planen" onPress={()=>onNavigate('outing')}
+      style={({pressed})=>[s.outingCard,pressed&&s.pressed]}>
+      <View style={{flex:1}}>
+        <Text style={s.outingTitle}>Euer nächster Familienausflug</Text>
+        <Text style={s.outingSubtitle}>Nach Alter, Budget und Entfernung passende Ziele finden – mit oder ohne KI.</Text>
+        <Text style={s.outingLink}>Ausflug planen ›</Text>
+      </View>
+    </Pressable>
     {conversation.length?<View style={s.section}>
       <View style={s.replyHeader}>
         <Text style={s.sectionTitle}>Deine KI-Hilfe</Text>
@@ -304,5 +312,7 @@ const s=StyleSheet.create({
   suggestionText:{color:C.ink,fontSize:13.5,fontWeight:'700'},
   suggestionArrow:{fontSize:23,color:C.tealDark},
   disclaimer:{fontSize:11.5,lineHeight:18,color:C.muted,marginTop:1},
+  outingCard:{backgroundColor:C.mint,borderColor:C.line,borderWidth:1,borderRadius:22,padding:18,marginBottom:22,minHeight:48,flexDirection:'row',alignItems:'center'},
+  outingTitle:{fontSize:19,fontWeight:'900',color:C.ink},outingSubtitle:{fontSize:14,lineHeight:21,color:C.ink,marginTop:6},outingLink:{fontSize:14,fontWeight:'900',color:C.accentDark,marginTop:12},
   pressed:{opacity:.72}
 });
