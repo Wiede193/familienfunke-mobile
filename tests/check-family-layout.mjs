@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const m=await import('data:text/javascript;base64,'+Buffer.from(read('FamilyLayoutModel.js')).toString('base64'));
+const nav=await import('data:text/javascript;base64,'+Buffer.from(read('HomeNavigation.js')).toString('base64'));
+assert.deepEqual([...m.HOME_IDS].sort(),[...nav.HOME_PAGE_IDS].sort());
+assert.deepEqual(m.normalizeLayout(null).bottom,m.DEFAULT_BOTTOM);
+assert.deepEqual(m.normalizeLayout({version:1,home:[],bottom:[]}),{version:1,home:[],bottom:['home']});
+assert.deepEqual(m.normalizeLayout({version:1,home:['play','play','bad','market'],bottom:['chat','home','chat','profile','calendar','play','map']}),
+ {version:1,home:['play','market'],bottom:['home','chat','profile','calendar','play']});
+assert.deepEqual(m.normalizeLayout({version:99,home:[]}).home,m.DEFAULT_HOME);
+assert.deepEqual(m.moveShortcut(['home','market','play'],1,-1,true),['home','market','play']);
+assert.deepEqual(m.moveShortcut(['home','market','play'],2,-1,true),['home','play','market']);
+assert.deepEqual(m.moveShortcut(['play','market'],0,1),['market','play']);
+assert.notEqual(m.layoutKey('a'),m.layoutKey('b'));assert.equal(m.layoutKey(null),null);
+assert.match(read('FamilyLayoutPreferences.js'),/owner.current!==userId/);
+assert.match(read('App.jsx'),/customTabs\.map/);
+assert.match(read('App.jsx'),/layoutEditor\?\.owner===me/);
+assert.match(read('HomeAssistant.jsx'),/const moreRoutes=HOME_ROUTES/);
+assert.match(read('FamilyLayoutEditor.jsx'),/minHeight:48/);
+console.log('Individual layout: defaults, validation, order, account keys and UI wiring checked');

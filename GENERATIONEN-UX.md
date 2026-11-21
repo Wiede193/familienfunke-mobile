@@ -17,6 +17,9 @@ Eltern/Sorgeberechtigte verwalten einen ausschließlich privaten Familienkreis. 
 
 Kinderfotos: bestehende Beta-Regel (keine Kinderfotos) beibehalten; erst nach Einführung serverseitiger Quarantäne, privaten Buckets, transparenter Zweck-/Empfängerauswahl, nachvollziehbarer Autorisierung aller nötigen Sorgeberechtigten und altersgerechter Beteiligung des Kindes prüfen. Kein Teilen nach außen, keine Werbung/öffentlichen Kinderbilder. Keine KI-Gesichtserkennung zur Bestimmung der Identität/Verwandtschaft. Moderation kanalübergreifend (auch Flohmarkt/Chat). Keine Garantie gegen Screenshots oder externe Weitergabe.
 
+## Individualisierung der Oberfläche (Entwicklungsbranch)
+Startseiten-Kacheln und untere Menüleiste sind individuell sortierbar, ergänzbar und ausblendbar. Start ist stets vorhanden, höchstens fünf untere Einträge. Speicherung zunächst lokal je Konto und Gerät, keine geräteübergreifende Synchronisierung. Alle Bereiche bleiben per Suche oder vollständiger Liste erreichbar. Keine Drag-Gesten erforderlich. Ein Diktierhinweis beschreibt die vorhandene Systemtastatur; eigenständige Spracherkennung ist noch nicht implementiert.
+
 ## Backend-Entwurf – noch nicht implementiert
 Separate Entitäten für Familienkreise, Mitgliedschaften, Sorgeberechtigungsnachweise, zeitlich/versionierte Freigaben, Einladungen und Aktivitätsvorschläge. Kindreferenzen nur falls nötig, ohne öffentlichen Namen/Geburtsdatum. Einmal-Token mit Ablauf, Hash, serverseitiger Transaktion; kein Vertrauen in vom Client gesetzte Rollen. Standard: deny. RLS, Storage und RPCs prüfen identisch, Rechteentzug auch bei bestehenden Sessions, kurze signierte URL-Laufzeiten und Cache-Löschung; keine Kinderdaten in Push, KI, Suche, Telemetrie. Streitfall: sensible Freigaben pausieren, Support-Verfahren; keine Entscheidung über Sorgerecht durch App. Datenschutz-Folgenabschätzung und rechtliche Prüfung vor Launch.
  

@@ -5,6 +5,7 @@ import {FAMILY_COLORS as C} from './FamilyTheme';
 export const MENU_GROUPS=[
  {title:'Mein Familienfunke',items:[
   ['profile','◉','Mein Profil','Hobbys, Fotos, Konto und Privatsphäre'],
+  ['layout','⚙','App gestalten','Kacheln und untere Menüleiste anpassen'],
   ['contacts','♡','Kontakte','Anfragen und bestätigte Familienkontakte'],
   ['chat','✉','Nachrichten','Private Unterhaltungen'],
   ['inbox','◉','Neuigkeiten','Benachrichtigungszentrale'],
@@ -28,7 +29,7 @@ export const MENU_GROUPS=[
   ['more','≡','Alle weiteren Bereiche','Vollständige Übersicht']
  ]}
 ];
-export const MORE_ITEMS=MENU_GROUPS.flatMap(g=>g.items).filter(([id])=>!['info','refresh','more'].includes(id));
+export const MORE_ITEMS=MENU_GROUPS.flatMap(g=>g.items).filter(([id])=>!['info','refresh','more','layout'].includes(id));
 
 export function MenuIcon(){
  return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.icon}>

@@ -9,7 +9,7 @@ import {CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
 
 const C=FAMILY_COLORS;
-const FEATURED=['discover','map','market','box'];
+import {DEFAULT_HOME} from './FamilyLayoutModel';
 const SUGGESTIONS=['Spielplätze finden','Kinderjeans Größe 110','Profil bearbeiten','Wie beschäftige ich Kinder bei Regen?'];
 function SunMark(){
   return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.sunWrap}>
@@ -65,7 +65,7 @@ function AssistantReply({entry,onNavigate}){
     </Pressable>:null}
   </View>;
 }
-export default function HomeAssistant({onNavigate}){
+export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomize}){
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<360||fontScale>=1.5;
   const [question,setQuestion]=useState('');
@@ -87,8 +87,8 @@ export default function HomeAssistant({onNavigate}){
   const places=needle.length>=2?findFamilyMapLocations(needle,{curated:CURATED_FAMILY_PLACES,national:NATIONAL_FAMILY_PLACES},4):[];
   const marketIntent=looksLikeMarketProductQuery(needle)||matches[0]?.id==='market';
   const visibleSearch=searchResult?.query===needle?searchResult:null;
-  const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
-  const moreRoutes=HOME_ROUTES.filter(route=>!FEATURED.includes(route.id));
+  const featured=tileIds.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
+  const moreRoutes=HOME_ROUTES;
   async function askAssistant(){
     const prompt=needle.slice(0,600);
     if(prompt.length<3||pending.current)return;
@@ -206,7 +206,7 @@ export default function HomeAssistant({onNavigate}){
           <Text style={s.askButtonLabel}>{busy?'KI antwortet …':'KI fragen'}</Text>
         </Pressable>
       </View>
-      <Text style={s.searchHint}>App-Funktionen, Angebote, Orte und Veranstaltungen finden oder Fragen stellen.</Text>
+      <Text style={s.searchHint}>App-Funktionen, Angebote, Orte und Veranstaltungen finden oder Fragen stellen. Du kannst auch über das Mikrofon deiner Tastatur diktieren, sofern dein Gerät dies unterstützt.</Text>
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
     </View>
     {needle?<View style={s.section}>
@@ -247,7 +247,9 @@ export default function HomeAssistant({onNavigate}){
         entry={entry} onNavigate={onNavigate}/>)}
     </View>:null}
     {!needle?<View style={s.section}>
-      <Text accessibilityRole="header" style={s.sectionTitle}>Direkt zu</Text>
+      <Text accessibilityRole="header" style={s.sectionTitle}>Meine Startseite</Text>
+      <Pressable accessibilityRole="button" onPress={onCustomize} style={s.allAction}><Text style={s.allActionLabel}>Startseite & Menü gestalten</Text><Text style={s.allActionLabel}>›</Text></Pressable>
+      {!featured.length?<Text style={s.sectionSubtitle}>Du hast keine Kacheln ausgewählt. Füge jederzeit neue hinzu oder nutze die Suche.</Text>:null}
       <View style={[s.featuredGrid,singleColumn&&{flexDirection:'column'}]}>
         {featured.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query="" compact={!singleColumn}/>)}
       </View>
@@ -255,12 +257,6 @@ export default function HomeAssistant({onNavigate}){
         <Text style={s.allActionLabel}>{showAll?'Weniger Bereiche anzeigen':'Alle Bereiche entdecken'}</Text><Text style={s.allActionLabel}>{showAll?'⌃':'⌄'}</Text>
       </Pressable>
       {showAll?moreRoutes.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query=""/>):null}
-      <Pressable accessibilityRole="button" accessibilityLabel="Familienquiz und Spielideen öffnen" onPress={()=>onNavigate('play')} style={s.outingCard}>
-        <View style={{flex:1}}><Text style={s.outingTitle}>Familienzeit</Text><Text style={s.outingSubtitle}>Eine kurze Quizrunde oder eine Idee zum gemeinsamen Spielen.</Text><Text style={s.outingLink}>Quiz & Spielideen öffnen ›</Text></View>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Persönlichen Familienausflug planen" onPress={()=>onNavigate('outing')} style={s.outingCard}>
-        <View style={{flex:1}}><Text style={s.outingTitle}>Familienausflug planen</Text><Text style={s.outingSubtitle}>Passende Ziele nach Alter, Budget und Entfernung.</Text><Text style={s.outingLink}>Ausflugsplaner öffnen ›</Text></View>
-      </Pressable>
     </View>:null}
     {!needle?<View style={s.section}>
       <Text style={s.sectionTitle}>Du könntest fragen</Text>

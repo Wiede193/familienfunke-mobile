@@ -15,6 +15,9 @@ import WelcomeIntro from './WelcomeIntro';
 import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
+import FamilyLayoutEditor from './FamilyLayoutEditor';
+import {useFamilyLayout} from './FamilyLayoutPreferences';
+import {BOTTOM_ITEMS} from './FamilyLayoutModel';
 import FamilyCalendar,{CalendarEventButton} from './FamilyCalendar';
 import FamilyPlayScreen from './FamilyPlayScreen';
 import SavedMarketSearches,{saveMarketSearch} from './SavedMarketSearches';
@@ -191,6 +194,7 @@ export default function App() {
 const [session,setSession]=useState(undefined);
 const [tab,setTab]=useState('home');
 const [menuOpen,setMenuOpen]=useState(false);
+const [layoutEditor,setLayoutEditor]=useState(null);
 const [marketIntent,setMarketIntent]=useState(null);
 const [outingDraft,setOutingDraft]=useState(null);
 const [mapIntent,setMapIntent]=useState(null);
@@ -222,6 +226,8 @@ const [marketExtraPhotoUrls,setMarketExtraPhotoUrls]=useState({});
 const me=session?.user?.id;
 const accountRef=useRef(me);accountRef.current=me;
 const inbox=useNotificationCenter(me);
+const layoutPrefs=useFamilyLayout(me);
+const customTabs=layoutPrefs.layout.bottom.map(id=>BOTTOM_ITEMS.find(x=>x[0]===id)).filter(Boolean);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
 if(!silent)setLoading(true);
@@ -291,6 +297,7 @@ return ()=>{alive=false;listener.subscription.unsubscribe();};
 useEffect(()=>{
   setTab('home');
   setMenuOpen(false);
+  setLayoutEditor(null);
   setSelectedContact(null);
   setDetailFamily(null);
   setShowInfo(false);
@@ -443,6 +450,7 @@ function planCalendarPlace(place){
 }
 function selectMenuItem(id){
   setMenuOpen(false);
+  if(id==='layout'){setLayoutEditor({owner:me,section:'home'});return;}
   if(id==='refresh'){load();return;}
   if(id==='welcome'){setShowWelcome(true);return;}
   if(id==='info'){setDetailFamily(null);setSelectedContact(null);setShowInfo(true);return;}
@@ -510,7 +518,7 @@ send={(body)=>execute(async()=>{
 },'Nachricht gesendet.')}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
-tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome}/>:
+tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome} tileIds={layoutPrefs.layout.home} onCustomize={()=>setLayoutEditor({owner:me,section:'home'})}/>:
 tab==='play'?<FamilyPlayScreen key={me}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
 tab==='outing'?<FamilyOutingScreen key={me} onCalendar={planCalendarPlace} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
@@ -617,10 +625,11 @@ blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
+{customTabs.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setFocusContactId(null);setExtraReturnTab('home');setTab(id);setShowEventForm(false);}}
 accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id)&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
-<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
+{layoutEditor?.owner===me?<FamilyLayoutEditor key={me} initial={layoutPrefs.layout} ready={layoutPrefs.ready} error={layoutPrefs.error} initialSection={layoutEditor.section} onSave={layoutPrefs.save} onClose={()=>{if(accountRef.current===me)setLayoutEditor(null);}}/>:null}
+<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget&&!layoutEditor} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text accessibilityRole="header" style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -2430,7 +2439,7 @@ warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
 tabBar:{minHeight:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
-tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:54,paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{fontSize:24,color:'#708186',fontWeight:'500'},tabLabel:{fontSize:12,color:C.muted,marginTop:3,fontWeight:'700',textAlign:'center',flexShrink:1},
+tab:{flex:1,minWidth:0,alignItems:'center',justifyContent:'center',minHeight:54,paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{fontSize:24,color:'#708186',fontWeight:'500'},tabLabel:{fontSize:12,color:C.muted,marginTop:3,fontWeight:'700',textAlign:'center',flexShrink:1},
 profileSections:{flexDirection:'row',flexWrap:'wrap',gap:8,marginVertical:14},
 profileSectionButton:{minHeight:48,minWidth:48,borderWidth:1,borderColor:C.line,borderRadius:14,backgroundColor:C.paper,paddingHorizontal:14,paddingVertical:10,justifyContent:'center',maxWidth:'100%'},
 profileSectionActive:{backgroundColor:C.accentDark,borderColor:C.accentDark},
