@@ -28,7 +28,7 @@ function AreaCard({route,onNavigate,query,compact=false}){
     <View style={compact?s.areaGridAccent:s.areaAccent}/>
     <View style={{flex:1}}>
       <Text style={[s.areaTitle,compact&&{fontSize:15}]}>{route.title}</Text>
-      <Text style={s.areaSubtitle} numberOfLines={compact?3:2}>{route.subtitle}</Text>
+      <Text style={s.areaSubtitle}>{route.subtitle}</Text>
     </View>
     <Text style={s.areaArrow}>›</Text>
   </Pressable>;
@@ -300,7 +300,7 @@ const s=StyleSheet.create({
   inputShell:{width:'100%',maxWidth:680,flexDirection:'row',alignItems:'center',minHeight:58,borderWidth:1.5,
     borderColor:'#ADC6BE',borderRadius:30,backgroundColor:C.paper,paddingHorizontal:15},
   searchGlyph:{fontSize:29,color:C.tealDark,marginRight:7,marginTop:-5},
-  input:{flex:1,minHeight:51,paddingVertical:10,fontSize:15,color:C.ink},
+  input:{flex:1,minWidth:0,minHeight:51,paddingVertical:10,fontSize:16,color:C.ink},
   clear:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',paddingHorizontal:9,paddingVertical:5},
   clearText:{color:C.muted,fontSize:24},
   searchActions:{width:'100%',maxWidth:680,marginTop:14,flexDirection:'row',alignItems:'center',justifyContent:'center',flexWrap:'wrap',gap:10},
@@ -324,7 +324,7 @@ const s=StyleSheet.create({
     paddingHorizontal:15,paddingVertical:14,marginBottom:9,flexDirection:'row',alignItems:'center'},
   areaAccent:{width:5,height:39,borderRadius:4,backgroundColor:C.sun,marginRight:12},
   areaTitle:{color:C.ink,fontSize:15.5,fontWeight:'900',lineHeight:20},
-  areaSubtitle:{fontSize:12.5,lineHeight:18,color:C.muted,marginTop:5},
+  areaSubtitle:{fontSize:14,lineHeight:21,color:C.muted,marginTop:5},
   areaArrow:{fontSize:23,color:C.tealDark,alignSelf:'flex-end',marginLeft:6},
   allAction:{minHeight:47,flexDirection:'row',alignItems:'center',
     justifyContent:'space-between',paddingHorizontal:15,marginTop:12,
@@ -354,7 +354,7 @@ const s=StyleSheet.create({
   suggestionList:{gap:8,marginTop:9},
   suggestion:{minHeight:44,flexDirection:'row',alignItems:'center',justifyContent:'space-between',
     paddingHorizontal:15,borderWidth:1,borderColor:C.line,borderRadius:14,backgroundColor:C.paper},
-  suggestionText:{color:C.ink,fontSize:13.5,fontWeight:'700'},
+  suggestionText:{color:C.ink,fontSize:15,fontWeight:'700',flex:1,flexShrink:1},
   suggestionArrow:{fontSize:23,color:C.tealDark},
   disclaimer:{fontSize:11.5,lineHeight:18,color:C.muted,marginTop:1},
   outingCard:{backgroundColor:C.mint,borderColor:C.line,borderWidth:1,borderRadius:22,padding:16,marginTop:12,minHeight:48,flexDirection:'row',alignItems:'center'},

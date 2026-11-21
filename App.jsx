@@ -2268,9 +2268,13 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </View>
 {!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
 </Card>
-<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingVertical:12}} style={{marginTop:9,marginBottom:8}}>
-{[['about','Über uns'],['hobbies','Hobbys'],['privacy','Sichtbarkeit'],['photos','Fotos'],['security','Konto & Sicherheit']].map(([id,title])=><Chip key={id} text={title} selected={profileSection===id} onPress={()=>setProfileSection(id)}/>)}
-</ScrollView>
+<View style={styles.profileSections}>
+{[['about','Über uns'],['hobbies','Hobbys'],['privacy','Sichtbarkeit'],['photos','Fotos'],['security','Konto & Sicherheit']].map(([id,title])=>
+<Pressable key={id} accessibilityRole="button" accessibilityState={{selected:profileSection===id}} accessibilityLabel={title} onPress={()=>setProfileSection(id)}
+style={[styles.profileSectionButton,profileSection===id&&styles.profileSectionActive]}>
+<Text style={[styles.profileSectionLabel,profileSection===id&&styles.profileSectionLabelActive]}>{title}</Text>
+</Pressable>)}
+</View>
 {profileSection==='about'?<Card>
 <Text style={styles.sectionTitle}>Über eure Familie</Text>
 <Text style={[styles.sub,{marginBottom:14}]}>Ein paar freiwillige Angaben helfen beim Kennenlernen.</Text>
@@ -2407,17 +2411,17 @@ heroTaglineText:{color:C.ink,fontSize:11.5,fontWeight:'700'},
 headingWrap:{flexDirection:'row',alignItems:'flex-start',gap:12,marginBottom:17},
 headingBar:{width:5,height:37,borderRadius:4,backgroundColor:C.sun,marginTop:3},
 h:{fontSize:25,fontWeight:'900',color:C.ink,letterSpacing:-.6},
-sub:{fontSize:13.5,lineHeight:21,color:C.muted,marginTop:6},
-body:{fontSize:14.5,lineHeight:22,color:C.ink},
-micro:{fontSize:11.5,color:C.muted,lineHeight:17},
+sub:{fontSize:15,lineHeight:23,color:C.muted,marginTop:6},
+body:{fontSize:16,lineHeight:24,color:C.ink},
+micro:{fontSize:13,color:C.muted,lineHeight:19},
 sectionTitle:{fontSize:18,color:C.ink,fontWeight:'900',marginBottom:13},
 cardTitle:{fontSize:17,fontWeight:'900',color:C.ink},
-label:{fontSize:13,color:C.ink,fontWeight:'800',marginBottom:8},
+label:{fontSize:15,color:C.ink,fontWeight:'700',marginBottom:8},
 input:{backgroundColor:C.white,borderColor:'#D9DED6',borderWidth:1,borderRadius:15,paddingHorizontal:15,paddingVertical:13,fontSize:15,color:C.ink,minHeight:48},
 button:{minHeight:50,paddingHorizontal:18,paddingVertical:12,borderRadius:15,justifyContent:'center',alignItems:'center',flexDirection:'row'},
 button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#AEDBDD',borderWidth:1.5},
 button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:44,paddingVertical:9,paddingHorizontal:13},
-buttonText:{color:C.white,fontSize:14,fontWeight:'900'},buttonTextDark:{color:C.accentDark},
+buttonText:{color:C.white,fontSize:16,fontWeight:'700',textAlign:'center',flexShrink:1},buttonTextDark:{color:C.accentDark},
 chip:{borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:13,paddingVertical:8},
 chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{color:C.accentDark,fontSize:12,fontWeight:'800'},
 chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},
@@ -2426,7 +2430,12 @@ warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
 tabBar:{minHeight:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
-tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:54,paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{fontSize:24,color:'#708186',fontWeight:'500'},tabLabel:{fontSize:10.5,color:'#61757A',marginTop:3,fontWeight:'700'},
+tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:54,paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{fontSize:24,color:'#708186',fontWeight:'500'},tabLabel:{fontSize:12,color:C.muted,marginTop:3,fontWeight:'700',textAlign:'center',flexShrink:1},
+profileSections:{flexDirection:'row',flexWrap:'wrap',gap:8,marginVertical:14},
+profileSectionButton:{minHeight:48,minWidth:48,borderWidth:1,borderColor:C.line,borderRadius:14,backgroundColor:C.paper,paddingHorizontal:14,paddingVertical:10,justifyContent:'center',maxWidth:'100%'},
+profileSectionActive:{backgroundColor:C.accentDark,borderColor:C.accentDark},
+profileSectionLabel:{fontSize:15,lineHeight:21,color:C.ink,fontWeight:'700'},
+profileSectionLabelActive:{color:C.white},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},

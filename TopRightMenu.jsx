@@ -69,8 +69,8 @@ const s=StyleSheet.create({
  panel:{width:'100%',maxWidth:360,flexShrink:1,minHeight:0,backgroundColor:C.paper,borderRadius:22,marginTop:10,overflow:'hidden',borderWidth:1,borderColor:C.line},
  header:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',padding:14,borderBottomWidth:1,borderBottomColor:C.line},
  title:{fontSize:23,fontWeight:'900',color:C.ink},close:{minWidth:44,minHeight:44,justifyContent:'center',alignItems:'center',backgroundColor:C.sunPale,borderRadius:14},closeText:{fontSize:27,color:C.ink},
- scroll:{flexShrink:1},content:{padding:12,paddingBottom:20},group:{fontSize:14,fontWeight:'900',color:C.accentDark,marginTop:12,marginBottom:6,paddingHorizontal:7},
+ scroll:{flexShrink:1},content:{padding:12,paddingBottom:20},group:{fontSize:15,fontWeight:'800',color:C.accentDark,marginTop:12,marginBottom:6,paddingHorizontal:7},
  item:{flexDirection:'row',gap:10,alignItems:'center',minHeight:58,padding:10,borderRadius:13},selected:{backgroundColor:C.sunPale},glyphWrap:{width:34,height:34,alignItems:'center',justifyContent:'center',backgroundColor:C.mint,borderRadius:11},
- glyph:{fontSize:20,color:C.accentDark},name:{fontSize:15,fontWeight:'800',color:C.ink},subtitle:{fontSize:12,lineHeight:17,color:C.muted,marginTop:3},unread:{color:C.accentDark,fontWeight:'800',fontSize:12,marginTop:4},arrow:{color:C.accentDark,fontSize:22},
+ glyph:{fontSize:20,color:C.accentDark},name:{fontSize:17,fontWeight:'700',color:C.ink},subtitle:{fontSize:14,lineHeight:21,color:C.muted,marginTop:3},unread:{color:C.accentDark,fontWeight:'800',fontSize:12,marginTop:4},arrow:{color:C.accentDark,fontSize:22},
  icon:{width:25,height:25,justifyContent:'center',gap:5},line:{height:2.5,width:23,borderRadius:2,backgroundColor:C.ink}
 });

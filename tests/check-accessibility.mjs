@@ -8,6 +8,7 @@ const map=read('FamilyMap.jsx');
 const guide=read('FamilyGuide.jsx');
 const intro=read('WelcomeIntro.jsx');
 const help=read('AboutAndHelp.jsx');
+const menu=read('TopRightMenu.jsx');
 
 // These checks are regression guards, NOT an automated accessibility certification.
 assert.doesNotMatch(intro,/setTimeout\(|15000|AccessibilityInfo\.isScreenReaderEnabled/,
@@ -77,4 +78,8 @@ assert.match(guide,/accessibilityRole="header"/,
   'Guide should expose headings');
 assert.match(help,/accessibilityLiveRegion="polite"/,
   'FAQ result count should be announced');
+assert.match(app,/profileSections:\{flexDirection:'row',flexWrap:'wrap'/,'Profile sections should wrap rather than hide horizontally');
+assert.match(app,/profileSectionButton:\{minHeight:48,minWidth:48/,'Profile actions require large touch targets');
+assert.match(home,/<Text style=\{s.areaSubtitle\}>\{route.subtitle\}<\/Text>/,'Home route descriptions must not be truncated');
+assert.match(menu,/subtitle:\{fontSize:14,lineHeight:21/,'Menu descriptions should be readable');
 console.log('Barrierefreiheit: kritische Funktions- und UI-Verträge geprüft. Geräteprüfung bleibt erforderlich.');
