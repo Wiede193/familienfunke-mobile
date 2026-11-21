@@ -113,7 +113,7 @@ function pinSetScript(items){
 function inGermany(lat,lon){
   return valid(lat)&&valid(lon)&&lat>=47&&lat<=55.2&&lon>=5.5&&lon<=15.6;
 }
-export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId}){
+export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onCalendar}){
   const map=useRef(null);
   const scroll=useRef(null);
   const mapOffset=useRef(0);
@@ -441,6 +441,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId}){
       <Text style={styles.selectedTitle}>{selected.title}</Text>
       <Text style={styles.micro}>{selected.description||'Keine Beschreibung hinterlegt.'}</Text>
       {selected.address?<Text style={[styles.micro,{marginTop:8}]}>⌖ {selected.address}</Text>:null}
+      {['curated','national'].includes(selected.source)&&onCalendar?<Pressable accessibilityRole="button" accessibilityLabel="Ausflugsziel im Kalender einplanen" onPress={()=>onCalendar(selected)} style={{minHeight:44,padding:12,borderRadius:12,backgroundColor:'#E8F3E9',marginTop:10}}><Text style={{fontWeight:'800',color:'#075A60'}}>Im Kalender einplanen</Text></Pressable>:null}
       {selected.source==='national'?<Text style={[styles.micro,{marginTop:7}]}>Kategorie: {selected.kind_label} · {selected.state}</Text>:null}
       {['curated','national'].includes(selected.source)?<Text style={[styles.micro,{marginTop:8}]}>Recherchestand November 2026. Aktuelle Besuchsbedingungen beim Anbieter erfragen.</Text>:null}
       {selected.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(selected.info_url).catch(()=>{})}
