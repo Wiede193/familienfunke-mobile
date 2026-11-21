@@ -38,6 +38,9 @@ function ListEditor({title,items,choices,change,locked=false,busy=false}){
 export default function FamilyLayoutEditor({initial,ready,error,onSave,onClose,initialSection='home'}){
  const [draft,setDraft]=useState(()=>normalizeLayout(initial));
  const [section,setSection]=useState(initialSection);
+ const [history,setHistory]=useState([]);
+ function update(next){setHistory(old=>[...old.slice(-19),draft]);setDraft(next);}
+ function undo(){if(!history.length)return;setDraft(history[history.length-1]);setHistory(old=>old.slice(0,-1));}
  const [busy,setBusy]=useState(false);
  const pending=React.useRef(false);
  const dirty=JSON.stringify(draft)!==JSON.stringify(normalizeLayout(initial));
@@ -61,8 +64,9 @@ export default function FamilyLayoutEditor({initial,ready,error,onSave,onClose,i
    <ScrollView contentContainerStyle={s.content}>
     <Text style={s.hint}>Die Anordnung wird für dein Konto auf diesem Gerät gespeichert. Alle Funktionen bleiben über Start und Suche erreichbar.</Text>
     {!ready?<Text accessibilityLiveRegion="polite" style={s.error}>{error||'Einstellungen werden geladen. Schließe diese Ansicht und öffne sie danach erneut.'}</Text>:null}
-    {section==='home'?<ListEditor title="Startseiten-Kacheln" items={draft.home} choices={homeChoices} busy={busy||!ready} change={home=>setDraft(v=>({...v,home}))}/>:<ListEditor title="Untere Menüleiste" items={draft.bottom} choices={bottomChoices} busy={busy||!ready} locked change={bottom=>setDraft(v=>({...v,bottom}))}/>}
-    <Action title="Standardeinstellungen wiederherstellen" disabled={busy||!ready} onPress={()=>Alert.alert('Anordnung zurücksetzen?','Startseite und Menü werden auf die Standardanordnung zurückgesetzt. Erst Speichern übernimmt die Änderung.',[{text:'Abbrechen',style:'cancel'},{text:'Zurücksetzen',onPress:()=>setDraft(normalizeLayout(null))}])}/>
+    {section==='home'?<ListEditor title="Startseiten-Kacheln" items={draft.home} choices={homeChoices} busy={busy||!ready} change={home=>update({...draft,home})}/>:<ListEditor title="Untere Menüleiste" items={draft.bottom} choices={bottomChoices} busy={busy||!ready} locked change={bottom=>update({...draft,bottom})}/>}
+    <Action title="Letzte Änderung rückgängig" disabled={busy||!history.length} onPress={undo}/>
+    <Action title="Standardeinstellungen wiederherstellen" disabled={busy||!ready} onPress={()=>Alert.alert('Anordnung zurücksetzen?','Startseite und Menü werden auf die Standardanordnung zurückgesetzt. Erst Speichern übernimmt die Änderung.',[{text:'Abbrechen',style:'cancel'},{text:'Zurücksetzen',onPress:()=>update(normalizeLayout(null))}])}/>
    </ScrollView>
    <View style={s.footer}><Action title={busy?'Wird gespeichert …':'Änderungen speichern'} primary disabled={busy||!ready||!dirty} onPress={save}/></View>
   </SafeAreaView>

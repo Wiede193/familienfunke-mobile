@@ -4,6 +4,8 @@ import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import {confirmRemoval} from './FamilyActions';
 import FamilyActionButton from './FamilyActionButton';
+import {useSessionDraft} from './FamilySessionDrafts';
+import FamilyStatus from './FamilyStatus';
 import {dayKey,monthDays,moveMonth,entryDay,entryTime,compareEntries,calendarFields} from './CalendarDates';
 
 async function verifyAccount(userId){
@@ -38,9 +40,9 @@ function Action({children,onPress,disabled=false,secondary=false}){
 const emptyForm=(day,seed)=>({title:seed?.title||'',note:'',day,time:'',kind:seed?'outing':'personal',place_id:seed?.id||null,id:null});
 const LABELS={personal:'Privater Termin',outing:'Geplanter Ausflug',family:'Familientreffen · gemerkt',partner:'Partnerveranstaltung · gemerkt'};
 const monthLabel=m=>new Date(Number(m.slice(0,4)),Number(m.slice(5))-1,1,12).toLocaleDateString('de-DE',{month:'long',year:'numeric'});
-export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
+export default function FamilyCalendar({userId,drafts,seed,onOpenEvent,onOpenPlace}){
  const today=dayKey(new Date()),[month,setMonth]=useState(today.slice(0,7)),[chosen,setChosen]=useState(today);
- const [form,setForm]=useState(()=>seed?emptyForm(today,seed):null),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
+ const [form,setForm,resetForm]=useSessionDraft(drafts,'calendar',seed?emptyForm(today,seed):null),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const seq=useRef(0),alive=useRef(true),lock=useRef(false),scroll=useRef(null);
  const {width,fontScale}=useWindowDimensions();
  async function refresh(){
@@ -58,7 +60,7 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
   return()=>{alive.current=false;seq.current++;sub.remove();};
  },[userId]);
  function changeMonth(delta){const next=moveMonth(month,delta);if(next<'1900-01'||next>'2100-12')return;setMonth(next);setChosen(next+'-01');}
- function openForm(value){setForm(value);scroll.current?.scrollTo({y:0,animated:false});}
+ function openForm(value){const apply=()=>{setForm(value);scroll.current?.scrollTo({y:0,animated:false});};if(form)confirmRemoval({title:'Anderen Termin bearbeiten?',description:'Der bisherige ungespeicherte Entwurf wird ersetzt.',confirmLabel:'Entwurf ersetzen',onConfirm:apply});else apply();}
  function change(k,v){setForm(old=>({...old,[k]:v}));}
  async function save(){
   if(lock.current||!form)return;lock.current=true;setBusy(true);
@@ -108,11 +110,12 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
   <Action onPress={()=>openForm(emptyForm(chosen,null))}>＋ Privaten Termin anlegen</Action>
   {form?<View style={s.card}>
    <Text accessibilityRole="header" style={s.heading}>{form.id?'Termin bearbeiten':form.kind==='outing'?'Ausflug einplanen':'Neuer privater Termin'}</Text>
+   <Text style={s.sub}>Entwurf bleibt während dieser App-Sitzung erhalten. Erst „Termin speichern“ übernimmt ihn in den Kalender.</Text>
    <Text style={s.sub}>Titel</Text><TextInput accessibilityLabel="Termintitel" style={s.input} value={form.title} maxLength={100} onChangeText={v=>change('title',v)}/>
    <Text style={s.sub}>Datum (JJJJ-MM-TT)</Text><TextInput accessibilityLabel="Datum" style={s.input} value={form.day} maxLength={10} placeholder="2026-12-05" onChangeText={v=>change('day',v)}/>
    <Text style={s.sub}>Uhrzeit (optional, HH:MM)</Text><TextInput accessibilityLabel="Uhrzeit" style={s.input} value={form.time} maxLength={5} placeholder="10:00" onChangeText={v=>change('time',v)}/>
    <Text style={s.sub}>Private Notiz (optional)</Text><TextInput accessibilityLabel="Private Notiz" multiline maxLength={500} style={[s.input,{minHeight:80,textAlignVertical:'top'}]} value={form.note} onChangeText={v=>change('note',v)}/>
-   <Action disabled={busy} onPress={save}>{busy?'Wird gespeichert …':'Termin speichern'}</Action><Action secondary disabled={busy} onPress={()=>setForm(null)}>Abbrechen</Action>
+   <Action disabled={busy} onPress={save}>{busy?'Wird gespeichert …':'Termin speichern'}</Action><Action secondary disabled={busy} onPress={()=>confirmRemoval({title:'Terminentwurf verwerfen?',description:'Nicht gespeicherte Angaben gehen verloren.',confirmLabel:'Verwerfen',onConfirm:()=>resetForm(null)})}>Abbrechen</Action>
   </View>:null}
   <View style={s.card}>
    <View style={s.line}><Pressable accessibilityRole="button" accessibilityLabel="Vorheriger Monat" onPress={()=>changeMonth(-1)} style={s.close}><Text style={s.x}>‹</Text></Pressable>

@@ -1,6 +1,7 @@
 import React from 'react';
 import {Modal,Pressable,SafeAreaView,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import FamilyIcon from './FamilyIcon';
 
 export const MENU_GROUPS=[
  {title:'Mein Familienfunke',items:[
@@ -52,7 +53,7 @@ export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}
        const selected=id===activeTab;
        return <Pressable key={id} accessibilityRole="button" accessibilityLabel={title+(id==='inbox'&&unread>0?', '+unread+' ungelesen':'')} accessibilityState={{selected}}
         onPress={()=>onSelect(id)} style={[s.item,selected&&s.selected]}>
-        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.glyphWrap}><Text style={s.glyph}>{icon}</Text></View>
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.glyphWrap}><FamilyIcon name={id} size={23}/></View>
         <View style={{flex:1,minWidth:0}}>
          <Text style={s.name}>{title}</Text><Text style={s.subtitle}>{subtitle}</Text>
          {id==='inbox'&&unread>0?<Text style={s.unread}>{unread} ungelesen</Text>:null}

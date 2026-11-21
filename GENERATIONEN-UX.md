@@ -26,6 +26,9 @@ Gemeinsame Löschbestätigung für Profilfotos, private Termine, Suchaufträge u
 ## Weiterer P2-/P1-Fortschritt
 Gemeinsame UI-Grundbausteine, App-Styles und Kontaktübersicht sind eigene Module. Kontaktanfragen (Ablehnen, Zurückziehen), Blockieren und Anzeige-Abschluss verwenden einheitliche explizite Bestätigungen. Keine Kontakt- oder Inseratdaten werden ohne vorhandene serverseitige Rechte gelöscht. Optionale lokale Spracheingabe ist im Code vorbereitet; Paketinstallation, Lockfile, native Builds und Gerätetests stehen noch aus (SPRACHSUCHE.md).
 
+## Robustere Bedienung
+RAM-Entwürfe für Profil und Kalender während einer Kontositzung, ausdrückliche Warnungen bei ausgewählten Navigationswegen/Verwerfen einer Anzeige, gemeinsame Statusmeldungen, Rückgängig im Layout-Editor, einheitliche native Linien-Icons in Hauptnavigation und Menü. Bildsignierung wird in Gruppen von bis zu 100 Pfaden angefragt, ohne öffentliche URLs oder längere Gültigkeit. Das eigene Profil wird separat geladen; veraltete Ladeantworten werden ignoriert. Einzelformular-Entwürfe für neue/zu bearbeitende Inserate über App-Neustarts sind noch nicht implementiert. Keine Leistungswerte ohne auf Geräten gemessenen Benchmark.
+
 ## Backend-Entwurf – noch nicht implementiert
 Separate Entitäten für Familienkreise, Mitgliedschaften, Sorgeberechtigungsnachweise, zeitlich/versionierte Freigaben, Einladungen und Aktivitätsvorschläge. Kindreferenzen nur falls nötig, ohne öffentlichen Namen/Geburtsdatum. Einmal-Token mit Ablauf, Hash, serverseitiger Transaktion; kein Vertrauen in vom Client gesetzte Rollen. Standard: deny. RLS, Storage und RPCs prüfen identisch, Rechteentzug auch bei bestehenden Sessions, kurze signierte URL-Laufzeiten und Cache-Löschung; keine Kinderdaten in Push, KI, Suche, Telemetrie. Streitfall: sensible Freigaben pausieren, Support-Verfahren; keine Entscheidung über Sorgerecht durch App. Datenschutz-Folgenabschätzung und rechtliche Prüfung vor Launch.
  

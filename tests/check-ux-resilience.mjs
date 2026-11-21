@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const load=async p=>import('data:text/javascript;base64,'+Buffer.from(read(p)).toString('base64'));
+const {signedImageLinks}=await load('FamilyImageLinks.js');
+let calls=[];const client={storage:{from:bucket=>({createSignedUrls:async(paths,ttl)=>{calls.push({bucket,paths,ttl});return {data:paths.map(path=>({path,signedUrl:'signed-'+path,error:path==='deny'?'denied':null}))};}})}};
+const links=await signedImageLinks(client,'private',['a','a','deny',...Array.from({length:101},(_,i)=>'p'+i)],600);
+assert.equal(calls.length,2);assert.equal(links.a,'signed-a');assert.equal(links.deny,undefined);assert.equal(calls[0].ttl,600);
+const src=read('FamilySessionDrafts.js').replace("import {useRef,useState} from 'react';",'');
+const {createSessionDrafts}=await import('data:text/javascript;base64,'+Buffer.from(src).toString('base64'));
+const a=createSessionDrafts('a'),b=createSessionDrafts('b');a.set('profile',{about:'test'});assert.equal(b.get('profile'),undefined);a.clearAll();assert.equal(a.has('profile'),false);
+const app=read('App.jsx'),editor=read('FamilyLayoutEditor.jsx');
+assert.match(app,/guardLeave\(/);assert.match(app,/useSessionDraft\(drafts,'profile'/);assert.match(app,/signedImageLinks\(supabase/);assert.match(app,/loadSequence\.current===seq/);
+assert.match(read('FamilyCalendar.jsx'),/useSessionDraft\(drafts,'calendar'/);
+assert.match(editor,/Letzte Änderung rückgängig/);assert.match(app,/<FamilyIcon name=\{id\}/);assert.match(read('TopRightMenu.jsx'),/<FamilyIcon name=\{id\}/);
+assert.doesNotMatch(src,/AsyncStorage|supabase|fetch\(/);assert.doesNotMatch(read('FamilyImageLinks.js'),/getPublicUrl/);
+console.log('Session draft isolation, batch image signing and UX wiring checked');

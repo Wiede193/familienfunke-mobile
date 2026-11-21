@@ -21,6 +21,10 @@ import FamilyActionButton from './FamilyActionButton';
 import {styles} from './FamilyAppStyles';
 import {Button,Chip,Card,H,Info,Avatar,Row,Input,Blank} from './FamilyUI';
 import ContactsScreen from './FamilyContactsScreen';
+import FamilyIcon from './FamilyIcon';
+import FamilyStatus from './FamilyStatus';
+import {createSessionDrafts,useSessionDraft} from './FamilySessionDrafts';
+import {signedImageLinks} from './FamilyImageLinks';
 import {useFamilyLayout} from './FamilyLayoutPreferences';
 import {BOTTOM_ITEMS} from './FamilyLayoutModel';
 import FamilyCalendar,{CalendarEventButton} from './FamilyCalendar';
@@ -199,6 +203,10 @@ const [marketPhotoUrls,setMarketPhotoUrls]=useState({});
 const [marketExtraPhotoUrls,setMarketExtraPhotoUrls]=useState({});
 const me=session?.user?.id;
 const accountRef=useRef(me);accountRef.current=me;
+const drafts=useMemo(()=>createSessionDrafts(me),[me]);
+useEffect(()=>()=>drafts.clearAll(),[drafts]);
+const loadSequence=useRef(0);
+const actionLock=useRef(null);
 const inbox=useNotificationCenter(me);
 const layoutPrefs=useFamilyLayout(me);
 const {width:layoutWidth,fontScale:layoutFontScale}=useWindowDimensions();
@@ -206,10 +214,13 @@ const wrapTabs=layoutWidth<360||layoutFontScale>=1.5;
 const customTabs=layoutPrefs.layout.bottom.map(id=>BOTTOM_ITEMS.find(x=>x[0]===id)).filter(Boolean);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
+const seq=++loadSequence.current;
+const current=()=>accountRef.current===me&&loadSequence.current===seq;
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
-supabase.from('profiles').select('*').limit(150),
+supabase.from('profiles').select('*').neq('user_id',me).limit(150),
+supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('contact_requests').select('*').order('created_at',{ascending:false}).limit(200),
 supabase.from('messages').select('*').order('created_at',{ascending:false}).limit(300),
 supabase.from('events').select('*').gt('ends_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(150),
@@ -224,39 +235,27 @@ supabase.from('ff_market_favorites').select('*').eq('user_id',me).limit(800),
 supabase.from('ff_organizations').select('*').order('created_at',{ascending:false}).limit(100),
 supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(100),
 ]);
-if(accountRef.current!==me)return null;
+if(!current())return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketPhotos,marketFavorites,organizations,partnerEvents]=queries;
-const profileRow=profiles.data.find(p=>p.user_id===me)||null;
-setDb({profiles:profiles.data||[],contacts:contacts.data||[],messages:messages.data||[],
+const [profiles,ownProfile,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketPhotos,marketFavorites,organizations,partnerEvents]=queries;
+const profileRow=ownProfile.data||null;
+setDb({profiles:[...(profileRow?[profileRow]:[]),...(profiles.data||[])],contacts:contacts.data||[],messages:messages.data||[],
 events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],
 listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');
-const images=await Promise.all((photos.data||[]).map(async(p)=>{
-try {const {data,error:e}=await supabase.storage.from('familienfunke-photos').createSignedUrl(p.storage_path,1800);
-return [p.id,e?null:data?.signedUrl||null];} catch {return [p.id,null];}
-}));
-if(accountRef.current!==me)return null;
-setPhotosUrls(Object.fromEntries(images));
-const marketImages=await Promise.all((listings.data||[]).filter(x=>x.photo_path).map(async(x)=>{
- try {const {data,error:e}=await supabase.storage.from('ff-market-photos').createSignedUrl(x.photo_path,600);return [x.id,e?null:data?.signedUrl||null];}
- catch{return [x.id,null];}
-}));
-if(accountRef.current!==me)return null;
-setMarketPhotoUrls(Object.fromEntries(marketImages));
-const extraImages=await Promise.all((marketPhotos.data||[]).map(async(p)=>{
- try{
-   const {data,error:e}=await supabase.storage.from('ff-market-photos').createSignedUrl(p.photo_path,600);
-   return [p.photo_path,e?null:data?.signedUrl||null];
- }catch{return [p.photo_path,null];}
-}));
-if(accountRef.current!==me)return null;
-setMarketExtraPhotoUrls(Object.fromEntries(extraImages));
+const [profileLinks,marketLinks]=await Promise.all([
+ signedImageLinks(supabase,'familienfunke-photos',(photos.data||[]).map(p=>p.storage_path),1800),
+ signedImageLinks(supabase,'ff-market-photos',[...(listings.data||[]).map(x=>x.photo_path),...(marketPhotos.data||[]).map(p=>p.photo_path)],600)
+]);
+if(!current())return null;
+setPhotosUrls(Object.fromEntries((photos.data||[]).map(p=>[p.id,profileLinks[p.storage_path]||null])));
+setMarketPhotoUrls(Object.fromEntries((listings.data||[]).map(x=>[x.id,marketLinks[x.photo_path]||null])));
+setMarketExtraPhotoUrls(marketLinks);
 return {contacts:contacts.data||[],listings:listings.data||[]};
-} catch(e){if(accountRef.current===me)setError(humanError(e));return null;}
-finally{if(accountRef.current===me)setLoading(false);}
+} catch(e){if(current())setError(humanError(e));return null;}
+finally{if(current())setLoading(false);}
 },[me]);
 useEffect(()=>{
 if(!supabase){setSession(null);return;}
@@ -274,6 +273,7 @@ useEffect(()=>{
   setTab('home');
   setMenuOpen(false);
   setLayoutEditor(null);
+  setBusy(false);setError('');setNotice('');setLoading(false);
   setSelectedContact(null);
   setDetailFamily(null);
   setShowInfo(false);
@@ -340,11 +340,12 @@ async function reviewMarketListing(listingId){
  return 'pending';
 }
 async function execute(fn,success){
-if(busy)return;
+if(actionLock.current?.owner===me||accountRef.current!==me)return false;
+const token={owner:me};actionLock.current=token;
 setBusy(true);setError('');setNotice('');
-try{await fn();if(success)setNotice(success);await load(true);return true;}
-catch(e){setError(humanError(e));return false;}
-finally{setBusy(false);}
+try{await fn();if(accountRef.current!==me)return false;if(success)setNotice(success);await load(true);return accountRef.current===me;}
+catch(e){if(accountRef.current===me)setError(humanError(e));return false;}
+finally{if(actionLock.current===token)actionLock.current=null;if(accountRef.current===me)setBusy(false);}
 }
 function report(type,id){setReportDetails('');setReportTarget({type,id});}
 async function sendReport(){
@@ -455,6 +456,13 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 </SafeAreaView>;
 const EXTRA_TITLES={play:'Familienzeit',calendar:'Mein Familienkalender',savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',more:'Weitere Bereiche'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
+function guardLeave(next){
+ if(busy)return;
+ const retained=['profile','calendar'].includes(tab)&&drafts.has(tab);
+ const lost=(tab==='market'&&drafts.has('market-form'))||(tab==='profile'&&drafts.has('profile-transient'));
+ if(!retained&&!lost){next();return;}
+ Alert.alert('Ungespeicherte Änderungen',lost?'Nicht gespeicherte Fotos, Passwörter oder Anzeigenangaben können verloren gehen.':'Dein Entwurf bleibt bis zur Abmeldung oder zum Schließen der App in dieser Sitzung erhalten.',[{text:'Weiter bearbeiten',style:'cancel'},{text:'Verlassen',onPress:()=>{if(accountRef.current===me){drafts.clear('market-form');drafts.clear('profile-transient');next();}}}]);
+}
 function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='calendar'){setMapIntent(null);setTab('calendar');}else if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else{setMapIntent(null);setTab('outing');}}else if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);}else if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches'].includes(tab))setTab(extraReturnTab);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
@@ -466,13 +474,13 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><Text accessibilityElementsHidden importantForAccessibility="no" style={{fontSize:22,color:C.ink}}>🔔︎</Text>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
-{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
+{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={()=>guardLeave(openInbox)} style={styles.inboxBell}><FamilyIcon name="inbox" color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
+{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={()=>guardLeave(back)} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
 <Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
-{error?<Pressable accessibilityRole="button" accessibilityLabel={'Fehlermeldung schließen. '+error} accessibilityLiveRegion="assertive" onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
-{notice?<Pressable accessibilityRole="button" accessibilityLabel={'Hinweis schließen. '+notice} accessibilityLiveRegion="polite" onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
-{loading?<View style={{padding:4}}><ActivityIndicator color={C.accent}/></View>:null}
+{error?<FamilyStatus kind="error" message={error} onDismiss={()=>setError('')}/>:null}
+{notice?<FamilyStatus kind="notice" message={notice} onDismiss={()=>setNotice('')}/>:null}
+{loading?<FamilyStatus message="Daten werden geladen …"/>:null}
 <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined} keyboardVerticalOffset={0}>
 {detailFamily?<FamilyDetail p={db.profiles.find(p=>p.user_id===detailFamily)}
 imageUrl={photosUrls[photoOf(detailFamily)?.id]} photos={db.photos.filter(p=>p.owner_id===detailFamily&&p.moderation_status==='approved')}
@@ -503,7 +511,7 @@ onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
 tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome} tileIds={layoutPrefs.layout.home} onCustomize={()=>setLayoutEditor({owner:me,section:'home'})}/>:
 tab==='play'?<FamilyPlayScreen key={me}/>:
-tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
+tab==='calendar'?<FamilyCalendar key={me} userId={me} drafts={drafts} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
 tab==='outing'?<FamilyOutingScreen key={me} onCalendar={planCalendarPlace} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
 tab==='guide'?<FamilyGuideScreen userId={me} regionLabel={myProfile?.region_label}/>:
 tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={active} entryPlaceId={mapIntent?.id} addPlace={(v)=>execute(async()=>{
@@ -511,7 +519,7 @@ tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
 tab==='savedSearches'?<SavedMarketSearches key={me} userId={me} onSearch={row=>{setMarketIntent({type:'savedSearch',row,returnTab:'savedSearches'});setTab('market');}} onBrowse={()=>{setMarketIntent(null);setTab('market');}}/>:
-tab==='market'?<MarketScreen key={me} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} listings={db.listings} me={me} active={active} busy={busy}
+tab==='market'?<MarketScreen key={me} drafts={drafts} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} listings={db.listings} me={me} active={active} busy={busy}
 organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} favorites={db.marketFavorites} contacts={db.contacts}
 createListing={(v,assets,stableId)=>execute(async()=>{
  // Basar-Texte nicht wegen einzelner Wörter vorab blockieren.
@@ -596,7 +604,7 @@ createEvent={(event)=>execute(async()=>{
 requestEvent={(id)=>execute(async()=>assertResult(await supabase.from('event_requests').insert({event_id:id,requester_id:me})),'Teilnahme angefragt.')}
 replyEvent={(id,requester,status)=>execute(async()=>assertResult(await supabase.from('event_requests').update({status}).eq('event_id',id).eq('requester_id',requester)),'Teilnahmestatus aktualisiert.')}
 reportEvent={(id)=>report('event',id)}/>:
-<ProfileScreen profile={myProfile} verification={verification} membership={membership} active={active}
+<ProfileScreen key={me} drafts={drafts} profile={myProfile} verification={verification} membership={membership} active={active}
 photos={ownPhotos} photosUrls={photosUrls} busy={busy}
 save={(value)=>execute(async()=>{
   await moderateTextOrThrow([value.display_name,value.region_label,value.about]);
@@ -608,11 +616,11 @@ blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={[styles.tabBar,wrapTabs&&{flexWrap:'wrap',justifyContent:'center'}]}>
-{customTabs.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setFocusContactId(null);setExtraReturnTab('home');setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,wrapTabs&&{flexBasis:'30%',flexGrow:0},(tab===id)&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id)&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+{customTabs.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{if(id===tab)return;guardLeave(()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setFocusContactId(null);setExtraReturnTab('home');setTab(id);setShowEventForm(false);});}}
+accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,wrapTabs&&{flexBasis:'30%',flexGrow:0},(tab===id)&&styles.tabActive]}><FamilyIcon name={id} color={tab===id?C.accentDark:C.muted}/><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 {layoutEditor?.owner===me?<FamilyLayoutEditor key={me+':'+layoutPrefs.ready} initial={layoutPrefs.layout} ready={layoutPrefs.ready} error={layoutPrefs.error} initialSection={layoutEditor.section} onSave={layoutPrefs.save} onClose={()=>{if(accountRef.current===me)setLayoutEditor(null);}}/>:null}
-<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget&&!layoutEditor} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
+<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget&&!layoutEditor} onClose={()=>setMenuOpen(false)} onSelect={id=>{if(['refresh','layout','welcome'].includes(id)||id===tab){selectMenuItem(id);return;}setMenuOpen(false);guardLeave(()=>selectMenuItem(id));}} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text accessibilityRole="header" style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -772,7 +780,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
     </View>:null}
   </View>;
 }
-function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked}){
+function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked}){
   const [open,setOpen]=useState(false);
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<375||fontScale>=1.5;
@@ -818,6 +826,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
   const [expandFacts,setExpandFacts]=useState(false);
   const [scanned,setScanned]=useState(false);
   const [askSize,setAskSize]=useState(false);
+  useEffect(()=>{drafts.set('market-form',open?true:null);return()=>drafts.clear('market-form');},[drafts,open]);
   const [boxOpen,setBoxOpen]=useState(false);
   const [boxPhoto,setBoxPhoto]=useState(null);
   const [boxDrafts,setBoxDrafts]=useState([]);
@@ -1391,7 +1400,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
         <Text style={styles.marketTopTitle}>Entdecken & weitergeben</Text>
         <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
       </View>
-      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){resetForm();setOpen(false);}else{startQuick();}}}/>
+      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){confirmRemoval({title:'Anzeige verwerfen?',description:'Die nicht gespeicherten Änderungen an dieser Anzeige gehen verloren.',confirmLabel:'Verwerfen',onConfirm:()=>{resetForm();setOpen(false);}});}else{startQuick();}}}/>
     </View>
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
     <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
@@ -2189,16 +2198,18 @@ request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request
 })}
 </ScrollView>;
 }
-function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
-const [form,setForm]=useState(blankProfile);
+function ProfileScreen({drafts,profile,verification,membership,active,photos,photosUrls,busy,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
+const [form,setForm,resetForm]=useSessionDraft(drafts,'profile',blankProfile);
 const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
 const [photoPickerBusy,setPhotoPickerBusy]=useState(false);
 const [newPassword,setNewPassword]=useState('');
 const [profileSection,setProfileSection]=useState('about');
-useEffect(()=>{if(profile)setForm({...blankProfile,...profile,interests:Array.isArray(profile.interests)?profile.interests:[]});},[profile?.updated_at,profile?.user_id]);
+useEffect(()=>{if(profile&&!drafts.has('profile'))resetForm({display_name:profile.display_name||'',region_label:profile.region_label||'',about:profile.about||'',interests:Array.isArray(profile.interests)?profile.interests:[],is_discoverable:!!profile.is_discoverable});},[profile?.updated_at,profile?.user_id,drafts]);
+useEffect(()=>{drafts.set('profile-transient',selectedPhoto||newPassword?true:null);return()=>drafts.clear('profile-transient');},[drafts,selectedPhoto,newPassword]);
 async function submit(){if((form.display_name||'').trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
-await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});}
+const values={display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable};
+if(await save(values))resetForm(values);}
 function toggle(i){setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):f.interests.length>=12?f.interests:[...f.interests,i]}));}
 async function updatePassword(){if(newPassword.length<12)return Alert.alert('Passwort','Bitte mindestens 12 Zeichen verwenden.');const ok=await changePassword(newPassword);if(ok)setNewPassword('');}
 async function selectDraftPhoto(){
@@ -2228,6 +2239,7 @@ async function submitDraftPhoto(){
 const completed=[form.display_name?.trim().length>=2,!!form.region_label?.trim(),!!form.about?.trim(),(form.interests||[]).length>0].filter(Boolean).length;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 <H sub="Du entscheidest, was andere Familien von euch erfahren.">Mein Familienprofil</H>
+{drafts.has('profile')?<Info>Nicht gespeicherter Entwurf. Deine Änderungen bleiben bis zum Beenden der App in dieser Sitzung erhalten.</Info>:null}
 <Card style={{backgroundColor:C.sunPale}}>
 <Row><Avatar size={65} name={profile?.display_name}/><View style={{flex:1}}><Text style={styles.cardTitle}>{profile?.display_name||'Deine Familie'}</Text><Text style={styles.micro}>{active?'✓ Erwachsener geprüft, Profil freigegeben':'⌛ Prüfung oder Freigabe ausstehend'}</Text><Text style={styles.micro}>Mitgliedschaft: {membership?.status||'–'}</Text></View></Row>
 <View style={{marginTop:15}}>
