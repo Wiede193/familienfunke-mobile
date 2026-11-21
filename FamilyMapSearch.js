@@ -52,3 +52,23 @@ export function findFamilyMapLocations(query, collections={},maxResults=10){
  return [...distinct.values()].sort((a,b)=>b.score-a.score||
    a.title.localeCompare(b.title,'de')).slice(0,Math.max(1,Math.min(20,maxResults)));
 }
+
+
+// Same ordered list is used for native rows and interactive map pins.
+// External results are kept separate from approved family destinations.
+export function mergeMapSearchResults(local,external,limit=10){
+ const safe=(Array.isArray(external)?external:[]).filter(p=>p?.source==='geocode'&&
+   typeof p.id==='string'&&typeof p.title==='string'&&typeof p.subtitle==='string'&&
+   typeof p.kind==='string'&&Number.isFinite(p.latitude)&&Number.isFinite(p.longitude)&&
+   p.latitude>=47&&p.latitude<=55.2&&p.longitude>=5.5&&p.longitude<=15.6);
+ const primary=local.slice(0,safe.length?Math.min(5,limit):limit);
+ const seen=new Set(primary.map(p=>fold(p.title)+':'+p.latitude.toFixed(3)+':'+p.longitude.toFixed(3)));
+ const places=[...primary];
+ for(const p of [...safe,...local]){
+   const key=fold(p.title)+':'+p.latitude.toFixed(3)+':'+p.longitude.toFixed(3);
+   if(seen.has(key))continue;
+   seen.add(key);places.push(p);
+   if(places.length>=limit)break;
+ }
+ return places.slice(0,limit);
+}
