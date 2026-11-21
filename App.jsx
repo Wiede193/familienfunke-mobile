@@ -720,6 +720,16 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('Alle');
   const [sizeFilter,setSizeFilter]=useState('Alle');
+  const [serverListings,setServerListings]=useState(null);
+  const [serverPhotos,setServerPhotos]=useState([]);
+  const [serverPrimaryUrls,setServerPrimaryUrls]=useState({});
+  const [serverExtraUrls,setServerExtraUrls]=useState({});
+  const [serverLoading,setServerLoading]=useState(false);
+  const [serverLoadingMore,setServerLoadingMore]=useState(false);
+  const [serverHasMore,setServerHasMore]=useState(false);
+  const [serverOffset,setServerOffset]=useState(0);
+  const [serverError,setServerError]=useState('');
+  const serverRequestId=useRef(0);
   const [placeFilter,setPlaceFilter]=useState('Alle');
   const [tradeFilter,setTradeFilter]=useState('all');
   const [sortBy,setSortBy]=useState('newest');
@@ -830,7 +840,11 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const cropBusy=busy||scanBusy||choosing;
   const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
   const favoriteIds=new Set(favorites.map(x=>x.listing_id));
-  const editingListing=editingId?listings.find(x=>x.id===editingId&&x.seller_id===me):null;
+  const visibleListings=serverListings===null?listings:serverListings;
+  const visiblePhotos=[...marketPhotos,...serverPhotos.filter(p=>!marketPhotos.some(old=>old.listing_id===p.listing_id&&old.slot===p.slot))];
+  const visiblePhotoUrls={...photoUrls,...serverPrimaryUrls};
+  const visibleExtraPhotoUrls={...extraPhotoUrls,...serverExtraUrls};
+  const editingListing=editingId?visibleListings.find(x=>x.id===editingId&&x.seller_id===me):null;
   const sizeSources=boxEditor?.packageIds
     ?boxDrafts.filter(d=>boxEditor.packageIds.includes(d.id)).map(d=>d.facts?.size)
     :editingId&&editingListing&&!facts.size&&parsePackageNote(decodeArticleFacts(editingListing.description)?.note||'')
@@ -838,12 +852,12 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       :[facts.size];
   const listingSizeLabels=collectMarketSizeLabels(sizeSources);
   const existingPhotoCount=editingListing?(editingListing.photo_path?1:0)
-    +marketPhotos.filter(x=>x.listing_id===editingId).length:0;
+    +visiblePhotos.filter(x=>x.listing_id===editingId).length:0;
   const galleryOf=x=>{
     const pictures=[];
-    if(photoUrls[x.id])pictures.push({id:'primary',uri:photoUrls[x.id]});
-    marketPhotos.filter(p=>p.listing_id===x.id).sort((a,b)=>a.slot-b.slot).forEach(p=>{
-      if(extraPhotoUrls[p.photo_path])pictures.push({id:p.photo_path,uri:extraPhotoUrls[p.photo_path]});
+    if(visiblePhotoUrls[x.id])pictures.push({id:'primary',uri:visiblePhotoUrls[x.id]});
+    visiblePhotos.filter(p=>p.listing_id===x.id).sort((a,b)=>a.slot-b.slot).forEach(p=>{
+      if(visibleExtraPhotoUrls[p.photo_path])pictures.push({id:p.photo_path,uri:visibleExtraPhotoUrls[p.photo_path]});
     });
     return pictures;
   };
@@ -868,7 +882,56 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     return raw!==''&&Number.isFinite(Number(raw))?Math.round(Number(raw)*100):null;
   };
   const minimum=parsePrice(minPrice), maximum=parsePrice(maxPrice);
-  const availableListings=listings.filter(x=>x.moderation_status==='approved'||x.seller_id===me);
+  async function fetchServerMarket(offset,id){
+    try{
+      const {data,error}=await supabase.rpc('ff_market_search',{
+        p_query:query.trim(),p_category:filter==='Alle'?null:filter,
+        p_size:sizeFilter==='Alle'?null:sizeFilter,
+        p_region:placeFilter==='Alle'?null:placeFilter,
+        p_trade_type:tradeFilter,p_min_price:minimum,p_max_price:maximum,
+        p_sort:sortBy,p_only_mine:onlyMine,p_only_favorites:onlyFavorites,
+        p_offset:offset,p_limit:MARKET_PAGE_SIZE+1
+      });
+      if(error)throw error;
+      const raw=Array.isArray(data)?data:[];
+      const page=raw.slice(0,MARKET_PAGE_SIZE);
+      const photos=await marketPhotoRowsFor(page);
+      const urls=await marketSignedPhotos(page,photos);
+      if(id!==serverRequestId.current)return;
+      setServerListings(prev=>{
+        if(offset===0)return page;
+        const ids=new Set((prev||[]).map(x=>x.id));
+        return [...(prev||[]),...page.filter(x=>!ids.has(x.id))];
+      });
+      setServerPhotos(prev=>{
+        if(offset===0)return photos;
+        const ids=new Set(prev.map(x=>x.listing_id+':'+x.slot));
+        return [...prev,...photos.filter(x=>!ids.has(x.listing_id+':'+x.slot))];
+      });
+      setServerPrimaryUrls(prev=>offset===0?urls.primary:{...prev,...urls.primary});
+      setServerExtraUrls(prev=>offset===0?urls.additional:{...prev,...urls.additional});
+      setServerOffset(offset+page.length);
+      setServerHasMore(raw.length>MARKET_PAGE_SIZE);
+      setServerError('');
+    }catch(e){
+      if(id===serverRequestId.current)setServerError(humanError(e));
+    }finally{
+      if(id===serverRequestId.current){setServerLoading(false);setServerLoadingMore(false);}
+    }
+  }
+  useEffect(()=>{
+    const id=++serverRequestId.current;
+    setServerListings(null);setServerPhotos([]);setServerPrimaryUrls({});setServerExtraUrls({});
+    setServerLoading(true);setServerHasMore(false);setServerError('');
+    const timer=setTimeout(()=>{fetchServerMarket(0,id);},220);
+    return ()=>clearTimeout(timer);
+  },[me,query,filter,sizeFilter,placeFilter,tradeFilter,minPrice,maxPrice,sortBy,onlyMine,onlyFavorites,listings,favorites]);
+  function loadNextServerPage(){
+    if(serverLoading||serverLoadingMore||!serverHasMore)return;
+    setServerLoadingMore(true);
+    fetchServerMarket(serverOffset,serverRequestId.current);
+  }
+  const availableListings=visibleListings.filter(x=>x.moderation_status==='approved'||x.seller_id===me);
   const sizeOptions=[...new Set([...MARKET_STANDARD_SIZES,...availableListings.flatMap(marketListingSizes)])].sort((a,b)=>a.localeCompare(b,'de',{numeric:true}));
   const placeOptions=[...new Set(availableListings.map(x=>String(x.region_label||'').trim()).filter(Boolean))]
     .sort((a,b)=>a.localeCompare(b,'de',{numeric:true}));
@@ -878,7 +941,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     setFilter('Alle');setSizeFilter('Alle');setPlaceFilter('Alle');setTradeFilter('all');
     setMinPrice('');setMaxPrice('');setSortBy('newest');setQuery('');
   }
-  const filtered=listings.filter(x=>
+  const filtered=visibleListings.filter(x=>
     ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
     && !blocked(x.seller_id)
     && (filter==='Alle'||x.category===filter)
@@ -1252,10 +1315,10 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     {!open&&!boxOpen&&!selectedListing?<View style={{flexDirection:'row',gap:7,marginBottom:16}}>
       <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
         onPress={()=>{setOnlyMine(false);setOnlyFavorites(false);setSelectedListing(null);resetMarketFilters();}}/></View>
-      <View style={{flex:1}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+')'}
+      <View style={{flex:1}}><Button title="Meine Anzeigen"
         mode={onlyMine?'primary':'outline'} small
         onPress={()=>{setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);resetMarketFilters();}}/></View>
-      <View style={{flex:1}}><Button title={'♡ Merkliste ('+favorites.filter(f=>listings.some(x=>x.id===f.listing_id&&x.moderation_status==='approved')).length+')'}
+      <View style={{flex:1}}><Button title='♡ Merkliste'
         mode={onlyFavorites?'primary':'outline'} small
         onPress={()=>{setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);resetMarketFilters();}}/></View>
     </View>:null}
@@ -1661,10 +1724,12 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Button mode="ghost" title="Suche und Filter zurücksetzen" small onPress={resetMarketFilters}/>
       </Card>:null}
       <Row style={{justifyContent:'space-between',marginBottom:12}}>
-        <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
+        <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length} {shown.length===1?'Anzeige':'Anzeigen'} {serverHasMore?'bisher geladen':'gefunden'}</Text>
         <Text style={styles.micro}>Neu und gebraucht</Text>
       </Row>
-      {hasMoreListings?<Text style={[styles.micro,{marginBottom:9}]}>Suche, Filter und Sortierung beziehen sich bisher nur auf geladene Anzeigen. Lade weitere Angebote, um mehr Treffer zu sehen.</Text>:null}
+      {serverLoading?<Text style={[styles.micro,{marginBottom:9}]}>Suche in allen verfügbaren Angeboten …</Text>:null}
+      {serverError?<Info warning>Gesamtsuche derzeit nicht verfügbar: {serverError}. Die geladenen Anzeigen können unvollständig sein.</Info>:null}
+      {serverHasMore?<Text style={[styles.micro,{marginBottom:9}]}>Weitere passende Anzeigen sind verfügbar.</Text>:null}
       {shown.length===0?<View>
         <Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>
         {(query||activeFilterCount>0)?<Button title="Suche und Filter zurücksetzen" mode="outline" small onPress={resetMarketFilters}/>:null}
@@ -1676,7 +1741,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
             accessibilityLabel={x.title+', '+priceLabel(x)+', '+x.item_condition+', '+(x.region_label||'Region nicht angegeben')}
             onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={styles.marketTile}>
             <View style={styles.marketTileImage}>
-              {photoUrls[x.id]?<Image source={{uri:photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
+              {visiblePhotoUrls[x.id]?<Image source={{uri:visiblePhotoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
                 <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>Noch kein Foto</Text></View>}
               <View style={styles.marketPricePill}><Text style={styles.marketPricePillText} numberOfLines={1}>{priceLabel(x)}</Text></View>
               {x.seller_id!==me&&x.moderation_status==='approved'?
@@ -1699,10 +1764,9 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           </Pressable>;
         })}
         </View>}
-      {(hasMoreListings||loadingMoreListings||moreListingsError)?<View style={{marginTop:16,marginBottom:13}}>
-        {moreListingsError?<Info warning>Weitere Anzeigen konnten nicht geladen werden: {moreListingsError}</Info>:null}
-        {hasMoreListings?<Button title={loadingMoreListings?'Weitere Anzeigen werden geladen …':'Weitere Anzeigen laden'}
-          mode="outline" disabled={loadingMoreListings||busy} onPress={loadMoreListings}/>:null}
+      {serverHasMore||serverLoadingMore?<View style={{marginTop:16,marginBottom:13}}>
+        <Button title={serverLoadingMore?'Weitere Treffer werden geladen …':'Weitere passende Anzeigen laden'}
+          mode="outline" disabled={serverLoadingMore||busy} onPress={loadNextServerPage}/>
       </View>:null}
     </>:null}
   </ScrollView>;
