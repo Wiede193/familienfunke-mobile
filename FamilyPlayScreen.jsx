@@ -3,6 +3,7 @@ import {AccessibilityInfo,Pressable,ScrollView,StyleSheet,Text,View} from 'react
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import {LEVELS,TOPICS,IDEAS,QUESTIONS,makeRound,shuffled} from './FamilyPlayContent';
 import {PairsGame,ThreeGame,PatternGame} from './FamilyMiniGameScreens';
+import {SudokuGame,SolitaireGame,FourGame,WordGame} from './FamilyClassicGameScreens';
 
 function Action({children,onPress,secondary=false,disabled=false}){
  return <Pressable accessibilityRole="button" disabled={disabled} accessibilityState={{disabled}} onPress={onPress} style={[s.action,secondary&&s.secondary,disabled&&{opacity:.5}]}><Text style={[s.actionText,secondary&&{color:C.accentDark}]}>{children}</Text></Pressable>;
@@ -46,13 +47,13 @@ export default function FamilyPlayScreen(){
     <Action onPress={start}>Quiz starten</Action>
    </View>
    <Text accessibilityRole="header" style={s.titleSmall}>Mini-Spiele</Text>
-   {[['pairs','Paare finden','Merkt euch die Symbole und findet alle Paare.'],['three','Drei gewinnt','Spielt zu zweit abwechselnd X und O.'],['pattern','Zahlen-Detektive','Entdeckt Regeln in Zahlenfolgen.']].map(([id,title,description])=><View key={id} style={s.card}><Text accessibilityRole="header" style={s.heading}>{title}</Text><Text style={s.text}>{description}</Text><Action secondary onPress={()=>{setStage(id);top();}}>{title+' spielen'}</Action></View>)}
+   {[['pairs','Paare finden','Merkt euch die Symbole und findet alle Paare.'],['three','Drei gewinnt','Spielt zu zweit abwechselnd X und O.'],['pattern','Zahlen-Detektive','Entdeckt Regeln in Zahlenfolgen.'],['sudoku','Sudoku','Zahlenrätsel mit 4×4, 6×6 oder 9×9 Feldern.'],['solitaire','Solitär','Klassisches Klondike mit 52 Karten.'],['four','Vier gewinnt','Zu zweit vier Steine in eine Reihe bringen.'],['word','Wörterrätsel','Buchstaben mit einem Hinweis zum gesuchten Wort sortieren.']].map(([id,title,description])=><View key={id} style={s.card}><Text accessibilityRole="header" style={s.heading}>{title}</Text><Text style={s.text}>{description}</Text><Action secondary onPress={()=>{setStage(id);top();}}>{title+' spielen'}</Action></View>)}
    <Text accessibilityRole="header" style={s.titleSmall}>Gemeinsam etwas machen</Text>
    <Text style={s.muted}>Ideen ab etwa vier Jahren, mit erwachsener Begleitung.</Text>
    {ideas.map(idea=><View style={s.card} key={idea.id}><Text style={s.eyebrow}>{idea.duration}</Text><Text style={s.heading}>{idea.title}</Text><Text style={s.text}>{idea.text}</Text></View>)}
    <Action secondary onPress={()=>setIdeas(old=>shuffled(IDEAS.filter(x=>!old.some(y=>y.id===x.id))).slice(0,3))}>Andere Ideen zeigen</Action>
-  </>:['pairs','three','pattern'].includes(stage)?<>
-    {stage==='pairs'?<PairsGame level={level}/>:stage==='three'?<ThreeGame/>:<PatternGame level={level}/>}
+  </>:['pairs','three','pattern','sudoku','solitaire','four','word'].includes(stage)?<>
+    {stage==='pairs'?<PairsGame level={level}/>:stage==='three'?<ThreeGame/>:stage==='pattern'?<PatternGame level={level}/>:stage==='sudoku'?<SudokuGame level={level}/>:stage==='solitaire'?<SolitaireGame/>:stage==='four'?<FourGame/>:<WordGame level={level}/>}
     <Action secondary onPress={()=>{setStage('start');top();}}>Spiel beenden</Action>
   </>:stage==='round'&&question?<View style={s.card}>
    <Text style={s.eyebrow}>FRAGE {index+1} VON {round.length}</Text>
