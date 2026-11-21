@@ -577,7 +577,7 @@ async function uploadMarketPhotos(listingId,assets,me){
   }
  }
 }
-async function scanMarketPhotos(assets){
+async function scanMarketPhotos(assets,mode){
  const images=[];
  for(const asset of assets.slice(0,3)){
    const job=ImageManipulator.ImageManipulator.manipulate(asset.uri);
@@ -591,7 +591,7 @@ async function scanMarketPhotos(assets){
    // File.base64 encodes the locally resized JPEG; no original EXIF data is sent.
    images.push(await file.base64());
  }
- const {data,error}=await supabase.functions.invoke('ff-market-scan',{body:{images}});
+ const {data,error}=await supabase.functions.invoke('ff-market-scan',{body:{images,...(mode?{mode}:{})}});
  if(error){
    let message='';
    try{message=(await error.context?.json())?.error||'';}catch{}
@@ -663,6 +663,17 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [expandFacts,setExpandFacts]=useState(false);
   const [scanned,setScanned]=useState(false);
   const [askSize,setAskSize]=useState(false);
+  const [boxOpen,setBoxOpen]=useState(false);
+  const [boxPhoto,setBoxPhoto]=useState(null);
+  const [boxDrafts,setBoxDrafts]=useState([]);
+  const [boxNotice,setBoxNotice]=useState('');
+  const [boxScanned,setBoxScanned]=useState(false);
+  const [boxOverflow,setBoxOverflow]=useState(false);
+  const [boxEditor,setBoxEditor]=useState(null);
+  const [boxRegion,setBoxRegion]=useState('');
+  const [boxPackageDraft,setBoxPackageDraft]=useState(null);
+  const [boxGroupReusable,setBoxGroupReusable]=useState(false);
+  const [boxSeq,setBoxSeq]=useState(0);
   const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
   const favoriteIds=new Set(favorites.map(x=>x.listing_id));
   const editingListing=editingId?listings.find(x=>x.id===editingId&&x.seller_id===me):null;
@@ -677,12 +688,12 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     return pictures;
   };
   function resetForm(){
-    setEditingId(null);setTitle('');setDescription('');setRegion('');setCategory('Kleidung');
+    setBoxEditor(null);setEditingId(null);setTitle('');setDescription('');setRegion('');setCategory('Kleidung');
     setCondition('Gut');setTrade('sell');setPrice('');setOrganizationId('');setPhoto([]);
     setQuick(false);setFacts({...EMPTY_FACTS});setProposal(null);setScanNotice('');setConfirmed(false);setExpandFacts(false);setScanned(false);setAskSize(false);
   }
   function beginEdit(x){
-    resetForm();setEditingId(x.id);setOnlyMine(true);setOnlyFavorites(false);
+    setBoxOpen(false);resetForm();setEditingId(x.id);setOnlyMine(true);setOnlyFavorites(false);
     const decoded=decodeArticleFacts(x.description);
     setQuick(!!decoded);setFacts(decoded?.facts||{...EMPTY_FACTS});setExpandFacts(true);
     setTitle(x.title);setDescription(decoded?decoded.note:x.description||'');setRegion(x.region_label||'');
@@ -721,7 +732,89 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     finally{setChoosing(false);}
   }
   function startQuick(){
-    resetForm();setQuick(true);setCondition('');setOpen(true);setSelectedListing(null);
+    setBoxOpen(false);resetForm();setQuick(true);setCondition('');setOpen(true);setSelectedListing(null);
+  }
+  function showBox(){
+    setOpen(false);setSelectedListing(null);setBoxOpen(true);
+  }
+  function clearBox(){
+    setBoxPhoto(null);setBoxDrafts([]);setBoxNotice('');setBoxScanned(false);
+    setBoxOverflow(false);setBoxEditor(null);setBoxPackageDraft(null);setBoxGroupReusable(false);setBoxRegion('');
+  }
+  function closeBox(){
+    if(boxDrafts.length||boxPhoto||boxPackageDraft){
+      Alert.alert('Kistenmodus beenden?','Die noch nicht eingereichten Entwürfe werden verworfen.',[
+        {text:'Weiterarbeiten',style:'cancel'},
+        {text:'Verwerfen',style:'destructive',onPress:()=>{clearBox();setBoxOpen(false);}}
+      ]);
+    }else setBoxOpen(false);
+  }
+  function chooseBoxPhoto(asset){
+    if(!asset?.uri)return;
+    setBoxPhoto(asset);setBoxNotice('');setBoxScanned(false);setBoxOverflow(false);setBoxGroupReusable(false);setBoxPackageDraft(null);
+  }
+  async function takeBoxPhoto(){
+    if(choosing||scanBusy||busy||boxDrafts.length)return;
+    setChoosing(true);
+    try{
+      const permission=await ImagePicker.requestCameraPermissionsAsync();
+      if(!permission.granted){setBoxNotice('Bitte erlaube den Kamerazugriff oder wähle ein Bild aus der Galerie.');return;}
+      const result=await ImagePicker.launchCameraAsync({mediaTypes:['images'],quality:.8,exif:false});
+      if(!result.canceled&&result.assets?.length)chooseBoxPhoto(result.assets[0]);
+    }catch(e){setBoxNotice(humanError(e));}
+    finally{setChoosing(false);}
+  }
+  async function recognizeBox(){
+    if(scanBusy||busy||choosing||!active||!boxPhoto||boxDrafts.length)return;
+    setScanBusy(true);setBoxNotice('');
+    try{
+      const result=await scanMarketPhotos([boxPhoto],'box');
+      if(result?.status!=='ok'||!Array.isArray(result.items)||!result.items.length){
+        setBoxNotice(result?.status==='unsuitable'?'Bitte verwende ein reines Foto der ausgelegten Artikel ohne Personen oder private Dokumente.':'Keine Artikel eindeutig erkannt. Du kannst einzelne Entwürfe auch manuell hinzufügen.');return;
+      }
+      const drafts=result.items.slice(0,10).filter(x=>typeof x?.title==='string'&&MARKET_CATEGORIES.includes(x.category)).map((x,i)=>({
+        id:'scan-'+boxSeq+'-'+i,title:safeString(x.title,100),category:x.category,position:safeString(x.position,50),
+        facts:{...EMPTY_FACTS,...Object.fromEntries(FACT_KEYS.map(([k,,max])=>[k,safeString(x[k],max)]))},
+        confirmed:false,photos:[],condition:'',trade:'sell',price:'',description:'',region:boxRegion,organizationId:''
+      }));
+      setBoxDrafts(drafts);setBoxSeq(n=>n+1);setBoxScanned(true);setBoxOverflow(!!result.overflow);
+      setBoxGroupReusable(drafts.length===result.items.length&&!result.overflow);
+      setBoxNotice(result.overflow?'Mehr als zehn Artikel erkannt. Erfasse den Rest später mit einem neuen Foto.':'Bitte vergleiche jeden Vorschlag mit deinem Foto. Noch ist nichts eingestellt.');
+    }catch(e){setBoxNotice(humanError(e));}finally{setScanBusy(false);}
+  }
+  function addBoxDraft(){
+    if(boxDrafts.length>=10)return;
+    setBoxDrafts(old=>[...old,{id:'manual-'+boxSeq,title:'',category:'Kleidung',position:'Manuell ergänzt',facts:{...EMPTY_FACTS},
+      photos:[],condition:'',trade:'sell',price:'',description:'',region:boxRegion,organizationId:''}]);
+    setBoxSeq(n=>n+1);setBoxGroupReusable(false);setBoxPackageDraft(null);
+  }
+  function removeBoxDraft(id){
+    setBoxDrafts(old=>old.filter(d=>d.id!==id));setBoxGroupReusable(false);setBoxPackageDraft(null);
+  }
+  function openBoxEditor(d,packageIds=null){
+    resetForm();setBoxOpen(false);setOpen(true);setQuick(true);setBoxEditor({id:d.id,packageIds});
+    setTitle(d.title||'');setCategory(d.category||'Kleidung');setFacts({...EMPTY_FACTS,...d.facts});
+    setCondition(d.condition||'');setTrade(d.trade||'sell');setPrice(d.price||'');
+    setPhoto(d.photos||[]);setDescription(d.description||'');setRegion(d.region||boxRegion);
+    setOrganizationId(d.organizationId||'');setExpandFacts(true);setConfirmed(false);
+  }
+  function openBoxPackage(){
+    if(boxDrafts.length<2)return;
+    if(boxPackageDraft){openBoxEditor(boxPackageDraft,boxDrafts.map(d=>d.id));return;}
+    const sameCategory=boxDrafts.every(d=>d.category===boxDrafts[0].category);
+    const category=sameCategory?boxDrafts[0].category:'Sonstiges';
+    const details=boxDrafts.map((d,i)=>[String(i+1)+'.',d.title||'Artikel',d.facts.size?'Gr. '+d.facts.size:'',d.facts.color].filter(Boolean).join(' ')).join('\n');
+    openBoxEditor({id:'package',title:boxDrafts.length+'-teiliges '+(category==='Kleidung'?'Kleidungspaket':'Familienpaket'),
+      category,facts:{...EMPTY_FACTS,detail:boxDrafts.length+' Artikel'},description:details.slice(0,900),
+      photos:boxGroupReusable&&boxPhoto?[boxPhoto]:[],region:boxRegion},boxDrafts.map(d=>d.id));
+  }
+  function saveBoxEditor(){
+    if(!boxEditor)return;
+    const draft={id:boxEditor.id,title,category,facts:{...facts},photos:[...photo],condition,trade,price,description,region,organizationId};
+    if(boxEditor.packageIds)setBoxPackageDraft(draft);
+    else setBoxDrafts(old=>old.map(d=>d.id===draft.id?{...d,...draft}:d));
+    if(region.trim())setBoxRegion(region.trim());
+    resetForm();setOpen(false);setBoxOpen(true);
   }
   function changeFact(key,value){setFacts(prev=>({...prev,[key]:value,...(key==='defect'&&value!=='Vorhanden'?{defectText:''}:{})}));setConfirmed(false);}
   async function takeArticlePhoto(){
@@ -757,6 +850,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   }
   async function submit(){
     if(!active||scanBusy)return;
+    if(boxEditor&&!photo.length)return Alert.alert('Artikelfoto fehlt',boxEditor.packageIds?'Bitte füge ein Foto des vollständigen Pakets hinzu.':'Bitte füge ein eigenes Foto dieses einzelnen Artikels hinzu.');
     if(!['Neu','Sehr gut','Gut','Gebraucht'].includes(condition))return Alert.alert('Zustand wählen','Wie ist der tatsächliche Zustand des Artikels?');
     if(quick&&!DEFECTS.includes(facts.defect))return Alert.alert('Mängel angeben','Bitte wähle, ob Mängel bekannt sind.');
     if(quick&&facts.defect==='Vorhanden'&&!facts.defectText.trim())return Alert.alert('Mängel beschreiben','Bitte beschreibe kurz die bekannten Mängel.');
@@ -769,7 +863,18 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       category,item_condition:condition,trade_type:trade,price_cents:trade==='sell'?cents:0,
       region_label:safeString(region,80),organization_id:organizationId||null};
     const ok=editingId?await editListing(editingId,values,photo):await createListing(values,photo);
-    if(ok){resetForm();setOpen(false);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);}
+    if(ok){
+      const submitted=boxEditor;
+      if(submitted){
+        const ids=submitted.packageIds||[submitted.id];
+        setBoxDrafts(old=>old.filter(d=>!ids.includes(d.id)));
+        setBoxGroupReusable(false);setBoxPackageDraft(null);
+        if(region.trim())setBoxRegion(region.trim());
+        setBoxNotice('Zur Prüfung eingereicht. Weitere Entwürfe kannst du jetzt bearbeiten.');
+      }
+      resetForm();setOpen(false);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);
+      if(submitted)setBoxOpen(true);
+    }
   }
   function sellerInformation(x){
     const own=x.seller_id===me;
@@ -797,7 +902,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Text style={styles.marketTopTitle}>Entdecken & weitergeben</Text>
         <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
       </View>
-      <Button title={open?'Schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(open){resetForm();setOpen(false);}else{startQuick();}}}/>
+      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){resetForm();setOpen(false);}else{startQuick();}}}/>
     </View>
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
     <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
@@ -810,13 +915,46 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         mode={onlyFavorites?'primary':'outline'} small
         onPress={()=>{setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
+    {!open&&!boxOpen&&active?<Card style={{marginBottom:15,backgroundColor:'#FFF4DA'}}>
+      <Text style={styles.sectionTitle}>Kistenmodus</Text>
+      <Text style={[styles.micro,{marginBottom:10}]}>Viele Sachen auf einmal erfassen. Ein Foto, mehrere Entwürfe – einzeln oder im Paket.</Text>
+      <Button title={boxDrafts.length?'Kiste weiterbearbeiten ('+boxDrafts.length+')':'✦ Kiste erfassen'} disabled={busy||choosing||scanBusy} onPress={showBox}/>
+    </Card>:null}
+    {boxOpen?<Card style={{marginBottom:18}}>
+      <Text style={styles.sectionTitle}>Deine Verkaufskiste</Text>
+      <Text style={[styles.sub,{marginBottom:12}]}>Lege bis zu zehn Artikel einzeln nebeneinander. Ein gut beleuchtetes Übersichtsbild genügt. Verdeckte Artikel kann die KI nicht erfassen.</Text>
+      {boxPhoto?<Image source={{uri:boxPhoto.uri}} style={{width:'100%',height:220,borderRadius:14,marginBottom:10}} resizeMode="contain"/>:null}
+      <Button title={boxPhoto?'Übersichtsbild ändern':'＋ Übersichtsbild auswählen'} disabled={busy||choosing||scanBusy||!!boxDrafts.length} mode="outline" onPress={()=>pick(assets=>chooseBoxPhoto(assets[0]),1)}/>
+      <Button title="＋ Kiste fotografieren" disabled={busy||choosing||scanBusy||!!boxDrafts.length} mode="ghost" small onPress={takeBoxPhoto}/>
+      <Text style={[styles.micro,{marginVertical:8}]}>Die freiwillige Analyse sendet ein verkleinertes Foto an OpenAI. Keine Personen oder Dokumente fotografieren. Alle Entwürfe bleiben bis zur Einreichung in dieser geöffneten Basar-Ansicht; beim Verlassen können sie verloren gehen.</Text>
+      <Button title={scanBusy?'Artikel werden erkannt …':'✦ Kiste analysieren'} disabled={!boxPhoto||scanBusy||choosing||busy||!!boxDrafts.length||boxScanned} onPress={recognizeBox}/>
+      {boxNotice?<Info>{boxNotice}</Info>:null}
+      {boxOverflow?<Text style={[styles.micro,{marginVertical:8,color:C.warningText}]}>Nur die ersten bis zu zehn erkannten Artikel sind erfasst.</Text>:null}
+      <Input label="Ort / Region für alle weiteren Entwürfe (optional)" value={boxRegion} onChangeText={setBoxRegion} maxLength={80} placeholder="z. B. Fürstenwalde"/>
+      <Text style={styles.sectionTitle}>{boxDrafts.length} offene Entwürfe</Text>
+      {boxDrafts.map((d,index)=><View key={d.id} style={{borderWidth:1,borderColor:C.line,borderRadius:13,padding:12,marginBottom:9}}>
+        <Text style={[styles.micro,{color:C.accentDark,fontWeight:'800'}]}>ARTIKEL {index+1} · {d.position||'Position prüfen'}</Text>
+        <Text style={[styles.body,{fontWeight:'800',marginTop:4}]}>{d.title||'Neuer Artikel'}</Text>
+        <Text style={styles.micro}>{[d.category,d.facts.size&&'Gr. '+d.facts.size,d.facts.color].filter(Boolean).join(' · ')}</Text>
+        <Text style={[styles.micro,{marginVertical:5}]}>{d.photos.length?'Artikelfoto vorhanden':'Einzelfoto fehlt'} · {d.condition||'Zustand noch offen'}</Text>
+        <Button title="Entwurf bearbeiten & einreichen" small disabled={busy||scanBusy||choosing} onPress={()=>openBoxEditor(d)}/>
+        <Button title="Entfernen" mode="ghost" small disabled={busy||scanBusy||choosing} onPress={()=>Alert.alert('Entwurf entfernen?','Dieser Artikel bleibt unveröffentlicht.',[{text:'Abbrechen',style:'cancel'},{text:'Entfernen',style:'destructive',onPress:()=>removeBoxDraft(d.id)}])}/>
+      </View>)}
+      <Button title="＋ Weiteren Artikel manuell ergänzen" mode="outline" disabled={boxDrafts.length>=10||busy||scanBusy||choosing} onPress={addBoxDraft}/>
+      {boxDrafts.length>=2?<View style={{marginTop:13}}>
+        <Button title={'Alle '+boxDrafts.length+' offenen Artikel als Paket anbieten'} disabled={busy||scanBusy||choosing} onPress={openBoxPackage}/>
+        <Text style={[styles.micro,{marginTop:6}]}>Bitte prüfe die Paketliste, den Gesamtpreis, Zustand und das Foto. Nach Einreichung verschwinden diese Entwürfe aus der Kiste, um Doppelangebote zu vermeiden.</Text>
+      </View>:null}
+      {!boxDrafts.length&&boxScanned?<Button title="Neue Kiste beginnen" mode="outline" disabled={busy||scanBusy||choosing} onPress={clearBox}/>:null}
+    </Card>:null}
     {open?<Card style={{marginBottom:18}}>
-      <Text style={styles.sectionTitle}>{editingId?'Anzeige bearbeiten':'Schnellverkauf'}</Text>
-      {!editingId?<View style={{flexDirection:'row',gap:8,marginVertical:10,flexWrap:'wrap'}}>
+      <Text style={styles.sectionTitle}>{boxEditor?(boxEditor.packageIds?'Kistenpaket bearbeiten':'Kistenartikel bearbeiten'):editingId?'Anzeige bearbeiten':'Schnellverkauf'}</Text>
+      {boxEditor?<Info>{boxEditor.packageIds?'Prüfe, ob alle Artikel in der Paketliste und auf den Fotos enthalten sind.':'Bitte zeige auf den Verkaufsfotos nur diesen einzelnen Artikel. Du kannst jederzeit zur Kiste zurückkehren.'}</Info>:null}
+      {!editingId&&!boxEditor?<View style={{flexDirection:'row',gap:8,marginVertical:10,flexWrap:'wrap'}}>
         <Chip text="Foto & Steckbrief" selected={quick} onPress={scanBusy?undefined:()=>{setQuick(true);setCondition('');setConfirmed(false);}}/>
         <Chip text="Manuell schreiben" selected={!quick} onPress={scanBusy?undefined:()=>{setQuick(false);setCondition(condition||'Gut');setProposal(null);setConfirmed(false);}}/>
       </View>:null}
-      {quick&&!editingId?<View style={{backgroundColor:'#FFF4DA',borderRadius:15,padding:13,marginBottom:13}}>
+      {quick&&!editingId&&!boxEditor?<View style={{backgroundColor:'#FFF4DA',borderRadius:15,padding:13,marginBottom:13}}>
         <Text style={[styles.label,{color:C.accentDark}]}>Fotografieren. Fakten prüfen. Fertig.</Text>
         <Text style={styles.micro}>Zeige einen Artikel und nach Möglichkeit sein Etikett. Die KI schlägt sichtbare Merkmale vor, ohne einen Werbetext zu schreiben. Du entscheidest, welche Angaben richtig sind.</Text>
       </View>:null}
@@ -840,7 +978,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         </ScrollView>:null}
         <Text style={[styles.micro,{marginTop:8}]}>Bis zu fünf Bilder pro Angebot. Bei Änderungen werden alle Bilder erneut geprüft.</Text>
       </View>
-      {quick&&!editingId?<View style={{marginBottom:16}}>
+      {quick&&!editingId&&!boxEditor?<View style={{marginBottom:16}}>
         <Button title={scanBusy?'Fotos werden analysiert …':'✦ Artikel aus Fotos erkennen'} disabled={scanBusy||choosing||busy||!photo.length||!active} onPress={recognize}/>
         <Text style={[styles.micro,{marginTop:7}]}>Freiwillig: Bei Antippen werden die ersten bis zu drei verkleinerten Artikelfotos zur KI-Auswertung an OpenAI übermittelt. Keine Personen oder privaten Dokumente fotografieren. Die KI veröffentlicht nichts.</Text>
         {scanNotice?<Info>{scanNotice}</Info>:null}
@@ -902,6 +1040,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Text style={[styles.body,{flex:1}]}>Ich habe die Angaben geprüft. Der Steckbrief beschreibt meinen Artikel korrekt.</Text>
       </Pressable>:null}
       <Button title={busy?'Wird gespeichert …':editingId?'Änderungen zur Prüfung einreichen':'Anzeige kostenlos einreichen'} disabled={busy||choosing||scanBusy||!active||(quick&&!confirmed)} onPress={submit}/>
+      {boxEditor?<Button title="Entwurf behalten und zurück zur Kiste" mode="outline" disabled={busy||choosing||scanBusy} onPress={saveBoxEditor}/>:null}
+      {!editingId&&!boxEditor?<Button title="Viele Artikel? Zum Kistenmodus" mode="ghost" disabled={busy||choosing||scanBusy} onPress={()=>Alert.alert('Zum Kistenmodus wechseln?','Die Angaben dieser einzelnen Anzeige werden verworfen.',[{text:'Abbrechen',style:'cancel'},{text:'Wechseln',onPress:()=>{resetForm();showBox();}}])}/>:null}
     </Card>:null}
     {selected?<View>
       <Pressable accessibilityRole="button" onPress={()=>setSelectedListing(null)} style={{marginBottom:14,paddingVertical:8}}>
