@@ -255,6 +255,9 @@ export default function HomeAssistant({onNavigate}){
         <Text style={s.allActionLabel}>{showAll?'Weniger Bereiche anzeigen':'Alle Bereiche entdecken'}</Text><Text style={s.allActionLabel}>{showAll?'⌃':'⌄'}</Text>
       </Pressable>
       {showAll?moreRoutes.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query=""/>):null}
+      <Pressable accessibilityRole="button" accessibilityLabel="Familienquiz und Spielideen öffnen" onPress={()=>onNavigate('play')} style={s.outingCard}>
+        <View style={{flex:1}}><Text style={s.outingTitle}>Familienzeit</Text><Text style={s.outingSubtitle}>Eine kurze Quizrunde oder eine Idee zum gemeinsamen Spielen.</Text><Text style={s.outingLink}>Quiz & Spielideen öffnen ›</Text></View>
+      </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Persönlichen Familienausflug planen" onPress={()=>onNavigate('outing')} style={s.outingCard}>
         <View style={{flex:1}}><Text style={s.outingTitle}>Familienausflug planen</Text><Text style={s.outingSubtitle}>Passende Ziele nach Alter, Budget und Entfernung.</Text><Text style={s.outingLink}>Ausflugsplaner öffnen ›</Text></View>
       </Pressable>
