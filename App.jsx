@@ -692,6 +692,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [boxAdvanced,setBoxAdvanced]=useState(false);
   const [boxShowAll,setBoxShowAll]=useState(false);
   const [boxFormExtras,setBoxFormExtras]=useState(false);
+  const marketScrollRef=useRef(null);
+  useEffect(()=>{if(boxOpen||boxEditor)marketScrollRef.current?.scrollTo({y:0,animated:false});},[boxStep,boxOpen,boxEditor]);
   const [boxStorage,setBoxStorage]=useState('loading');
   const [boxSaveError,setBoxSaveError]=useState(false);
   const [boxPending,setBoxPending]=useState(null);
@@ -1128,7 +1130,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const selectedPackage=selectedFacts?parsePackageNote(selectedFacts.note):null;
   const gallery=selected?galleryOf(selected):[];
   const shownImage=gallery[Math.min(galleryIndex,Math.max(0,gallery.length-1))]?.uri;
-  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+  return <ScrollView ref={marketScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <H sub="Kinderkleidung, Spielzeug und vieles mehr – direkt von Familien in deiner Nähe.">Familienbasar</H>
     <Info>{SECTION_MESSAGES.market}</Info>
     <View style={styles.marketTopActions}>
