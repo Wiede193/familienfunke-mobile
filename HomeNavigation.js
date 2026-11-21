@@ -5,6 +5,7 @@ export const HOME_ROUTES = [
   {id:'market',title:'Familienbasar durchsuchen',subtitle:'Kaufen, tauschen, verschenken und Angebote finden',words:'flohmarkt basar kaufen secondhand suchen artikel finden angebot preis verschenken tauschen merkliste kinderwagen kinderkleidung schuhe bücher spielzeug möbel'},
   {id:'discover',title:'Familien in der Nähe',subtitle:'Andere Familien nach Region und Interessen kennenlernen',words:'familie familien menschen eltern finden kennenlernen kontakte tinder entdecken in der naehe umkreis kennenlernen vernetzen neue freunde person personen umgebung naehe nahe'},
   {id:'map',title:'Familienkarte',subtitle:'Spielplätze und Ausflugsziele auf der Karte entdecken',words:'karte spielplatz spielplaetze ausflug ausflugsziele ort in der naehe parks spielorte spielmoeglichkeiten'},
+  {id:'outing',title:'Ausflugsplaner',subtitle:'Ausflug nach Budget, Altersgruppen und Entfernung planen',words:'ausflugsplaner wochenendausflug tagesausflug ausflug planen wochenende planen familienausflug planung unternehmung budget'},
   {id:'guide',title:'Familienwegweiser',subtitle:'Dauerhafte Tipps und Ziele für Familien',words:'wegweiser ratgeber ausflug freizeit elternwissen region unternehmungen'},
   {id:'events',title:'Treffen & Veranstaltungen',subtitle:'Gemeinsame Aktivitäten finden und planen',words:'veranstaltung termin treffen event kindergeburtstag ausmachen'},
   {id:'contacts',title:'Kontakte & Nachrichten',subtitle:'Anfragen und private Gespräche verwalten',words:'chat nachricht anschreiben kontakt freundschaft einladung'},

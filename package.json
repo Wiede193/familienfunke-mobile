@@ -23,7 +23,8 @@
     "check:market-auto-review": "node tests/check-market-auto-review.mjs",
     "check:market-review-queue": "node tests/check-market-review-queue.mjs",
     "check:push": "node tests/check-private-push.mjs",
-    "check:inbox": "node tests/check-notification-center.mjs"
+    "check:inbox": "node tests/check-notification-center.mjs",
+    "check:outing": "node tests/check-family-outing.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

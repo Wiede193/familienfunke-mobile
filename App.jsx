@@ -15,6 +15,7 @@ import WelcomeIntro from './WelcomeIntro';
 import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
+import FamilyOutingScreen from './FamilyOutingScreen';
 import PushSettings from './PushSettings';
 import NotificationCenterScreen from './NotificationCenterScreen';
 import {useNotificationCenter} from './NotificationCenter';
@@ -185,6 +186,8 @@ export default function App() {
 const [session,setSession]=useState(undefined);
 const [tab,setTab]=useState('home');
 const [marketIntent,setMarketIntent]=useState(null);
+const [outingDraft,setOutingDraft]=useState(null);
+const [mapIntent,setMapIntent]=useState(null);
 const [extraReturnTab,setExtraReturnTab]=useState('more');
 const [inboxReturnTab,setInboxReturnTab]=useState('home');
 const [focusContactId,setFocusContactId]=useState(null);
@@ -284,7 +287,7 @@ useEffect(()=>{
   setShowInfo(false);
   setShowLoginHelp(false);
   setShowEventForm(false);
-  setMarketIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
+  setMarketIntent(null);setOutingDraft(null);setMapIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
   setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
   setPhotosUrls({});setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
 },[me]);
@@ -410,8 +413,9 @@ async function openInboxEvent(event){
   }catch(e){if(accountRef.current===me)setNotice('Neuigkeit konnte nicht geöffnet werden. Bitte erneut versuchen.');return false;}
 }
 function navigateFromHome(id,marketQuery=''){
-  const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion'];
+  const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing'];
   if(!routes.includes(id))return;
+  setMapIntent(null);
   setMarketIntent(id==='box'||id==='sell'?id:(id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null));
   setExtraReturnTab('home');
   setTab(id==='box'||id==='sell'?'market':id);
@@ -425,9 +429,9 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 </View><TechnicalHelpScreen initialCategory="Anmeldung & Konto"/></>:
 <Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
 </SafeAreaView>;
-const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten'};
+const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab))setTab(extraReturnTab);}
+function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'){setTab('home');}else if(tab==='map'&&mapIntent){setMapIntent(null);setTab('outing');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab))setTab(extraReturnTab);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
@@ -439,7 +443,7 @@ return <SafeAreaView style={styles.screen}>
   </View>
 </View>
 {tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><Text accessibilityElementsHidden importantForAccessibility="no" style={{fontSize:22,color:C.ink}}>🔔︎</Text>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
-{detailFamily||selectedContact||showInfo||tab==='inbox'||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" accessibilityLabel="Daten aktualisieren" onPress={()=>load()} small mode="ghost"/>}
+{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||(tab==='map'&&mapIntent)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" accessibilityLabel="Daten aktualisieren" onPress={()=>load()} small mode="ghost"/>}
 </View>
 {error?<Pressable accessibilityRole="button" accessibilityLabel={'Fehlermeldung schließen. '+error} accessibilityLiveRegion="assertive" onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
 {notice?<Pressable accessibilityRole="button" accessibilityLabel={'Hinweis schließen. '+notice} accessibilityLiveRegion="polite" onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
@@ -472,9 +476,10 @@ send={(body)=>execute(async()=>{
 },'Nachricht gesendet.')}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
-tab==='home'?<HomeAssistant onNavigate={navigateFromHome}/>:
+tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome}/>:
+tab==='outing'?<FamilyOutingScreen key={me} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
 tab==='guide'?<FamilyGuideScreen userId={me} regionLabel={myProfile?.region_label}/>:
-tab==='map'?<FamilyMapScreen userId={me} active={active} addPlace={(v)=>execute(async()=>{
+tab==='map'?<FamilyMapScreen userId={me} active={active} entryPlaceId={mapIntent?.id} addPlace={(v)=>execute(async()=>{
  await moderateTextOrThrow([v.title,v.description,v.region_label]);
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
@@ -575,7 +580,7 @@ blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
+{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
 accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)))&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)))&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
