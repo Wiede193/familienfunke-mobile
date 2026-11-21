@@ -16,7 +16,8 @@ import FamilyGuideScreen from './FamilyGuide';
 import FamilyMapScreen from './FamilyMap';
 import {FACT_KEYS,EMPTY_FACTS,DEFECTS,encodeArticleFacts,decodeArticleFacts,articleFactRows} from './MarketArticleFacts';
 import {compactBoxDetail,summarizeBox,packageNote,packagePersonalLimit,parsePackageNote,labelSource,BOX_MAX_ITEMS,BOX_MAX_BATCHES,BOX_MAX_PACKAGE,sizeGroups,matchingBatchPhotos,sameBoxSelection,listingDraftId} from './MarketBoxPackage';
-import {keepBoxPhoto,availableBoxPhoto,loadBoxSnapshot,saveBoxSnapshot,deleteBoxStorage} from './MarketBoxStorage';
+import {keepBoxPhoto,availableBoxPhoto,loadBoxSnapshot,saveBoxSnapshot,deleteBoxStorage,makeBoxCrop} from './MarketBoxStorage';
+import { cropBounds,suggestedCrop,changeCrop,pixelCrop,photoIssues,PHOTO_ISSUES } from './MarketBoxCrop';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
@@ -692,6 +693,9 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const submitLock=useRef(false);
   const [boxSeq,setBoxSeq]=useState(0);
   const [boxInspect,setBoxInspect]=useState(null);
+  const [boxQuality,setBoxQuality]=useState([]);
+  const [boxCrop,setBoxCrop]=useState(null);
+  const [boxCropFrame,setBoxCropFrame]=useState({width:0,height:0});
   const [boxBulkSize,setBoxBulkSize]=useState('');
   const [boxImageFrame,setBoxImageFrame]=useState({width:0,height:0});
   const selectedBoxIds=boxSelected===null?boxDrafts.slice(0,BOX_MAX_PACKAGE).map(d=>d.id):boxSelected.filter(id=>boxDrafts.some(d=>d.id===id));
@@ -706,7 +710,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       if(boxEditor.packageIds)bundle=d;
       else drafts=drafts.map(old=>old.id===d.id?{...old,...d,sizeEvidence:d.facts.size!==old.facts.size?'seller':old.sizeEvidence}:old);
     }
-    return {version:2,drafts,batches:boxBatches,currentBatch:boxCurrentBatch,photo:boxPhoto,scanned:boxScanned,overflow:boxOverflow,region:boxRegion,seq:boxSeq,selection:boxSelected,bundle,pending};
+    return {version:2,drafts,batches:boxBatches,currentBatch:boxCurrentBatch,photo:boxPhoto,scanned:boxScanned,overflow:boxOverflow,region:boxRegion,seq:boxSeq,selection:boxSelected,bundle,pending,quality:boxQuality};
   }
   useEffect(()=>{
     let live=true;
@@ -717,7 +721,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         setBoxDrafts(data.drafts.slice(0,BOX_MAX_ITEMS).map(d=>({...d,photos:cleanPhotos(d.photos)})));
         const batches=data.batches.slice(0,BOX_MAX_BATCHES).map(b=>({...b,photo:availableBoxPhoto(me,b.photo)}));
         setBoxBatches(batches);setBoxCurrentBatch(data.currentBatch||null);
-        setBoxPhoto(availableBoxPhoto(me,data.photo));setBoxScanned(!!data.scanned);setBoxOverflow(!!data.overflow);
+        setBoxPhoto(availableBoxPhoto(me,data.photo));setBoxScanned(!!data.scanned);setBoxOverflow(!!data.overflow);setBoxQuality(photoIssues(data.quality));
         setBoxRegion(data.region||'');setBoxSeq(Number.isInteger(data.seq)?data.seq:0);
         setBoxSelected(Array.isArray(data.selection)?data.selection:null);
         setBoxPending(data.pending?.listingId&&Array.isArray(data.pending.ids)?data.pending:null);
@@ -735,8 +739,11 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     const hasContent=data.drafts.length||data.batches.length||data.photo||data.bundle||data.pending||data.region;
     saveBoxSnapshot(me,hasContent?data:null).then(()=>{if(live)setBoxSaveError(false);}).catch(()=>{if(live)setBoxSaveError(true);});
     return ()=>{live=false;};
-  },[me,boxStorage,boxDrafts,boxBatches,boxCurrentBatch,boxPhoto,boxScanned,boxOverflow,boxRegion,boxSeq,boxSelected,boxPackageDraft,boxPending,boxEditor,title,category,facts,photo,condition,trade,price,description,region,organizationId]);
+  },[me,boxStorage,boxDrafts,boxBatches,boxCurrentBatch,boxPhoto,boxScanned,boxOverflow,boxRegion,boxSeq,boxSelected,boxPackageDraft,boxPending,boxQuality,boxEditor,title,category,facts,photo,condition,trade,price,description,region,organizationId]);
   const packageForm=boxEditor?.packageIds?parsePackageNote(description):null;
+  const cropDraft=boxCrop?boxDrafts.find(d=>d.id===boxCrop.id):null;
+  const cropSource=cropDraft?boxBatches.find(b=>b.id===cropDraft.batchId)?.photo:null;
+  const cropBusy=busy||scanBusy||choosing;
   const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
   const favoriteIds=new Set(favorites.map(x=>x.listing_id));
   const editingListing=editingId?listings.find(x=>x.id===editingId&&x.seller_id===me):null;
@@ -806,7 +813,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       await deleteBoxStorage(me);
       setBoxPhoto(null);setBoxDrafts([]);setBoxNotice('');setBoxScanned(false);
       setBoxOverflow(false);setBoxEditor(null);setBoxPackageDraft(null);setBoxBatches([]);setBoxCurrentBatch(null);setBoxSelected(null);setBoxFilter('all');
-      setBoxRegion('');setBoxInspect(null);setBoxBulkSize('');setBoxStorage('ready');setBoxSaveError(false);setBoxPending(null);
+      setBoxRegion('');setBoxInspect(null);setBoxBulkSize('');setBoxQuality([]);setBoxCrop(null);setBoxStorage('ready');setBoxSaveError(false);setBoxPending(null);
     }catch(e){setBoxNotice('Kiste konnte nicht vollständig gelöscht werden: '+humanError(e));}
     finally{setChoosing(false);}
   }
@@ -815,7 +822,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       {text:'Abbrechen',style:'cancel'},{text:'Kiste löschen',style:'destructive',onPress:clearBox}
     ]);
   }
-  function closeBox(){setBoxOpen(false);}
+  function closeBox(){setBoxCrop(null);setBoxOpen(false);}
   async function recoverBoxSubmission(){
     if(!boxPending||scanBusy||busy||choosing)return;
     setScanBusy(true);
@@ -840,11 +847,24 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(!asset?.uri||!canCaptureBox)return;
     if(asset.assetId&&boxBatches.some(b=>b.photo?.sourceAssetId===asset.assetId)){setBoxNotice('Dieses Galeriefoto wurde bereits als Fotogruppe erfasst. Wähle ein anderes Bild, damit die Teile nicht doppelt gezählt werden.');return;}
     const kept=await keepBoxPhoto(me,asset);
-    setBoxPhoto(kept);setBoxCurrentBatch(null);setBoxNotice('');setBoxScanned(false);setBoxOverflow(false);
+    setBoxCrop(null);setBoxQuality([]);setBoxPhoto(kept);setBoxCurrentBatch(null);setBoxNotice('');setBoxScanned(false);setBoxOverflow(false);
   }
   function viewBatch(batch){
     if(!batch.photo)return;
-    setBoxPhoto(batch.photo);setBoxCurrentBatch(batch.id);setBoxScanned(true);setBoxOverflow(!batch.reusable);
+    setBoxCrop(null);setBoxQuality(photoIssues(batch.quality));setBoxPhoto(batch.photo);setBoxCurrentBatch(batch.id);setBoxScanned(true);setBoxOverflow(!batch.reusable);
+  }
+  function discardCurrentBatch(){
+    const batch=boxBatches.find(b=>b.id===boxCurrentBatch);
+    if(!batch||!batch.ids.every(id=>boxDrafts.some(d=>d.id===id)))return Alert.alert('Fotogruppe nicht erneut erfassen','Mindestens ein Teil ist nicht mehr in der Kiste. Fotografiere nur die noch verfügbaren Artikel separat, um Doppelanzeigen zu vermeiden.');
+    Alert.alert('Diese Fotogruppe neu erfassen?','Nur die '+batch.ids.length+' Entwürfe dieser Gruppe und ihre Bearbeitungsstände werden verworfen. Andere Fotogruppen bleiben erhalten.',[
+      {text:'Abbrechen',style:'cancel'},
+      {text:'Gruppe verwerfen',style:'destructive',onPress:()=>{
+        setBoxDrafts(old=>old.filter(d=>!batch.ids.includes(d.id)));
+        setBoxBatches(old=>old.filter(b=>b.id!==batch.id));setBoxSelected(null);setBoxPackageDraft(null);
+        setBoxCrop(null);setBoxInspect(null);setBoxPhoto(null);setBoxCurrentBatch(null);setBoxScanned(false);setBoxQuality([]);setBoxOverflow(false);
+        setBoxNotice('Fotogruppe verworfen. Fotografiere die noch verfügbaren Teile erneut, diesmal einzeln nebeneinander.');
+      }}
+    ]);
   }
   async function takeBoxPhoto(){
     if(choosing||scanBusy||busy||!canCaptureBox)return;
@@ -862,6 +882,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     setScanBusy(true);setBoxNotice('');
     try{
       const result=await scanMarketPhotos([boxPhoto],'box');
+      const quality=photoIssues(result?.qualityIssues);setBoxQuality(quality);
       if(result?.status!=='ok'||!Array.isArray(result.items)||!result.items.length){
         setBoxNotice(result?.status==='unsuitable'?'Bitte verwende ein reines Foto der ausgelegten Artikel ohne Personen oder private Dokumente.':'Keine Artikel eindeutig erkannt. Du kannst einzelne Entwürfe auch manuell hinzufügen.');return;
       }
@@ -870,16 +891,49 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         id:'scan-'+boxSeq+'-'+i,batchId,listingId:listingDraftId(),title:safeString(x.title,100),category:x.category,position:safeString(x.position,50),
         facts:{...EMPTY_FACTS,...Object.fromEntries(FACT_KEYS.map(([k,,max])=>[k,safeString(x[k],max)])),detail:compactBoxDetail(x)},
         garmentType:safeString(x.garmentType,40),shape:safeString(x.shape,60),pattern:safeString(x.pattern,40),features:safeString(x.features,80),material:safeString(x.material,50),
-        sizeEvidence:x.sizeEvidence==='label'?'label':'unknown',relativeSize:safeString(x.relativeSize,95),uncertainty:safeString(x.uncertainty,90),x:x.x,y:x.y,
+        sizeEvidence:x.sizeEvidence==='label'?'label':'unknown',relativeSize:safeString(x.relativeSize,95),uncertainty:safeString(x.uncertainty,90),x:x.x,y:x.y,bounds:cropBounds(x.bounds),visibility:['isolated','overlapping','cutoff','unclear'].includes(x.visibility)?x.visibility:'unclear',
         confirmed:false,photos:[],condition:'',trade:'sell',price:'',description:'',region:boxRegion,organizationId:''
       }));
       if(!drafts.length){setBoxNotice('Keine weiteren Artikel erkannt.');return;}
-      const incomplete=!!result.overflow||drafts.length!==result.items.length;
+      const incomplete=!!result.overflow||drafts.length!==result.items.length||quality.includes("cutoff");
       setBoxDrafts(old=>[...old,...drafts]);setBoxSeq(n=>n+1);setBoxScanned(true);setBoxOverflow(incomplete);
-      setBoxBatches(old=>[...old,{id:batchId,photo:boxPhoto,ids:drafts.map(d=>d.id),reusable:!incomplete}]);
+      setBoxBatches(old=>[...old,{id:batchId,photo:boxPhoto,ids:drafts.map(d=>d.id),reusable:!incomplete,quality}]);
       setBoxCurrentBatch(batchId);setBoxPackageDraft(null);
       setBoxNotice(incomplete?'Nicht alle Teile dieser Aufnahme wurden erfasst. Bitte prüfe die Liste und verwende ein passendes Paketfoto.':'Neue Fotogruppe hinzugefügt. Bitte gleiche Artikel ab und fotografiere in der nächsten Gruppe nur andere Teile.');
     }catch(e){setBoxNotice(humanError(e));}finally{setScanBusy(false);}
+  }
+  function openBoxCrop(d){
+    const source=boxBatches.find(b=>b.id===d.batchId)?.photo;
+    if(!source)return Alert.alert('Gruppenfoto fehlt','Bitte ergänze ein eigenes Artikelfoto.');
+    const bounds=suggestedCrop(d);
+    if(!bounds)return Alert.alert('Kein sicherer Ausschnitt vorgeschlagen','Das Stück ist möglicherweise verdeckt, abgeschnitten oder nicht klar abgrenzbar. Bitte fotografiere es einzeln.');
+    if((d.photos||[]).length>=5)return Alert.alert('Maximal fünf Fotos','Entferne zuerst ein Foto im Einzelentwurf.');
+    setBoxCropFrame({width:0,height:0});setBoxCrop({id:d.id,bounds,preview:null});
+    setBoxInspect(d.id);setBoxFilter('all');
+  }
+  function adjustBoxCrop(edge,delta){
+    setBoxCrop(old=>old?{...old,bounds:changeCrop(old.bounds,edge,delta)||old.bounds,preview:null}:old);
+  }
+  async function previewBoxCrop(){
+    if(!boxCrop||!cropSource||cropBusy)return;
+    const rect=pixelCrop(boxCrop.bounds,cropSource.width,cropSource.height);
+    if(!rect)return Alert.alert('Ausschnitt zu klein','Bitte vergrößere den Bildbereich oder fotografiere den Artikel einzeln.');
+    setScanBusy(true);
+    try{
+      const image=await makeBoxCrop(me,cropSource,rect);
+      setBoxCrop(old=>old&&old.id===boxCrop.id?{...old,preview:image}:old);
+    }catch(e){Alert.alert('Bildausschnitt',humanError(e));}
+    finally{setScanBusy(false);}
+  }
+  async function acceptBoxCrop(){
+    if(!boxCrop?.preview||!cropDraft||cropBusy||(cropDraft.photos||[]).length>=5)return;
+    setScanBusy(true);
+    try{
+      const asset=await keepBoxPhoto(me,boxCrop.preview);
+      updateBoxDraft(cropDraft.id,{photos:[asset,...(cropDraft.photos||[])].slice(0,5)});
+      setBoxCrop(null);setBoxNotice('Einzelbild gespeichert. Du kannst es beim Einstellen des Artikels nochmals prüfen.');
+    }catch(e){Alert.alert('Foto speichern',humanError(e));}
+    finally{setScanBusy(false);}
   }
   function updateBoxDraft(id,changes,factChanges=null){
     setBoxDrafts(old=>old.map(d=>d.id===id?{...d,...changes,facts:{...d.facts,...(factChanges||{})}}:d));
@@ -932,10 +986,11 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     setBoxSeq(n=>n+1);setBoxPackageDraft(null);
   }
   function removeBoxDraft(id){
+    if(boxCrop?.id===id)setBoxCrop(null);
     setBoxDrafts(old=>old.filter(d=>d.id!==id));setBoxPackageDraft(null);
   }
   function openBoxEditor(d,packageIds=null){
-    resetForm();setBoxOpen(false);setOpen(true);setQuick(true);setBoxEditor({id:d.id,packageIds,listingId:d.listingId||listingDraftId()});
+    setBoxCrop(null);resetForm();setBoxOpen(false);setOpen(true);setQuick(true);setBoxEditor({id:d.id,packageIds,listingId:d.listingId||listingDraftId()});
     setTitle(d.title||'');setCategory(d.category||'Kleidung');setFacts({...EMPTY_FACTS,...d.facts});
     setCondition(d.condition||'');setTrade(d.trade||'sell');setPrice(d.price||'');
     setPhoto(d.photos||[]);setDescription(d.description||'');setRegion(d.region||boxRegion);
@@ -1124,7 +1179,13 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <Text style={[styles.micro,{marginVertical:8}]}>Die freiwillige Analyse sendet ein verkleinertes Foto an OpenAI. Keine Personen oder Dokumente fotografieren. Entwürfe und Artikelfotos bleiben lokal im Gerätespeicher, bis du die Kiste löschst. Kein geräteübergreifender Abgleich.</Text>
       <Button title={scanBusy?'Artikel werden erkannt …':'✦ Fotogruppe analysieren'} disabled={!boxPhoto||scanBusy||choosing||busy||boxScanned||!canCaptureBox} onPress={recognizeBox}/>
       {boxNotice?<Info>{boxNotice}</Info>:null}
+      {boxQuality.length?<View style={{backgroundColor:C.warning,borderRadius:12,padding:12,marginVertical:8}}>
+        <Text style={[styles.label,{color:C.warningText}]}>Hinweise zur Fotoqualität</Text>
+        {boxQuality.map(issue=><Text key={issue} style={[styles.micro,{color:C.warningText,marginBottom:5}]}>• {PHOTO_ISSUES[issue]}</Text>)}
+        <Text style={styles.micro}>KI-Hinweise sind nicht verbindlich. Prüfe das Foto und die erkannten Artikel selbst.</Text>
+      </View>:null}
       {boxOverflow?<Text style={[styles.micro,{marginVertical:8,color:C.warningText}]}>Diese Fotogruppe ist nicht vollständig erfasst. Für Teilpakete passende neue Verkaufsfotos verwenden.</Text>:null}
+      {boxCurrentBatch&&(boxQuality.length>0||boxOverflow)?<Button title="Diese Fotogruppe neu erfassen" mode="outline" small disabled={cropBusy} onPress={discardCurrentBatch}/>:null}
       <Input label="Ort / Region für alle weiteren Entwürfe (optional)" value={boxRegion} onChangeText={setBoxRegion} maxLength={80} placeholder="z. B. Fürstenwalde"/>
       {boxDrafts.length>0?<View style={{backgroundColor:'#FFF4DA',borderRadius:14,padding:12,marginVertical:10}}>
         <Text style={styles.sectionTitle}>{boxSummary.total} Teile · {boxSummary.sized} Größen erfasst</Text>
@@ -1182,6 +1243,34 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           <Button title="Etikettfoto auswählen & lesen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>pick(assets=>readBoxLabel(d,assets[0]),1)}/>
         </View>:null}
         {!d.facts.size&&boxInspect!==d.id&&d.category==='Kleidung'?<Button title="Größenetikett lesen" small mode="outline" disabled={busy||scanBusy||choosing} onPress={()=>{setBoxInspect(d.id);photographBoxLabel(d);}}/>:null}
+        {d.photos?.length?<Image source={{uri:d.photos[0].uri}} resizeMode="contain" style={{width:95,height:95,borderRadius:10,backgroundColor:C.bg,marginTop:8}}/>:null}
+        {!d.photos?.length&&suggestedCrop(d)&&boxBatches.some(b=>b.id===d.batchId&&b.photo)?<Button title="Einzelbild aus Gruppenfoto erstellen" small mode="outline" disabled={cropBusy} onPress={()=>openBoxCrop(d)}/>:null}
+      {boxCrop?.id===d.id&&cropDraft&&cropSource?<View style={{backgroundColor:C.pale,borderRadius:15,padding:13,marginVertical:12}}>
+        <Text style={styles.sectionTitle}>Einzelbild für {cropDraft.title}</Text>
+        <Text style={[styles.micro,{marginBottom:9}]}>Der Rahmen ist ein KI-Vorschlag. Das gesamte Kleidungsstück muss darin liegen, ohne fremde Artikel oder private Details.</Text>
+        <View onLayout={e=>setBoxCropFrame(e.nativeEvent.layout)} style={{width:'100%',height:300,backgroundColor:C.bg,borderRadius:10,overflow:'hidden'}}>
+          <Image source={{uri:cropSource.uri}} resizeMode="contain" style={{width:'100%',height:'100%'}}/>
+          {boxCropFrame.width>0&&cropSource.width>0&&cropSource.height>0?(()=>{
+            const scale=Math.min(boxCropFrame.width/cropSource.width,boxCropFrame.height/cropSource.height);
+            const w=cropSource.width*scale,h=cropSource.height*scale,b=boxCrop.bounds;
+            return <View pointerEvents="none" style={{position:'absolute',left:(boxCropFrame.width-w)/2+b.left*w/100,top:(boxCropFrame.height-h)/2+b.top*h/100,width:(b.right-b.left)*w/100,height:(b.bottom-b.top)*h/100,borderWidth:3,borderColor:C.accent,backgroundColor:'#087F8715'}}/>;
+          })():null}
+        </View>
+        <Text style={[styles.label,{marginTop:10}]}>Rahmen korrigieren</Text>
+        {[['left','Linker Rand'],['right','Rechter Rand'],['top','Oberer Rand'],['bottom','Unterer Rand']].map(([edge,label])=><Row key={edge} style={{alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
+          <Text style={[styles.micro,{flex:1}]}>{label}</Text>
+          <Button title="−" mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,-2)}/>
+          <Button title="＋" mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,2)}/>
+        </Row>)}
+        <Button title={scanBusy?'Bild wird verarbeitet …':'Ausschnitt als Vorschau ansehen'} disabled={cropBusy} onPress={previewBoxCrop}/>
+        {boxCrop.preview?<View style={{marginTop:12}}>
+          <Image source={{uri:boxCrop.preview.uri}} resizeMode="contain" style={{width:'100%',height:245,backgroundColor:C.white,borderRadius:10}}/>
+          <Text style={[styles.micro,{marginVertical:8}]}>Bestätige nur, wenn wirklich das richtige, vollständige Kleidungsstück sichtbar ist. Das Bild wird erst bei der späteren Anzeige hochgeladen.</Text>
+          <Button title="Richtiges Einzelbild übernehmen" disabled={cropBusy} onPress={acceptBoxCrop}/>
+        </View>:null}
+        <Button title="Abbrechen" mode="ghost" small disabled={cropBusy} onPress={()=>setBoxCrop(null)}/>
+      </View>:null}
+        {!d.photos?.length&&['overlapping','cutoff'].includes(d.visibility)?<Text style={[styles.micro,{color:C.warningText,marginTop:6}]}>Für ein vollständiges Einzelbild bitte separat fotografieren.</Text>:null}
         <Text style={[styles.micro,{marginVertical:5}]}>{d.photos.length?'Artikelfoto vorhanden':'Einzelfoto nur beim Einzelverkauf nötig'} · {d.condition||'Zustand noch offen'}</Text>
         <Button title="Einzeln verkaufen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>openBoxEditor(d)}/>
         <Button title="Entfernen" mode="ghost" small disabled={busy||scanBusy||choosing} onPress={()=>Alert.alert('Entwurf entfernen?','Dieser Artikel bleibt unveröffentlicht.',[{text:'Abbrechen',style:'cancel'},{text:'Entfernen',style:'destructive',onPress:()=>removeBoxDraft(d.id)}])}/>

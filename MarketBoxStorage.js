@@ -52,3 +52,16 @@ export async function deleteBoxStorage(uid){
  const dir=folder(uid);
  if(dir.exists)dir.delete();
 }
+
+export async function makeBoxCrop(uid,asset,rect){
+ const original=availableBoxPhoto(uid,asset);
+ if(!original)throw new Error('Das ursprüngliche Gruppenfoto ist auf diesem Gerät nicht verfügbar.');
+ const {originX,originY,width,height}=rect||{};
+ if(![originX,originY,width,height].every(Number.isInteger)||originX<0||originY<0||width<160||height<160||originX+width>original.width||originY+height>original.height)throw new Error('Der Bildausschnitt ist ungültig oder zu klein.');
+ const job=ImageManipulator.ImageManipulator.manipulate(original.uri);
+ job.crop({originX,originY,width,height});
+ const rendered=await job.renderAsync();
+ const saved=await rendered.saveAsync({format:ImageManipulator.SaveFormat.JPEG,compress:.86});
+ // Preview is only a temporary JPEG. Persist only after an explicit seller confirmation.
+ return {uri:saved.uri,width:saved.width,height:saved.height};
+}
