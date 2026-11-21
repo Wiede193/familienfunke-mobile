@@ -1293,7 +1293,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
       {boxStep==='photo'?<>
       <Text style={[styles.sub,{marginBottom:12}]}>Lege bis zu zehn unterschiedliche Kleidungsstücke nebeneinander und fotografiere sie von oben. Weitere Gruppen kannst du später ergänzen.</Text>
       {boxPhoto?<View onLayout={e=>setBoxImageFrame(e.nativeEvent.layout)} style={{width:'100%',height:300,borderRadius:14,marginBottom:10,overflow:'hidden',backgroundColor:C.bg}}>
-        <Image source={{uri:boxPhoto.uri}} style={{width:'100%',height:'100%'}} resizeMode="contain"/>
+        <Image accessibilityLabel="Kistenfoto. Die einzelnen erkannten Artikel sind auch unten als Textliste auswählbar." source={{uri:boxPhoto.uri}} style={{width:'100%',height:'100%'}} resizeMode="contain"/>
         {boxImageFrame.width>0&&boxImageFrame.height>0&&boxPhoto.width>0&&boxPhoto.height>0&&boxCurrentBatch?boxDrafts.map((d,i)=>{
           if(d.batchId!==boxCurrentBatch)return null;
           if(typeof d.x!=='number'||typeof d.y!=='number'||d.x<0||d.x>100||d.y<0||d.y>100)return null;
@@ -1308,7 +1308,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
       <Text style={[styles.micro,{marginBottom:8,color:boxSaveError||boxStorage==='error'?C.warningText:C.accentDark}]}>{boxStorage==='loading'?'Kiste wird geladen …':boxStorage==='error'?'Gespeicherte Kiste nicht lesbar':boxSaveError?'Speichern fehlgeschlagen – bitte Gerätespeicher prüfen':'Entwürfe werden auf diesem Gerät gespeichert.'}</Text>
       {boxBatches.length?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingBottom:10}}>
         {boxBatches.map((batch,i)=><Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Fotogruppe '+(i+1)} onPress={()=>viewBatch(batch)} disabled={busy||scanBusy||choosing||!batch.photo} style={{borderWidth:2,borderColor:boxCurrentBatch===batch.id?C.accent:C.line,borderRadius:12,padding:5}}>
-          {batch.photo?<Image source={{uri:batch.photo.uri}} style={{width:76,height:60,borderRadius:7}} resizeMode="cover"/>:null}
+          {batch.photo?<Image accessible={false} source={{uri:batch.photo.uri}} style={{width:76,height:60,borderRadius:7}} resizeMode="cover"/>:null}
           <Text style={styles.micro}>Gruppe {i+1}</Text>
         </Pressable>)}
       </ScrollView>:null}
@@ -1409,13 +1409,13 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
           <Button title="Etikettfoto auswählen & lesen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>pick(assets=>readBoxLabel(d,assets[0]),1)}/>
         </View>:null}
         {!d.facts.size&&boxInspect!==d.id&&d.category==='Kleidung'?<Pressable accessibilityRole="button" disabled={busy||scanBusy||choosing} onPress={()=>setBoxInspect(d.id)} style={{paddingVertical:6}}><Text style={[styles.micro,{color:C.accentDark,fontWeight:'800'}]}>Größe ergänzen ›</Text></Pressable>:null}
-        {d.photos?.length?<Image source={{uri:d.photos[0].uri}} resizeMode="contain" style={{width:95,height:95,borderRadius:10,backgroundColor:C.bg,marginTop:8}}/>:null}
+        {d.photos?.length?<Image accessibilityLabel={"Artikelfoto zu "+d.title} source={{uri:d.photos[0].uri}} resizeMode="contain" style={{width:95,height:95,borderRadius:10,backgroundColor:C.bg,marginTop:8}}/>:null}
         {boxInspect===d.id&&!d.photos?.length&&suggestedCrop(d)&&boxBatches.some(b=>b.id===d.batchId&&b.photo)?<Button title="Einzelbild aus Gruppenfoto erstellen" small mode="outline" disabled={cropBusy} onPress={()=>openBoxCrop(d)}/>:null}
       {boxCrop?.id===d.id&&cropDraft&&cropSource?<View style={{backgroundColor:C.pale,borderRadius:15,padding:13,marginVertical:12}}>
         <Text style={styles.sectionTitle}>Einzelbild für {cropDraft.title}</Text>
         <Text style={[styles.micro,{marginBottom:9}]}>Der Rahmen ist ein KI-Vorschlag. Das gesamte Kleidungsstück muss darin liegen, ohne fremde Artikel oder private Details.</Text>
         <View onLayout={e=>setBoxCropFrame(e.nativeEvent.layout)} style={{width:'100%',height:300,backgroundColor:C.bg,borderRadius:10,overflow:'hidden'}}>
-          <Image source={{uri:cropSource.uri}} resizeMode="contain" style={{width:'100%',height:'100%'}}/>
+          <Image accessibilityLabel={"Originalfoto zur Ausschnittbearbeitung: "+cropDraft.title} source={{uri:cropSource.uri}} resizeMode="contain" style={{width:'100%',height:'100%'}}/>
           {boxCropFrame.width>0&&cropSource.width>0&&cropSource.height>0?(()=>{
             const scale=Math.min(boxCropFrame.width/cropSource.width,boxCropFrame.height/cropSource.height);
             const w=cropSource.width*scale,h=cropSource.height*scale,b=boxCrop.bounds;
@@ -1425,12 +1425,12 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
         <Text style={[styles.label,{marginTop:10}]}>Rahmen korrigieren</Text>
         {[['left','Linker Rand'],['right','Rechter Rand'],['top','Oberer Rand'],['bottom','Unterer Rand']].map(([edge,label])=><Row key={edge} style={{alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
           <Text style={[styles.micro,{flex:1}]}>{label}</Text>
-          <Button title="−" mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,-2)}/>
-          <Button title="＋" mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,2)}/>
+          <Button title="−" accessibilityLabel={label+" um zwei Prozent verkleinern"} mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,-2)}/>
+          <Button title="＋" accessibilityLabel={label+" um zwei Prozent vergrößern"} mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,2)}/>
         </Row>)}
         <Button title={scanBusy?'Bild wird verarbeitet …':'Ausschnitt als Vorschau ansehen'} disabled={cropBusy} onPress={previewBoxCrop}/>
         {boxCrop.preview?<View style={{marginTop:12}}>
-          <Image source={{uri:boxCrop.preview.uri}} resizeMode="contain" style={{width:'100%',height:245,backgroundColor:C.white,borderRadius:10}}/>
+          <Image accessibilityLabel={"Vorschau des zugeschnittenen Fotos: "+cropDraft.title} source={{uri:boxCrop.preview.uri}} resizeMode="contain" style={{width:'100%',height:245,backgroundColor:C.white,borderRadius:10}}/>
           <Text style={[styles.micro,{marginVertical:8}]}>Bestätige nur, wenn wirklich das richtige, vollständige Kleidungsstück sichtbar ist. Das Bild wird erst bei der späteren Anzeige hochgeladen.</Text>
           <Button title="Richtiges Einzelbild übernehmen" disabled={cropBusy} onPress={acceptBoxCrop}/>
         </View>:null}
@@ -1478,7 +1478,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
         {quick&&!editingId?<Button title="＋ Mit der Kamera fotografieren" mode="ghost" small disabled={choosing||busy||scanBusy||photo.length>=5} onPress={takeArticlePhoto}/>:null}
         {photo.length>0?<ScrollView horizontal style={{marginTop:11}} contentContainerStyle={{gap:9}}>
           {photo.map((asset,index)=><View key={asset.assetId||asset.uri+index} style={{width:100}}>
-            <Image source={{uri:asset.uri}} style={{width:100,height:100,borderRadius:13}} resizeMode="cover"/>
+            <Image accessibilityLabel={"Foto "+(index+1)+" zur Anzeige"} source={{uri:asset.uri}} style={{width:100,height:100,borderRadius:13}} resizeMode="cover"/>
             <Pressable accessibilityRole="button" accessibilityLabel={'Foto '+(index+1)+' entfernen'}
               disabled={scanBusy||busy} onPress={()=>{setPhoto(p=>p.filter((_,i)=>i!==index));setProposal(null);setConfirmed(false);}} style={{padding:7,alignItems:'center'}}>
               <Text style={[styles.micro,{color:C.coralDeep,fontWeight:'900'}]}>Entfernen ×</Text>
@@ -1570,7 +1570,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
       </Pressable>
       <Card style={styles.marketDetailCard}>
         <View style={styles.marketDetailImage}>
-          {shownImage?<Image source={{uri:shownImage}} style={styles.marketFullImage} resizeMode="contain"/>:
+          {shownImage?<Image accessibilityLabel={"Anzeigenfoto: "+selected.title+", Bild "+(galleryIndex+1)+" von "+gallery.length} source={{uri:shownImage}} style={styles.marketFullImage} resizeMode="contain"/>:
             <View style={[styles.marketFullImage,styles.marketImagePlaceholder]}><Text style={{fontSize:34}}>♧</Text><Text style={styles.micro}>Kein Foto hinterlegt</Text></View>}
         </View>
         {gallery.length>1?<View style={{marginTop:12}}>
@@ -1583,7 +1583,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
             {gallery.map((image,index)=><Pressable key={image.id} accessibilityRole="button"
               accessibilityLabel={'Bild '+(index+1)+' anzeigen'} accessibilityState={{selected:galleryIndex===index}}
               onPress={()=>setGalleryIndex(index)}>
-              <Image source={{uri:image.uri}} style={{width:66,height:66,borderRadius:12,borderWidth:galleryIndex===index?3:1,borderColor:galleryIndex===index?C.accent:C.line}} resizeMode="cover"/>
+              <Image accessible={false} source={{uri:image.uri}} style={{width:66,height:66,borderRadius:12,borderWidth:galleryIndex===index?3:1,borderColor:galleryIndex===index?C.accent:C.line}} resizeMode="cover"/>
             </Pressable>)}
           </ScrollView>
         </View>:null}
@@ -1640,7 +1640,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
         <Text style={{fontSize:19,color:C.accentDark,marginRight:10}}>⌕</Text>
         <TextInput accessibilityLabel="Angebote durchsuchen" style={styles.marketSearchInput}
           placeholder="z. B. Kinderjeans Größe 110 blau" placeholderTextColor="#647D82" value={query} onChangeText={setQuery} returnKeyType="search"/>
-        {query.length>0?<Pressable accessibilityRole="button" accessibilityLabel="Suche löschen" onPress={()=>setQuery('')}>
+        {query.length>0?<Pressable accessibilityRole="button" accessibilityLabel="Suche löschen" hitSlop={12} onPress={()=>setQuery('')}>
           <Text style={{fontSize:20,color:C.muted}}>×</Text>
         </Pressable>:null}
       </View>
@@ -1682,11 +1682,11 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
             accessibilityLabel={x.title+', '+priceLabel(x)+', '+x.item_condition+', '+(x.region_label||'Region nicht angegeben')}
             onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={styles.marketTile}>
             <View style={styles.marketTileImage}>
-              {(remotePhotoUrls[x.id]||photoUrls[x.id])?<Image source={{uri:remotePhotoUrls[x.id]||photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
+              {(remotePhotoUrls[x.id]||photoUrls[x.id])?<Image accessible={false} source={{uri:remotePhotoUrls[x.id]||photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
                 <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>Noch kein Foto</Text></View>}
               <View style={styles.marketPricePill}><Text style={styles.marketPricePillText} numberOfLines={1}>{priceLabel(x)}</Text></View>
               {x.seller_id!==me&&x.moderation_status==='approved'?
-                <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'}
+                <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'} hitSlop={9}
                   disabled={busy||!active}
                   onPress={event=>{event.stopPropagation();toggleFavorite(x.id,favoriteIds.has(x.id));}}
                   style={{position:'absolute',right:7,top:8,backgroundColor:'#FFFFFFF2',borderRadius:20,paddingHorizontal:10,paddingVertical:7}}>
@@ -1947,7 +1947,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 !blocked&&active?<Button title={connection?'Kontaktanfrage vorhanden':'Kontakt anfragen'} disabled={disabled||!!connection} onPress={onContact}/>:null}
 <Row style={{marginTop:12}}>{blocked?<Button title="Entsperren" mode="outline" small onPress={onUnblock}/>:<Button title="Blockieren" mode="outline" small onPress={onBlock}/>}<Button title="Melden" mode="ghost" small onPress={onReport}/></Row>
 </Card>
-{photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
+{photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image accessibilityLabel={photo.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
 </ScrollView>;
 }
 function ContactsScreen({pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat}){
@@ -2114,8 +2114,8 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Button title={selectedPhoto?'Anderes Foto auswählen':'＋ Foto auswählen'}
   disabled={busy||photoPickerBusy} mode="outline" onPress={selectDraftPhoto}/>
 {selectedPhoto?<View style={{marginTop:14}}>
-  <Image source={{uri:selectedPhoto.uri}} style={styles.photoDraftPreview} resizeMode="contain"/>
-  <Input label="2. Kurze Bildbeschreibung (optional)" value={photoCaption}
+  <Image accessibilityLabel="Ausgewähltes Familienfoto. Bitte eine kurze Bildbeschreibung hinzufügen." source={{uri:selectedPhoto.uri}} style={styles.photoDraftPreview} resizeMode="contain"/>
+  <Input label="2. Bildbeschreibung für Screenreader (empfohlen)" value={photoCaption}
     onChangeText={setPhotoCaption} maxLength={200}
     placeholder="Was möchtest du zu diesem Foto erzählen?"/>
   <Text style={[styles.micro,{marginBottom:12}]}>
@@ -2132,7 +2132,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
   Nach der Fotoauswahl kannst du eine Beschreibung ergänzen und beides zusammen einreichen.
 </Text>}
 <View style={[styles.photoGrid,{marginTop:15}]}>{photos.map(p=><Card key={p.id} style={styles.photoCard}>
-{photosUrls[p.id]?<Image source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
+{photosUrls[p.id]?<Image accessibilityLabel={p.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
 <Text style={styles.micro} numberOfLines={2}>{p.caption||'Profilbild'}</Text><Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'Freigegeben':p.moderation_status==='pending'?'In Prüfung':'Abgelehnt'}</Text>
 <Button title="Löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
 </Card>)}</View>
