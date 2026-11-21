@@ -34,7 +34,12 @@ export default function FamilyVoiceSearch({disabled=false,onText,onBusyChange}){
    speech.addListener('error',()=>{
     if(!c.mounted||c.phase==='idle')return;
     c.accept=false;setNotice('Spracherkennung nicht verfügbar. Bitte prüfe die lokale deutsche Spracherkennung oder nutze die Tastatur.');
-    transition('idle');
+    // Wait for the terminal event instead of allowing a new session while old events may arrive.
+    transition('stopping');
+    const session=c.session;
+    Promise.resolve().then(()=>speech.getStateAsync()).then(state=>{
+     if(c.mounted&&session===c.session&&c.phase==='stopping'&&state==='inactive')transition('idle');
+    }).catch(()=>{});
    }),
    speech.addListener('end',()=>{
     if(!c.mounted||!['listening','stopping'].includes(c.phase))return;

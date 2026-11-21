@@ -192,19 +192,19 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
           placeholderTextColor={C.muted} maxLength={600}
           autoCapitalize="sentences" returnKeyType="search" onSubmitEditing={searchApp}/>
         {needle?<Pressable accessibilityRole="button" accessibilityLabel="Eingabe löschen"
-          onPress={()=>updateQuestion('')} style={s.clear}><Text style={s.clearText}>×</Text></Pressable>:null}
+          disabled={voiceBusy} accessibilityState={{disabled:voiceBusy}} onPress={()=>updateQuestion('')} style={s.clear}><Text style={s.clearText}>×</Text></Pressable>:null}
       </View>
       <View style={[s.searchActions,singleColumn&&{flexDirection:'column',alignItems:'stretch'}]}>
         <Pressable accessibilityRole="button" accessibilityLabel="In Familienfunke suchen"
-          accessibilityState={{disabled:busy||searchBusy||needle.length<2,busy:searchBusy}}
+          accessibilityState={{disabled:busy||searchBusy||voiceBusy||needle.length<2,busy:searchBusy}}
           disabled={busy||searchBusy||voiceBusy||needle.length<2} onPress={searchApp}
-          style={[s.directButton,(busy||searchBusy||needle.length<2)&&s.disabled]}>
+          style={[s.directButton,(busy||searchBusy||voiceBusy||needle.length<2)&&s.disabled]}>
           <Text style={s.directLabel}>{searchBusy?'Suche läuft …':'Suchen'}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="KI um Hilfe fragen"
-          accessibilityState={{disabled:busy||searchBusy||needle.length<3,busy}}
+          accessibilityState={{disabled:busy||searchBusy||voiceBusy||needle.length<3,busy}}
           disabled={busy||searchBusy||voiceBusy||needle.length<3} onPress={askAssistant}
-          style={[s.askButton,(busy||searchBusy||needle.length<3)&&s.disabled]}>
+          style={[s.askButton,(busy||searchBusy||voiceBusy||needle.length<3)&&s.disabled]}>
           {busy?<ActivityIndicator color={C.white} style={{marginRight:8}}/>:null}
           <Text style={s.askButtonLabel}>{busy?'KI antwortet …':'KI fragen'}</Text>
         </Pressable>
