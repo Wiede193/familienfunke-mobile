@@ -38,7 +38,28 @@ export default function HomeAssistant({onNavigate}){
          'Die KI-Hilfe ist gerade nicht erreichbar. Die Suche nach App-Funktionen funktioniert weiterhin.');
      }
      const route=HOME_ROUTES.find(x=>x.id===data.page_id);
-     setConversation(old=>[...old,{question:prompt,answer:data.answer.slice(0,1400),pageId:route?.id||'',searchQuery:typeof data?.search_query==='string'?data.search_query.slice(0,160):''}].slice(-6));
+     const searchQuery=route?.id==='market'&&typeof data?.search_query==='string'?data.search_query.trim().slice(0,160):'';
+     // The AI never invents listings: load up to three real, approved offers from the
+     // authenticated database search after its route suggestion, independently of AI.
+     let offers=null,offersError=false;
+     if(searchQuery){
+       const {data:results,error:searchError}=await supabase.rpc('ff_market_search',{
+         p_query:searchQuery,p_category:'Alle',p_trade_type:'all',
+         p_sort:'relevance',p_limit:3,p_offset:0
+       });
+       if(searchError||!Array.isArray(results))offersError=true;
+       else offers=results.filter(row=>row?.listing?.moderation_status==='approved').map(row=>({
+         id:row.listing.id,
+         title:String(row.listing.title||'').slice(0,100),
+         matchItem:String(row.match_item||'').slice(0,150),
+         price:row.listing.trade_type==='gift'?'Zu verschenken':row.listing.trade_type==='swap'?'Tausch':
+           (Number(row.listing.price_cents||0)/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'})
+       }));
+     }
+     setConversation(old=>[...old,{
+       question:prompt,answer:data.answer.slice(0,1400),pageId:route?.id||'',searchQuery,
+       offers,offersError
+     }].slice(-6));
      setQuestion('');
    }catch(e){setError(e?.message||'Die KI-Hilfe ist gerade nicht erreichbar.');}
    finally{setBusy(false);}
@@ -71,6 +92,23 @@ export default function HomeAssistant({onNavigate}){
      {conversation.map((entry,i)=><View key={i} style={{...card,marginBottom:12}}>
        <Text style={{fontSize:13,color:colors.muted,fontWeight:'700',marginBottom:6}}>Du: {entry.question}</Text>
        <Text style={{color:colors.ink,fontSize:15,lineHeight:23}}>{entry.answer}</Text>
+       {entry.searchQuery&&!entry.offersError&&Array.isArray(entry.offers)?
+         <View style={{marginTop:13}}>
+           <Text style={{color:colors.dark,fontSize:14,fontWeight:'800',marginBottom:7}}>Freigegebene Basar-Angebote</Text>
+           {entry.offers.length?entry.offers.map(item=>
+             <Pressable key={item.id} accessibilityRole="button"
+               accessibilityLabel={item.title+' im Basar suchen'}
+               onPress={()=>onNavigate('market',entry.searchQuery)}
+               style={{paddingVertical:10,borderTopWidth:1,borderTopColor:colors.line}}>
+               <Text style={{color:colors.ink,fontWeight:'800',fontSize:14}}>{item.title}</Text>
+               {item.matchItem?<Text style={{color:colors.muted,fontSize:13,marginTop:3}}>Darin passend: {item.matchItem}</Text>:null}
+               <Text style={{color:colors.dark,fontSize:13,marginTop:4}}>{item.price}</Text>
+             </Pressable>)
+           :<Text style={{color:colors.muted,fontSize:13,lineHeight:19}}>Aktuell keine freigegebenen Treffer. Du kannst die Suche im Basar ändern.</Text>}
+         </View>:null}
+       {entry.searchQuery&&entry.offersError?<Text style={{color:colors.muted,fontSize:13,marginTop:12}}>
+         Die Anzeige der Suchtreffer ist derzeit nicht erreichbar. Du kannst die Suche im Basar öffnen.
+       </Text>:null}
        {entry.pageId?<Pressable accessibilityRole="button" onPress={()=>onNavigate(entry.pageId,entry.pageId==='market'?entry.searchQuery||entry.question:'')} style={{marginTop:11,alignSelf:'flex-start',backgroundColor:colors.pale,borderRadius:10,paddingVertical:10,paddingHorizontal:13}}>
          <Text style={{fontWeight:'800',color:colors.dark}}>Passenden Bereich öffnen ›</Text>
        </Pressable>:null}
