@@ -387,8 +387,15 @@ async function openInboxEvent(event){
    setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);
    setExtraReturnTab('inbox');
    if(row.kind==='market'){
-     const listing=fresh.listings.find(x=>x.id===row.listing_id&&x.seller_id===me);
-     if(!listing){setNotice('Die Anzeige ist nicht mehr verfügbar oder befindet sich außerhalb der geladenen Angebote.');return false;}
+     let listing=fresh.listings.find(x=>x.id===row.listing_id&&x.seller_id===me);
+     if(!listing){
+       const {data,error}=await supabase.from('ff_market_listings').select('*').eq('id',row.listing_id).eq('seller_id',me).maybeSingle();
+       if(accountRef.current!==me)return false;
+       if(error)throw error;
+       listing=data;
+       if(listing)setDb(old=>({...old,listings:[listing,...old.listings.filter(x=>x.id!==listing.id)]}));
+     }
+     if(!listing){setNotice('Die Anzeige ist nicht mehr verfügbar.');return false;}
      setMarketIntent({type:'inboxListing',id:listing.id});setTab('market');
    }else{
      const contact=fresh.contacts.find(c=>c.id===row.contact_id&&(c.sender_id===me||c.recipient_id===me));
@@ -431,7 +438,7 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><Text style={{fontSize:23,color:C.ink}}>♢</Text>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
+{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><Text accessibilityElementsHidden importantForAccessibility="no" style={{fontSize:22,color:C.ink}}>🔔︎</Text>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
 {detailFamily||selectedContact||showInfo||tab==='inbox'||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" accessibilityLabel="Daten aktualisieren" onPress={()=>load()} small mode="ghost"/>}
 </View>
 {error?<Pressable accessibilityRole="button" accessibilityLabel={'Fehlermeldung schließen. '+error} accessibilityLiveRegion="assertive" onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
