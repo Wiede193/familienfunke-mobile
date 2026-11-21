@@ -113,7 +113,7 @@ function pinSetScript(items){
 function inGermany(lat,lon){
   return valid(lat)&&valid(lon)&&lat>=47&&lat<=55.2&&lon>=5.5&&lon<=15.6;
 }
-export default function FamilyMapScreen({userId,active,addPlace}){
+export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId}){
   const map=useRef(null);
   const scroll=useRef(null);
   const mapOffset=useRef(0);
@@ -332,6 +332,13 @@ export default function FamilyMapScreen({userId,active,addPlace}){
   const countApproved=community.filter(p=>p.moderation_status==='approved').length;
   const pendingOwn=community.filter(p=>p.submitted_by===userId&&p.moderation_status==='pending');
   const list=all.filter(p=>Math.abs(p.latitude-center.latitude)<0.22&&Math.abs(p.longitude-center.longitude)<0.32).slice(0,30);
+  // Only resolve known catalogue IDs from the planner; never trust arbitrary coordinates.
+  useEffect(()=>{
+    if(!entryPlaceId)return;
+    const place=[...CURATED_FAMILY_PLACES,...NATIONAL_FAMILY_PLACES].find(p=>p.id===entryPlaceId);
+    if(!place||!inGermany(place.latitude,place.longitude))return;
+    showPlace(place);
+  },[entryPlaceId,ready]);
   function showPlace(place){
     setNationalType('all');setNationalArea('all');setTypes('all');
     setSelectedId(place.id);
