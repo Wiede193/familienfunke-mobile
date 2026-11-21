@@ -63,6 +63,21 @@ assert.match(app,/entryIntent==='box'/,'Box shortcut must launch actual box work
 assert.match(app,/entryIntent==='sell'/,'Sell shortcut must launch actual selling workflow');
 assert.ok(!app.includes('OPENAI_API_KEY'),'No secret AI key in native app');
 
+const eventSql=readFileSync(new URL('../database/ff_search_events.sql',import.meta.url),'utf8');
+assert.match(eventSql,/security invoker/);
+assert.match(eventSql,/from public\.events e where e\.moderation_status='approved' and e\.starts_at>statement_timestamp\(\)/);
+assert.match(eventSql,/from public\.ff_partner_events e where e\.moderation_status='approved' and e\.starts_at>statement_timestamp\(\)/);
+assert.match(eventSql,/limit 12/);
+assert.match(eventSql,/revoke all on function public\.ff_search_events\(text\) from public,anon,authenticated/);
+assert.match(ordinary,/ff_search_events/);
+assert.match(ordinary,/Promise\.allSettled/);
+assert.match(home,/onNavigate\(event\.kind==='family'\?'events':'partners','',event\.id\)/);
+assert.match(app,/useFocusedEvent\('events',focusId,me\)/);
+assert.match(app,/useFocusedEvent\('ff_partner_events',focusId,me\)/);
+assert.match(app,/\.eq\('id',id\)\.eq\('moderation_status','approved'\)\.gt\('starts_at'/);
+assert.match(app,/state\.id===id&&state\.owner===owner/);
+assert.match(app,/eventIntent\?\.owner===me/);
+assert.match(app,/Alle Veranstaltungen anzeigen/);
 const server=readFileSync(new URL('../supabase/functions/ff-app-assistant/index.ts',import.meta.url),'utf8');
 for(const id of HOME_PAGE_IDS)assert.ok(server.includes('"'+id+'"'),'Server must recognize page: '+id);
 assert.match(server,/auth:"user"/,'The assistant endpoint must require authenticated users');
