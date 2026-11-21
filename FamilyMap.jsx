@@ -65,7 +65,7 @@ function Chip({label,selected,onPress}){
 function Field({label,value,onChange,maxLength=100,multi=false,placeholder}){
   return <View style={{marginTop:13}}><Text style={styles.label}>{label}</Text><TextInput accessibilityLabel={label}
    placeholder={placeholder} placeholderTextColor="#81999C" value={value} onChangeText={onChange}
-   maxLength={maxLength} multiline={multi} style={[styles.field,multi&&{height:85,textAlignVertical:'top'}]}/></View>;
+   maxLength={maxLength} multiline={multi} style={[styles.field,multi&&{minHeight:85,textAlignVertical:'top'}]}/></View>;
 }
 const mapScript=(method,arg)=>{
   const obj=JSON.stringify(arg).replace(/</g,'\\u003c');
@@ -362,7 +362,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
       </Pressable>
       <Pressable accessibilityRole="button" onPress={()=>{setCenter({latitude:51.2,longitude:10.45,zoom:5.3});setOsm([]);
        if(ready)map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo(51.2,10.45,5.3);true;');}}
-       style={styles.outlineBtn}><Text style={styles.outlineText}>DE</Text></Pressable>
+       accessibilityLabel="Kartenausschnitt auf Deutschland zurücksetzen" style={styles.outlineBtn}><Text style={styles.outlineText}>DE</Text></Pressable>
     </View>
     {loading?<ActivityIndicator color={C.teal} style={{marginTop:9}}/>:null}
     {searchError?<View accessibilityLiveRegion="assertive" style={styles.warn}><Text style={styles.warnText}>{searchError}</Text></View>:null}
@@ -402,7 +402,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     </View>
     {!list.length?<View style={styles.empty}><Text style={styles.emptyTitle}>Noch keine Orte in dieser Ansicht</Text>
       <Text style={styles.micro}>Wähle eine Stadt, tippe auf „Hier nach Orten suchen“ oder trage einen neuen Ort ein.</Text>
-    </View>:list.map(p=><Pressable key={p.id} accessibilityRole="button" onPress={()=>showPlace(p)} style={styles.placeRow}>
+    </View>:list.map(p=><Pressable key={p.id} accessibilityRole="button" accessibilityLabel={p.title+', '+typeLabel(p.category)+', Details öffnen'} onPress={()=>showPlace(p)} style={styles.placeRow}>
       <View style={styles.placeGlyph}><Text style={{fontSize:23,color:C.coral}}>{typeGlyph(p.category)}</Text></View>
       <View style={{flex:1}}><Text style={styles.placeTitle}>{p.title}</Text><Text style={styles.micro}>{typeLabel(p.category)} · {p.source==='osm'?'OpenStreetMap':p.source==='curated'?'Recherchierter Ausflugstipp':p.source==='national'?(p.kind_label||'Deutschlandweiter Ausflugstipp'):p.moderation_status==='pending'?'Nur für dich · in Prüfung':'Familien-Tipp'}</Text></View><Text style={styles.chevron}>›</Text>
     </Pressable>)}
@@ -419,15 +419,16 @@ export default function FamilyMapScreen({userId,active,addPlace}){
         <Text style={styles.micro}>Breiten- und Längengrad kannst du zum Beispiel aus einem Kartendienst kopieren. Komma und Punkt werden akzeptiert.</Text>
         <View style={[styles.row,{gap:9,alignItems:'flex-start'}]}>
           <View style={{flex:1}}><Field label="Breitengrad" value={latitudeInput}
-            onChange={setLatitudeInput} maxLength={16} placeholder="z. B. 52,36"/></View>
+            onChange={v=>{setLatitudeInput(v);setDraftPoint(null);}} maxLength={16} placeholder="z. B. 52,36"/></View>
           <View style={{flex:1}}><Field label="Längengrad" value={longitudeInput}
-            onChange={setLongitudeInput} maxLength={16} placeholder="z. B. 14,06"/></View>
+            onChange={v=>{setLongitudeInput(v);setDraftPoint(null);}} maxLength={16} placeholder="z. B. 14,06"/></View>
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Ort anhand der Koordinaten markieren"
           onPress={markCoordinates} style={[styles.mainBtn,{marginTop:2}]}>
           <Text style={styles.mainBtnText}>Koordinaten übernehmen</Text>
         </Pressable>
-        <Text style={[styles.coordinate,{marginTop:10}]}>{draftPoint?'✓ Ort auf Karte markiert':'Noch kein Punkt ausgewählt'}</Text>
+        <Text accessibilityLiveRegion="polite" style={[styles.coordinate,{marginTop:10}]}>{draftPoint?'✓ Ort auf Karte markiert':'Noch kein Punkt ausgewählt'}</Text>
+        {searchError?<Text accessibilityLiveRegion="assertive" style={[styles.warnText,{marginTop:9}]}>{searchError}</Text>:null}
         <Field label="Name des Ortes" value={name} onChange={setName} maxLength={100} placeholder="z. B. Spielplatz am Stadtpark"/>
         <Text style={[styles.label,{marginTop:13}]}>Art des Ortes</Text>
         <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>
