@@ -16,6 +16,7 @@ import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
 import SavedMarketSearches,{saveMarketSearch} from './SavedMarketSearches';
+import PriceAlertPreference from './PriceAlertPreference';
 import TopRightMenu,{MenuIcon,MORE_ITEMS} from './TopRightMenu';
 import FamilyOutingScreen from './FamilyOutingScreen';
 import PushSettings from './PushSettings';
@@ -394,7 +395,7 @@ async function openInboxEvent(event){
    if(!fresh||accountRef.current!==me)return false;
    setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);
    setExtraReturnTab('inbox');
-   if(row.kind==='search'){
+   if(row.kind==='search'||row.kind==='price'){
      const {data:listing,error}=await supabase.from('ff_market_listings').select('id').eq('id',row.listing_id).eq('moderation_status','approved').neq('seller_id',me).maybeSingle();
      if(accountRef.current!==me)return false;
      if(error||!listing){setNotice('Dieses Angebot ist nicht mehr verfügbar.');return false;}
@@ -1404,6 +1405,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
         mode={onlyFavorites?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
+    {onlyFavorites&&!open&&!boxOpen?<PriceAlertPreference key={me} userId={me} active={active}/>:null}
     {!open&&!boxOpen&&active?<Card style={{marginBottom:15,backgroundColor:'#FFF4DA'}}>
       <Text style={styles.sectionTitle}>Kistenmodus</Text>
       <Text style={[styles.micro,{marginBottom:10}]}>Viele Sachen auf einmal erfassen. Ein Foto, mehrere Entwürfe – einzeln oder im Paket.</Text>
