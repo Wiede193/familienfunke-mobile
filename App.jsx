@@ -15,6 +15,7 @@ import WelcomeIntro from './WelcomeIntro';
 import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
+import SavedMarketSearches,{saveMarketSearch} from './SavedMarketSearches';
 import TopRightMenu,{MenuIcon,MORE_ITEMS} from './TopRightMenu';
 import FamilyOutingScreen from './FamilyOutingScreen';
 import PushSettings from './PushSettings';
@@ -393,7 +394,12 @@ async function openInboxEvent(event){
    if(!fresh||accountRef.current!==me)return false;
    setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);
    setExtraReturnTab('inbox');
-   if(row.kind==='market'){
+   if(row.kind==='search'){
+     const {data:listing,error}=await supabase.from('ff_market_listings').select('id').eq('id',row.listing_id).eq('moderation_status','approved').neq('seller_id',me).maybeSingle();
+     if(accountRef.current!==me)return false;
+     if(error||!listing){setNotice('Dieses Angebot ist nicht mehr verfügbar.');return false;}
+     setMarketIntent({type:'buyerListing',id:listing.id,returnTab:'inbox'});setTab('market');
+   }else if(row.kind==='market'){
      let listing=fresh.listings.find(x=>x.id===row.listing_id&&x.seller_id===me);
      if(!listing){
        const {data,error}=await supabase.from('ff_market_listings').select('*').eq('id',row.listing_id).eq('seller_id',me).maybeSingle();
@@ -447,9 +453,9 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 </View><TechnicalHelpScreen initialCategory="Anmeldung & Konto"/></>:
 <Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
 </SafeAreaView>;
-const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',more:'Weitere Bereiche'};
+const EXTRA_TITLES={savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',more:'Weitere Bereiche'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else{setMapIntent(null);setTab('outing');}}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab))setTab(extraReturnTab);}
+function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else{setMapIntent(null);setTab('outing');}}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches'].includes(tab))setTab(extraReturnTab);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
@@ -461,7 +467,7 @@ return <SafeAreaView style={styles.screen}>
   </View>
 </View>
 {tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><Text accessibilityElementsHidden importantForAccessibility="no" style={{fontSize:22,color:C.ink}}>🔔︎</Text>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
-{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||(tab==='map'&&mapIntent)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
+{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
 <Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
 {error?<Pressable accessibilityRole="button" accessibilityLabel={'Fehlermeldung schließen. '+error} accessibilityLiveRegion="assertive" onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
@@ -502,7 +508,8 @@ tab==='map'?<FamilyMapScreen userId={me} active={active} entryPlaceId={mapIntent
  await moderateTextOrThrow([v.title,v.description,v.region_label]);
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
-tab==='market'?<MarketScreen key={me} entryIntent={marketIntent} listings={db.listings} me={me} active={active} busy={busy}
+tab==='savedSearches'?<SavedMarketSearches key={me} userId={me} onSearch={row=>{setMarketIntent({type:'savedSearch',row,returnTab:'savedSearches'});setTab('market');}} onBrowse={()=>{setMarketIntent(null);setTab('market');}}/>:
+tab==='market'?<MarketScreen key={me} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} listings={db.listings} me={me} active={active} busy={busy}
 organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} favorites={db.marketFavorites} contacts={db.contacts}
 createListing={(v,assets,stableId)=>execute(async()=>{
  // Basar-Texte nicht wegen einzelner Wörter vorab blockieren.
@@ -765,7 +772,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
     </View>:null}
   </View>;
 }
-function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked}){
+function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked}){
   const [open,setOpen]=useState(false);
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<375||fontScale>=1.5;
@@ -776,6 +783,8 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
   const [minPrice,setMinPrice]=useState('');
   const [maxPrice,setMaxPrice]=useState('');
   const [filterOpen,setFilterOpen]=useState(false);
+  const [savingSearch,setSavingSearch]=useState(false);
+  const [buyerFocus,setBuyerFocus]=useState(null);
   const [selectedListing,setSelectedListing]=useState(null);
   const [onlyMine,setOnlyMine]=useState(false);
   const [onlyFavorites,setOnlyFavorites]=useState(false);
@@ -841,6 +850,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
   },[entryIntent,boxStorage]);
   useEffect(()=>{
     if(entryIntent?.type!=='search')return;
+    setBuyerFocus(null);
     setQuery(entryIntent.query||'');
     setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');
     setSortBy('relevance');setOnlyMine(false);setOnlyFavorites(false);
@@ -848,10 +858,34 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
   },[entryIntent]);
   useEffect(()=>{
     if(entryIntent?.type!=='inboxListing')return;
+    setBuyerFocus(null);
     setQuery('');setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');
     setOnlyMine(true);setOnlyFavorites(false);setOpen(false);setBoxOpen(false);setGalleryIndex(0);
     setSelectedListing(entryIntent.id);
   },[entryIntent]);
+  useEffect(()=>{
+    if(entryIntent?.type==='savedSearch'){
+      const row=entryIntent.row;
+      setQuery(row.query);setFilter(row.category);setTradeFilter(row.trade_type);
+      setMinPrice(row.min_cents==null?'':String(row.min_cents/100).replace('.',','));
+      setMaxPrice(row.max_cents==null?'':String(row.max_cents/100).replace('.',','));
+      setFilterOpen(true);setSortBy('relevance');setOnlyMine(false);setOnlyFavorites(false);
+      setOpen(false);setBoxOpen(false);setBuyerFocus(null);setSelectedListing(null);
+    }else if(entryIntent?.type==='buyerListing'){
+      setQuery('');setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');
+      setOnlyMine(false);setOnlyFavorites(false);setOpen(false);setBoxOpen(false);setGalleryIndex(0);
+      setBuyerFocus(entryIntent.id);setSelectedListing(entryIntent.id);
+    }
+  },[entryIntent]);
+  async function saveCurrentSearch(){
+    if(savingSearch||!active||onlyMine||onlyFavorites)return;
+    setSavingSearch(true);
+    try{
+      await saveMarketSearch({query,category:filter,trade:tradeFilter,minPrice,maxPrice});
+      Alert.alert('Suche gespeichert','Du findest den Suchauftrag unter Meine Suchaufträge. Dort kannst du Mitteilungen jederzeit ein- oder ausschalten.');
+    }catch(e){Alert.alert('Suchauftrag',e.message||'Speichern nicht möglich.');}
+    finally{setSavingSearch(false);}
+  }
   const [boxSaveError,setBoxSaveError]=useState(false);
   const [boxPending,setBoxPending]=useState(null);
   const submitLock=useRef(false);
@@ -960,14 +994,14 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
     if(searchPage===0){setRemoteListings([]);setRemoteHasMore(false);}
     const timer=setTimeout(async()=>{
       try{
-        const {data,error:e}=await supabase.rpc('ff_market_search',{
+        const {data,error:e}=buyerFocus?await supabase.from('ff_market_listings').select('*').eq('id',buyerFocus).eq('moderation_status','approved'):await supabase.rpc('ff_market_search',{
           p_query:query.trim().slice(0,160),p_category:filter,p_trade_type:tradeFilter,
           p_min_cents:minimum,p_max_cents:maximum,p_favorites_only:onlyFavorites,
           p_sort:sortBy,p_limit:40,p_offset:searchPage*40
         });
         if(e)throw e;
         if(!Array.isArray(data))throw new Error('Ungültige Suchantwort');
-        const records=data.map(row=>({...row.listing,match_item:row.match_item||''}))
+        const records=(buyerFocus?data.map(listing=>({listing})):data).map(row=>({...row.listing,match_item:row.match_item||''}))
           .filter(row=>!!row.id&&row.moderation_status==='approved');
         const images=await Promise.all(records.filter(row=>row.photo_path).map(async row=>{
           const {data:link,error:photoError}=await supabase.storage.from('ff-market-photos').createSignedUrl(row.photo_path,600);
@@ -991,7 +1025,8 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
         setRemotePhotoUrls(old=>({...old,...Object.fromEntries(images)}));
         setRemoteExtraPhotos(old=>searchPage===0?extras:[...old,...extras.filter(p=>!old.some(v=>v.photo_path===p.photo_path))]);
         setRemoteExtraUrls(old=>({...old,...Object.fromEntries(extraLinks)}));
-        setRemoteHasMore(records.length===40);
+        setRemoteHasMore(!buyerFocus&&records.length===40);
+        if(buyerFocus&&!records.length)setRemoteError('Dieses Angebot ist nicht mehr verfügbar.');
       }catch(e){
         if(live&&seq===searchSeq.current){
           setRemoteError('Die Suche ist gerade nicht erreichbar. Bitte erneut versuchen.');
@@ -1002,7 +1037,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
       }
     },searchPage===0?320:0);
     return ()=>{live=false;clearTimeout(timer);};
-  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteVersion,me]);
+  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteVersion,me,buyerFocus]);
   const filtered=serverSearchActive?remoteListings.filter(x=>!blocked(x.seller_id)):
     listings.filter(x=>
       ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
@@ -1361,13 +1396,13 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
     <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
       <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
-        onPress={()=>{setOnlyMine(false);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
+        onPress={()=>{setBuyerFocus(null);setOnlyMine(false);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
       <View style={{flex:1}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+')'}
         mode={onlyMine?'primary':'outline'} small
-        onPress={()=>{setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
+        onPress={()=>{setBuyerFocus(null);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
       <View style={{flex:1}}><Button title={'♡ Merkliste ('+favorites.filter(f=>listings.some(x=>x.id===f.listing_id&&x.moderation_status==='approved')).length+')'}
         mode={onlyFavorites?'primary':'outline'} small
-        onPress={()=>{setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
+        onPress={()=>{setBuyerFocus(null);setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
     {!open&&!boxOpen&&active?<Card style={{marginBottom:15,backgroundColor:'#FFF4DA'}}>
       <Text style={styles.sectionTitle}>Kistenmodus</Text>
@@ -1660,7 +1695,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
       {!editingId&&!boxEditor?<Button title="Viele Artikel? Zum Kistenmodus" mode="ghost" disabled={busy||choosing||scanBusy} onPress={()=>Alert.alert('Zum Kistenmodus wechseln?','Die Angaben dieser einzelnen Anzeige werden verworfen.',[{text:'Abbrechen',style:'cancel'},{text:'Wechseln',onPress:()=>{resetForm();showBox();}}])}/>:null}
     </Card>:null}
     {!boxOpen&&!boxEditor&&selected?<View>
-      <Pressable accessibilityRole="button" onPress={()=>setSelectedListing(null)} style={{marginBottom:14,paddingVertical:8}}>
+      <Pressable accessibilityRole="button" onPress={()=>{setSelectedListing(null);setBuyerFocus(null);}} style={{marginBottom:14,paddingVertical:8}}>
         <Text style={{color:C.accentDark,fontWeight:'800',fontSize:15}}>‹ Zurück zu den Anzeigen</Text>
       </Pressable>
       <Card style={styles.marketDetailCard}>
@@ -1770,6 +1805,8 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
         <Button mode="ghost" title="Filter zurücksetzen" small
           onPress={()=>{setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');setSortBy('relevance');}}/>
       </Card>:null}
+      {!onlyMine&&!onlyFavorites&&!buyerFocus?<Button title={savingSearch?'Speichert …':'♡ Suche speichern'} mode="outline" disabled={savingSearch||!active} onPress={saveCurrentSearch}/>:null}
+      <View style={{marginTop:8,marginBottom:12}}><Button title="Meine Suchaufträge" mode="ghost" onPress={onSavedSearches}/></View>
       <Row style={{justifyContent:'space-between',marginBottom:12}}>
         <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length}{serverSearchActive&&remoteHasMore?'+':''} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
         <Text style={styles.micro}>Neu und gebraucht</Text>
