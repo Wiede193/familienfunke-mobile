@@ -42,12 +42,12 @@ assert.match(source,/styles\.searchResultSelected/,'Selected list entry must be 
 assert.match(source,/styles\.mapSelectedInfo/,'Selected location must display readable information');
 assert.match(source,/scroll\.current\?\.scrollTo/,
   'Selecting a result must reveal the actual map');
-assert.match(source,/match\.source==='city'\?/, 'City search should offer nearby place loading');
+assert.match(source,/selectedSearchMatch\.source==='city'\?/, 'City search should offer nearby place loading');
 assert.match(source,/onPress=\{\(\)=>map\.current\?\.injectJavaScript\(mapScript\('fitSearchResults'\)\)\}/,
   'Users should be able to refocus map on matches');
 assert.match(source,/accessible=\{false\} importantForAccessibility="no-hide-descendants"/,
   'Screenreader list must remain the map navigation alternative');
-assert.ok(source.indexOf('<View style={styles.mapFrame}')<
- source.indexOf('locationMatches.map(match=>'),
+assert.ok(source.indexOf('<View style={styles.mapFrame} onLayout=')>=0&&
+ source.indexOf('<View style={styles.mapFrame} onLayout=')<source.indexOf('locationMatches.map(match=>'),
  'Map should appear immediately after the search field, before search results');
 console.log('Interaktive Karte: Pins, Suchergebnis-Auswahl, Kartenausschnitt und Barrierefreiheit geprüft.');
