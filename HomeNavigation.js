@@ -7,6 +7,7 @@ export const HOME_ROUTES = [
   {id:'map',title:'Familienkarte',subtitle:'Spielplätze und Ausflugsziele auf der Karte entdecken',words:'karte spielplatz spielplaetze ausflug ausflugsziele ort in der naehe parks spielorte spielmoeglichkeiten'},
   {id:'outing',title:'Ausflugsplaner',subtitle:'Ausflug nach Budget, Altersgruppen und Entfernung planen',words:'ausflugsplaner wochenendausflug tagesausflug ausflug planen wochenende planen familienausflug planung unternehmung budget'},
   {id:'guide',title:'Familienwegweiser',subtitle:'Dauerhafte Tipps und Ziele für Familien',words:'wegweiser ratgeber ausflug freizeit elternwissen region unternehmungen'},
+  {id:'play',title:'Familienzeit – Quiz & Spiele',subtitle:'Gemeinsam rätseln und Beschäftigungsideen entdecken',words:'quiz familienquiz rätsel raetsel knobeln spiele spielen familienzeit regen beschäftigung beschaeftigung spielideen wissensfragen'},
   {id:'calendar',title:'Mein Familienkalender',subtitle:'Private Termine, gemerkte Treffen und Ausflüge',words:'kalender familienkalender wochenplan privatausflug eigener privater termin termine planen termin eintragen'},
   {id:'events',title:'Treffen & Veranstaltungen',subtitle:'Gemeinsame Aktivitäten finden und planen',words:'veranstaltung termin treffen event kindergeburtstag ausmachen'},
   {id:'contacts',title:'Kontakte & Nachrichten',subtitle:'Anfragen und private Gespräche verwalten',words:'chat nachricht anschreiben kontakt freundschaft einladung'},
@@ -34,6 +35,7 @@ export function looksLikeMarketProductQuery(value){
 }
 export function findHomeRoutes(value){
  const intent=normalize(value);
+ if(/\b(quiz|familienquiz|familienzeit|ratsel|raetsel|knobeln|spielideen)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='play')];
  if(/\b(kalender|familienkalender|wochenplan)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='calendar')];
  if(/^(treffen|veranstaltungen|veranstaltung|events)$/.test(intent))return [HOME_ROUTES.find(x=>x.id==='events')];
  if(/^(chat|chats|private nachrichten|unterhaltungen)$/.test(intent))return [HOME_ROUTES.find(x=>x.id==='chat')];
