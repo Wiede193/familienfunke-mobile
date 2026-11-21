@@ -1,26 +1,22 @@
-// Filter nur nach ausdrücklich genannten Kindergrößen; keine KI-Schätzung.
-// Funktioniert auch mit älteren Freitext-Anzeigen und Paketlisten.
-const sizeMarker=/(?:^|[\s·(])(?:Größe|Gr\.?)\s*:?\s*(\d{2,3}(?:\s*\/\s*\d{2,3})?)(?=$|[\s·,);])/gi;
+// Familienfunke: Größen sind eigenständige, filterbare Metadaten.
+// Niemals Größen aus Titeln/Beschreibungen für die laufende Suche erraten.
 const normalize=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/\s+/g,' ').toLowerCase();
+const normalizedSize=v=>String(v||'').trim().toUpperCase().replace(',','.').replace(/\s+/g,'');
+const validSize=v=>/^(?:[0-9]{1,3}(?:\.[05])?|3XL|XXS|XS|S|M|L|XL|XXL)$/.test(v);
 
+// Größen wie 98/104 werden als zwei gezielt suchbare Einträge gespeichert.
+export function collectMarketSizeLabels(rawValues){
+  const items=(Array.isArray(rawValues)?rawValues:[rawValues]).flatMap(x=>
+    String(x||'').split(/[\/;,]/).map(normalizedSize).filter(validSize));
+  return [...new Set(items)].slice(0,40);
+}
 export function marketListingSizes(listing){
-  const text=[listing?.title,listing?.description].filter(Boolean).join('\n');
-  const found=[];
-  for(const match of text.matchAll(sizeMarker)){
-    const size=match[1].replace(/\s+/g,'');
-    if(!found.includes(size))found.push(size);
-  }
-  return found;
+  return collectMarketSizeLabels(listing?.size_labels||[]);
 }
-
 export function marketMatchesSize(listing,selected){
-  const requested=normalize(selected);
-  return !selected||selected==='Alle'||marketListingSizes(listing).some(size=>{
-    const actual=normalize(size);
-    return actual===requested||(actual.includes('/')&&actual.split('/').includes(requested));
-  });
+  if(!selected||selected==='Alle')return true;
+  return marketListingSizes(listing).includes(normalizedSize(selected));
 }
-
 export function marketMatchesRegion(listing,selected){
   return !selected||selected==='Alle'||normalize(listing?.region_label)===normalize(selected);
 }
