@@ -36,7 +36,7 @@ assert.match(app,/accessibilityLabel="Nur Familien mit gemeinsamen Hobbys anzeig
   'Interest filter switch needs an explicit label');
 assert.match(app,/accessibilityLabel="Familienprofil für andere Familien sichtbar"/,
   'Privacy switch needs an explicit label');
-assert.match(app,/accessibilityLiveRegion="assertive"/,
+assert.match(read('FamilyStatus.jsx'),/accessibilityLiveRegion=\{error\?'assertive':'polite'\}/,
   'Errors should be announced when they appear');
 assert.match(app,/accessibilityViewIsModal style=\{styles\.modalShade\}/,
   'Report dialog should isolate its contents');

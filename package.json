@@ -32,7 +32,8 @@
     "check:layout": "node tests/check-family-layout.mjs",
     "check:actions": "node tests/check-family-actions.mjs",
     "check:voice": "node tests/check-family-voice.mjs",
-    "check:ux-resilience": "node tests/check-ux-resilience.mjs"
+    "check:ux-resilience": "node tests/check-ux-resilience.mjs",
+    "check:layout-sync": "node tests/check-layout-sync.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

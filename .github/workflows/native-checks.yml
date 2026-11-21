@@ -27,6 +27,8 @@ jobs:
         run: npx expo install --check
       - name: KI-Startseite Navigation und Datenschutz prüfen
         run: npm run check:home
+      - name: Kontobezogene Layout-Synchronisierung und RLS-Verträge prüfen
+        run: npm run check:layout-sync
       - name: Entwürfe, Symbole, Statusmeldungen und Bildabrufe prüfen
         run: npm run check:ux-resilience
       - name: Datenschutz und Fallback der optionalen Spracheingabe prüfen

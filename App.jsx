@@ -71,6 +71,9 @@ const msg = errorMessage(e);
 if (/invalid login credentials/i.test(msg)) return 'E-Mail oder Passwort stimmen nicht. Bitte prüfe deine Zugangsdaten.';
 if (/email not confirmed/i.test(msg)) return 'Deine E-Mail-Adresse ist noch nicht bestätigt.';
 if (/row-level security|permission denied|policy/i.test(msg)) return 'Diese Aktion ist noch nicht freigegeben oder durch die Sicherheitsregeln gesperrt.';
+if (/network request failed|failed to fetch|networkerror|timeout|timed out/i.test(msg)) return 'Die Verbindung wurde unterbrochen. Prüfe dein Internet und versuche es erneut.';
+if (/jwt expired|invalid jwt|session expired/i.test(msg)) return 'Deine Anmeldung ist abgelaufen. Melde dich erneut an.';
+if (/duplicate key|23505/i.test(msg)) return 'Dieser Eintrag ist bereits vorhanden. Bitte aktualisiere die Ansicht.';
 return msg;
 };
 /**
@@ -435,7 +438,7 @@ function planCalendarPlace(place){
 function selectMenuItem(id){
   setMenuOpen(false);
   if(id==='layout'){setLayoutEditor({owner:me,section:'home'});return;}
-  if(id==='refresh'){load();return;}
+  if(id==='refresh'){load();layoutPrefs.refresh();return;}
   if(id==='welcome'){setShowWelcome(true);return;}
   if(id==='info'){setDetailFamily(null);setSelectedContact(null);setShowInfo(true);return;}
   if(id==='inbox'){openInbox();return;}
@@ -461,7 +464,7 @@ function guardLeave(next){
  const retained=['profile','calendar'].includes(tab)&&drafts.has(tab);
  const lost=(tab==='market'&&drafts.has('market-form'))||(tab==='profile'&&drafts.has('profile-transient'));
  if(!retained&&!lost){next();return;}
- Alert.alert('Ungespeicherte Änderungen',lost?'Nicht gespeicherte Fotos, Passwörter oder Anzeigenangaben können verloren gehen.':'Dein Entwurf bleibt bis zur Abmeldung oder zum Schließen der App in dieser Sitzung erhalten.',[{text:'Weiter bearbeiten',style:'cancel'},{text:'Verlassen',onPress:()=>{if(accountRef.current===me){drafts.clear('market-form');drafts.clear('profile-transient');next();}}}]);
+ Alert.alert('Ungespeicherte Änderungen',lost?'Nicht gespeicherte Fotos, Passwörter und Änderungen an bestehenden Anzeigen können verloren gehen. Textentwürfe neuer Anzeigen bleiben während dieser Sitzung erhalten.':'Dein Entwurf bleibt bis zur Abmeldung oder zum Schließen der App in dieser Sitzung erhalten.',[{text:'Weiter bearbeiten',style:'cancel'},{text:'Verlassen',onPress:()=>{if(accountRef.current===me){drafts.clear('market-form');drafts.clear('profile-transient');next();}}}]);
 }
 function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='calendar'){setMapIntent(null);setTab('calendar');}else if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else{setMapIntent(null);setTab('outing');}}else if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);}else if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches'].includes(tab))setTab(extraReturnTab);}
 return <SafeAreaView style={styles.screen}>
@@ -519,7 +522,7 @@ tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
 tab==='savedSearches'?<SavedMarketSearches key={me} userId={me} onSearch={row=>{setMarketIntent({type:'savedSearch',row,returnTab:'savedSearches'});setTab('market');}} onBrowse={()=>{setMarketIntent(null);setTab('market');}}/>:
-tab==='market'?<MarketScreen key={me} drafts={drafts} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} listings={db.listings} me={me} active={active} busy={busy}
+tab==='market'?<MarketScreen key={me} drafts={drafts} onSavedSearches={()=>guardLeave(()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');})} entryIntent={marketIntent} listings={db.listings} me={me} active={active} busy={busy}
 organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} favorites={db.marketFavorites} contacts={db.contacts}
 createListing={(v,assets,stableId)=>execute(async()=>{
  // Basar-Texte nicht wegen einzelner Wörter vorab blockieren.
@@ -619,7 +622,7 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>si
 {customTabs.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{if(id===tab)return;guardLeave(()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setFocusContactId(null);setExtraReturnTab('home');setTab(id);setShowEventForm(false);});}}
 accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,wrapTabs&&{flexBasis:'30%',flexGrow:0},(tab===id)&&styles.tabActive]}><FamilyIcon name={id} color={tab===id?C.accentDark:C.muted}/><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
-{layoutEditor?.owner===me?<FamilyLayoutEditor key={me+':'+layoutPrefs.ready} initial={layoutPrefs.layout} ready={layoutPrefs.ready} error={layoutPrefs.error} initialSection={layoutEditor.section} onSave={layoutPrefs.save} onClose={()=>{if(accountRef.current===me)setLayoutEditor(null);}}/>:null}
+{layoutEditor?.owner===me?<FamilyLayoutEditor key={me+':'+layoutPrefs.ready} initial={layoutPrefs.layout} ready={layoutPrefs.ready} error={layoutPrefs.error} syncPending={layoutPrefs.pending} syncAvailable={layoutPrefs.available} syncConflict={layoutPrefs.conflict} onRefresh={layoutPrefs.refresh} initialSection={layoutEditor.section} onSave={layoutPrefs.save} onClose={()=>{if(accountRef.current===me)setLayoutEditor(null);}}/>:null}
 <TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget&&!layoutEditor} onClose={()=>setMenuOpen(false)} onSelect={id=>{if(['refresh','layout','welcome'].includes(id)||id===tab){selectMenuItem(id);return;}setMenuOpen(false);guardLeave(()=>selectMenuItem(id));}} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
@@ -826,7 +829,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
   const [expandFacts,setExpandFacts]=useState(false);
   const [scanned,setScanned]=useState(false);
   const [askSize,setAskSize]=useState(false);
-  useEffect(()=>{drafts.set('market-form',open?true:null);return()=>drafts.clear('market-form');},[drafts,open]);
+
   const [boxOpen,setBoxOpen]=useState(false);
   const [boxPhoto,setBoxPhoto]=useState(null);
   const [boxDrafts,setBoxDrafts]=useState([]);
@@ -847,6 +850,14 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
   const marketScrollRef=useRef(null);
   useEffect(()=>{if(boxOpen||boxEditor)marketScrollRef.current?.scrollTo({y:0,animated:false});},[boxStep,boxOpen,boxEditor]);
   const [boxStorage,setBoxStorage]=useState('loading');
+  useEffect(()=>{drafts.set('market-form',open?true:null);return()=>drafts.clear('market-form');},[drafts,open]);
+  // New listing: retain text only in this account session. Editing an existing
+  // listing and the separately persisted box workflow are not mixed with it.
+  useEffect(()=>{
+    if(open&&!editingId&&!boxEditor&&(title||description||price||region||photo.length||Object.values(facts).some(Boolean))){
+      drafts.set('market-new',{title,description,region,category,condition,trade,price,organizationId,quick,facts:{...facts}});
+    }
+  },[drafts,open,editingId,boxEditor,title,description,region,category,condition,trade,price,organizationId,quick,facts,photo.length]);
   // Deep-link the homepage directly into the actual selling workflows.
   // Wait for the on-device box snapshot before opening an existing box.
   useEffect(()=>{
@@ -854,7 +865,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
     if(entryIntent==='box'){
       setOpen(false);setSelectedListing(null);setBoxStep(boxDrafts.length?'review':'photo');setBoxOpen(true);
     }else if(entryIntent==='sell'){
-      resetForm();setBoxOpen(false);setQuick(true);setCondition('');setOpen(true);setSelectedListing(null);
+      startQuick();
     }
   },[entryIntent,boxStorage]);
   useEffect(()=>{
@@ -1072,7 +1083,12 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
     finally{setChoosing(false);}
   }
   function startQuick(){
+    const saved=drafts.get('market-new');
     setBoxOpen(false);resetForm();setQuick(true);setCondition('');setOpen(true);setSelectedListing(null);
+    if(saved){
+      setTitle(saved.title);setDescription(saved.description);setRegion(saved.region);setCategory(saved.category);setCondition(saved.condition);setTrade(saved.trade);setPrice(saved.price);setOrganizationId(saved.organizationId);setQuick(saved.quick);setFacts(saved.facts);setConfirmed(false);
+      setScanNotice('Textentwurf wiederhergestellt. Bitte Fotos erneut auswählen und Angaben prüfen.');
+    }
   }
   function showBox(){
     setOpen(false);setSelectedListing(null);setBoxAdvanced(false);setBoxShowAll(false);
@@ -1365,6 +1381,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
         if(region.trim())setBoxRegion(region.trim());
         setBoxNotice('Zur Prüfung eingereicht. Weitere Entwürfe kannst du jetzt bearbeiten.');setBoxStep('package');
       }
+      if(!submitted&&!editingId)drafts.clear('market-new');
       resetForm();setOpen(false);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);
       if(submitted)setBoxOpen(true);
     }else if(boxEditor){
@@ -1400,7 +1417,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
         <Text style={styles.marketTopTitle}>Entdecken & weitergeben</Text>
         <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
       </View>
-      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){confirmRemoval({title:'Anzeige verwerfen?',description:'Die nicht gespeicherten Änderungen an dieser Anzeige gehen verloren.',confirmLabel:'Verwerfen',onConfirm:()=>{resetForm();setOpen(false);}});}else{startQuick();}}}/>
+      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':drafts.has('market-new')?'Entwurf fortsetzen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){confirmRemoval({title:'Anzeige verwerfen?',description:'Die nicht gespeicherten Änderungen an dieser Anzeige gehen verloren.',confirmLabel:'Verwerfen',onConfirm:()=>{if(!editingId)drafts.clear('market-new');resetForm();setOpen(false);}});}else{startQuick();}}}/>
     </View>
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
     <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
