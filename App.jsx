@@ -18,6 +18,7 @@ import {FACT_KEYS,EMPTY_FACTS,DEFECTS,encodeArticleFacts,decodeArticleFacts,arti
 import {compactBoxDetail,summarizeBox,packageNote,packagePersonalLimit,parsePackageNote,labelSource,BOX_MAX_ITEMS,BOX_MAX_BATCHES,BOX_MAX_PACKAGE,sizeGroups,matchingBatchPhotos,sameBoxSelection,listingDraftId} from './MarketBoxPackage';
 import {keepBoxPhoto,availableBoxPhoto,loadBoxSnapshot,saveBoxSnapshot,deleteBoxStorage,makeBoxCrop} from './MarketBoxStorage';
 import { cropBounds,suggestedCrop,changeCrop,pixelCrop,photoIssues,PHOTO_ISSUES } from './MarketBoxCrop';
+import {suggestBoxPackages,packageCheck} from './MarketBoxSuggestions';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
@@ -687,6 +688,10 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [boxCurrentBatch,setBoxCurrentBatch]=useState(null);
   const [boxSelected,setBoxSelected]=useState(null);
   const [boxFilter,setBoxFilter]=useState('all');
+  const [boxStep,setBoxStep]=useState('photo');
+  const [boxAdvanced,setBoxAdvanced]=useState(false);
+  const [boxShowAll,setBoxShowAll]=useState(false);
+  const [boxFormExtras,setBoxFormExtras]=useState(false);
   const [boxStorage,setBoxStorage]=useState('loading');
   const [boxSaveError,setBoxSaveError]=useState(false);
   const [boxPending,setBoxPending]=useState(null);
@@ -702,6 +707,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const selectedBoxDrafts=boxDrafts.filter(d=>selectedBoxIds.includes(d.id));
   const boxSummary=useMemo(()=>summarizeBox(boxDrafts),[boxDrafts]);
   const boxSizeGroups=useMemo(()=>sizeGroups(boxDrafts),[boxDrafts]);
+  const boxSuggestions=useMemo(()=>suggestBoxPackages(boxDrafts),[boxDrafts]);
+  const boxChecks=useMemo(()=>packageCheck(boxDrafts),[boxDrafts]);
   const visibleBoxDrafts=boxDrafts.filter(d=>boxFilter==='unknown'?d.category==='Kleidung'&&!d.facts.size:boxFilter==='review'?!!d.uncertainty||!d.title.trim():boxFilter==='selected'?selectedBoxIds.includes(d.id):true);
   function boxSnapshot(pending=boxPending){
     let drafts=boxDrafts,bundle=boxPackageDraft;
@@ -805,14 +812,15 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     setBoxOpen(false);resetForm();setQuick(true);setCondition('');setOpen(true);setSelectedListing(null);
   }
   function showBox(){
-    setOpen(false);setSelectedListing(null);setBoxOpen(true);
+    setOpen(false);setSelectedListing(null);setBoxAdvanced(false);setBoxShowAll(false);
+    setBoxStep(boxDrafts.length?'review':'photo');setBoxOpen(true);
   }
   async function clearBox(){
     setChoosing(true);
     try{
       await deleteBoxStorage(me);
       setBoxPhoto(null);setBoxDrafts([]);setBoxNotice('');setBoxScanned(false);
-      setBoxOverflow(false);setBoxEditor(null);setBoxPackageDraft(null);setBoxBatches([]);setBoxCurrentBatch(null);setBoxSelected(null);setBoxFilter('all');
+      setBoxOverflow(false);setBoxEditor(null);setBoxPackageDraft(null);setBoxBatches([]);setBoxCurrentBatch(null);setBoxSelected(null);setBoxFilter('all');setBoxStep('photo');setBoxAdvanced(false);
       setBoxRegion('');setBoxInspect(null);setBoxBulkSize('');setBoxQuality([]);setBoxCrop(null);setBoxStorage('ready');setBoxSaveError(false);setBoxPending(null);
     }catch(e){setBoxNotice('Kiste konnte nicht vollständig gelöscht werden: '+humanError(e));}
     finally{setChoosing(false);}
@@ -847,7 +855,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(!asset?.uri||!canCaptureBox)return;
     if(asset.assetId&&boxBatches.some(b=>b.photo?.sourceAssetId===asset.assetId)){setBoxNotice('Dieses Galeriefoto wurde bereits als Fotogruppe erfasst. Wähle ein anderes Bild, damit die Teile nicht doppelt gezählt werden.');return;}
     const kept=await keepBoxPhoto(me,asset);
-    setBoxCrop(null);setBoxQuality([]);setBoxPhoto(kept);setBoxCurrentBatch(null);setBoxNotice('');setBoxScanned(false);setBoxOverflow(false);
+    setBoxCrop(null);setBoxQuality([]);setBoxPhoto(kept);setBoxCurrentBatch(null);setBoxNotice('');setBoxScanned(false);setBoxOverflow(false);setBoxStep('photo');
   }
   function viewBatch(batch){
     if(!batch.photo)return;
@@ -862,7 +870,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         setBoxDrafts(old=>old.filter(d=>!batch.ids.includes(d.id)));
         setBoxBatches(old=>old.filter(b=>b.id!==batch.id));setBoxSelected(null);setBoxPackageDraft(null);
         setBoxCrop(null);setBoxInspect(null);setBoxPhoto(null);setBoxCurrentBatch(null);setBoxScanned(false);setBoxQuality([]);setBoxOverflow(false);
-        setBoxNotice('Fotogruppe verworfen. Fotografiere die noch verfügbaren Teile erneut, diesmal einzeln nebeneinander.');
+        setBoxNotice('Fotogruppe verworfen. Fotografiere die noch verfügbaren Teile erneut, diesmal einzeln nebeneinander.');setBoxStep('photo');
       }}
     ]);
   }
@@ -898,7 +906,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       const incomplete=!!result.overflow||drafts.length!==result.items.length||quality.includes("cutoff");
       setBoxDrafts(old=>[...old,...drafts]);setBoxSeq(n=>n+1);setBoxScanned(true);setBoxOverflow(incomplete);
       setBoxBatches(old=>[...old,{id:batchId,photo:boxPhoto,ids:drafts.map(d=>d.id),reusable:!incomplete,quality}]);
-      setBoxCurrentBatch(batchId);setBoxPackageDraft(null);
+      setBoxCurrentBatch(batchId);setBoxPackageDraft(null);setBoxStep('review');setBoxAdvanced(false);setBoxShowAll(false);
       setBoxNotice(incomplete?'Nicht alle Teile dieser Aufnahme wurden erfasst. Bitte prüfe die Liste und verwende ein passendes Paketfoto.':'Neue Fotogruppe hinzugefügt. Bitte gleiche Artikel ab und fotografiere in der nächsten Gruppe nur andere Teile.');
     }catch(e){setBoxNotice(humanError(e));}finally{setScanBusy(false);}
   }
@@ -1001,9 +1009,11 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(next.length>BOX_MAX_PACKAGE)return Alert.alert('Paket voll','Eine Anzeige enthält bis zu zehn Teile. Die übrigen Teile bleiben für weitere Pakete in der Kiste.');
     setBoxSelected(next);
   }
-  function openBoxPackage(){
-    const items=selectedBoxDrafts,ids=items.map(d=>d.id);
+  function openBoxPackage(preferredIds=null){
+    const ids=Array.isArray(preferredIds)?preferredIds:selectedBoxIds;
+    const items=boxDrafts.filter(d=>ids.includes(d.id));
     if(items.length<2||items.length>BOX_MAX_PACKAGE)return;
+    setBoxSelected(ids);
     if(boxPackageDraft&&sameBoxSelection(boxPackageDraft.packageIds,ids)){openBoxEditor(boxPackageDraft,ids);return;}
     if(items.some(d=>d.title.trim().length<4))return Alert.alert('Artikel benennen','Bitte gib allen ausgewählten Artikeln einen kurzen Namen.');
     const summary=summarizeBox(items);
@@ -1020,7 +1030,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(boxEditor.packageIds)setBoxPackageDraft(draft);
     else {setBoxDrafts(old=>old.map(d=>d.id===draft.id?{...d,...draft,sizeEvidence:draft.facts.size!==d.facts.size?'seller':d.sizeEvidence}:d));setBoxPackageDraft(null);}
     if(region.trim())setBoxRegion(region.trim());
-    resetForm();setOpen(false);setBoxOpen(true);
+    resetForm();setOpen(false);setBoxOpen(true);setBoxStep('package');
   }
   function changeFact(key,value){setFacts(prev=>({...prev,[key]:value,...(key==='defect'&&value!=='Vorhanden'?{defectText:''}:{})}));setConfirmed(false);}
   async function takeArticlePhoto(){
@@ -1090,7 +1100,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         setBoxDrafts(saved.drafts);
         setBoxSelected(null);setBoxPackageDraft(null);setBoxPending(null);
         if(region.trim())setBoxRegion(region.trim());
-        setBoxNotice('Zur Prüfung eingereicht. Weitere Entwürfe kannst du jetzt bearbeiten.');
+        setBoxNotice('Zur Prüfung eingereicht. Weitere Entwürfe kannst du jetzt bearbeiten.');setBoxStep('package');
       }
       resetForm();setOpen(false);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);
       if(submitted)setBoxOpen(true);
