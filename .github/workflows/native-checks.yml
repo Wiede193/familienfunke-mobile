@@ -43,6 +43,8 @@ jobs:
         run: npm run check:mfa-ai
       - name: KI-Verbrauchserfassung prüfen
         run: npm run check:ai-usage
+      - name: Freiwillige private Push-Benachrichtigungen prüfen
+        run: npm run check:push
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen

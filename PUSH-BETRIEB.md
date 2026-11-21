@@ -1,0 +1,14 @@
+# Push – private Beta
+
+Unter Mehr > Benachrichtigungen: explizite Gerätefreigabe, Kategorien Nachrichten, Kontaktanfragen, bestätigte Kontakte, Freigabe/Ablehnung der eigenen Basar-Anzeigen. Standardmäßig nicht eingeschaltet; Kategorien gelten kontoweit, Geräte einzeln. Höchstens drei Geräte je Konto. Abmeldung entfernt das lokale Geräte-Token zuerst serverseitig, bei Verbindungsfehler wird die Abmeldung nicht als erfolgreich bestätigt. OS-Berechtigung kann jederzeit in Systemeinstellungen entzogen werden. Keine Marketing-Pushes.
+
+Server: private.ff_push_runtime.enabled ist false. Keine rückwirkenden Ereignisse, keine Test-Pushes an reale Nutzer. Push-Queue wird nur bei aktivem Versand und vorhandener Einwilligung beschrieben. Beim Versand erneute Prüfung von Konto, Einwilligung, Blockierungen, aktuellem Kontakt-/Inseratstatus und ungelesenem Ereignis. Keine Nachrichtentexte, Namen, Fotos, Standorte, IDs oder anderen Nutzerdaten im Expo-Payload außer dem erforderlichen Geräte-Token. Generischer Text, TTL 300s, keine erzwungenen Sounds, höchstens ein Signal je Konto je Versanddurchlauf, max. 45 Geräte je Minute. Bereits an Expo/Apple/Google versandte Nachrichten lassen sich nicht sicher zurückrufen. Tickets und Receipts, DeviceNotRegistered nur beim unveränderten Eigentümer und Gerätezeitstempel löschen. Keine Wiederholung uneindeutiger Versandversuche; maximal fünf Minuten Queue, drei Tage technische Versanddaten. Keine Zustellgarantie.
+
+## Vor Aktivierung erforderlich
+
+- Native Entwicklungsbuilds statt Expo Go, EAS-Projekt b869a908-353f-489f-bdf4-b3e8d91a8ba1. iOS: APNs-Zugangsdaten, Entwicklerkonto und physisches Testgerät. Android: Firebase-Android-App mit Paket de.familienfunke.app sowie FCM-v1-Zugangsdaten; google-services.json für Build sicher bereitstellen. Keine Service-Account-Schlüssel im Client oder Repo.
+- In Expo Push Security Zugriffstoken konfigurieren; Wert ausschließlich über Supabase Vault als ff_expo_push_access_token ablegen. Keine Schlüssel in den Chat oder GitHub. Betreiber aktiviert Versandflag erst nach kontrolliertem Test mit eigens gewählten Testkonten und funktionierenden Push-Credentials. Die aktuelle Migration aktiviert den Versand nicht.
+- Praktischer Test auf iOS/Android im Vorder-/Hintergrund und bei geschlossener App, Systemberechtigung verweigert, Offline-Abmeldung, Kontowechsel, Tokenwechsel, Kategorie abgewählt, Block/Nichtfreigabe, ein und mehrere Geräte, Ticket-/Receipt-Fehler. Derzeit werden Kategorien und Gerät verwaltet, aber das Antippen führt über das Betriebssystem nur zur App, nicht gezielt zum Chat. In-App-Nachrichtenzentrale und Benachrichtigung bei Preisänderung/Favoriten separat evaluieren.
+- Datenschutzerklärung und App-Store-Formulare um Expo/APNs/FCM-Token und generische Hinweise ergänzen.
+
+Dokumentation: https://docs.expo.dev/push-notifications/push-notifications-setup/ und https://docs.expo.dev/push-notifications/sending-notifications/.
