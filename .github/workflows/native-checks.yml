@@ -20,7 +20,10 @@ jobs:
           node-version: '22.13.1'
           cache: npm
       - name: Abhängigkeiten installieren
-        run: npm ci
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          node -e 'const old=JSON.parse(require("child_process").execSync("git show HEAD:package-lock.json").toString()),next=require("./package-lock.json"); const added=Object.fromEntries(Object.entries(next.packages).filter(([k,v])=>JSON.stringify(old.packages[k])!==JSON.stringify(v)));const removed=Object.keys(old.packages).filter(k=>!(k in next.packages)); console.log("PUSH_LOCK_DELTA "+JSON.stringify({added,removed}));'
+          npm ci
       - name: Expo-Paketversionen für den CI-Build abgleichen
         run: npx expo install --fix
       - name: Expo-Paketversionen prüfen
@@ -43,6 +46,8 @@ jobs:
         run: npm run check:mfa-ai
       - name: KI-Verbrauchserfassung prüfen
         run: npm run check:ai-usage
+      - name: Freiwillige private Push-Benachrichtigungen prüfen
+        run: npm run check:push
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen
