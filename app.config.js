@@ -3,7 +3,7 @@
 module.exports=({config})=>{
  try{require.resolve('expo-speech-recognition/package.json');}
  catch{return config;}
- return {...config,plugins:[...(config.plugins||[]),['expo-speech-recognition',{
+ return {...config,android:{...config.android,blockedPermissions:(config.android?.blockedPermissions||[]).filter(x=>x!=='android.permission.RECORD_AUDIO')},plugins:[...(config.plugins||[]),['expo-speech-recognition',{
   microphonePermission:'Familienfunke nutzt das Mikrofon nur nach deiner Auswahl zur lokalen Spracheingabe.',
   speechRecognitionPermission:'Familienfunke benötigt die Spracherkennung für freiwillige Suchtexte.'
  }]]};

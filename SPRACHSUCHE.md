@@ -8,3 +8,5 @@ Der Quellcode ist vorhanden, die native Erweiterung ist bewusst noch NICHT als A
 5. Prüfen, dass Audio nicht gespeichert oder über das Netzwerk gesendet wird. Der Code verlangt lokale Erkennung und verzichtet auf Netzwerk-Fallback. Transkription wird nur ins Suchfeld übernommen, nicht automatisch abgesendet. Erst bewusster Such-/KI-Aufruf sendet Text gemäß vorhandener Datenschutzregeln.
 
 Quellen: https://github.com/jamsch/expo-speech-recognition und https://docs.expo.dev/versions/v58.0.0/sdk/expo/
+
+Isolierter CI-Test: `.github/workflows/voice-native-check.yml` installiert 58.0.1 nur im Runner, überprüft Herkunft und Integrität, erzeugt die iOS-/Android-Projekte, kontrolliert Mikrofonberechtigungen und stellt einen Lockfile-Kandidaten zur Prüfung bereit. Kein produktiver Build oder automatischer Merge.

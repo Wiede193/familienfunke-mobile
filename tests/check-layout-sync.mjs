@@ -11,6 +11,8 @@ const conflict=resolveLayout(local,remote,true);assert.equal(conflict.conflict,t
 const pending=decodeLocalLayout(JSON.parse(encodeLocalLayout(local.value,true,3)));
 assert.equal(resolveLayout(pending,remote,true).conflict,false);
 assert.equal(resolveLayout(pending,null,false).pending,true);
+assert.equal(resolveLayout(pending,null,true).conflict,true);
+assert.equal(resolveLayout(decodeLocalLayout(JSON.parse(encodeLocalLayout({version:1,home:['play'],bottom:['home','play']},true,2))),remote,true).pending,false);
 const sql=read('database/ff_layout_preferences.sql'),client=read('FamilyLayoutPreferences.js');
 assert.match(sql,/enable row level security/);assert.match(sql,/from public,anon,authenticated/);
 assert.match(sql,/using\(user_id=\(select auth.uid\(\)\)\) with check\(user_id=\(select auth.uid\(\)\)\)/);

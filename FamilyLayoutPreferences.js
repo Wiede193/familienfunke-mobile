@@ -27,11 +27,11 @@ export function useFamilyLayout(userId){
    const {available,remote}=await readRemote(userId);
    if(!valid())return;
    const resolved=resolveLayout(local,remote,available);
-   setState({owner:userId,...resolved,ready:true,error:''});
    // Cache the server state locally without overwriting a pending local choice.
    if(available&&!resolved.pending)try{
     await AsyncStorage.setItem(key,encodeLocalLayout(resolved.value,false,resolved.revision));
    }catch{}
+   if(valid())setState({owner:userId,...resolved,ready:true,error:''});
   })();
   return ()=>{alive=false;};
  },[key,userId,reload]);
@@ -60,7 +60,7 @@ export function useFamilyLayout(userId){
       const latest=await readRemote(userId);
       if(!valid())return {saved:false};
       available=latest.available;remoteRevision=latest.remote?.revision??null;
-      conflict=available&&remoteRevision!==null&&remoteRevision!==revision;
+      conflict=available&&remoteRevision!==revision;
      }
     }catch{available=false;}
    }
@@ -72,6 +72,20 @@ export function useFamilyLayout(userId){
   }catch{return {saved:false};}
   finally{if(pending.current===token)pending.current=null;}
  }
- function refresh(){if(pending.current?.owner===userId)return;setState(null);setReload(n=>n+1);}
- return {layout:current?.value||normalizeLayout(null),ready:!!current?.ready,error:current?.error||'',pending:!!current?.pending,available:!!current?.available,conflict:!!current?.conflict,save,refresh};
+ async function useAccountLayout(){
+  if(!key||!current?.conflict||pending.current?.owner===userId||owner.current!==userId)return false;
+  const token={owner:userId};pending.current=token;
+  const valid=()=>owner.current===userId&&pending.current===token;
+  try{
+   const {available,remote}=await readRemote(userId);
+   if(!valid()||!available)return false;
+   const value=remote?normalizeLayout({version:1,home:remote.home,bottom:remote.bottom}):normalizeLayout(null);
+   const revision=remote?.revision??null;
+   await AsyncStorage.setItem(key,encodeLocalLayout(value,false,revision));
+   if(!valid())return false;
+   setState({owner:userId,value,ready:true,error:'',pending:false,revision,remoteRevision:revision,available:true,conflict:false});return true;
+  }catch{return false;}finally{if(pending.current===token)pending.current=null;}
+ }
+ function refresh(){if(pending.current?.owner===userId)return;setState(old=>old?.owner===userId?{...old,ready:false}:null);setReload(n=>n+1);}
+ return {layout:current?.value||normalizeLayout(null),ready:!!current?.ready,error:current?.error||'',pending:!!current?.pending,available:!!current?.available,conflict:!!current?.conflict,save,refresh,useAccountLayout};
 }

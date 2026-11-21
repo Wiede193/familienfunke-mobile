@@ -8,7 +8,9 @@ export function resolveLayout(local,remote,available){
  const remoteRevision=Number.isInteger(remote?.revision)?remote.revision:null;
  if(!available)return {...local,available:false,remoteRevision:null,conflict:false};
  if(local.pending){
-  return {...local,available:true,remoteRevision,conflict:remoteRevision!==null&&remoteRevision!==local.revision};
+  const remoteValue=remoteRevision===null?null:normalizeLayout({version:1,home:remote.home,bottom:remote.bottom});
+  if(remoteValue&&JSON.stringify(remoteValue)===JSON.stringify(local.value))return {value:remoteValue,pending:false,revision:remoteRevision,available:true,remoteRevision,conflict:false};
+  return {...local,available:true,remoteRevision,conflict:remoteRevision!==local.revision};
  }
  if(remoteRevision!==null)return {value:normalizeLayout({version:1,home:remote.home,bottom:remote.bottom}),pending:false,revision:remoteRevision,available:true,remoteRevision,conflict:false};
  return {...local,available:true,remoteRevision:null,conflict:false};

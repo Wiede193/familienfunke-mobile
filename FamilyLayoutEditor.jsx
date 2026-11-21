@@ -35,7 +35,7 @@ function ListEditor({title,items,choices,change,locked=false,busy=false}){
   {available.map(([id,name])=><Action key={id} title={'+ '+name} label={name+' zu '+title+' hinzufügen'} disabled={busy||full} onPress={()=>change([...items,id])}/>)}
  </View>;
 }
-export default function FamilyLayoutEditor({initial,ready,error,syncPending,syncAvailable,syncConflict,onRefresh,onSave,onClose,initialSection='home'}){
+export default function FamilyLayoutEditor({initial,ready,error,syncPending,syncAvailable,syncConflict,onRefresh,onUseAccountLayout,onSave,onClose,initialSection='home'}){
  const [draft,setDraft]=useState(()=>normalizeLayout(initial));
  const [section,setSection]=useState(initialSection);
  const [history,setHistory]=useState([]);
@@ -49,11 +49,17 @@ export default function FamilyLayoutEditor({initial,ready,error,syncPending,sync
   if(!dirty){onClose();return;}
   Alert.alert('Änderungen verwerfen?','Deine bisherigen Einstellungen bleiben erhalten.',[{text:'Weiter bearbeiten',style:'cancel'},{text:'Verwerfen',style:'destructive',onPress:onClose}]);
  }
+ async function acceptAccount(){
+  if(pending.current||!ready)return;
+  pending.current=true;setBusy(true);
+  try{if(await onUseAccountLayout())onClose();else Alert.alert('Nicht übernommen','Dein lokaler Entwurf bleibt erhalten. Bitte versuche es erneut.');}
+  finally{pending.current=false;setBusy(false);}
+ }
  async function save(confirmConflict=false){
   if(pending.current||!ready)return;
   if(syncConflict&&!confirmConflict){
    Alert.alert('Einstellungen auf einem anderen Gerät geändert','Welche Anordnung möchtest du verwenden? Deine lokale Anordnung überschreibt nur nach Bestätigung die Kontoeinstellung.',[
-    {text:'Abbrechen',style:'cancel'},{text:'Meine Anordnung übernehmen',onPress:()=>save(true)}
+    {text:'Abbrechen',style:'cancel'},{text:'Kontoversion übernehmen',onPress:acceptAccount},{text:'Meine Anordnung übernehmen',onPress:()=>save(true)}
    ]);return;
   }
   pending.current=true;setBusy(true);

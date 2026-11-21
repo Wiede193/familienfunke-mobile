@@ -49,3 +49,6 @@ Separate Entitäten für Familienkreise, Mitgliedschaften, Sorgeberechtigungsnac
 - Deutsches Kinderhilfswerk: https://www.dkhw.de/informieren/unsere-themen/kinder-und-medien/kinderfotos-im-netz/
 - Berliner Datenschutzbeauftragte: https://www.datenschutz-berlin.de/themen/medien/foto-und-videoaufnahmen/
 - Vergleich eines privaten Album-Modells: https://family-album.com/privacy
+
+## Prüfstufe 2
+GitHub-Lauf 144 hat sämtliche damaligen Quellprüfungen sowie beide JS-Bundles erfolgreich abgeschlossen. Neu: SQL-Integrationstest mit realem PostgreSQL und zwei simulierten Konten, strikte Revisionsfolge und keine doppelten Layout-IDs. Konfliktauflösung erlaubt Kontoversion oder lokale Version. Sprachpaket wird in isoliertem CI getestet. Keine produktiven Datenbankänderungen.

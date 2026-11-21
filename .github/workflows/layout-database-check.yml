@@ -1,0 +1,37 @@
+name: Layout-Datenbank isoliert prüfen
+on:
+  pull_request:
+    paths:
+      - 'database/ff_layout_preferences.sql'
+      - 'tests/layout-rls-*.sql'
+      - '.github/workflows/layout-database-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: layout_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d layout_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: local-test-only
+    steps:
+      - uses: actions/checkout@v5
+      - name: Isolierte Testdatenbank initialisieren
+        run: psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -d layout_test -f tests/layout-rls-fixture.sql
+      - name: Geplantes Schema installieren
+        run: psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -d layout_test -f database/ff_layout_preferences.sql
+      - name: Kontentrennung, Eingabegrenzen, Anonymität und Konflikte testen
+        run: psql -X -v ON_ERROR_STOP=1 -h localhost -U postgres -d layout_test -f tests/layout-rls-integration.sql
