@@ -2,6 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {AccessibilityInfo, ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
+import PersonalizedHome from './PersonalizedHome';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
 
 import {findFamilyMapLocations} from './FamilyMapSearch';
@@ -65,7 +66,7 @@ function AssistantReply({entry,onNavigate}){
     </Pressable>:null}
   </View>;
 }
-export default function HomeAssistant({onNavigate}){
+export default function HomeAssistant({onNavigate,userId,profile,active,events,partnerEvents,listings}){
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<360||fontScale>=1.5;
   const [question,setQuestion]=useState('');
@@ -255,14 +256,15 @@ export default function HomeAssistant({onNavigate}){
         <Text style={s.allActionLabel}>{showAll?'Weniger Bereiche anzeigen':'Alle Bereiche entdecken'}</Text><Text style={s.allActionLabel}>{showAll?'⌃':'⌄'}</Text>
       </Pressable>
       {showAll?moreRoutes.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query=""/>):null}
-      <Pressable accessibilityRole="button" accessibilityLabel="Familienquiz und Spielideen öffnen" onPress={()=>onNavigate('play')} style={s.outingCard}>
+      {showAll?<><Pressable accessibilityRole="button" accessibilityLabel="Familienquiz und Spielideen öffnen" onPress={()=>onNavigate('play')} style={s.outingCard}>
         <View style={{flex:1}}><Text style={s.outingTitle}>Familienzeit</Text><Text style={s.outingSubtitle}>Eine kurze Quizrunde oder eine Idee zum gemeinsamen Spielen.</Text><Text style={s.outingLink}>Quiz & Spielideen öffnen ›</Text></View>
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Persönlichen Familienausflug planen" onPress={()=>onNavigate('outing')} style={s.outingCard}>
         <View style={{flex:1}}><Text style={s.outingTitle}>Familienausflug planen</Text><Text style={s.outingSubtitle}>Passende Ziele nach Alter, Budget und Entfernung.</Text><Text style={s.outingLink}>Ausflugsplaner öffnen ›</Text></View>
-      </Pressable>
+      </Pressable></>:null}
     </View>:null}
-    {!needle?<View style={s.section}>
+    {!needle&&!conversation.length?<PersonalizedHome key={userId} userId={userId} profile={profile} active={active} events={events} partnerEvents={partnerEvents} listings={listings} onNavigate={onNavigate}/>:null}
+    {!needle&&showAll?<View style={s.section}>
       <Text style={s.sectionTitle}>Du könntest fragen</Text>
       <View style={s.suggestionList}>
         {SUGGESTIONS.map(topic=><Pressable key={topic} accessibilityRole="button"
@@ -284,7 +286,7 @@ const s=StyleSheet.create({
   page:{flex:1,backgroundColor:C.bg},
   content:{paddingHorizontal:18,paddingTop:14,paddingBottom:45},
   searchCenter:{alignItems:'center',paddingVertical:18,marginBottom:18},
-  searchCenterIdle:{paddingTop:56,paddingBottom:24},
+  searchCenterIdle:{paddingTop:28,paddingBottom:16},
   wordmark:{fontSize:34,fontWeight:'900',letterSpacing:-1.3,color:C.ink,textAlign:'center',marginTop:7},
   tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:6,marginBottom:24},
   sunWrap:{width:70,height:70,alignItems:'center',justifyContent:'center'},
