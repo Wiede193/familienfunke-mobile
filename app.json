@@ -11,7 +11,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "de.familienfunke.app",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Familienfunke benötigt die Fotoauswahl nur, wenn du ein Profilfoto hochladen möchtest."
+        "NSPhotoLibraryUsageDescription": "Familienfunke benötigt die Fotoauswahl nur, wenn du freiwillig Profil- oder Artikelfotos auswählst.",
+        "NSCameraUsageDescription": "Mit der Kamera kannst du freiwillig Fotos deiner Artikel für den Familienbasar aufnehmen."
       }
     },
     "android": {
@@ -25,7 +26,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Du kannst freiwillig Profilfotos auswählen."
+          "photosPermission": "Familienfunke benötigt die Fotoauswahl nur, wenn du freiwillig Profil- oder Artikelfotos auswählst.",
+          "cameraPermission": "Mit der Kamera kannst du freiwillig Fotos deiner Artikel für den Familienbasar aufnehmen.",
+          "microphonePermission": false
         }
       ]
     ],
