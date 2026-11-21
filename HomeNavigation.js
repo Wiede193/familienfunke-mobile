@@ -16,7 +16,15 @@ export const HOME_ROUTES = [
 export const HOME_PAGE_IDS = HOME_ROUTES.map(x=>x.id);
 const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9äöüß]+/g,' ').trim();
 const STOP=new Set(['ich','du','die','der','das','und','oder','ein','eine','mit','zu','wo','wie','kann','können','mochte','moechte','möchte','finde','mir','bitte','auf','in','fur','für','ist','von','meine','meinen','was']);
+// Product descriptions should open the marketplace, not the general app FAQ.
+export function looksLikeMarketProductQuery(value){
+ const n=normalize(value);
+ const product=/(jeans|hose|jacke|pullover|body|strampler|schuh|kleid|t shirt|shirt|leggings|spielzeug|kinderwagen|kindersitz|buggy|fahrrad|buch|bücher|moebel|möbel)/.test(n);
+ const attribute=/(blau|rot|grun|gruen|gelb|schwarz|weiß|weiss|rosa|größe|groesse|gross|grosse|kaufen|suche|suchen|finden|preis|grosse|hundert|\b\d{2,3}\b)/.test(n);
+ return product&&attribute;
+}
 export function findHomeRoutes(value){
+ if(looksLikeMarketProductQuery(value))return [HOME_ROUTES.find(x=>x.id==='market')];
  const terms=normalize(value).split(' ').filter(x=>x.length>=2&&!STOP.has(x));
  if(!terms.length)return HOME_ROUTES.slice(0,4);
  return HOME_ROUTES.map(route=>{

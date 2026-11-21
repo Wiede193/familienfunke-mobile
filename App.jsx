@@ -332,10 +332,10 @@ async function changePassword(password){
 if(password.length<12)throw new Error('Das Passwort braucht mindestens 12 Zeichen.');
 return execute(async()=>assertResult(await supabase.auth.updateUser({password})),'Passwort geändert.');
 }
-function navigateFromHome(id){
+function navigateFromHome(id,marketQuery=''){
   const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion'];
   if(!routes.includes(id))return;
-  setMarketIntent(id==='box'||id==='sell'?id:null);
+  setMarketIntent(id==='box'||id==='sell'?id:(id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null));
   setExtraReturnTab('home');
   setTab(id==='box'||id==='sell'?'market':id);
 }
@@ -658,7 +658,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('Alle');
   const [tradeFilter,setTradeFilter]=useState('all');
-  const [sortBy,setSortBy]=useState('newest');
+  const [sortBy,setSortBy]=useState('relevance');
   const [minPrice,setMinPrice]=useState('');
   const [maxPrice,setMaxPrice]=useState('');
   const [filterOpen,setFilterOpen]=useState(false);
@@ -667,6 +667,15 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
   const [onlyFavorites,setOnlyFavorites]=useState(false);
   const [editingId,setEditingId]=useState(null);
   const [galleryIndex,setGalleryIndex]=useState(0);
+  const [searchPage,setSearchPage]=useState(0);
+  const [remoteListings,setRemoteListings]=useState([]);
+  const [remoteHasMore,setRemoteHasMore]=useState(false);
+  const [remoteBusy,setRemoteBusy]=useState(false);
+  const [remoteError,setRemoteError]=useState('');
+  const [remotePhotoUrls,setRemotePhotoUrls]=useState({});
+  const [remoteExtraPhotos,setRemoteExtraPhotos]=useState([]);
+  const [remoteExtraUrls,setRemoteExtraUrls]=useState({});
+  const searchSeq=useRef(0);
   const [title,setTitle]=useState('');
   const [description,setDescription]=useState('');
   const [region,setRegion]=useState('');
@@ -716,6 +725,13 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
       resetForm();setBoxOpen(false);setQuick(true);setCondition('');setOpen(true);setSelectedListing(null);
     }
   },[entryIntent,boxStorage]);
+  useEffect(()=>{
+    if(entryIntent?.type!=='search')return;
+    setQuery(entryIntent.query||'');
+    setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');
+    setSortBy('relevance');setOnlyMine(false);setOnlyFavorites(false);
+    setOpen(false);setBoxOpen(false);setSelectedListing(null);
+  },[entryIntent]);
   const [boxSaveError,setBoxSaveError]=useState(false);
   const [boxPending,setBoxPending]=useState(null);
   const submitLock=useRef(false);
@@ -781,9 +797,9 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
     +marketPhotos.filter(x=>x.listing_id===editingId).length:0;
   const galleryOf=x=>{
     const pictures=[];
-    if(photoUrls[x.id])pictures.push({id:'primary',uri:photoUrls[x.id]});
-    marketPhotos.filter(p=>p.listing_id===x.id).sort((a,b)=>a.slot-b.slot).forEach(p=>{
-      if(extraPhotoUrls[p.photo_path])pictures.push({id:p.photo_path,uri:extraPhotoUrls[p.photo_path]});
+    if(remotePhotoUrls[x.id]||photoUrls[x.id])pictures.push({id:'primary',uri:remotePhotoUrls[x.id]||photoUrls[x.id]});
+    marketPhotos.concat(remoteExtraPhotos).filter(p=>p.listing_id===x.id).sort((a,b)=>a.slot-b.slot).forEach(p=>{
+      if(remoteExtraUrls[p.photo_path]||extraPhotoUrls[p.photo_path])pictures.push({id:p.photo_path,uri:remoteExtraUrls[p.photo_path]||extraPhotoUrls[p.photo_path]});
     });
     return pictures;
   };
@@ -808,16 +824,76 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
     return raw!==''&&Number.isFinite(Number(raw))?Math.round(Number(raw)*100):null;
   };
   const minimum=parsePrice(minPrice), maximum=parsePrice(maxPrice);
-  const filtered=listings.filter(x=>
-    ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
-    && !blocked(x.seller_id)
-    && (filter==='Alle'||x.category===filter)
-    && (tradeFilter==='all'||x.trade_type===tradeFilter)
-    && (minimum===null||(x.trade_type==='sell'&&x.price_cents>=minimum))
-    && (maximum===null||(x.trade_type==='sell'&&x.price_cents<=maximum))
-    && normalizeLabel([x.title,x.description,x.region_label,x.category].join(' ')).includes(normalizeLabel(query))
-  );
-  const shown=[...filtered].sort((a,b)=>{
+  // Active buyer filters are executed against the full database, not the 160-item initial feed.
+  const serverSearchActive=!onlyMine; // The complete buyer catalog is always paginated on the server.
+  const favoriteVersion=favorites.map(f=>f.listing_id).join(',');
+  useEffect(()=>{setSearchPage(0);},[query,filter,tradeFilter,minPrice,maxPrice,onlyMine,onlyFavorites,sortBy,favoriteVersion]);
+  useEffect(()=>{
+    const seq=++searchSeq.current;
+    if(!serverSearchActive){
+      setRemoteBusy(false);setRemoteError('');setRemoteListings([]);setRemoteHasMore(false);
+      return;
+    }
+    let live=true;
+    setRemoteBusy(true);
+    setRemoteError('');
+    if(searchPage===0){setRemoteListings([]);setRemoteHasMore(false);}
+    const timer=setTimeout(async()=>{
+      try{
+        const {data,error:e}=await supabase.rpc('ff_market_search',{
+          p_query:query.trim().slice(0,160),p_category:filter,p_trade_type:tradeFilter,
+          p_min_cents:minimum,p_max_cents:maximum,p_favorites_only:onlyFavorites,
+          p_sort:sortBy,p_limit:40,p_offset:searchPage*40
+        });
+        if(e)throw e;
+        if(!Array.isArray(data))throw new Error('Ungültige Suchantwort');
+        const records=data.map(row=>({...row.listing,match_item:row.match_item||''}))
+          .filter(row=>!!row.id&&row.moderation_status==='approved');
+        const images=await Promise.all(records.filter(row=>row.photo_path).map(async row=>{
+          const {data:link,error:photoError}=await supabase.storage.from('ff-market-photos').createSignedUrl(row.photo_path,600);
+          return [row.id,photoError?null:link?.signedUrl||null];
+        }));
+        const ids=records.map(row=>row.id);
+        let extras=[];
+        if(ids.length){
+          const {data:photos,error:photosError}=await supabase.from('ff_market_photos')
+            .select('*').in('listing_id',ids).order('slot',{ascending:true});
+          if(!photosError)extras=photos||[];
+        }
+        const extraLinks=await Promise.all(extras.map(async p=>{
+          const {data:link,error:photoError}=await supabase.storage.from('ff-market-photos').createSignedUrl(p.photo_path,600);
+          return [p.photo_path,photoError?null:link?.signedUrl||null];
+        }));
+        if(!live||seq!==searchSeq.current)return;
+        setRemoteListings(old=>searchPage===0?records:[
+          ...old,...records.filter(row=>!old.some(existing=>existing.id===row.id))
+        ]);
+        setRemotePhotoUrls(old=>({...old,...Object.fromEntries(images)}));
+        setRemoteExtraPhotos(old=>searchPage===0?extras:[...old,...extras.filter(p=>!old.some(v=>v.photo_path===p.photo_path))]);
+        setRemoteExtraUrls(old=>({...old,...Object.fromEntries(extraLinks)}));
+        setRemoteHasMore(records.length===40);
+      }catch(e){
+        if(live&&seq===searchSeq.current){
+          setRemoteError('Die Suche ist gerade nicht erreichbar. Bitte erneut versuchen.');
+          if(searchPage===0)setRemoteListings([]);
+        }
+      }finally{
+        if(live&&seq===searchSeq.current)setRemoteBusy(false);
+      }
+    },searchPage===0?320:0);
+    return ()=>{live=false;clearTimeout(timer);};
+  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteVersion,me]);
+  const filtered=serverSearchActive?remoteListings.filter(x=>!blocked(x.seller_id)):
+    listings.filter(x=>
+      ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
+      && !blocked(x.seller_id)
+      && (filter==='Alle'||x.category===filter)
+      && (tradeFilter==='all'||x.trade_type===tradeFilter)
+      && (minimum===null||(x.trade_type==='sell'&&x.price_cents>=minimum))
+      && (maximum===null||(x.trade_type==='sell'&&x.price_cents<=maximum))
+      && normalizeLabel([x.title,x.description,x.region_label,x.category].join(' ')).includes(normalizeLabel(query))
+    );
+  const shown=serverSearchActive?filtered:[...filtered].sort((a,b)=>{
     if(sortBy==='low')return (a.price_cents-b.price_cents)||new Date(b.created_at)-new Date(a.created_at);
     if(sortBy==='high')return (b.price_cents-a.price_cents)||new Date(b.created_at)-new Date(a.created_at);
     return new Date(b.created_at)-new Date(a.created_at);
@@ -1534,7 +1610,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
       <View style={styles.marketSearchBox}>
         <Text style={{fontSize:19,color:C.accentDark,marginRight:10}}>⌕</Text>
         <TextInput accessibilityLabel="Angebote durchsuchen" style={styles.marketSearchInput}
-          placeholder="Was suchst du?" placeholderTextColor="#647D82" value={query} onChangeText={setQuery} returnKeyType="search"/>
+          placeholder="z. B. Kinderjeans Größe 110 blau" placeholderTextColor="#647D82" value={query} onChangeText={setQuery} returnKeyType="search"/>
         {query.length>0?<Pressable accessibilityRole="button" accessibilityLabel="Suche löschen" onPress={()=>setQuery('')}>
           <Text style={{fontSize:20,color:C.muted}}>×</Text>
         </Pressable>:null}
@@ -1560,13 +1636,16 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
           <View style={{flex:1}}><Input label="Preis bis (€)" value={maxPrice} onChangeText={setMaxPrice} keyboardType="decimal-pad" placeholder="100"/></View>
         </Row>
         <Button mode="ghost" title="Filter zurücksetzen" small
-          onPress={()=>{setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');setSortBy('newest');}}/>
+          onPress={()=>{setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');setSortBy('relevance');}}/>
       </Card>:null}
       <Row style={{justifyContent:'space-between',marginBottom:12}}>
-        <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
+        <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length}{serverSearchActive&&remoteHasMore?'+':''} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
         <Text style={styles.micro}>Neu und gebraucht</Text>
       </Row>
-      {shown.length===0?<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>:
+      {remoteBusy?<View style={{paddingVertical:12,flexDirection:'row',alignItems:'center'}}><ActivityIndicator color={C.accent}/><Text style={[styles.micro,{marginLeft:9}]}>Suche im gesamten Familienbasar …</Text></View>:null}
+      {remoteError?<Info warning>{remoteError}</Info>:null}
+      {serverSearchActive&&query.trim()&&!remoteBusy&&!remoteError?<Text style={[styles.micro,{marginBottom:12}]}>Auch einzelne Teile innerhalb eines Pakets werden gefunden. Größen und Farben sind Angaben, die Verkäufer prüfen müssen.</Text>:null}
+      {shown.length===0?(remoteBusy||remoteError?null:<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>):
         <View style={styles.marketGrid}>
         {shown.map(x=>{
           const seller=sellerInformation(x);
@@ -1574,7 +1653,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
             accessibilityLabel={x.title+', '+priceLabel(x)+', '+x.item_condition+', '+(x.region_label||'Region nicht angegeben')}
             onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={styles.marketTile}>
             <View style={styles.marketTileImage}>
-              {photoUrls[x.id]?<Image source={{uri:photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
+              {(remotePhotoUrls[x.id]||photoUrls[x.id])?<Image source={{uri:remotePhotoUrls[x.id]||photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
                 <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>Noch kein Foto</Text></View>}
               <View style={styles.marketPricePill}><Text style={styles.marketPricePillText} numberOfLines={1}>{priceLabel(x)}</Text></View>
               {x.seller_id!==me&&x.moderation_status==='approved'?
@@ -1587,6 +1666,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
             </View>
             <View style={styles.marketTileBody}>
               <Text style={styles.marketTileTitle} numberOfLines={2}>{x.title}</Text>
+              {x.match_item?<Text style={[styles.micro,{color:C.accentDark,marginTop:3}]} numberOfLines={2}>Passender Artikel: {x.match_item}</Text>:null}
               {galleryOf(x).length>1?<Text style={[styles.micro,{fontWeight:'800',color:C.accentDark}]}>{galleryOf(x).length} Bilder</Text>:null}
               <Text style={styles.micro} numberOfLines={1}>{x.item_condition} · {x.category}</Text>
               <Text style={[styles.micro,{marginTop:3}]} numberOfLines={1}>⌖ {x.region_label||'Region auf Anfrage'}</Text>
@@ -1596,13 +1676,14 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
           </Pressable>;
         })}
         </View>}
+      {serverSearchActive&&remoteHasMore&&!remoteBusy&&!remoteError?<Button title="Weitere Treffer laden" mode="outline" onPress={()=>setSearchPage(n=>n+1)}/>:null}
     </>:null}
   </ScrollView>;
 }
 function MarketSortSelect({value,onChange}){
   const [open,setOpen]=useState(false);
-  const options=[['newest','Neueste zuerst'],['low','Preis aufsteigend'],['high','Preis absteigend']];
-  const selected=options.find(x=>x[0]===value)?.[1]||'Neueste zuerst';
+  const options=[['relevance','Beste Treffer'],['newest','Neueste zuerst'],['low','Preis aufsteigend'],['high','Preis absteigend']];
+  const selected=options.find(x=>x[0]===value)?.[1]||'Beste Treffer';
   return <View style={{position:'relative'}}>
     <Pressable accessibilityRole="button" accessibilityLabel={'Sortierung: '+selected} accessibilityState={{expanded:open}}
       onPress={()=>setOpen(x=>!x)} style={styles.marketFilterToggle}>

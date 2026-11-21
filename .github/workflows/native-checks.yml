@@ -29,6 +29,8 @@ jobs:
         run: npm run check:home
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
+      - name: Indexierte Familienbasar-Suche prüfen
+        run: npm run check:market-search
       - name: iOS-Bundle erstellen
         run: npx expo export --platform ios --output-dir dist/ios
       - name: Android-Bundle erstellen
