@@ -39,11 +39,11 @@ assert.match(app,/chipSelected:\{backgroundColor:C\.accentDark/,'Selection shoul
 const menu=read('TopRightMenu.jsx');
 assert.match(menu,/import \{FAMILY_COLORS as C\} from '\.\/FamilyTheme'/);
 assert.match(menu,/selected:\{backgroundColor:C\.sunPale\}/);
-assert.match(app,/accessibilityLabel="Menü öffnen"/);
+assert.match(app,/accessibilityLabel=\{t\("Menü öffnen"\)\}/);
 assert.match(app,/headerMenuButton:\{minWidth:44,minHeight:44/);
 assert.match(menu,/accessibilityViewIsModal/);
 assert.match(menu,/onRequestClose=\{onClose\}/);
-assert.match(menu,/accessibilityLabel="Menü schließen"/);
+assert.match(menu,/accessibilityLabel=\{t\("Menü schließen"\)\}/);
 assert.match(menu,/ScrollView/);
 assert.match(menu,/\['profile','◉','Mein Profil'/);
 for(const id of ['contacts','chat','inbox','push','events','outing','partners','inclusion','info','help','aboutApp','welcome','refresh','more']){

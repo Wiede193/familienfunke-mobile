@@ -15,6 +15,7 @@ import WelcomeIntro from './WelcomeIntro';
 import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
+import {FamilyLocaleProvider,useFamilyLocale} from './FamilyLocale';
 import FamilyLayoutEditor from './FamilyLayoutEditor';
 import {confirmRemoval} from './FamilyActions';
 import FamilyActionButton from './FamilyActionButton';
@@ -171,7 +172,9 @@ return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'pad
 </ScrollView>
 </KeyboardAvoidingView>;
 }
-export default function App() {
+export default function App(){return <FamilyLocaleProvider><FamilyApp/></FamilyLocaleProvider>;}
+function FamilyApp() {
+const {t,openLanguage}=useFamilyLocale();
 const [session,setSession]=useState(undefined);
 const [tab,setTab]=useState('home');
 const [menuOpen,setMenuOpen]=useState(false);
@@ -437,6 +440,7 @@ function planCalendarPlace(place){
 }
 function selectMenuItem(id){
   setMenuOpen(false);
+  if(id==='language'){openLanguage();return;}
   if(id==='layout'){setLayoutEditor({owner:me,section:'home'});return;}
   if(id==='refresh'){load();layoutPrefs.refresh();return;}
   if(id==='welcome'){setShowWelcome(true);return;}
@@ -455,7 +459,7 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
   <View style={{flex:1}}><Text style={styles.smallBrand}>Familienfunke.</Text><Text style={styles.topHint}>Hilfe zur Anmeldung</Text></View>
   <Button title="← Zur Anmeldung" small mode="ghost" onPress={()=>setShowLoginHelp(false)}/>
 </View><TechnicalHelpScreen initialCategory="Anmeldung & Konto"/></>:
-<Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
+<><Button title={t("Sprache & Region")} mode="outline" onPress={openLanguage}/><Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/></>}
 </SafeAreaView>;
 const EXTRA_TITLES={play:'Familienzeit',calendar:'Mein Familienkalender',savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',more:'Weitere Bereiche'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
@@ -474,16 +478,16 @@ return <SafeAreaView style={styles.screen}>
   <View style={styles.headerHeartBadge}><Text style={styles.headerHeart}>♥</Text></View>
   <View style={{flex:1}}>
     <Text style={styles.smallBrand}>Familienfunke<Text style={{color:C.coral}}>.</Text></Text>
-    <Text style={styles.topHint}>{navTitle}</Text>
+    <Text style={styles.topHint}>{t(navTitle)}</Text>
   </View>
 </View>
-{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={()=>guardLeave(openInbox)} style={styles.inboxBell}><FamilyIcon name="inbox" color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
-{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={()=>guardLeave(back)} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
-<Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
+{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={t('Neuigkeiten öffnen')+(inbox.unread===null?'':', '+inbox.unread+' '+t('ungelesen'))} onPress={()=>guardLeave(openInbox)} style={styles.inboxBell}><FamilyIcon name="inbox" color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
+{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel={t("Zurück")} onPress={()=>guardLeave(back)} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
+<Pressable accessibilityRole="button" accessibilityLabel={t("Menü öffnen")} accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
 {error?<FamilyStatus kind="error" message={error} onDismiss={()=>setError('')}/>:null}
 {notice?<FamilyStatus kind="notice" message={notice} onDismiss={()=>setNotice('')}/>:null}
-{loading?<FamilyStatus message="Daten werden geladen …"/>:null}
+{loading?<FamilyStatus message={t("Daten werden geladen …")}/>:null}
 <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined} keyboardVerticalOffset={0}>
 {detailFamily?<FamilyDetail p={db.profiles.find(p=>p.user_id===detailFamily)}
 imageUrl={photosUrls[photoOf(detailFamily)?.id]} photos={db.photos.filter(p=>p.owner_id===detailFamily&&p.moderation_status==='approved')}
@@ -620,10 +624,10 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>si
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={[styles.tabBar,wrapTabs&&{flexWrap:'wrap',justifyContent:'center'}]}>
 {customTabs.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{if(id===tab)return;guardLeave(()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setFocusContactId(null);setExtraReturnTab('home');setTab(id);setShowEventForm(false);});}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,wrapTabs&&{flexBasis:'30%',flexGrow:0},(tab===id)&&styles.tabActive]}><FamilyIcon name={id} color={tab===id?C.accentDark:C.muted}/><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+accessibilityLabel={t(title)} accessibilityState={{selected:tab===id}} style={[styles.tab,wrapTabs&&{flexBasis:'30%',flexGrow:0},(tab===id)&&styles.tabActive]}><FamilyIcon name={id} color={tab===id?C.accentDark:C.muted}/><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{t(title)}</Text></Pressable>)}
 </View>:null}
 {layoutEditor?.owner===me?<FamilyLayoutEditor key={me+':'+layoutPrefs.ready} initial={layoutPrefs.layout} ready={layoutPrefs.ready} error={layoutPrefs.error} syncPending={layoutPrefs.pending} syncAvailable={layoutPrefs.available} syncConflict={layoutPrefs.conflict} onRefresh={layoutPrefs.refresh} onUseAccountLayout={layoutPrefs.useAccountLayout} initialSection={layoutEditor.section} onSave={layoutPrefs.save} onClose={()=>{if(accountRef.current===me)setLayoutEditor(null);}}/>:null}
-<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget&&!layoutEditor} onClose={()=>setMenuOpen(false)} onSelect={id=>{if(['refresh','layout','welcome'].includes(id)||id===tab){selectMenuItem(id);return;}setMenuOpen(false);guardLeave(()=>selectMenuItem(id));}} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
+<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget&&!layoutEditor} onClose={()=>setMenuOpen(false)} onSelect={id=>{if(['refresh','layout','welcome','language'].includes(id)||id===tab){selectMenuItem(id);return;}setMenuOpen(false);guardLeave(()=>selectMenuItem(id));}} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text accessibilityRole="header" style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -2000,15 +2004,17 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
   </ScrollView>;
 }
 function MoreScreen({navigate,openInfo,openWelcome}){
+  const {t,openLanguage}=useFamilyLocale();
   const items=MORE_ITEMS;
 
   return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-    <H sub="Deine Kontakte, Einstellungen und unterstützenden Angebote.">Weitere Bereiche</H>
+    <H sub={t("Deine Kontakte, Einstellungen und unterstützenden Angebote.")}>{t("Weitere Bereiche")}</H>
+    <Button title={t("Sprache & Region")} mode="outline" onPress={openLanguage}/>
     {items.map(([id,icon,title,subtitle])=><Pressable accessibilityRole="button" accessibilityLabel={title} key={id} onPress={()=>id==='welcome'?openWelcome():navigate(id)}>
       <Card style={{marginBottom:12}}><Row><Text style={{fontSize:26,color:C.coral,width:36}}>{icon}</Text>
-      <View style={{flex:1}}><Text style={styles.cardTitle}>{title}</Text><Text style={styles.sub}>{subtitle}</Text></View>
+      <View style={{flex:1}}><Text style={styles.cardTitle}>{t(title)}</Text><Text style={styles.sub}>{t(subtitle)}</Text></View>
       <Text style={{fontSize:20,color:C.accent}}>›</Text></Row></Card></Pressable>)}
-    <Button title="Elternwissen & hilfreiche Links" mode="outline" onPress={openInfo}/>
+    <Button title={t("Elternwissen & hilfreiche Links")} mode="outline" onPress={openInfo}/>
   </ScrollView>;
 }
 function InclusionScreen(){
@@ -2216,6 +2222,7 @@ request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request
 </ScrollView>;
 }
 function ProfileScreen({drafts,profile,verification,membership,active,photos,photosUrls,busy,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
+const {t,openLanguage}=useFamilyLocale();
 const [form,setForm,resetForm]=useSessionDraft(drafts,'profile',blankProfile);
 const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
@@ -2265,6 +2272,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </View>
 {!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
 </Card>
+<Button title={t("Sprache & Region")} mode="outline" onPress={openLanguage}/>
 <View style={styles.profileSections}>
 {[['about','Über uns'],['hobbies','Hobbys'],['privacy','Sichtbarkeit'],['photos','Fotos'],['security','Konto & Sicherheit']].map(([id,title])=>
 <Pressable key={id} accessibilityRole="button" accessibilityState={{selected:profileSection===id}} accessibilityLabel={title} onPress={()=>setProfileSection(id)}
