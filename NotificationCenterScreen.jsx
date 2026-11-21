@@ -6,6 +6,7 @@ const copy={
  request:['Kontaktanfrage','Eine Familie möchte dich kennenlernen.','Kontaktanfragen ansehen','♡'],
  match:['Neuer Familienkontakt','Ihr seid jetzt miteinander verbunden.','Kontakt öffnen','♡'],
  message:['Neue Nachricht','Du hast eine neue private Nachricht erhalten.','Unterhaltung öffnen','✉'],
+ search:['Neuer Basar-Treffer','Ein neu freigegebenes Angebot passt zu einem deiner Suchaufträge.','Angebot öffnen','♡'],
  market:['Basar-Prüfung','Der Prüfstatus deiner Anzeige wurde aktualisiert.','Meine Anzeige öffnen','♧']
 };
 function eventCopy(row){

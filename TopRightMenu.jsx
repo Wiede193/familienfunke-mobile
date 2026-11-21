@@ -8,7 +8,8 @@ export const MENU_GROUPS=[
   ['contacts','♡','Kontakte','Anfragen und bestätigte Familienkontakte'],
   ['chat','✉','Nachrichten','Private Unterhaltungen'],
   ['inbox','◉','Neuigkeiten','Benachrichtigungszentrale'],
-  ['push','⚙','Benachrichtigungseinstellungen','Push-Hinweise auf deinem Gerät']
+  ['push','⚙','Benachrichtigungseinstellungen','Push-Hinweise auf deinem Gerät'],
+  ['savedSearches','♡','Meine Suchaufträge','Gespeicherte Basar-Suchen und Mitteilungen']
  ]},
  {title:'Familienalltag',items:[
   ['events','▦','Treffen & Veranstaltungen','Gemeinsame Aktivitäten'],

@@ -49,6 +49,8 @@ jobs:
         run: npm run check:inbox
       - name: Familienausflugsplaner prüfen
         run: npm run check:outing
+      - name: Gespeicherte Basar-Suchaufträge prüfen
+        run: npm run check:saved-searches
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen
