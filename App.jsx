@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 ActivityIndicator, Alert, Image, KeyboardAvoidingView, Linking,
-Platform, Pressable, RefreshControl, SafeAreaView, ScrollView,
+Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, Modal, useWindowDimensions,
 StatusBar, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
@@ -111,7 +111,7 @@ function Card({children,style}) {return <View style={[styles.card,style]}>{child
 function H({children,sub}) {return <View style={styles.headingWrap}>
   <View style={styles.headingBar}/>
   <View style={{flex:1}}>
-    <Text style={styles.h}>{children}</Text>
+    <Text accessibilityRole="header" style={styles.h}>{children}</Text>
     {sub?<Text style={styles.sub}>{sub}</Text>:null}
   </View>
 </View>;}
@@ -518,11 +518,12 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>su
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
 accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
-{reportTarget?<View style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
-<Text style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
+{reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
+<View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
+<Text accessibilityRole="header" style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
 <Input label="Was ist passiert?" multiline value={reportDetails} onChangeText={setReportDetails} maxLength={2000}/>
 <Row><Button title="Abbrechen" mode="outline" style={{flex:1}} onPress={()=>setReportTarget(null)}/><Button title="Melden" disabled={busy||reportDetails.trim().length<10} style={{flex:1}} onPress={sendReport}/></Row>
-</Card></View>:null}
+</Card></View></Modal>:null}
 <WelcomeIntro visible={!!me&&showWelcome} onClose={dismissWelcome}/>
 </SafeAreaView>;
 }
@@ -681,6 +682,8 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
 }
 function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked}){
   const [open,setOpen]=useState(false);
+  const {width:screenWidth,fontScale}=useWindowDimensions();
+  const singleColumn=screenWidth<375||fontScale>=1.5;
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('Alle');
   const [tradeFilter,setTradeFilter]=useState('all');
@@ -1680,7 +1683,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
           const seller=sellerInformation(x);
           return <Pressable key={x.id} accessibilityRole="button"
             accessibilityLabel={x.title+', '+priceLabel(x)+', '+x.item_condition+', '+(x.region_label||'Region nicht angegeben')}
-            onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={styles.marketTile}>
+            onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={[styles.marketTile,singleColumn&&{width:'100%'}]}>
             <View style={styles.marketTileImage}>
               {(remotePhotoUrls[x.id]||photoUrls[x.id])?<Image accessible={false} source={{uri:remotePhotoUrls[x.id]||photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
                 <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>Noch kein Foto</Text></View>}
