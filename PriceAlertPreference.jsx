@@ -28,7 +28,7 @@ export default function PriceAlertPreference({userId,active}){
  }
  return <View style={s.card}>
   <Text accessibilityRole="header" style={s.title}>Preisalarme für gemerkte Artikel</Text>
-  <Text style={s.text}>Bei neuen freigegebenen Preissenkungen erscheint ein Hinweis unter Neuigkeiten. Wiederholte Preissenkungen auf denselben bereits gemeldeten Preis erzeugen keinen neuen Hinweis. Kein externer Push-Versand.</Text>
+  <Text style={s.text}>Standardmäßig aktiv. Ausschalten stoppt neue Preisalarme, vorhandene Hinweise bleiben erhalten. Bei erneutem Einschalten werden keine alten Preissenkungen nachgemeldet. Kein externer Push-Versand.</Text>
   <View style={s.row}>
    <Text style={[s.text,{flex:1}]}>{enabled===null?'Wird geprüft …':enabled?'Preisalarme an':'Preisalarme aus'}</Text>
    <Switch accessibilityLabel="Preisalarme für gemerkte Artikel" disabled={busy||enabled===null||(!active&&!enabled)} value={enabled===true} onValueChange={change}/>
