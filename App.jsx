@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 ActivityIndicator, Alert, Image, KeyboardAvoidingView, Linking,
-Platform, Pressable, RefreshControl, SafeAreaView, ScrollView,
+Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, Modal, useWindowDimensions,
 StatusBar, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
@@ -94,14 +94,16 @@ async function moderateTextOrThrow(parts) {
   }
 }
 
-function Button({title, onPress, mode='primary', disabled=false, small=false, style}) {
-return <Pressable accessibilityRole="button" onPress={onPress} disabled={disabled}
+function Button({title, onPress, mode='primary', disabled=false, small=false, style,accessibilityLabel}) {
+return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||title} accessibilityState={{disabled:!!disabled}} onPress={onPress} disabled={disabled}
 style={({pressed})=>[styles.button,styles[`button_${mode}`],small&&styles.buttonSmall,disabled&&{opacity:0.46},pressed&&{opacity:.8},style]}>
 <Text style={[styles.buttonText,mode!=='primary'&&styles.buttonTextDark,small&&{fontSize:13}]}>{title}</Text>
 </Pressable>;
 }
 function Chip({text,selected,onPress}) {
-return <Pressable accessibilityRole="button" accessibilityLabel={text} accessibilityState={{selected:!!selected,disabled:!onPress}} disabled={!onPress} onPress={onPress} style={[styles.chip,selected&&styles.chipSelected]}>
+if(!onPress)return <View style={[styles.chip,selected&&styles.chipSelected]}>
+<Text style={[styles.chipText,selected&&{color:C.white}]}>{text}</Text></View>;
+return <Pressable accessibilityRole="button" accessibilityLabel={text} accessibilityState={{selected:!!selected}} onPress={onPress} style={[styles.chip,selected&&styles.chipSelected]}>
 <Text style={[styles.chipText,selected&&{color:C.white}]}>{selected?'✓ ':''}{text}</Text>
 </Pressable>;
 }
@@ -109,16 +111,16 @@ function Card({children,style}) {return <View style={[styles.card,style]}>{child
 function H({children,sub}) {return <View style={styles.headingWrap}>
   <View style={styles.headingBar}/>
   <View style={{flex:1}}>
-    <Text style={styles.h}>{children}</Text>
+    <Text accessibilityRole="header" style={styles.h}>{children}</Text>
     {sub?<Text style={styles.sub}>{sub}</Text>:null}
   </View>
 </View>;}
 function Info({children,warning=false}) {return <View style={[styles.info,warning&&styles.warning]}><Text style={[styles.infoText,warning&&{color:C.warningText}]}>{children}</Text></View>;}
-function Avatar({name,size=52,uri}) {return <View style={[styles.avatar,{width:size,height:size,borderRadius:size/2}]}>{uri?<Image source={{uri}} style={{width:size,height:size,borderRadius:size/2}}/>:<Text style={[styles.avatarText,{fontSize:size*.30}]}>{initial(name)}</Text>}</View>;}
+function Avatar({name,size=52,uri}) {return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.avatar,{width:size,height:size,borderRadius:size/2}]}>{uri?<Image source={{uri}} style={{width:size,height:size,borderRadius:size/2}}/>:<Text style={[styles.avatarText,{fontSize:size*.30}]}>{initial(name)}</Text>}</View>;}
 function Row({children,style}) {return <View style={[{flexDirection:'row',alignItems:'center',gap:10},style]}>{children}</View>;}
 function Input({label,multiline=false,style,...props}) {
 return <View style={[{marginBottom:13},style]}><Text style={styles.label}>{label}</Text><TextInput
-accessibilityLabel={label} placeholderTextColor="#9AAFB4" style={[styles.input,multiline&&{height:95,textAlignVertical:'top',paddingTop:12}]}
+accessibilityLabel={label} placeholderTextColor={C.muted} style={[styles.input,multiline&&{minHeight:95,textAlignVertical:'top',paddingTop:12}]}
 multiline={multiline} {...props}/></View>;
 }
 function RegionPicker({value,onChange}) {
@@ -128,14 +130,14 @@ const options=REGIONS.filter(r=>normalizeLabel(r).includes(normalizeLabel(search
 function choose(value){onChange(value);setSearch('');setOpen(false);}
 return <View style={{marginBottom:15}}>
 <Text style={styles.label}>Wo wohnt ihr? (Stadt oder Landkreis)</Text>
-<Pressable accessibilityRole="button" accessibilityLabel="Region auswählen" onPress={()=>{setOpen(v=>!v);setSearch('');}} style={[styles.input,{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}]}>
+<Pressable accessibilityRole="button" accessibilityLabel={'Region auswählen, derzeit: '+(value||'keine Region')} accessibilityState={{expanded:open}} onPress={()=>{setOpen(v=>!v);setSearch('');}} style={[styles.input,{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}]}>
 <Text style={{color:value?C.ink:C.muted,flex:1}} numberOfLines={1}>{value||'Region auswählen oder selbst eingeben'}</Text>
 <Text style={{color:C.accent,fontWeight:'900'}}>{open?'⌃':'⌄'}</Text>
 </Pressable>
 {open?<View style={styles.regionDropdown}>
-<TextInput style={[styles.input,{marginBottom:8}]} placeholder="Stadt oder Landkreis suchen" placeholderTextColor="#9AAFB4" value={search} onChangeText={setSearch} maxLength={80} autoCorrect={false}/>
+<TextInput accessibilityLabel="Stadt oder Landkreis suchen" style={[styles.input,{marginBottom:8}]} placeholder="Stadt oder Landkreis suchen" placeholderTextColor={C.muted} value={search} onChangeText={setSearch} maxLength={80} autoCorrect={false}/>
 <ScrollView style={{maxHeight:210}} keyboardShouldPersistTaps="always" nestedScrollEnabled>
-{options.map(r=><Pressable accessibilityRole="button" key={r} onPress={()=>choose(r)} style={styles.regionOption}><Text style={styles.body}>{r}</Text>{normalizeLabel(r)===normalizeLabel(value)?<Text style={{color:C.accent}}>✓</Text>:null}</Pressable>)}
+{options.map(r=><Pressable accessibilityRole="button" accessibilityLabel={'Region '+r} accessibilityState={{selected:normalizeLabel(r)===normalizeLabel(value)}} key={r} onPress={()=>choose(r)} style={styles.regionOption}><Text style={styles.body}>{r}</Text>{normalizeLabel(r)===normalizeLabel(value)?<Text style={{color:C.accent}}>✓</Text>:null}</Pressable>)}
 {search.trim().length>=2&&!REGIONS.some(r=>normalizeLabel(r)===normalizeLabel(search))?
 <Pressable accessibilityRole="button" onPress={()=>choose(search.trim())} style={styles.regionOption}><Text style={[styles.body,{color:C.accentDark}]}>„{search.trim()}“ übernehmen</Text></Pressable>:null}
 {options.length===0&&search.trim().length<2?<Text style={styles.micro}>Bitte mindestens zwei Zeichen eingeben.</Text>:null}
@@ -380,10 +382,10 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{detailFamily||selectedContact||showInfo||['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" onPress={()=>load()} small mode="ghost"/>}
+{detailFamily||selectedContact||showInfo||['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" accessibilityLabel="Daten aktualisieren" onPress={()=>load()} small mode="ghost"/>}
 </View>
-{error?<Pressable onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
-{notice?<Pressable onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
+{error?<Pressable accessibilityRole="button" accessibilityLabel={'Fehlermeldung schließen. '+error} accessibilityLiveRegion="assertive" onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
+{notice?<Pressable accessibilityRole="button" accessibilityLabel={'Hinweis schließen. '+notice} accessibilityLiveRegion="polite" onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
 {loading?<View style={{padding:4}}><ActivityIndicator color={C.accent}/></View>:null}
 <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined} keyboardVerticalOffset={0}>
 {detailFamily?<FamilyDetail p={db.profiles.find(p=>p.user_id===detailFamily)}
@@ -516,11 +518,12 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>su
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
 accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
-{reportTarget?<View style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
-<Text style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
+{reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
+<View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
+<Text accessibilityRole="header" style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
 <Input label="Was ist passiert?" multiline value={reportDetails} onChangeText={setReportDetails} maxLength={2000}/>
 <Row><Button title="Abbrechen" mode="outline" style={{flex:1}} onPress={()=>setReportTarget(null)}/><Button title="Melden" disabled={busy||reportDetails.trim().length<10} style={{flex:1}} onPress={sendReport}/></Row>
-</Card></View>:null}
+</Card></View></Modal>:null}
 <WelcomeIntro visible={!!me&&showWelcome} onClose={dismissWelcome}/>
 </SafeAreaView>;
 }
@@ -679,6 +682,8 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
 }
 function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked}){
   const [open,setOpen]=useState(false);
+  const {width:screenWidth,fontScale}=useWindowDimensions();
+  const singleColumn=screenWidth<375||fontScale>=1.5;
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('Alle');
   const [tradeFilter,setTradeFilter]=useState('all');
@@ -1291,22 +1296,22 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
       {boxStep==='photo'?<>
       <Text style={[styles.sub,{marginBottom:12}]}>Lege bis zu zehn unterschiedliche Kleidungsstücke nebeneinander und fotografiere sie von oben. Weitere Gruppen kannst du später ergänzen.</Text>
       {boxPhoto?<View onLayout={e=>setBoxImageFrame(e.nativeEvent.layout)} style={{width:'100%',height:300,borderRadius:14,marginBottom:10,overflow:'hidden',backgroundColor:C.bg}}>
-        <Image source={{uri:boxPhoto.uri}} style={{width:'100%',height:'100%'}} resizeMode="contain"/>
+        <Image accessibilityLabel="Kistenfoto. Die einzelnen erkannten Artikel sind auch unten als Textliste auswählbar." source={{uri:boxPhoto.uri}} style={{width:'100%',height:'100%'}} resizeMode="contain"/>
         {boxImageFrame.width>0&&boxImageFrame.height>0&&boxPhoto.width>0&&boxPhoto.height>0&&boxCurrentBatch?boxDrafts.map((d,i)=>{
           if(d.batchId!==boxCurrentBatch)return null;
           if(typeof d.x!=='number'||typeof d.y!=='number'||d.x<0||d.x>100||d.y<0||d.y>100)return null;
           const scale=Math.min(boxImageFrame.width/boxPhoto.width,boxImageFrame.height/boxPhoto.height);
           const w=boxPhoto.width*scale,h=boxPhoto.height*scale;
-          const left=Math.max(0,Math.min(boxImageFrame.width-26,(boxImageFrame.width-w)/2+w*d.x/100-13));
-          const top=Math.max(0,Math.min(boxImageFrame.height-26,(boxImageFrame.height-h)/2+h*d.y/100-13));
-          return <Pressable key={d.id} accessibilityRole="button" accessibilityLabel={'Ungefähre Position Artikel '+(i+1)} onPress={()=>{setBoxFilter('all');setBoxInspect(d.id);}} style={{position:'absolute',left,top,width:26,height:26,borderRadius:13,backgroundColor:boxInspect===d.id?C.coralDeep:C.accent,borderColor:C.white,borderWidth:2,alignItems:'center',justifyContent:'center'}}><Text style={{fontSize:12,fontWeight:'900',color:C.white}}>{i+1}</Text></Pressable>;
+          const left=Math.max(0,Math.min(boxImageFrame.width-44,(boxImageFrame.width-w)/2+w*d.x/100-22));
+          const top=Math.max(0,Math.min(boxImageFrame.height-44,(boxImageFrame.height-h)/2+h*d.y/100-22));
+          return <Pressable key={d.id} accessibilityRole="button" accessibilityLabel={'Ungefähre Position Artikel '+(i+1)} onPress={()=>{setBoxFilter('all');setBoxInspect(d.id);}} style={{position:'absolute',left,top,width:44,height:44,borderRadius:22,backgroundColor:boxInspect===d.id?C.coralDeep:C.accent,borderColor:C.white,borderWidth:2,alignItems:'center',justifyContent:'center'}}><Text style={{fontSize:12,fontWeight:'900',color:C.white}}>{i+1}</Text></Pressable>;
         }):null}
       </View>:null}
       {boxDrafts.length&&boxPhoto?<Text style={[styles.micro,{marginBottom:8}]}>Die Nummern markieren ungefähre KI-Positionen. Bitte mit den tatsächlichen Artikeln abgleichen.</Text>:null}
       <Text style={[styles.micro,{marginBottom:8,color:boxSaveError||boxStorage==='error'?C.warningText:C.accentDark}]}>{boxStorage==='loading'?'Kiste wird geladen …':boxStorage==='error'?'Gespeicherte Kiste nicht lesbar':boxSaveError?'Speichern fehlgeschlagen – bitte Gerätespeicher prüfen':'Entwürfe werden auf diesem Gerät gespeichert.'}</Text>
       {boxBatches.length?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingBottom:10}}>
         {boxBatches.map((batch,i)=><Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Fotogruppe '+(i+1)} onPress={()=>viewBatch(batch)} disabled={busy||scanBusy||choosing||!batch.photo} style={{borderWidth:2,borderColor:boxCurrentBatch===batch.id?C.accent:C.line,borderRadius:12,padding:5}}>
-          {batch.photo?<Image source={{uri:batch.photo.uri}} style={{width:76,height:60,borderRadius:7}} resizeMode="cover"/>:null}
+          {batch.photo?<Image accessible={false} source={{uri:batch.photo.uri}} style={{width:76,height:60,borderRadius:7}} resizeMode="cover"/>:null}
           <Text style={styles.micro}>Gruppe {i+1}</Text>
         </Pressable>)}
       </ScrollView>:null}
@@ -1407,13 +1412,13 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
           <Button title="Etikettfoto auswählen & lesen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>pick(assets=>readBoxLabel(d,assets[0]),1)}/>
         </View>:null}
         {!d.facts.size&&boxInspect!==d.id&&d.category==='Kleidung'?<Pressable accessibilityRole="button" disabled={busy||scanBusy||choosing} onPress={()=>setBoxInspect(d.id)} style={{paddingVertical:6}}><Text style={[styles.micro,{color:C.accentDark,fontWeight:'800'}]}>Größe ergänzen ›</Text></Pressable>:null}
-        {d.photos?.length?<Image source={{uri:d.photos[0].uri}} resizeMode="contain" style={{width:95,height:95,borderRadius:10,backgroundColor:C.bg,marginTop:8}}/>:null}
+        {d.photos?.length?<Image accessibilityLabel={"Artikelfoto zu "+d.title} source={{uri:d.photos[0].uri}} resizeMode="contain" style={{width:95,height:95,borderRadius:10,backgroundColor:C.bg,marginTop:8}}/>:null}
         {boxInspect===d.id&&!d.photos?.length&&suggestedCrop(d)&&boxBatches.some(b=>b.id===d.batchId&&b.photo)?<Button title="Einzelbild aus Gruppenfoto erstellen" small mode="outline" disabled={cropBusy} onPress={()=>openBoxCrop(d)}/>:null}
       {boxCrop?.id===d.id&&cropDraft&&cropSource?<View style={{backgroundColor:C.pale,borderRadius:15,padding:13,marginVertical:12}}>
         <Text style={styles.sectionTitle}>Einzelbild für {cropDraft.title}</Text>
         <Text style={[styles.micro,{marginBottom:9}]}>Der Rahmen ist ein KI-Vorschlag. Das gesamte Kleidungsstück muss darin liegen, ohne fremde Artikel oder private Details.</Text>
         <View onLayout={e=>setBoxCropFrame(e.nativeEvent.layout)} style={{width:'100%',height:300,backgroundColor:C.bg,borderRadius:10,overflow:'hidden'}}>
-          <Image source={{uri:cropSource.uri}} resizeMode="contain" style={{width:'100%',height:'100%'}}/>
+          <Image accessibilityLabel={"Originalfoto zur Ausschnittbearbeitung: "+cropDraft.title} source={{uri:cropSource.uri}} resizeMode="contain" style={{width:'100%',height:'100%'}}/>
           {boxCropFrame.width>0&&cropSource.width>0&&cropSource.height>0?(()=>{
             const scale=Math.min(boxCropFrame.width/cropSource.width,boxCropFrame.height/cropSource.height);
             const w=cropSource.width*scale,h=cropSource.height*scale,b=boxCrop.bounds;
@@ -1423,12 +1428,12 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
         <Text style={[styles.label,{marginTop:10}]}>Rahmen korrigieren</Text>
         {[['left','Linker Rand'],['right','Rechter Rand'],['top','Oberer Rand'],['bottom','Unterer Rand']].map(([edge,label])=><Row key={edge} style={{alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
           <Text style={[styles.micro,{flex:1}]}>{label}</Text>
-          <Button title="−" mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,-2)}/>
-          <Button title="＋" mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,2)}/>
+          <Button title="−" accessibilityLabel={label+" um zwei Prozent verkleinern"} mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,-2)}/>
+          <Button title="＋" accessibilityLabel={label+" um zwei Prozent vergrößern"} mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,2)}/>
         </Row>)}
         <Button title={scanBusy?'Bild wird verarbeitet …':'Ausschnitt als Vorschau ansehen'} disabled={cropBusy} onPress={previewBoxCrop}/>
         {boxCrop.preview?<View style={{marginTop:12}}>
-          <Image source={{uri:boxCrop.preview.uri}} resizeMode="contain" style={{width:'100%',height:245,backgroundColor:C.white,borderRadius:10}}/>
+          <Image accessibilityLabel={"Vorschau des zugeschnittenen Fotos: "+cropDraft.title} source={{uri:boxCrop.preview.uri}} resizeMode="contain" style={{width:'100%',height:245,backgroundColor:C.white,borderRadius:10}}/>
           <Text style={[styles.micro,{marginVertical:8}]}>Bestätige nur, wenn wirklich das richtige, vollständige Kleidungsstück sichtbar ist. Das Bild wird erst bei der späteren Anzeige hochgeladen.</Text>
           <Button title="Richtiges Einzelbild übernehmen" disabled={cropBusy} onPress={acceptBoxCrop}/>
         </View>:null}
@@ -1476,7 +1481,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
         {quick&&!editingId?<Button title="＋ Mit der Kamera fotografieren" mode="ghost" small disabled={choosing||busy||scanBusy||photo.length>=5} onPress={takeArticlePhoto}/>:null}
         {photo.length>0?<ScrollView horizontal style={{marginTop:11}} contentContainerStyle={{gap:9}}>
           {photo.map((asset,index)=><View key={asset.assetId||asset.uri+index} style={{width:100}}>
-            <Image source={{uri:asset.uri}} style={{width:100,height:100,borderRadius:13}} resizeMode="cover"/>
+            <Image accessibilityLabel={"Foto "+(index+1)+" zur Anzeige"} source={{uri:asset.uri}} style={{width:100,height:100,borderRadius:13}} resizeMode="cover"/>
             <Pressable accessibilityRole="button" accessibilityLabel={'Foto '+(index+1)+' entfernen'}
               disabled={scanBusy||busy} onPress={()=>{setPhoto(p=>p.filter((_,i)=>i!==index));setProposal(null);setConfirmed(false);}} style={{padding:7,alignItems:'center'}}>
               <Text style={[styles.micro,{color:C.coralDeep,fontWeight:'900'}]}>Entfernen ×</Text>
@@ -1568,7 +1573,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
       </Pressable>
       <Card style={styles.marketDetailCard}>
         <View style={styles.marketDetailImage}>
-          {shownImage?<Image source={{uri:shownImage}} style={styles.marketFullImage} resizeMode="contain"/>:
+          {shownImage?<Image accessibilityLabel={"Anzeigenfoto: "+selected.title+", Bild "+(galleryIndex+1)+" von "+gallery.length} source={{uri:shownImage}} style={styles.marketFullImage} resizeMode="contain"/>:
             <View style={[styles.marketFullImage,styles.marketImagePlaceholder]}><Text style={{fontSize:34}}>♧</Text><Text style={styles.micro}>Kein Foto hinterlegt</Text></View>}
         </View>
         {gallery.length>1?<View style={{marginTop:12}}>
@@ -1581,7 +1586,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
             {gallery.map((image,index)=><Pressable key={image.id} accessibilityRole="button"
               accessibilityLabel={'Bild '+(index+1)+' anzeigen'} accessibilityState={{selected:galleryIndex===index}}
               onPress={()=>setGalleryIndex(index)}>
-              <Image source={{uri:image.uri}} style={{width:66,height:66,borderRadius:12,borderWidth:galleryIndex===index?3:1,borderColor:galleryIndex===index?C.accent:C.line}} resizeMode="cover"/>
+              <Image accessible={false} source={{uri:image.uri}} style={{width:66,height:66,borderRadius:12,borderWidth:galleryIndex===index?3:1,borderColor:galleryIndex===index?C.accent:C.line}} resizeMode="cover"/>
             </Pressable>)}
           </ScrollView>
         </View>:null}
@@ -1638,7 +1643,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
         <Text style={{fontSize:19,color:C.accentDark,marginRight:10}}>⌕</Text>
         <TextInput accessibilityLabel="Angebote durchsuchen" style={styles.marketSearchInput}
           placeholder="z. B. Kinderjeans Größe 110 blau" placeholderTextColor="#647D82" value={query} onChangeText={setQuery} returnKeyType="search"/>
-        {query.length>0?<Pressable accessibilityRole="button" accessibilityLabel="Suche löschen" onPress={()=>setQuery('')}>
+        {query.length>0?<Pressable accessibilityRole="button" accessibilityLabel="Suche löschen" hitSlop={12} onPress={()=>setQuery('')}>
           <Text style={{fontSize:20,color:C.muted}}>×</Text>
         </Pressable>:null}
       </View>
@@ -1678,13 +1683,13 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
           const seller=sellerInformation(x);
           return <Pressable key={x.id} accessibilityRole="button"
             accessibilityLabel={x.title+', '+priceLabel(x)+', '+x.item_condition+', '+(x.region_label||'Region nicht angegeben')}
-            onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={styles.marketTile}>
+            onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={[styles.marketTile,singleColumn&&{width:'100%'}]}>
             <View style={styles.marketTileImage}>
-              {(remotePhotoUrls[x.id]||photoUrls[x.id])?<Image source={{uri:remotePhotoUrls[x.id]||photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
+              {(remotePhotoUrls[x.id]||photoUrls[x.id])?<Image accessible={false} source={{uri:remotePhotoUrls[x.id]||photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
                 <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>Noch kein Foto</Text></View>}
               <View style={styles.marketPricePill}><Text style={styles.marketPricePillText} numberOfLines={1}>{priceLabel(x)}</Text></View>
               {x.seller_id!==me&&x.moderation_status==='approved'?
-                <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'}
+                <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'} hitSlop={9}
                   disabled={busy||!active}
                   onPress={event=>{event.stopPropagation();toggleFavorite(x.id,favoriteIds.has(x.id));}}
                   style={{position:'absolute',right:7,top:8,backgroundColor:'#FFFFFFF2',borderRadius:20,paddingHorizontal:10,paddingVertical:7}}>
@@ -1777,7 +1782,7 @@ function PartnersScreen({organizations,partnerEvents,me,active,busy,applyOrg,cre
       <Input label="Kurzvorstellung" multiline value={description} onChangeText={setDescription} maxLength={800}/>
       <Row style={{marginBottom:15,justifyContent:'space-between'}}>
         <Text style={[styles.label,{flex:1}]}>Einrichtung hat laut eigener Angabe freie Plätze</Text>
-        <Switch accessibilityLabel="Freie Plätze melden" value={places} onValueChange={setPlaces}/>
+        <Switch accessibilityLabel="Freie Plätze in Einrichtung melden" value={places} onValueChange={setPlaces}/>
       </Row>
       <Text style={[styles.micro,{marginBottom:12}]}>Mit diesem Antrag wird kein verifiziertes Konto erstellt. Unsere Betreiber prüfen die Einrichtung und die Berechtigung zur Vertretung. Bis dahin bleibt das Partnerprofil verborgen.</Text>
       <Button title="Antrag kostenlos einreichen" disabled={busy||!active} onPress={apply}/>
@@ -1912,11 +1917,11 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <View style={styles.filterPanel}>
 <Row style={{justifyContent:'space-between',marginBottom:10}}>
 <View style={{flex:1}}><Text style={styles.label}>Nur meine Region</Text><Text style={styles.micro}>{myRegion?'Gleiche Region oder bekannter Ort im selben Landkreis':'Bitte zuerst deine Region im Profil auswählen'}</Text></View>
-<Switch disabled={!myRegion} value={onlyRegion&&!!myRegion} onValueChange={value=>updateFilter(setOnlyRegion,value)} trackColor={{true:C.accent}}/>
+<Switch accessibilityLabel="Nur Familien aus meiner Region anzeigen" disabled={!myRegion} value={onlyRegion&&!!myRegion} onValueChange={value=>updateFilter(setOnlyRegion,value)} trackColor={{true:C.accent}}/>
 </Row>
 <Row style={{justifyContent:'space-between'}}>
 <View style={{flex:1}}><Text style={styles.label}>Gemeinsame Hobbys</Text><Text style={styles.micro}>Mindestens ein gemeinsames Interesse</Text></View>
-<Switch value={onlyShared} onValueChange={value=>updateFilter(setOnlyShared,value)} trackColor={{true:C.accent}}/>
+<Switch accessibilityLabel="Nur Familien mit gemeinsamen Hobbys anzeigen" value={onlyShared} onValueChange={value=>updateFilter(setOnlyShared,value)} trackColor={{true:C.accent}}/>
 </Row>
 </View>
 <Row style={{justifyContent:'space-between',marginBottom:14,marginTop:5}}>
@@ -1945,7 +1950,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 !blocked&&active?<Button title={connection?'Kontaktanfrage vorhanden':'Kontakt anfragen'} disabled={disabled||!!connection} onPress={onContact}/>:null}
 <Row style={{marginTop:12}}>{blocked?<Button title="Entsperren" mode="outline" small onPress={onUnblock}/>:<Button title="Blockieren" mode="outline" small onPress={onBlock}/>}<Button title="Melden" mode="ghost" small onPress={onReport}/></Row>
 </Card>
-{photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
+{photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image accessibilityLabel={photo.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
 </ScrollView>;
 }
 function ContactsScreen({pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat}){
@@ -1968,7 +1973,7 @@ function ChatList({contacts,me,nameOf,messages,onChat,blocked}){
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
 {contacts.length===0?<Blank title="Noch keine Gespräche" body="Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben."/>:
-contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;const last=messages.filter(m=>m.contact_id===c.id)[0];return <Pressable key={c.id} onPress={()=>onChat(c.id)}>
+contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;const last=messages.filter(m=>m.contact_id===c.id)[0];return <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={'Gespräch mit '+nameOf(uid)+' öffnen'} onPress={()=>onChat(c.id)}>
 <Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':last?.body||'Noch keine Nachrichten'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
 </Pressable>;})}
 </ScrollView>;
@@ -1984,12 +1989,12 @@ return <View style={{flex:1}}>
 <ScrollView style={{flex:1}} contentContainerStyle={{padding:16}} keyboardShouldPersistTaps="handled">
 {sorted.length===0?<Blank title="Sag Hallo!" body="Hier beginnt euer privates Gespräch."/>:sorted.map(m=><View key={m.id} style={[styles.bubble,m.sender_id===me?styles.mine:styles.theirs]}>
 <Text style={[styles.bubbleText,m.sender_id===me&&{color:C.white}]}>{m.body}</Text>
-<Row style={{justifyContent:'space-between',marginTop:7}}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>{formatDate(m.created_at)}</Text><Pressable onPress={()=>onReport(m.id)}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>Melden</Text></Pressable></Row>
+<Row style={{justifyContent:'space-between',marginTop:7}}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>{formatDate(m.created_at)}</Text><Pressable accessibilityRole="button" accessibilityLabel={'Nachricht vom '+formatDate(m.created_at)+' melden'} hitSlop={10} onPress={()=>onReport(m.id)}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>Melden</Text></Pressable></Row>
 </View>)}
 </ScrollView>
 {blocked(other)?<Info warning>Du hast diese Person blockiert. Neue Nachrichten sind nicht erlaubt.</Info>:
-<Row style={styles.chatComposer}><TextInput placeholder="Nachricht schreiben …" value={text} onChangeText={setText} maxLength={2000} multiline
-placeholderTextColor="#9AAFB4" style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]}/><Button title="Senden" small disabled={disabled||!text.trim()} onPress={submit}/></Row>}
+<Row style={styles.chatComposer}><TextInput accessibilityLabel="Private Nachricht schreiben" placeholder="Nachricht schreiben …" value={text} onChangeText={setText} maxLength={2000} multiline
+placeholderTextColor={C.muted} style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]}/><Button title="Senden" small disabled={disabled||!text.trim()} onPress={submit}/></Row>}
 </View>;
 }
 function EventsScreen({events,eventRequests,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
@@ -2030,7 +2035,7 @@ return <Card key={e.id} style={{marginBottom:12}}>
 request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request.status==='requested'?'angefragt':request.status==='declined'?'abgelehnt':'zurückgezogen'}</Info>:
 <Button title="Teilnahme anfragen" disabled={busy||!active} small style={{marginTop:12}} onPress={()=>requestEvent(e.id)}/>}
 {self&&pending.length>0?<View style={{marginTop:12}}><Text style={styles.label}>Teilnahmeanfragen</Text>{pending.map(r=><View key={r.requester_id} style={{marginTop:9}}><Text style={styles.body}>{names(r.requester_id)}</Text><Row><Button title="Annehmen" small disabled={busy} onPress={()=>replyEvent(e.id,r.requester_id,'approved')}/><Button title="Ablehnen" small mode="outline" disabled={busy} onPress={()=>replyEvent(e.id,r.requester_id,'declined')}/></Row></View>)}</View>:null}
-{!self?<Pressable onPress={()=>reportEvent(e.id)} style={{marginTop:12}}><Text style={styles.micro}>⚑ Veranstaltung melden</Text></Pressable>:null}
+{!self?<Pressable accessibilityRole="button" accessibilityLabel="Veranstaltung melden" onPress={()=>reportEvent(e.id)} style={{marginTop:12,minHeight:44,justifyContent:'center'}}><Text style={styles.micro}>⚑ Veranstaltung melden</Text></Pressable>:null}
 </Card>;
 })}
 </ScrollView>;
@@ -2103,7 +2108,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 {profileSection==='privacy'?<Card>
 <Text style={styles.sectionTitle}>Privatsphäre & Sichtbarkeit</Text>
 <Text style={[styles.sub,{marginBottom:15}]}>Du bestimmst, ob andere freigegebene Familien euch entdecken können.</Text>
-<Row style={{marginBottom:18,justifyContent:'space-between'}}><View style={{flex:1}}><Text style={styles.label}>Für andere Familien sichtbar</Text><Text style={styles.micro}>Erst nach Profilfreigabe und nur mit grober Regionsangabe</Text></View><Switch value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/></Row>
+<Row style={{marginBottom:18,justifyContent:'space-between'}}><View style={{flex:1}}><Text style={styles.label}>Für andere Familien sichtbar</Text><Text style={styles.micro}>Erst nach Profilfreigabe und nur mit grober Regionsangabe</Text></View><Switch accessibilityLabel="Familienprofil für andere Familien sichtbar" value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/></Row>
 <Info>Deine genaue Adresse oder dein Live-Standort werden bei der Familiensuche nicht abgefragt. Kontaktanfragen musst du selbst annehmen.</Info>
 <Button title={busy?'Bitte warten …':'Sichtbarkeit speichern'} disabled={busy} onPress={submit}/>
 </Card>:null}
@@ -2112,8 +2117,8 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Button title={selectedPhoto?'Anderes Foto auswählen':'＋ Foto auswählen'}
   disabled={busy||photoPickerBusy} mode="outline" onPress={selectDraftPhoto}/>
 {selectedPhoto?<View style={{marginTop:14}}>
-  <Image source={{uri:selectedPhoto.uri}} style={styles.photoDraftPreview} resizeMode="contain"/>
-  <Input label="2. Kurze Bildbeschreibung (optional)" value={photoCaption}
+  <Image accessibilityLabel="Ausgewähltes Familienfoto. Bitte eine kurze Bildbeschreibung hinzufügen." source={{uri:selectedPhoto.uri}} style={styles.photoDraftPreview} resizeMode="contain"/>
+  <Input label="2. Bildbeschreibung für Screenreader (empfohlen)" value={photoCaption}
     onChangeText={setPhotoCaption} maxLength={200}
     placeholder="Was möchtest du zu diesem Foto erzählen?"/>
   <Text style={[styles.micro,{marginBottom:12}]}>
@@ -2130,7 +2135,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
   Nach der Fotoauswahl kannst du eine Beschreibung ergänzen und beides zusammen einreichen.
 </Text>}
 <View style={[styles.photoGrid,{marginTop:15}]}>{photos.map(p=><Card key={p.id} style={styles.photoCard}>
-{photosUrls[p.id]?<Image source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
+{photosUrls[p.id]?<Image accessibilityLabel={p.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
 <Text style={styles.micro} numberOfLines={2}>{p.caption||'Profilbild'}</Text><Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'Freigegeben':p.moderation_status==='pending'?'In Prüfung':'Abgelehnt'}</Text>
 <Button title="Löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
 </Card>)}</View>
@@ -2156,7 +2161,7 @@ const links=[
 ];
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}><H sub="Verlässliche Quellen statt ungeprüfter Diskussionen.">Elternwissen</H>
 <Info>Die Links führen zu öffentlichen Informationsangeboten. Familienfunke bietet derzeit keine individuelle Rechtsberatung oder Antragsübermittlung an.</Info>
-{links.map(([name,subtitle,url])=><Pressable key={name} onPress={()=>Linking.openURL(url)}><Card style={{marginBottom:12}}><Row><View style={{flex:1}}><Text style={styles.cardTitle}>{name}</Text><Text style={styles.sub}>{subtitle}</Text></View><Text style={{fontSize:25,color:C.accent}}>↗</Text></Row></Card></Pressable>)}
+{links.map(([name,subtitle,url])=><Pressable key={name} accessibilityRole="link" accessibilityLabel={name+' – '+subtitle} onPress={()=>Linking.openURL(url)}><Card style={{marginBottom:12}}><Row><View style={{flex:1}}><Text style={styles.cardTitle}>{name}</Text><Text style={styles.sub}>{subtitle}</Text></View><Text style={{fontSize:25,color:C.accent}}>↗</Text></Row></Card></Pressable>)}
 </ScrollView>;
 }
 const styles=StyleSheet.create({
@@ -2187,7 +2192,7 @@ marketFullImage:{width:'100%',height:'100%'},
 marketPrice:{fontWeight:'900',color:C.accentDark},
 
 regionDropdown:{marginTop:8,padding:10,backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:17},
-regionOption:{minHeight:43,paddingHorizontal:12,paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.line,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
+regionOption:{minHeight:48,paddingHorizontal:12,paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.line,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
 progressTrack:{height:8,backgroundColor:C.pale,borderRadius:10,overflow:'hidden'},
 progressFill:{height:'100%',backgroundColor:C.coral,borderRadius:10},
 filterPanel:{borderRadius:20,backgroundColor:C.white,borderColor:C.line,borderWidth:1,padding:15,marginBottom:14},
@@ -2226,7 +2231,7 @@ label:{fontSize:13,color:C.ink,fontWeight:'800',marginBottom:8},
 input:{backgroundColor:C.white,borderColor:'#D9DED6',borderWidth:1,borderRadius:15,paddingHorizontal:15,paddingVertical:13,fontSize:15,color:C.ink,minHeight:48},
 button:{minHeight:50,paddingHorizontal:18,paddingVertical:12,borderRadius:15,justifyContent:'center',alignItems:'center',flexDirection:'row'},
 button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#AEDBDD',borderWidth:1.5},
-button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:39,paddingVertical:8,paddingHorizontal:13},
+button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:44,paddingVertical:9,paddingHorizontal:13},
 buttonText:{color:C.white,fontSize:14,fontWeight:'900'},buttonTextDark:{color:C.accentDark},
 chip:{borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:13,paddingVertical:8},
 chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{color:C.accentDark,fontSize:12,fontWeight:'800'},
@@ -2235,8 +2240,8 @@ info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertica
 warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:C.accentDark},
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
-tabBar:{height:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
-tab:{flex:1,alignItems:'center',paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{fontSize:24,color:'#708186',fontWeight:'500'},tabLabel:{fontSize:10.5,color:'#61757A',marginTop:3,fontWeight:'700'},
+tabBar:{minHeight:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
+tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:54,paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{fontSize:24,color:'#708186',fontWeight:'500'},tabLabel:{fontSize:10.5,color:'#61757A',marginTop:3,fontWeight:'700'},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},
