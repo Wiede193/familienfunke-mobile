@@ -27,17 +27,17 @@ export function suggestBoxPackages(drafts){
  }
  const groups=[...sizes.entries()].filter(([size,ds])=>ds.length>=2).sort((a,b)=>b[1].length-a[1].length || a[0].localeCompare(b[0],'de',{numeric:true}));
  for(const [size,ds] of groups.slice(0,3)){
-   add('size-'+size,'Kleidung · Gr. '+size,ds.length+' passende Teile mit erfasster Größe',ds,'Größe ist aus Etikett oder Verkäuferangabe übernommen');
+   add('size-'+size,'Kleidung · Gr. '+size,Math.min(MAX,ds.length)+' Teile mit erfasster Größe',ds,'Größe ist aus Etikett oder Verkäuferangabe übernommen');
  }
  // Saison/Verwendung nur aufgrund eindeutig benannter Schnittformen vorschlagen.
  const byTypes=(types)=>items.filter(d=>isClothing(d)&&matching(raw(d.garmentType)+' '+raw(d.title),types));
  const winter=byTypes(definiteWinter);
- if(winter.length>=2)add('winter','Winterbekleidung',winter.length+' klar benannte Winterteile',winter,'Bitte Wettertauglichkeit selbst prüfen');
+ if(winter.length>=2)add('winter','Winterbekleidung',Math.min(MAX,winter.length)+' ausdrücklich als Winterkleidung erkannte Teile',winter,'Bitte Wettertauglichkeit selbst prüfen');
  const lightItems=byTypes(light);
- if(lightItems.length>=3)add('light','T-Shirts & leichte Teile',lightItems.length+' passende Kleidungsarten',lightItems,'Saison und Material bitte prüfen');
+ if(lightItems.length>=3)add('light','T-Shirts & leichte Teile',Math.min(MAX,lightItems.length)+' passende Kleidungsarten',lightItems,'Saison und Material bitte prüfen');
  const warmItems=byTypes(warm);
- if(warmItems.length>=3)add('warm','Pullover & Jacken',warmItems.length+' passende Oberteile',warmItems,'Saison und Material bitte prüfen');
- if(items.length>=2)add('all','Alles zusammen',Math.min(MAX,items.length)+' Teile für ein gemeinsames Paket',items.slice(0,MAX),'Die Zusammenstellung kannst du noch ändern');
+ if(warmItems.length>=3)add('warm','Pullover & Jacken',Math.min(MAX,warmItems.length)+' passende Oberteile',warmItems,'Saison und Material bitte prüfen');
+ if(items.length>=2)add('all',items.length>MAX?'Erste 10 Teile':'Alles zusammen',Math.min(MAX,items.length)+' Teile für ein gemeinsames Paket',items.slice(0,MAX),'Die Zusammenstellung kannst du noch ändern');
  return candidates.slice(0,3);
 }
 export function packageCheck(drafts){
