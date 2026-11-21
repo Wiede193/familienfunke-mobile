@@ -25,6 +25,10 @@ jobs:
         run: npx expo install --fix
       - name: Expo-Paketversionen prüfen
         run: npx expo install --check
+      - name: KI-Startseite Navigation und Datenschutz prüfen
+        run: npm run check:home
+      - name: Kistenmodus-UX prüfen
+        run: npm run check:box-ux
       - name: iOS-Bundle erstellen
         run: npx expo export --platform ios --output-dir dist/ios
       - name: Android-Bundle erstellen
