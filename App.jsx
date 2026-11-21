@@ -660,6 +660,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [proposal,setProposal]=useState(null);
   const [scanNotice,setScanNotice]=useState('');
   const [confirmed,setConfirmed]=useState(false);
+  const [expandFacts,setExpandFacts]=useState(false);
+  const [scanned,setScanned]=useState(false);
   const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
   const favoriteIds=new Set(favorites.map(x=>x.listing_id));
   const editingListing=editingId?listings.find(x=>x.id===editingId&&x.seller_id===me):null;
@@ -676,12 +678,12 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   function resetForm(){
     setEditingId(null);setTitle('');setDescription('');setRegion('');setCategory('Kleidung');
     setCondition('Gut');setTrade('sell');setPrice('');setOrganizationId('');setPhoto([]);
-    setQuick(false);setFacts({...EMPTY_FACTS});setProposal(null);setScanNotice('');setConfirmed(false);
+    setQuick(false);setFacts({...EMPTY_FACTS});setProposal(null);setScanNotice('');setConfirmed(false);setExpandFacts(false);setScanned(false);
   }
   function beginEdit(x){
     resetForm();setEditingId(x.id);setOnlyMine(true);setOnlyFavorites(false);
     const decoded=decodeArticleFacts(x.description);
-    setQuick(!!decoded);setFacts(decoded?.facts||{...EMPTY_FACTS});
+    setQuick(!!decoded);setFacts(decoded?.facts||{...EMPTY_FACTS});setExpandFacts(true);
     setTitle(x.title);setDescription(decoded?decoded.note:x.description||'');setRegion(x.region_label||'');
     setCategory(x.category);setCondition(x.item_condition);setTrade(x.trade_type);
     setPrice(x.trade_type==='sell'?String((x.price_cents/100).toFixed(2)).replace('.',','):'');
@@ -720,7 +722,20 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   function startQuick(){
     resetForm();setQuick(true);setCondition('');setOpen(true);setSelectedListing(null);
   }
-  function changeFact(key,value){setFacts(prev=>({...prev,[key]:value}));setConfirmed(false);}
+  function changeFact(key,value){setFacts(prev=>({...prev,[key]:value,...(key==='defect'&&value!=='Vorhanden'?{defectText:''}:{})}));setConfirmed(false);}
+  async function takeArticlePhoto(){
+    if(choosing||scanBusy||busy||existingPhotoCount+photo.length>=5)return;
+    setChoosing(true);
+    try{
+      const permission=await ImagePicker.requestCameraPermissionsAsync();
+      if(!permission.granted){setScanNotice('Bitte erlaube den Kamerazugriff in den Geräteeinstellungen oder wähle ein Foto aus der Galerie.');return;}
+      const result=await ImagePicker.launchCameraAsync({mediaTypes:['images'],quality:0.8,exif:false});
+      if(!result.canceled&&result.assets?.length){
+        setPhoto(old=>[...old,result.assets[0]].slice(0,5-existingPhotoCount));setProposal(null);setConfirmed(false);
+      }
+    }catch(e){setScanNotice(humanError(e));}
+    finally{setChoosing(false);}
+  }
   async function recognize(){
     if(scanBusy||busy||!active||!photo.length)return;
     setScanBusy(true);setProposal(null);setScanNotice('');
@@ -737,7 +752,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(!proposal)return;
     setTitle(proposal.title);setCategory(proposal.category);
     setFacts(prev=>({...prev,...Object.fromEntries(FACT_KEYS.map(([key])=>[key,proposal[key]||prev[key]||'']))}));
-    setProposal(null);setScanNotice('Vorschläge übernommen. Bitte prüfe alle Angaben und ergänze, was fehlt.');setConfirmed(false);
+    setProposal(null);setScanned(true);setExpandFacts(false);setScanNotice('Vorschläge übernommen. Bitte prüfe alle Angaben und ergänze, was fehlt.');setConfirmed(false);
   }
   async function submit(){
     if(!active||scanBusy)return;
@@ -812,6 +827,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           disabled={choosing||busy||scanBusy||existingPhotoCount+photo.length>=5}
           onPress={()=>pick(assets=>{setPhoto(old=>[...old,...assets].slice(0,5-existingPhotoCount));setProposal(null);setConfirmed(false);},
             5-existingPhotoCount-photo.length)}/>
+        {quick&&!editingId?<Button title="＋ Mit der Kamera fotografieren" mode="ghost" small disabled={choosing||busy||scanBusy||photo.length>=5} onPress={takeArticlePhoto}/>:null}
         {photo.length>0?<ScrollView horizontal style={{marginTop:11}} contentContainerStyle={{gap:9}}>
           {photo.map((asset,index)=><View key={asset.assetId||asset.uri+index} style={{width:100}}>
             <Image source={{uri:asset.uri}} style={{width:100,height:100,borderRadius:13}} resizeMode="cover"/>
@@ -839,17 +855,27 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={v=>{setCategory(v);setConfirmed(false);}} options={MARKET_CATEGORIES}/>
       {quick?<View style={{marginBottom:12}}>
         <Text style={styles.sectionTitle}>Artikel-Steckbrief</Text>
-        <Text style={[styles.micro,{marginBottom:12}]}>Unbekanntes darf leer bleiben. Falsche Vorschläge einfach korrigieren oder löschen.</Text>
-        <Input label="Marke (optional)" value={facts.brand} onChangeText={v=>changeFact('brand',v)} maxLength={60} placeholder="Nur falls bekannt"/>
-        {['Kleidung','Babyausstattung'].includes(category)||facts.size?<Input label="Größe (optional)" value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder="z. B. 104 oder 28"/>:null}
-        <Input label="Farbe (optional)" value={facts.color} onChangeText={v=>changeFact('color',v)} maxLength={40} placeholder="z. B. dunkelblau"/>
-        <Input label={({Bücher:'Autor / Reihe (optional)',Spielzeug:'Set / Modell (optional)',Möbel:'Maße / Modell (optional)',Babyausstattung:'Modell / Ausführung (optional)'})[category]||'Weitere Angabe (optional)'} value={facts.detail} onChangeText={v=>changeFact('detail',v)} maxLength={100} placeholder="Kurzes, wichtiges Merkmal"/>
+        <Text style={[styles.micro,{marginBottom:12}]}>Unbekanntes darf leer bleiben. Falsche Vorschläge korrigieren oder löschen.</Text>
+        {scanned&&!expandFacts?<View style={{borderWidth:1,borderColor:C.line,borderRadius:12,padding:11,marginBottom:12}}>
+          {FACT_KEYS.filter(([k])=>!!facts[k]).map(([k,label])=><Row key={k} style={{justifyContent:'space-between',gap:8,paddingVertical:4}}>
+            <Text style={[styles.micro,{flex:1}]}>{label}</Text><Text style={[styles.body,{flex:1,textAlign:'right'}]}>{facts[k]}</Text>
+          </Row>)}
+          {!FACT_KEYS.some(([k])=>!!facts[k])?<Text style={styles.micro}>Keine weiteren Merkmale eindeutig erkannt.</Text>:null}
+          <Button title="Merkmale ändern / ergänzen" small mode="outline" onPress={()=>setExpandFacts(true)}/>
+        </View>:null}
+        {(!scanned||expandFacts)?<>
+          <Input label="Marke (optional)" value={facts.brand} onChangeText={v=>changeFact('brand',v)} maxLength={60} placeholder="Nur falls bekannt"/>
+          {['Kleidung','Babyausstattung'].includes(category)||facts.size?<Input label="Größe (optional)" value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder="z. B. 104 oder 28"/>:null}
+          <Input label="Farbe (optional)" value={facts.color} onChangeText={v=>changeFact('color',v)} maxLength={40} placeholder="z. B. dunkelblau"/>
+          <Input label={({Bücher:'Autor / Reihe (optional)',Spielzeug:'Set / Modell (optional)',Möbel:'Maße / Modell (optional)',Babyausstattung:'Modell / Ausführung (optional)'})[category]||'Weitere Angabe (optional)'} value={facts.detail} onChangeText={v=>changeFact('detail',v)} maxLength={100} placeholder="Kurzes, wichtiges Merkmal"/>
+          {scanned?<Button title="Merkmale einklappen" mode="ghost" small onPress={()=>setExpandFacts(false)}/>:null}
+        </>:['Kleidung','Babyausstattung'].includes(category)&&!facts.size?<Input label="Welche Größe hat der Artikel? (optional)" value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder="Größe vom Etikett"/>:null}
       </View>:null}
       <Text style={styles.label}>Ich möchte</Text>
       <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
-        <Chip text="Verkaufen" selected={trade==='sell'} onPress={()=>setTrade('sell')}/>
-        <Chip text="Verschenken" selected={trade==='gift'} onPress={()=>setTrade('gift')}/>
-        <Chip text="Tauschen" selected={trade==='swap'} onPress={()=>setTrade('swap')}/>
+        <Chip text="Verkaufen" selected={trade==='sell'} onPress={()=>{setTrade('sell');setConfirmed(false);}}/>
+        <Chip text="Verschenken" selected={trade==='gift'} onPress={()=>{setTrade('gift');setConfirmed(false);}}/>
+        <Chip text="Tauschen" selected={trade==='swap'} onPress={()=>{setTrade('swap');setConfirmed(false);}}/>
       </View>
       {trade==='sell'?<Input label="Preis in €" value={price} onChangeText={v=>{setPrice(v);setConfirmed(false);}} keyboardType="decimal-pad" placeholder="z. B. 12,50"/>:null}
       <Text style={styles.label}>Zustand</Text>
@@ -864,7 +890,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         {facts.defect==='Vorhanden'?<Input label="Welche Mängel?" value={facts.defectText} onChangeText={v=>changeFact('defectText',v)} maxLength={180} multiline placeholder="z. B. kleiner Fleck am Ärmel"/>:null}
         <Input label="Deine persönliche Notiz (optional)" multiline value={description} onChangeText={v=>{setDescription(v);setConfirmed(false);}} maxLength={900} placeholder="Was möchtest du persönlich ergänzen?"/>
       </View>:<Input label="Beschreibung" multiline value={description} onChangeText={setDescription} maxLength={1500} placeholder="Größe, Farbe, Zustand, Abholung …"/>}
-      <Input label="Ort / Region – keine Privatadresse" value={region} onChangeText={setRegion} maxLength={80} placeholder="z. B. Fürstenwalde/Spree"/>
+      <Input label="Ort / Region – keine Privatadresse" value={region} onChangeText={v=>{setRegion(v);setConfirmed(false);}} maxLength={80} placeholder="z. B. Fürstenwalde/Spree"/>
       {myOrgs.length>0&&!editingId?<><Text style={styles.label}>Anbieten als</Text><View style={[styles.chipsRow,{marginTop:0,marginBottom:15}]}>
         <Chip text="Privat" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
