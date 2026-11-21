@@ -104,7 +104,7 @@ function Field({label,value,onChange,maxLength=100,multi=false,placeholder}){
    maxLength={maxLength} multiline={multi} style={[styles.field,multi&&{minHeight:85,textAlignVertical:'top'}]}/></View>;
 }
 const mapScript=(method,arg)=>{
-  const obj=JSON.stringify(arg).replace(/</g,'\\u003c');
+  const obj=JSON.stringify(arg??null).replace(/</g,'\\u003c');
   return 'window.ffMap&&window.ffMap.'+method+'('+obj+');true;';
 };
 function pinSetScript(items){
@@ -338,6 +338,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId}){
     const place=[...CURATED_FAMILY_PLACES,...NATIONAL_FAMILY_PLACES].find(p=>p.id===entryPlaceId);
     if(!place||!inGermany(place.latitude,place.longitude))return;
     showPlace(place);
+    if(ready)scroll.current?.scrollTo({y:Math.max(0,mapOffset.current-12),animated:false});
   },[entryPlaceId,ready]);
   function showPlace(place){
     setNationalType('all');setNationalArea('all');setTypes('all');
