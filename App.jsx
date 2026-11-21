@@ -19,7 +19,7 @@ import {compactBoxDetail,summarizeBox,packageNote,packagePersonalLimit,parsePack
 import {keepBoxPhoto,availableBoxPhoto,loadBoxSnapshot,saveBoxSnapshot,deleteBoxStorage,makeBoxCrop} from './MarketBoxStorage';
 import { cropBounds,suggestedCrop,changeCrop,pixelCrop,photoIssues,PHOTO_ISSUES } from './MarketBoxCrop';
 import {suggestBoxPackages,packageCheck} from './MarketBoxSuggestions';
-import {marketListingSizes,marketMatchesSize,marketMatchesRegion} from './MarketListingFilters';
+import {collectMarketSizeLabels,marketListingSizes,marketMatchesSize,marketMatchesRegion} from './MarketListingFilters';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
@@ -40,6 +40,7 @@ const sameRegion = (a,b) => {
 const TABS = [['market','Basar','♧'],['discover','Familien','♡'],['map','Karte','⌖'],['guide','Wegweiser','☀'],['more','Mehr','◉']];
 const MARKET_CATEGORIES=['Kleidung','Spielzeug','Bücher','Babyausstattung','Möbel','Sonstiges'];
 const MARKET_PAGE_SIZE=80;
+const MARKET_STANDARD_SIZES=['44','50','56','62','68','74','80','86','92','98','104','110','116','122','128','134','140','146','152','158','164','170','176',...Array.from({length:23},(_,i)=>String(i+18))];
 
 async function marketPhotoRowsFor(listings){
   if(!listings.length)return [];
@@ -486,10 +487,11 @@ addPendingPhotos={(listingId,assets)=>execute(async()=>{
  await reviewMarketListing(listingId);
 })}
 editListing={(listingId,v,assets)=>execute(async()=>{
- const {data,error:e}=await supabase.rpc('ff_market_edit_listing',{
+ const {data,error:e}=await supabase.rpc('ff_market_edit_listing_v2',{
    p_listing_id:listingId,p_title:v.title,p_description:v.description,
    p_category:v.category,p_item_condition:v.item_condition,
-   p_trade_type:v.trade_type,p_price_cents:v.price_cents,p_region_label:v.region_label
+   p_trade_type:v.trade_type,p_price_cents:v.price_cents,p_region_label:v.region_label,
+   p_size_labels:v.size_labels
  });
  if(e)throw e;
  if(data!==true)throw new Error('Diese Anzeige darf nicht bearbeitet werden. Bitte prüfe ihren Status.');
@@ -829,6 +831,12 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
   const favoriteIds=new Set(favorites.map(x=>x.listing_id));
   const editingListing=editingId?listings.find(x=>x.id===editingId&&x.seller_id===me):null;
+  const sizeSources=boxEditor?.packageIds
+    ?boxDrafts.filter(d=>boxEditor.packageIds.includes(d.id)).map(d=>d.facts?.size)
+    :editingId&&editingListing&&!facts.size&&parsePackageNote(decodeArticleFacts(editingListing.description)?.note||'')
+      ?editingListing.size_labels||[]
+      :[facts.size];
+  const listingSizeLabels=collectMarketSizeLabels(sizeSources);
   const existingPhotoCount=editingListing?(editingListing.photo_path?1:0)
     +marketPhotos.filter(x=>x.listing_id===editingId).length:0;
   const galleryOf=x=>{
@@ -861,7 +869,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   };
   const minimum=parsePrice(minPrice), maximum=parsePrice(maxPrice);
   const availableListings=listings.filter(x=>x.moderation_status==='approved'||x.seller_id===me);
-  const sizeOptions=[...new Set(availableListings.flatMap(marketListingSizes))].sort((a,b)=>a.localeCompare(b,'de',{numeric:true}));
+  const sizeOptions=[...new Set([...MARKET_STANDARD_SIZES,...availableListings.flatMap(marketListingSizes)])].sort((a,b)=>a.localeCompare(b,'de',{numeric:true}));
   const placeOptions=[...new Set(availableListings.map(x=>String(x.region_label||'').trim()).filter(Boolean))]
     .sort((a,b)=>a.localeCompare(b,'de',{numeric:true}));
   const activeFilterCount=Number(filter!=='Alle')+Number(sizeFilter!=='Alle')+Number(placeFilter!=='Alle')
@@ -1521,6 +1529,9 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
         {['Neu','Sehr gut','Gut','Gebraucht'].map(x=><Chip key={x} text={x} selected={condition===x} onPress={()=>{setCondition(x);setConfirmed(false);}}/>)}
       </View>
+      {!quick&&['Kleidung','Babyausstattung'].includes(category)?<Input
+        label="Größe (separates Suchfeld)" value={facts.size}
+        onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder="z. B. 104 oder 98/104"/>:null}
       {quick?<View style={{marginBottom:13}}>
         <Text style={styles.label}>Gibt es bekannte Mängel?</Text>
         <View style={[styles.chipsRow,{marginTop:0,marginBottom:9}]}>
@@ -1534,6 +1545,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Chip text="Privat" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
       </View></>:null}
+      {category==='Kleidung'&&listingSizeLabels.length===0?<Text style={[styles.micro,{color:C.warningText,marginBottom:10}]}>Ohne bestätigte Größe kann dein Kleidungsstück nicht über die Größensuche gefunden werden. Bitte Größe ergänzen, falls bekannt.</Text>:null}
       {packageForm?<Text style={[styles.micro,{marginBottom:11}]}>Deine Anzeige wird vor Veröffentlichung geprüft.</Text>:<Info>Erlaubt sind auch Kuscheltiere, Tierfiguren und eindeutig harmloses Kinderspielzeug. Echte Tiere sind bei uns ausnahmslos verboten – ebenso Waffen, Drogen, Medikamente, 18+-Waren und andere gefährliche oder illegale Artikel. Die Anzeige erscheint erst nach Prüfung.</Info>}
       <Text style={[styles.label,{marginBottom:9}]}>3 · Prüfen und einreichen</Text>
       {quick?<Pressable accessibilityRole="checkbox" accessibilityState={{checked:confirmed}} onPress={()=>setConfirmed(v=>!v)} style={{flexDirection:'row',gap:10,padding:12,marginBottom:12,borderRadius:12,borderWidth:1,borderColor:C.line}}>
