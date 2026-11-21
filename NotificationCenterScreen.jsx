@@ -6,11 +6,16 @@ const copy={
  request:['Kontaktanfrage','Eine Familie möchte dich kennenlernen.','Kontaktanfragen ansehen','♡'],
  match:['Neuer Familienkontakt','Ihr seid jetzt miteinander verbunden.','Kontakt öffnen','♡'],
  message:['Neue Nachricht','Du hast eine neue private Nachricht erhalten.','Unterhaltung öffnen','✉'],
+ price:['Preis gesenkt','Ein gemerkter Artikel wurde günstiger.','Angebot öffnen','€'],
  search:['Neuer Basar-Treffer','Ein neu freigegebenes Angebot passt zu einem deiner Suchaufträge.','Angebot öffnen','♡'],
  market:['Basar-Prüfung','Der Prüfstatus deiner Anzeige wurde aktualisiert.','Meine Anzeige öffnen','♧']
 };
 function eventCopy(row){
  const base=copy[row.kind]||['Neuigkeit','Es gibt eine Aktualisierung.','Ansehen','•'];
+ if(row.kind==='price'&&Number.isInteger(row.old_price_cents)&&Number.isInteger(row.new_price_cents)){
+  const money=v=>(v/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
+  return [base[0],'Bei einem gemerkten Angebot sank der veröffentlichte Preis von '+money(row.old_price_cents)+' auf '+money(row.new_price_cents)+'. Öffne das Angebot für den aktuellen Preis.',base[2],base[3]];
+ }
  return row.kind==='market'?[row.listing_status==='approved'?'Anzeige freigegeben':'Anzeige abgelehnt',
   row.listing_status==='approved'?'Dein Angebot wurde freigegeben.':'Dein Angebot wurde nicht freigegeben. Prüfe die Details in deinem Basar.',base[2],base[3]]:base;
 }
