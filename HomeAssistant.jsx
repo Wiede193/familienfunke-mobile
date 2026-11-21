@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useRef, useState} from 'react';
 import {ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 import {supabase} from './supabase';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
@@ -70,6 +70,7 @@ export default function HomeAssistant({onNavigate}){
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
+  const scrollRef=useRef(null);
   const needle=question.trim();
   const matches=findHomeRoutes(needle);
   const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
@@ -82,7 +83,7 @@ export default function HomeAssistant({onNavigate}){
     if(prompt.length<3||busy)return;
     setBusy(true);setError('');
     try{
-      const history=conversation.slice(-3).reverse().flatMap(x=>[
+      const history=conversation.slice(0,3).reverse().flatMap(x=>[
         {role:'user',content:x.question},
         {role:'assistant',content:x.answer}
       ]);
@@ -129,7 +130,7 @@ export default function HomeAssistant({onNavigate}){
     }catch(e){setError(e?.message||'Die KI ist gerade nicht erreichbar.');}
     finally{setBusy(false);}
   }
-  return <ScrollView style={s.page} contentContainerStyle={s.content}
+  return <ScrollView ref={scrollRef} style={s.page} contentContainerStyle={s.content}
     keyboardShouldPersistTaps="handled">
     <View style={s.hero}>
       <View style={s.heroCircleLarge} pointerEvents="none"/>
@@ -145,7 +146,7 @@ export default function HomeAssistant({onNavigate}){
       <View style={s.inputShell}>
         <Text style={s.searchGlyph}>⌕</Text>
         <TextInput accessibilityLabel="App-Funktion suchen oder KI-Frage eingeben"
-          style={s.input} value={question} onChangeText={setQuestion}
+          style={s.input} value={question} onChangeText={setQuestion} editable={!busy}
           placeholder="z. B. Spielplatz, Profil, Kinderjeans ..."
           placeholderTextColor="#78898A" maxLength={600}
           autoCapitalize="sentences" returnKeyType="search"
@@ -211,7 +212,7 @@ export default function HomeAssistant({onNavigate}){
       <View style={s.suggestionList}>
         {SUGGESTIONS.map(topic=><Pressable key={topic} accessibilityRole="button"
           accessibilityLabel={'Frage eingeben: '+topic}
-          onPress={()=>setQuestion(topic)} style={({pressed})=>[s.suggestion,pressed&&s.pressed]}>
+          onPress={()=>{setQuestion(topic);scrollRef.current?.scrollTo({y:0,animated:true});}} style={({pressed})=>[s.suggestion,pressed&&s.pressed]}>
           <Text style={s.suggestionText}>{topic}</Text>
           <Text style={s.suggestionArrow}>›</Text>
         </Pressable>)}
