@@ -1,5 +1,5 @@
 import React, {useRef, useState} from 'react';
-import {AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
+import {AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
@@ -62,6 +62,8 @@ function AssistantReply({entry,onNavigate}){
   </View>;
 }
 export default function HomeAssistant({onNavigate}){
+  const {width:screenWidth,fontScale}=useWindowDimensions();
+  const singleColumn=screenWidth<360||fontScale>=1.5;
   const [question,setQuestion]=useState('');
   const [conversation,setConversation]=useState([]);
   const [busy,setBusy]=useState(false);
@@ -193,9 +195,9 @@ export default function HomeAssistant({onNavigate}){
       <View style={s.section}>
         <Text style={s.sectionTitle}>Einfach loslegen</Text>
         <Text style={s.sectionSubtitle}>Wichtige Bereiche auf einen Blick.</Text>
-        <View style={s.featuredGrid}>
+        <View style={[s.featuredGrid,singleColumn&&{flexDirection:"column"}]}>
           {featured.map(route=><AreaCard key={route.id} route={route}
-            onNavigate={onNavigate} query="" compact/>)}
+            onNavigate={onNavigate} query="" compact={!singleColumn}/>)}
         </View>
         <Pressable accessibilityRole="button" accessibilityState={{expanded:showAll}}
           onPress={()=>setShowAll(v=>!v)} style={s.allAction}>
@@ -248,7 +250,7 @@ const s=StyleSheet.create({
   input:{flex:1,minHeight:51,paddingVertical:10,fontSize:15,color:C.ink},
   clear:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',paddingHorizontal:9,paddingVertical:5},
   clearText:{color:C.muted,fontSize:24},
-  searchActions:{marginTop:12,flexDirection:'row',alignItems:'center',gap:10},
+  searchActions:{marginTop:12,flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:10},
   askButton:{backgroundColor:C.teal,alignItems:'center',justifyContent:'center',
     minHeight:46,paddingHorizontal:17,borderRadius:14,flexDirection:'row'},
   askButtonLabel:{color:'#FFFFFF',fontWeight:'900',fontSize:15},
