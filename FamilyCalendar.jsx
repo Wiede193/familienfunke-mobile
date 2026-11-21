@@ -39,7 +39,7 @@ const monthLabel=m=>new Date(Number(m.slice(0,4)),Number(m.slice(5))-1,1,12).toL
 export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
  const today=dayKey(new Date()),[month,setMonth]=useState(today.slice(0,7)),[chosen,setChosen]=useState(today);
  const [form,setForm]=useState(()=>seed?emptyForm(today,seed):null),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
- const seq=useRef(0),alive=useRef(true),lock=useRef(false);
+ const seq=useRef(0),alive=useRef(true),lock=useRef(false),scroll=useRef(null);
  const {width,fontScale}=useWindowDimensions();
  async function refresh(){
   const n=++seq.current;setLoading(true);
@@ -56,6 +56,7 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
   return()=>{alive.current=false;seq.current++;sub.remove();};
  },[userId]);
  function changeMonth(delta){const next=moveMonth(month,delta);if(next<'1900-01'||next>'2100-12')return;setMonth(next);setChosen(next+'-01');}
+ function openForm(value){setForm(value);scroll.current?.scrollTo({y:0,animated:false});}
  function change(k,v){setForm(old=>({...old,[k]:v}));}
  async function save(){
   if(lock.current||!form)return;lock.current=true;setBusy(true);
@@ -94,14 +95,14 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
    {row.available?<Text style={s.text}>{entryDay(row)}{entryTime(row)?' · '+entryTime(row)+' Uhr':' · Ganztägig'}{row.region_label?' · '+row.region_label:''}</Text>:<Text style={s.text}>Der Termin ist nicht mehr sichtbar oder wurde nicht freigegeben.</Text>}</View>
    <Pressable accessibilityRole="button" accessibilityLabel={(row.title||'Kalendereintrag')+' löschen'} disabled={busy} onPress={()=>remove(row)} style={s.close}><Text style={s.x}>×</Text></Pressable></View>
    {row.note?<Text style={s.text}>{row.note}</Text>:null}
-   {!linked?<Action secondary disabled={busy} onPress={()=>setForm({id:row.id,title:row.title,note:row.note,day:row.day,time:entryTime(row),kind:row.kind,place_id:row.place_id})}>Bearbeiten</Action>:null}
-   {linked&&row.available?<Action secondary onPress={()=>onOpenEvent(row.kind,row.source_id)}>Veranstaltung öffnen</Action>:null}
+   {!linked?<Action secondary disabled={busy} onPress={()=>openForm({id:row.id,title:row.title,note:row.note,day:row.day,time:entryTime(row),kind:row.kind,place_id:row.place_id})}>Bearbeiten</Action>:null}
+   {linked&&row.available&&new Date(row.starts_at)>new Date()?<Action secondary onPress={()=>onOpenEvent(row.kind,row.source_id)}>Veranstaltung öffnen</Action>:null}
    {row.kind==='outing'&&row.place_id?<Action secondary onPress={()=>onOpenPlace(row.place_id)}>Ausflugsziel öffnen</Action>:null}
   </View>;
  }
- return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}>
+ return <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}>
   <View style={s.hero}><Text accessibilityRole="header" style={s.title}>Mein Familienkalender</Text><Text style={s.text}>Private Termine, Ausflüge und gemerkte Veranstaltungen. Nur dein Konto sieht deine Kalendereinträge.</Text></View>
-  <Action onPress={()=>setForm(emptyForm(chosen,null))}>＋ Privaten Termin anlegen</Action>
+  <Action onPress={()=>openForm(emptyForm(chosen,null))}>＋ Privaten Termin anlegen</Action>
   {form?<View style={s.card}>
    <Text accessibilityRole="header" style={s.heading}>{form.id?'Termin bearbeiten':form.kind==='outing'?'Ausflug einplanen':'Neuer privater Termin'}</Text>
    <Text style={s.sub}>Titel</Text><TextInput accessibilityLabel="Termintitel" style={s.input} value={form.title} maxLength={100} onChangeText={v=>change('title',v)}/>
@@ -114,7 +115,7 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
    <View style={s.line}><Pressable accessibilityRole="button" accessibilityLabel="Vorheriger Monat" onPress={()=>changeMonth(-1)} style={s.close}><Text style={s.x}>‹</Text></Pressable>
     <Text accessibilityRole="header" style={[s.heading,{flex:1,textAlign:'center'}]}>{monthLabel(month)}</Text>
     <Pressable accessibilityRole="button" accessibilityLabel="Nächster Monat" onPress={()=>changeMonth(1)} style={s.close}><Text style={s.x}>›</Text></Pressable></View>
-   {width>=330&&fontScale<1.5?<><View style={s.week}>{['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=><Text key={d} style={[s.sub,s.weekDay]}>{d}</Text>)}</View>
+   {width>=376&&fontScale<1.5?<><View style={s.week}>{['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=><Text key={d} style={[s.sub,s.weekDay]}>{d}</Text>)}</View>
     <View style={s.week}>{monthDays(month).map((day,i)=>{
      const count=monthRows.filter(r=>entryDay(r)===day).length;
      return day?<Pressable key={day} accessibilityRole="button" accessibilityLabel={day+', '+count+' Termine'} accessibilityState={{selected:day===chosen}}
@@ -126,7 +127,7 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
   <Action secondary disabled={loading} onPress={refresh}>{loading?'Kalender wird geladen …':'Aktualisieren'}</Action>
   <Text accessibilityRole="header" style={s.heading}>{chosen}</Text>
   {selectedRows.length?selectedRows.map(render):!loading?<Text style={s.text}>An diesem Tag ist kein Termin eingetragen.</Text>:null}
-  <Action secondary onPress={()=>setForm(emptyForm(chosen,null))}>Termin für diesen Tag anlegen</Action>
+  <Action secondary onPress={()=>openForm(emptyForm(chosen,null))}>Termin für diesen Tag anlegen</Action>
   <Text accessibilityRole="header" style={s.heading}>Weitere Termine im Monat</Text>
   {monthRows.filter(r=>entryDay(r)!==chosen).map(render)}
   {!monthRows.length&&!loading?<Text style={s.text}>Noch keine Termine in diesem Monat.</Text>:null}
