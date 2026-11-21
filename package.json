@@ -13,6 +13,7 @@
     "check:home": "node tests/check-home-assistant.mjs",
     "check:design": "node tests/check-design-system.mjs",
     "check:accessibility": "node tests/check-accessibility.mjs",
+    "check:map-photo-a11y": "node tests/check-map-photo-a11y.mjs",
     "check:market-search": "node tests/check-market-search.mjs",
     "check:market-auto-review": "node tests/check-market-auto-review.mjs",
     "check:market-review-queue": "node tests/check-market-review-queue.mjs"

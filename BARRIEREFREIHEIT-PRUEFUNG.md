@@ -22,6 +22,8 @@
 8. Bei relevanten Bildern einfache Alternativtexte/Benennungen ergänzt; reine Vorschaubilder innerhalb eines benannten Buttons versteckt.
 9. Kartenorte sind über eine Textliste erreichbar; der visuelle WebView ist aus dem Screenreader-Fokus genommen. Neue Orte können per Tastatur mit Breiten- und Längengrad eingetragen werden (statt verpflichtendem Kartentipp).
 10. Formulare mit mehrzeiliger Texteingabe verwenden Mindesthöhen, keine starre Höhe. Farbleitfaden und Kontrast-Regressionstests bereits vorhanden.
+11. Basar-Bildbeschreibungen fassen nur die vom Verkäufer bestätigten Artikelmerkmale und Paketbestandteile zusammen; es werden keine unbestätigten visuellen Details erfunden. Die Bild- und Angebotsbeschreibungen sind auch ohne Screenreader lesbar.
+12. Familienkarte: Stadt- und Ortsnamensuche oberhalb der Karte, lokal in bereits recherchierten oder geladenen Orten; Auswahl mit Screenreader, ohne Kartentipp. Die Suche ist kein bundesweiter externer Geocoder.
 
 ## Offene Risiken und Priorisierung
 
@@ -29,8 +31,8 @@
 | --- | --- | --- |
 | **P0 vor öffentlichem Launch** | Screenreader-Gesamtdurchlauf | Vollständige Abläufe mit VoiceOver (iOS) und TalkBack (Android) testen: Registrierung/Login, KI-Startseite, Entdecken, Kontaktanfrage, Chat, Inserat, Fotoanalyse, Basar-Suche, Kaufkontakt, Profil, Meldung, Karte. Fokusreihenfolge, Beschriftungen und Statusankündigung prüfen. |
 | **P0** | Textvergrößerung / Reflow | Schrift 100 %, 150 %, 200 % sowie kleine Geräte prüfen; besonders sechs Bottom-Tabs, Profilformulare, Filter, Chat-Tastatur, Foto-Korrektur, horizontale Karten und Modals. Sichtbaren Text nicht abschneiden. |
-| **P0** | Bildinhalt / Fotoprozesse | Freigabeentscheidungen und Foto-/Crop-Prüfung erfordern weiterhin visuelle Kontrolle. Für blinde Nutzende gleichwertige Alternativen definieren: manuelle Artikeltexte, freiwillige KI-Bildbeschreibung als **Vorschlag** mit Bestätigung, keine KI-Erkennung als sichere Tatsache ausgeben. |
-| **P1** | Karten-Eingabe | Koordinatenfelder sind bedienbar, aber mühsam. Zusätzlich eine barrierefreie Orts-/Adresssuche bzw. Geokodierung anbieten, nur öffentliche Orte; keine private Adresse, klare Datenschutzregeln. |
+| **P0** | Bildinhalt / Fotoprozesse | Strukturierte, bestätigte Artikelmerkmale werden vorgelesen. **Noch offen:** echte, vom Verkäufer kontrollierbare Bildbeschreibung für jedes einzelne Foto; Foto-/Crop-Prüfung und KI-Fehlerfälle müssen auch ohne visuelle Kontrolle bedienbar sein. Keine KI-Erkennung als sichere Tatsache ausgeben. |
+| **P1** | Karten-Eingabe | Lokale Suche im bereits vorhandenen Städte- und Ortskatalog jetzt möglich. Noch offen: zugängliche geokodierte Suche für bisher unbekannte öffentliche Orte mit geeignetem Provider, Datenschutzinformation und Rate-Limits. Koordinaten bleiben als Alternative vorhanden. |
 | **P1** | Dynamische Statusmeldungen | Bei Navigation, Laden, Kontaktanfrage, Chatversand, Bildfreigabe, Filterwechsel und Ablehnung prüfen, ob Ereignisse ohne Sicht lesbar sind; Fokus nach Routenwechsel kontrolliert setzen. |
 | **P1** | Kontrast außerhalb Theme-Tokens | Individuelle Inline-Farben, Overlay-Texte, Bildtexte, Statusfarben, Platzhalter und Fokusindikatoren visuell und automatisiert prüfen (mindestens 4,5:1 Fließtext; nichttextuelle Indikatoren 3:1, wo erforderlich). |
 | **P1** | Alternative Eingaben | Alle Vorgänge mit externer Tastatur, Switch Control und Voice Control ohne Drag-Gesten oder feinmotorisches Ziehen testen. Prüfen, ob Touch-Hilfsflächen keine angrenzenden Ziele verdecken. |
