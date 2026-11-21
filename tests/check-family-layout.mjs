@@ -16,6 +16,6 @@ assert.notEqual(m.layoutKey('a'),m.layoutKey('b'));assert.equal(m.layoutKey(null
 assert.match(read('FamilyLayoutPreferences.js'),/owner.current!==userId/);
 assert.match(read('App.jsx'),/customTabs\.map/);
 assert.match(read('App.jsx'),/layoutEditor\?\.owner===me/);
-assert.match(read('HomeAssistant.jsx'),/const moreRoutes=HOME_ROUTES/);
+assert.match(read('HomeAssistant.jsx'),/const moreRoutes=localizedRoutes\(HOME_ROUTES,language\)/);
 assert.match(read('FamilyLayoutEditor.jsx'),/minHeight:48/);
 console.log('Individual layout: defaults, validation, order, account keys and UI wiring checked');

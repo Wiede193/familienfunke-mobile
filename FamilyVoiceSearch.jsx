@@ -1,10 +1,12 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {AccessibilityInfo,AppState,Platform,Pressable,StyleSheet,Text,View} from 'react-native';
 import {requireOptionalNativeModule} from 'expo';
+import {useFamilyLocale} from './FamilyLocale';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 
 const speech=['ios','android'].includes(Platform.OS)?requireOptionalNativeModule('ExpoSpeechRecognition'):null;
 export default function FamilyVoiceSearch({disabled=false,onText,onBusyChange}){
+ const {t,locale}=useFamilyLocale();
  const [phase,setPhase]=useState('idle'),[notice,setNotice]=useState('');
  const control=useRef({mounted:false,session:0,phase:'idle',accept:false});
  const callbacks=useRef({onText,onBusyChange});callbacks.current={onText,onBusyChange};
@@ -27,13 +29,13 @@ export default function FamilyVoiceSearch({disabled=false,onText,onBusyChange}){
     const value=event?.results?.[0]?.transcript;
     if(c.mounted&&c.accept&&c.phase==='listening'&&event.isFinal&&typeof value==='string'&&value.trim()){
      c.accept=false;callbacks.current.onText?.(value.trim().slice(0,600));
-     setNotice('Text eingefügt. Prüfe ihn und tippe auf Suchen oder KI fragen.');
-     AccessibilityInfo.announceForAccessibility('Gesprochener Text eingefügt.');
+     setNotice(t("Text eingefügt. Prüfe ihn und tippe auf Suchen oder KI fragen."));
+     AccessibilityInfo.announceForAccessibility(t("Gesprochener Text eingefügt."));
     }
    }),
    speech.addListener('error',()=>{
     if(!c.mounted||c.phase==='idle')return;
-    c.accept=false;setNotice('Spracherkennung nicht verfügbar. Bitte prüfe die lokale deutsche Spracherkennung oder nutze die Tastatur.');
+    c.accept=false;setNotice(t("Spracherkennung nicht verfügbar. Bitte prüfe die lokale deutsche Spracherkennung oder nutze die Tastatur."));
     // Wait for the terminal event instead of allowing a new session while old events may arrive.
     transition('stopping');
     const session=c.session;
@@ -61,27 +63,27 @@ export default function FamilyVoiceSearch({disabled=false,onText,onBusyChange}){
   const seq=++c.session;setNotice('');
   try{
    if(!speech.supportsOnDeviceRecognition()||!speech.isRecognitionAvailable()){
-    setNotice('Lokale Spracherkennung fehlt auf diesem Gerät. Du kannst die Tastatur verwenden.');return;
+    setNotice(t("Lokale Spracherkennung fehlt auf diesem Gerät. Du kannst die Tastatur verwenden."));return;
    }
    transition('permission');
    const permission=await speech.requestMicrophonePermissionsAsync();
    if(!c.mounted||seq!==c.session)return;
    if(!permission?.granted||AppState.currentState!=='active'){
-    setNotice('Mikrofon nicht verfügbar. Prüfe die Geräteeinstellungen oder nutze die Tastatur.');transition('idle');return;
+    setNotice(t("Mikrofon nicht verfügbar. Prüfe die Geräteeinstellungen oder nutze die Tastatur."));transition('idle');return;
    }
    c.accept=true;transition('listening');
-   speech.start({lang:'de-DE',requiresOnDeviceRecognition:true,continuous:false,interimResults:false,maxAlternatives:1,recordingOptions:{persist:false}});
+   speech.start({lang:locale,requiresOnDeviceRecognition:true,continuous:false,interimResults:false,maxAlternatives:1,recordingOptions:{persist:false}});
   }catch{
    if(!c.mounted||seq!==c.session)return;
-   c.accept=false;transition('idle');setNotice('Spracherkennung konnte nicht gestartet werden. Bitte nutze die Tastatur.');
+   c.accept=false;transition('idle');setNotice(t("Spracherkennung konnte nicht gestartet werden. Bitte nutze die Tastatur."));
   }
  }
  if(!speech)return null;
  return <View style={s.wrap}>
   <Pressable accessibilityRole="button" accessibilityState={{disabled:phase==='stopping'||(disabled&&phase==='idle')}} disabled={phase==='stopping'||(disabled&&phase==='idle')} onPress={phase==='idle'?start:cancel} style={s.button}>
-   <Text style={s.label}>{phase==='idle'?'Spracheingabe starten':phase==='permission'?'Mikrofonanfrage abbrechen':phase==='stopping'?'Wird beendet …':'Aufnahme abbrechen'}</Text>
+   <Text style={s.label}>{phase==='idle'?t("Spracheingabe starten"):phase==='permission'?t("Mikrofonanfrage abbrechen"):phase==='stopping'?t("Wird beendet …"):t("Aufnahme abbrechen")}</Text>
   </Pressable>
-  <Text accessibilityLiveRegion="polite" style={s.hint}>{phase==='listening'?'Sprich jetzt. Die Erkennung endet nach einer Sprechpause.':notice||'Sprache wird nur lokal erkannt. Du entscheidest, ob du den Text absendest.'}</Text>
+  <Text accessibilityLiveRegion="polite" style={s.hint}>{phase==='listening'?t("Sprich jetzt. Die Erkennung endet nach einer Sprechpause."):notice||t("Sprache wird nur lokal erkannt. Du entscheidest, ob du den Text absendest.")}</Text>
  </View>;
 }
 const s=StyleSheet.create({wrap:{alignSelf:'stretch',alignItems:'center',gap:6,marginTop:12},button:{minHeight:48,paddingHorizontal:16,paddingVertical:12,borderWidth:1,borderColor:C.accentDark,borderRadius:14,backgroundColor:C.paper,justifyContent:'center'},label:{color:C.accentDark,fontSize:16,fontWeight:'700',textAlign:'center'},hint:{fontSize:13,lineHeight:19,color:C.muted,textAlign:'center'}});

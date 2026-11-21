@@ -2,6 +2,7 @@ import React,{useState} from 'react';
 import {Alert,Modal,Pressable,SafeAreaView,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import {HOME_ROUTES} from './HomeNavigation';
+import {useFamilyLocale} from './FamilyLocale';
 import {BOTTOM_ITEMS,MAX_BOTTOM,moveShortcut,normalizeLayout} from './FamilyLayoutModel';
 
 const homeChoices=HOME_ROUTES.map(r=>[r.id,r.title]);
@@ -12,30 +13,32 @@ function Action({title,onPress,disabled=false,primary=false,label}){
  </Pressable>;
 }
 function ListEditor({title,items,choices,change,locked=false,busy=false}){
+ const {t,language}=useFamilyLocale();
  const available=choices.filter(([id])=>!items.includes(id));
  const full=locked&&items.length>=MAX_BOTTOM;
  return <View style={s.section}>
   <Text accessibilityRole="header" style={s.heading}>{title}</Text>
-  <Text style={s.hint}>{locked?'Start bleibt immer sichtbar. Bis zu vier weitere Menüpunkte.':'Du kannst auch alle Kacheln ausblenden. Die Suche bleibt verfügbar.'}</Text>
-  {items.length===0?<Text style={s.hint}>Keine Kacheln ausgewählt.</Text>:null}
+  <Text style={s.hint}>{locked?t("Start bleibt immer sichtbar. Bis zu vier weitere Menüpunkte."):t("Du kannst auch alle Kacheln ausblenden. Die Suche bleibt verfügbar.")}</Text>
+  {items.length===0?<Text style={s.hint}>{t("Keine Kacheln ausgewählt.")}</Text>:null}
   {items.map((id,i)=>{
-   const name=choices.find(x=>x[0]===id)?.[1]||id;
+   const name=t(choices.find(x=>x[0]===id)?.[1]||id);
    return <View key={id} style={s.item}>
     <Text style={s.name}>{i+1}. {name}</Text>
-    {locked&&i===0?<Text style={s.hint}>Immer verfügbar</Text>:<View style={s.actions}>
-     <Action title="Nach oben" label={name+' nach oben verschieben'} disabled={busy||i<=(locked?1:0)} onPress={()=>change(moveShortcut(items,i,-1,locked))}/>
-     <Action title="Nach unten" label={name+' nach unten verschieben'} disabled={busy||i===items.length-1} onPress={()=>change(moveShortcut(items,i,1,locked))}/>
-     <Action title="Entfernen" label={name+' aus '+title+' entfernen'} disabled={busy} onPress={()=>change(items.filter(x=>x!==id))}/>
+    {locked&&i===0?<Text style={s.hint}>{t("Immer verfügbar")}</Text>:<View style={s.actions}>
+     <Action title={t("Nach oben")} label={language==='en'?'Move '+name+' up':name+' nach oben verschieben'} disabled={busy||i<=(locked?1:0)} onPress={()=>change(moveShortcut(items,i,-1,locked))}/>
+     <Action title={t("Nach unten")} label={language==='en'?'Move '+name+' down':name+' nach unten verschieben'} disabled={busy||i===items.length-1} onPress={()=>change(moveShortcut(items,i,1,locked))}/>
+     <Action title={t("Entfernen")} label={language==='en'?'Remove '+name+' from '+title:name+' aus '+title+' entfernen'} disabled={busy} onPress={()=>change(items.filter(x=>x!==id))}/>
     </View>}
    </View>;
   })}
-  <Text accessibilityRole="header" style={s.subheading}>Hinzufügen</Text>
-  {full?<Text style={s.hint}>Entferne zuerst einen Menüpunkt, um einen anderen hinzuzufügen.</Text>:null}
-  {!available.length?<Text style={s.hint}>Alle Funktionen sind bereits ausgewählt.</Text>:null}
-  {available.map(([id,name])=><Action key={id} title={'+ '+name} label={name+' zu '+title+' hinzufügen'} disabled={busy||full} onPress={()=>change([...items,id])}/>)}
+  <Text accessibilityRole="header" style={s.subheading}>{t("Hinzufügen")}</Text>
+  {full?<Text style={s.hint}>{t("Entferne zuerst einen Menüpunkt, um einen anderen hinzuzufügen.")}</Text>:null}
+  {!available.length?<Text style={s.hint}>{t("Alle Funktionen sind bereits ausgewählt.")}</Text>:null}
+  {available.map(([id,name])=><Action key={id} title={'+ '+t(name)} label={language==='en'?'Add '+t(name)+' to '+title:t(name)+' zu '+title+' hinzufügen'} disabled={busy||full} onPress={()=>change([...items,id])}/>)}
  </View>;
 }
 export default function FamilyLayoutEditor({initial,ready,error,syncPending,syncAvailable,syncConflict,onRefresh,onUseAccountLayout,onSave,onClose,initialSection='home'}){
+ const {t}=useFamilyLocale();
  const [draft,setDraft]=useState(()=>normalizeLayout(initial));
  const [section,setSection]=useState(initialSection);
  const [history,setHistory]=useState([]);
@@ -47,48 +50,48 @@ export default function FamilyLayoutEditor({initial,ready,error,syncPending,sync
  function close(){
   if(pending.current)return;
   if(!dirty){onClose();return;}
-  Alert.alert('Änderungen verwerfen?','Deine bisherigen Einstellungen bleiben erhalten.',[{text:'Weiter bearbeiten',style:'cancel'},{text:'Verwerfen',style:'destructive',onPress:onClose}]);
+  Alert.alert(t("Änderungen verwerfen?"),t("Deine bisherigen Einstellungen bleiben erhalten."),[{text:t("Weiter bearbeiten"),style:'cancel'},{text:t("Verwerfen"),style:'destructive',onPress:onClose}]);
  }
  async function acceptAccount(){
   if(pending.current||!ready)return;
   pending.current=true;setBusy(true);
-  try{if(await onUseAccountLayout())onClose();else Alert.alert('Nicht übernommen','Dein lokaler Entwurf bleibt erhalten. Bitte versuche es erneut.');}
+  try{if(await onUseAccountLayout())onClose();else Alert.alert(t("Nicht übernommen"),t("Dein lokaler Entwurf bleibt erhalten. Bitte versuche es erneut."));}
   finally{pending.current=false;setBusy(false);}
  }
  async function save(confirmConflict=false){
   if(pending.current||!ready)return;
   if(syncConflict&&!confirmConflict){
-   Alert.alert('Einstellungen auf einem anderen Gerät geändert','Welche Anordnung möchtest du verwenden? Deine lokale Anordnung überschreibt nur nach Bestätigung die Kontoeinstellung.',[
-    {text:'Abbrechen',style:'cancel'},{text:'Kontoversion übernehmen',onPress:acceptAccount},{text:'Meine Anordnung übernehmen',onPress:()=>save(true)}
+   Alert.alert(t("Einstellungen auf einem anderen Gerät geändert"),t("Welche Anordnung möchtest du verwenden? Deine lokale Anordnung überschreibt nur nach Bestätigung die Kontoeinstellung."),[
+    {text:t("Abbrechen"),style:'cancel'},{text:t("Kontoversion übernehmen"),onPress:acceptAccount},{text:t("Meine Anordnung übernehmen"),onPress:()=>save(true)}
    ]);return;
   }
   pending.current=true;setBusy(true);
   try{
    const result=await onSave(draft,{confirmConflict});
    if(result?.saved){
-    if(!result.synced)Alert.alert('Auf diesem Gerät gespeichert',result.conflict?'Ein anderes Gerät hat die Anordnung geändert. Öffne „App gestalten“, um die Synchronisierung bewusst fortzusetzen.':'Die Synchronisierung war nicht möglich. Deine lokale Anordnung bleibt erhalten. Versuche es später erneut.');
+    if(!result.synced)Alert.alert(t("Auf diesem Gerät gespeichert"),result.conflict?t("Ein anderes Gerät hat die Anordnung geändert. Öffne „App gestalten“, um die Synchronisierung bewusst fortzusetzen."):t("Die Synchronisierung war nicht möglich. Deine lokale Anordnung bleibt erhalten. Versuche es später erneut."));
     onClose();return;
    }
-   Alert.alert('Nicht gespeichert','Deine bisherigen Einstellungen bleiben erhalten. Bitte versuche es erneut.');
+   Alert.alert(t("Nicht gespeichert"),t("Deine bisherigen Einstellungen bleiben erhalten. Bitte versuche es erneut."));
   }
   finally{pending.current=false;setBusy(false);}
  }
  return <Modal visible animationType="none" onRequestClose={close}>
   <SafeAreaView style={s.page} accessibilityViewIsModal>
-   <View style={s.header}><Text accessibilityRole="header" style={s.title}>App gestalten</Text><Action title="Schließen" onPress={close} disabled={busy}/></View>
+   <View style={s.header}><Text accessibilityRole="header" style={s.title}>{t("App gestalten")}</Text><Action title={t("Schließen")} onPress={close} disabled={busy}/></View>
    <View style={s.switcher}>
-    {['home','bottom'].map(id=><Pressable key={id} accessibilityRole="button" accessibilityState={{selected:section===id}} onPress={()=>setSection(id)} style={[s.action,section===id&&s.primary]}><Text style={[s.actionText,section===id&&s.primaryText]}>{id==='home'?'Startseite':'Menü unten'}</Text></Pressable>)}
+    {['home','bottom'].map(id=><Pressable key={id} accessibilityRole="button" accessibilityState={{selected:section===id}} onPress={()=>setSection(id)} style={[s.action,section===id&&s.primary]}><Text style={[s.actionText,section===id&&s.primaryText]}>{id==='home'?t("Startseite"):t("Menü unten")}</Text></Pressable>)}
    </View>
    <ScrollView contentContainerStyle={s.content}>
-    <Text style={s.hint}>Die Anordnung wird lokal gespeichert und – wenn verfügbar – mit deinem Konto synchronisiert. Alle Funktionen bleiben über Start und Suche erreichbar.</Text>
-    {ready?<Text accessibilityLiveRegion="polite" style={s.hint}>{syncConflict?'Konflikt: Auf einem anderen Gerät wurden Einstellungen geändert.':syncPending?'Die lokale Anordnung ist noch nicht synchronisiert.':syncAvailable?'Kontosynchronisierung verfügbar.':'Kontosynchronisierung zurzeit nicht verfügbar.'}</Text>:null}
-    <Action title="Synchronisierung prüfen" disabled={busy||dirty} onPress={onRefresh}/>
-    {!ready?<Text accessibilityLiveRegion="polite" style={s.error}>{error||'Einstellungen werden geladen. Schließe diese Ansicht und öffne sie danach erneut.'}</Text>:null}
-    {section==='home'?<ListEditor title="Startseiten-Kacheln" items={draft.home} choices={homeChoices} busy={busy||!ready} change={home=>update({...draft,home})}/>:<ListEditor title="Untere Menüleiste" items={draft.bottom} choices={bottomChoices} busy={busy||!ready} locked change={bottom=>update({...draft,bottom})}/>}
-    <Action title="Letzte Änderung rückgängig" disabled={busy||!history.length} onPress={undo}/>
-    <Action title="Standardeinstellungen wiederherstellen" disabled={busy||!ready} onPress={()=>Alert.alert('Anordnung zurücksetzen?','Startseite und Menü werden auf die Standardanordnung zurückgesetzt. Erst Speichern übernimmt die Änderung.',[{text:'Abbrechen',style:'cancel'},{text:'Zurücksetzen',onPress:()=>update(normalizeLayout(null))}])}/>
+    <Text style={s.hint}>{t("Die Anordnung wird lokal gespeichert und – wenn verfügbar – mit deinem Konto synchronisiert. Alle Funktionen bleiben über Start und Suche erreichbar.")}</Text>
+    {ready?<Text accessibilityLiveRegion="polite" style={s.hint}>{syncConflict?t("Konflikt: Auf einem anderen Gerät wurden Einstellungen geändert."):syncPending?t("Die lokale Anordnung ist noch nicht synchronisiert."):syncAvailable?t("Kontosynchronisierung verfügbar."):t("Kontosynchronisierung zurzeit nicht verfügbar.")}</Text>:null}
+    <Action title={t("Synchronisierung prüfen")} disabled={busy||dirty} onPress={onRefresh}/>
+    {!ready?<Text accessibilityLiveRegion="polite" style={s.error}>{error||t("Einstellungen werden geladen. Schließe diese Ansicht und öffne sie danach erneut.")}</Text>:null}
+    {section==='home'?<ListEditor title={t("Startseiten-Kacheln")} items={draft.home} choices={homeChoices} busy={busy||!ready} change={home=>update({...draft,home})}/>:<ListEditor title={t("Untere Menüleiste")} items={draft.bottom} choices={bottomChoices} busy={busy||!ready} locked change={bottom=>update({...draft,bottom})}/>}
+    <Action title={t("Letzte Änderung rückgängig")} disabled={busy||!history.length} onPress={undo}/>
+    <Action title={t("Standardeinstellungen wiederherstellen")} disabled={busy||!ready} onPress={()=>Alert.alert(t("Anordnung zurücksetzen?"),t("Startseite und Menü werden auf die Standardanordnung zurückgesetzt. Erst Speichern übernimmt die Änderung."),[{text:t("Abbrechen"),style:'cancel'},{text:t("Zurücksetzen"),onPress:()=>update(normalizeLayout(null))}])}/>
    </ScrollView>
-   <View style={s.footer}><Action title={busy?'Wird gespeichert …':'Änderungen speichern'} primary disabled={busy||!ready||(!dirty&&!syncPending)} onPress={()=>save()}/></View>
+   <View style={s.footer}><Action title={busy?t("Wird gespeichert …"):t("Änderungen speichern")} primary disabled={busy||!ready||(!dirty&&!syncPending)} onPress={()=>save()}/></View>
   </SafeAreaView>
  </Modal>;
 }
