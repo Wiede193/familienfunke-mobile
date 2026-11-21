@@ -1206,6 +1206,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Text style={styles.sectionTitle}>{boxSummary.total} Teile · {boxSummary.sized} Größen erfasst</Text>
         <Text style={styles.micro}>{boxSummary.detail||'Artikel noch prüfen'}</Text>
         {boxSummary.sizes.length?<Text style={[styles.micro,{marginTop:5}]}>Erfasste Größen: {boxSummary.sizes.join(', ')}</Text>:null}
+        {boxChecks.unknownSizes>0?<Text style={[styles.micro,{marginTop:5,color:C.warningText}]}>{boxChecks.unknownSizes} Größen noch unbekannt – bei Bedarf ergänzen, nicht schätzen.</Text>:null}
       </View>:null}
       {boxAdvanced&&boxDrafts.some(d=>d.category==='Kleidung'&&!d.facts.size)?<View style={{borderWidth:1,borderColor:C.line,borderRadius:14,padding:12,marginBottom:13}}>
         <Text style={styles.label}>Alles dieselbe Größe?</Text>
@@ -1312,7 +1313,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         {boxInspect===d.id?<Button title="Artikel entfernen" mode="ghost" small disabled={busy||scanBusy||choosing} onPress={()=>Alert.alert('Entwurf entfernen?','Dieser Artikel bleibt unveröffentlicht.',[{text:'Abbrechen',style:'cancel'},{text:'Entfernen',style:'destructive',onPress:()=>removeBoxDraft(d.id)}])}/>:null}
       </View>)}
       {visibleBoxDrafts.length>10?<Button title={boxShowAll?'Weniger anzeigen':'Weitere '+(visibleBoxDrafts.length-10)+' Artikel anzeigen'} mode="outline" small onPress={()=>setBoxShowAll(v=>!v)}/>:null}
-      <Button title="Weitere Möglichkeiten" mode="ghost" small onPress={()=>setBoxAdvanced(v=>!v)}/>
+      {boxStep==='review'?<Button title={boxAdvanced?'Weitere Möglichkeiten schließen':'Weitere Möglichkeiten'} mode="ghost" small onPress={()=>setBoxAdvanced(v=>!v)}/>:null}
       {boxAdvanced?<View>
         <Input label="Ort / Region für weitere Entwürfe (optional)" value={boxRegion} onChangeText={setBoxRegion} maxLength={80} placeholder="z. B. Fürstenwalde"/>
         <Button title="＋ Artikel manuell ergänzen" mode="outline" disabled={boxDrafts.length>=BOX_MAX_ITEMS||busy||scanBusy||choosing||boxStorage!=='ready'} onPress={addBoxDraft}/>
