@@ -57,6 +57,7 @@ export function selectOutings(origin,places,prefs){
  return places.filter(p=>['curated','national'].includes(p.source)&&validOrigin(p)&&typeof p.id==='string'&&!seen.has(p.id)&&(seen.add(p.id),true))
   .map(p=>({...p,km:distanceKm(origin,p),tags:knownTags(p),lowCostLead:budgetCandidate(p)}))
   .filter(p=>p.km<=radius&&(prefs.interest==='any'||p.tags.includes(prefs.interest)))
+  .filter(p=>prefs.budget!==0||p.lowCostLead)
   .sort((a,b)=>{
    const prioritise=prefs.budget<=20?Number(b.lowCostLead)-Number(a.lowCostLead):0;
    return prioritise||a.km-b.km||a.id.localeCompare(b.id);
@@ -70,8 +71,11 @@ export function orderOutings(candidates,ids){
  }
  return out;
 }
-export function planSteps(duration){
- if(duration==='weekend')return ['Samstag: eines der Ziele auswählen, Öffnung und Anfahrt prüfen, ausreichend Pausen einplanen.','Sonntag: optional ein weiteres Ziel oder einen ruhigen Tag einplanen. Keine feste Reihenfolge oder Fahrtzeit berechnet.'];
- if(duration==='half')return ['Vor der Abfahrt: aktuelle Besuchsbedingungen und Gesamtkosten prüfen.','Vor Ort: eine Hauptaktivität mit Pause, anschließend flexible Rückfahrt.'];
- return ['Vormittag: Hauptaktivität nach bestätigter Öffnungszeit.','Mittag: Essens- und Erholungspause.','Nachmittag: je nach Energie weiter erkunden oder früher zurückfahren.'];
+export function planSteps(duration,places=[],ages=[]){
+ const first=places[0]?.title,second=places[1]?.title;
+ if(!first)return [];
+ const pause=ages.includes('baby')||ages.includes('preschool')?'Kurze Etappen und flexible Essens-, Ruhe- und Toilettenpausen einplanen.':'Pausen und Zeit für eigene Entdeckungen einplanen.';
+ if(duration==='weekend')return ['Samstag: '+first+' als erster Vorschlag – nur nach Prüfung der Öffnung, Anfahrt und Kosten.',second?'Sonntag: optional '+second+' oder ein ruhiger Tag. Keine gemeinsame Fahrtstrecke berechnet.':'Sonntag: ein ruhiger Tag oder ein weiteres selbst gewähltes Ziel.',pause];
+ if(duration==='half')return ['Vor der Abfahrt: aktuelle Besuchsbedingungen und Gesamtkosten prüfen.','Hauptaktivität: '+first+'. '+pause,'Anschließend flexible Rückfahrt.'];
+ return ['Vormittag: '+first+' nach bestätigter Öffnungszeit.','Mittag: Essens- und Erholungspause.','Nachmittag: vor Ort weiter erkunden oder früher zurückfahren. '+pause];
 }
