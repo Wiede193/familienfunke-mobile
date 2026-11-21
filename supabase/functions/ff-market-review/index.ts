@@ -104,18 +104,9 @@ type Listing = {
  photo_path:string|null;moderation_status:string;review_version:number;
 };
 
-export default {
- fetch: withSupabase({auth:"user"}, async (req,ctx)=>{
-  if(req.method!=="POST")return fail("Methode nicht erlaubt",405);
-  const uid=ctx.userClaims?.id;
-  if(!uid)return fail("Anmeldung erforderlich",401);
-  let incoming:unknown;
-  try{incoming=await req.json();}catch{return fail("Ungültige Anfrage",400);}
-  const listingId=incoming && typeof incoming==="object" && "listing_id" in incoming
-    ? (incoming as {listing_id:unknown}).listing_id:null;
-  if(typeof listingId!=="string" || !UUID.test(listingId))return fail("Ungültige Inserat-ID",400);
-
-  const db=ctx.supabaseAdmin;
+// Shared review routine for user submissions and the signed server cron.
+// Ownership is checked by the original listing query; no moderation override.
+async function reviewOne(db:any,listingId:string,uid:string):Promise<Response>{
   const {data:listingData,error:readError}=await db.from("ff_market_listings")
    .select("id,seller_id,organization_id,title,description,category,item_condition,trade_type,price_cents,region_label,photo_path,moderation_status,review_version")
    .eq("id",listingId).eq("seller_id",uid).maybeSingle();
@@ -249,5 +240,73 @@ export default {
   if(saveError)return fail("Moderationsstatus konnte nicht gespeichert werden");
   if(!changed)return Response.json({status:"review_required",reason:"changed_during_review"});
   return Response.json({status:newStatus,reason:newStatus==="rejected"?itemReason:null});
+}
+
+// Keep the queue current, even when OpenAI, storage, or the network fails.
+// A failed queue write never grants publishing permission.
+async function recordOutcome(db:any,listingId:string,response:Response,leaseId:string|null=null){
+  let body:any={};
+  try{body=await response.clone().json();}catch{}
+  const outcome=!response.ok?'error':body?.status==='approved'?'approved':
+    body?.status==='rejected'?'rejected':
+    body?.status==='review_required'?'review_required':'error';
+  const reason=!response.ok?'technical_error':typeof body?.reason==='string'?
+    body.reason.slice(0,100):outcome==='error'?'incomplete_review':'';
+  const {error}=await db.rpc("ff_market_review_record",{
+    p_listing_id:listingId,p_outcome:outcome,p_reason:reason,p_lease_id:leaseId
+  });
+  if(error)console.error("ff-market-review: queue update failed:",error.code||"unknown");
+}
+
+export default {
+ fetch: withSupabase({auth:["user","none"]},async(req,ctx)=>{
+   if(req.method!=="POST")return fail("Methode nicht erlaubt",405);
+   const db=ctx.supabaseAdmin;
+
+   // No anonymous caller can schedule work: one-time short-lived HMAC signed
+   // by pg_cron in the private schema must be consumed by the server.
+   if(ctx.authMode==="none"){
+     const stamp=req.headers.get("x-ff-review-timestamp")||"";
+     const signature=req.headers.get("x-ff-review-signature")||"";
+     if(!/^[0-9]{10,11}$/.test(stamp)||!/^[a-f0-9]{64}$/.test(signature))
+       return Response.json({error:"not authorized"},{status:403});
+     const {data:allowed,error:authError}=await db.rpc("ff_market_review_cron_verify",{
+       p_timestamp:Number(stamp),p_signature:signature
+     });
+     if(authError||allowed!==true)return Response.json({error:"not authorized"},{status:403});
+     const {data:jobs,error:claimError}=await db.rpc("ff_market_review_claim",{p_limit:1});
+     if(claimError||!Array.isArray(jobs))return fail("Retry-Warteschlange vorübergehend nicht verfügbar");
+     let processed=0;
+     for(const job of jobs){
+       if(typeof job?.listing_id!=="string"||typeof job?.seller_id!=="string"||
+          typeof job?.lease_id!=="string")continue;
+       try{
+         const review=await reviewOne(db,job.listing_id,job.seller_id);
+         await recordOutcome(db,job.listing_id,review,job.lease_id);
+       }catch(e){
+         console.error("ff-market-review: retry error",String(e));
+         const fallback=fail("Automatische Prüfung vorübergehend nicht verfügbar");
+         await recordOutcome(db,job.listing_id,fallback,job.lease_id);
+       }
+       processed+=1;
+     }
+     return Response.json({checked:processed},{headers:{"Cache-Control":"no-store"}});
+   }
+
+   const uid=ctx.userClaims?.id;
+   if(!uid)return fail("Anmeldung erforderlich",401);
+   let incoming:unknown;
+   try{incoming=await req.json();}catch{return fail("Ungültige Anfrage",400);}
+   const listingId=incoming && typeof incoming==="object" && "listing_id" in incoming
+     ? (incoming as {listing_id:unknown}).listing_id:null;
+   if(typeof listingId!=="string"||!UUID.test(listingId))return fail("Ungültige Inserat-ID",400);
+   let result:Response;
+   try{result=await reviewOne(db,listingId,uid);}
+   catch(e){
+     console.error("ff-market-review: unexpected review error",String(e));
+     result=fail("KI-Prüfung vorübergehend nicht verfügbar");
+   }
+   await recordOutcome(db,listingId,result);
+   return result;
  })
 };
