@@ -1,5 +1,18 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "npm:@supabase/server@^1";
+// Record only token counts. Never log content or identities.
+async function trackAI(db:any,day:string,service:string,model:string,stage:"attempt"|"measured",usage?:any){
+ try{
+  const {data,error}=await db.rpc("ff_ai_usage_record",{
+   p_day:day,p_service:service,p_model:model,p_stage:stage,
+   p_input:stage==="measured"?usage?.prompt_tokens??null:0,
+   p_output:stage==="measured"?usage?.completion_tokens??null:0,
+   p_cached:stage==="measured"?usage?.prompt_tokens_details?.cached_tokens??0:0
+  });
+  if(error||data!==true)console.warn("AI usage counter unavailable",service,stage);
+ }catch{console.warn("AI usage counter unavailable",service,stage);}
+}
+
 
 // Optional, opt-in recognition of one item. No publication or change to listings.
 const MAX_IMAGE = 700_000;
@@ -122,6 +135,9 @@ export default {
     if(quota==="forbidden")return response({error:"Nur freigegebene erwachsene Mitglieder können Fotos analysieren."},403);
     if(quota!=="ok")return response({error:"Das heutige Beta-Kontingent ist erreicht. Du kannst die Anzeige weiterhin manuell erstellen."},429);
     try{
+    const usageDay=new Date().toISOString().slice(0,10);
+    const usageModel=isBox||isLabel?"gpt-4o":"gpt-4o-mini";
+    await trackAI(db,usageDay,"scan",usageModel,"attempt");
       const result=await fetch("https://api.openai.com/v1/chat/completions",{
         method:"POST",headers:{"Authorization":"Bearer "+key,"Content-Type":"application/json"},
         signal:AbortSignal.timeout(isBox?55000:30000),
@@ -136,7 +152,9 @@ export default {
         })
       });
       if(!result.ok)return response({error:"Die Foto-Erkennung ist vorübergehend nicht verfügbar."},503);
-      const json=await result.json();const choice=json.choices?.[0];
+      const json=await result.json();
+      await trackAI(db,usageDay,"scan",usageModel,"measured",json.usage);
+      const choice=json.choices?.[0];
       if(choice?.finish_reason!=="stop"||choice?.message?.refusal||typeof choice?.message?.content!=="string")
         return response({error:"Die Fotos konnten nicht eindeutig ausgewertet werden."},422);
       const facts=JSON.parse(choice.message.content);
