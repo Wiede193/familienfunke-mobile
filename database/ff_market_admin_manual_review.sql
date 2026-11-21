@@ -33,20 +33,28 @@ end $fn$;
 revoke all on function public.familienfunke_admin_market_photo_paths(uuid) from public,anon;
 grant execute on function public.familienfunke_admin_market_photo_paths(uuid) to authenticated;
 
-drop policy if exists ff_market_admin_manual_preview on storage.objects;
-create policy ff_market_admin_manual_preview on storage.objects
-for select to authenticated using (
-  bucket_id='ff-market-photos'
-  and private.ff_market_review_is_staff()
-  and exists (
+-- All cross-schema lookups execute inside a scoped SECURITY DEFINER predicate.
+-- Otherwise storage RLS evaluates the public queue table as the client and
+-- raises a permission error because the queue must never be client-readable.
+create or replace function private.ff_market_review_can_preview(p_path text)
+returns boolean language sql stable security definer set search_path='' as $fn$
+  select private.ff_market_review_is_staff() and exists (
     select 1 from public.ff_market_review_jobs j
     join public.ff_market_listings l on l.id=j.listing_id
     where j.state='manual' and l.moderation_status='pending'
-      and (l.photo_path=name or exists (
+      and (l.photo_path=p_path or exists (
         select 1 from public.ff_market_photos p
-        where p.listing_id=l.id and p.photo_path=name
+        where p.listing_id=l.id and p.photo_path=p_path
       ))
   )
+$fn$;
+revoke all on function private.ff_market_review_can_preview(text) from public,anon;
+grant execute on function private.ff_market_review_can_preview(text) to authenticated;
+
+drop policy if exists ff_market_admin_manual_preview on storage.objects;
+create policy ff_market_admin_manual_preview on storage.objects
+for select to authenticated using (
+  bucket_id='ff-market-photos' and private.ff_market_review_can_preview(name)
 );
 
 create table if not exists private.ff_market_manual_decisions (
