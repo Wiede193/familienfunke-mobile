@@ -1,5 +1,5 @@
 import React,{useState} from 'react';
-import {ScrollView,View,Text,Pressable,StyleSheet,RefreshControl} from 'react-native';
+import {ScrollView,View,Text,Pressable,StyleSheet,RefreshControl,Alert} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 
 const copy={
@@ -26,12 +26,30 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
   try{if(await onOpen(row))await inbox.markRead(row.id);}
   finally{setBusy(false);}
  }
+ async function erase(id,through=null){
+  if(busy)return;setBusy(true);
+  try{await inbox.remove(id,through);}finally{setBusy(false);}
+ }
+ function confirmClear(){
+  const through=inbox.asOf;
+  if(busy||!through||!inbox.rows.length)return;
+  Alert.alert('Alle Benachrichtigungen löschen?',
+   'Alle bisherigen Hinweise werden endgültig entfernt. Nachrichten, Kontakte und Anzeigen bleiben erhalten. Neue Hinweise bleiben sichtbar.',
+   [{text:'Abbrechen',style:'cancel'},{text:'Alle löschen',style:'destructive',onPress:()=>erase(null,through)}],{cancelable:true});
+ }
  async function readAll(){
   if(busy)return;setBusy(true);
   try{await inbox.markRead();}finally{setBusy(false);}
  }
  return <ScrollView contentContainerStyle={s.page} refreshControl={<RefreshControl refreshing={inbox.loading} onRefresh={()=>inbox.refresh()}/>}>
-  <Text accessibilityRole="header" style={s.title}>Deine Neuigkeiten</Text>
+  <View style={s.row}>
+   <Text accessibilityRole="header" style={[s.title,{flex:1}]}>Deine Neuigkeiten</Text>
+   <Pressable accessibilityRole="button" accessibilityLabel="Alle Benachrichtigungen löschen"
+    accessibilityHint="Öffnet eine Sicherheitsabfrage" accessibilityState={{disabled:busy||inbox.loading||!inbox.rows.length||!inbox.asOf}}
+    disabled={busy||inbox.loading||!inbox.rows.length||!inbox.asOf} onPress={confirmClear}
+    style={[s.deleteAll,(busy||inbox.loading||!inbox.rows.length||!inbox.asOf)&&{opacity:.45}]}>
+    <Text style={s.deleteSymbol}>×</Text></Pressable>
+  </View>
   <Text style={s.text}>Alle wichtigen Aktivitäten an einem Ort – auch ohne Push-Benachrichtigungen.</Text>
   {!active&&<Text style={s.note}>Dein Familienkonto muss freigegeben sein, bevor persönliche Aktivitäten angezeigt werden.</Text>}
   <View style={s.summary}><Text style={s.count} accessibilityLiveRegion="polite">{inbox.unread===null?'–':inbox.unread} ungelesen</Text>
@@ -46,7 +64,10 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
   {rows.map(row=>{const [title,description,action,icon]=eventCopy(row);return <View key={row.id} style={[s.card,!row.read_at&&s.unread]}>
    <View style={s.row}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.icon}><Text style={s.symbol}>{icon}</Text></View>
     <View style={{flex:1}}><Text style={s.cardTitle}>{title}</Text>
-    <Text style={s.muted}>{formatDate(row.created_at)} · {row.read_at?'Gelesen':'Ungelesen'}</Text></View></View>
+    <Text style={s.muted}>{formatDate(row.created_at)} · {row.read_at?'Gelesen':'Ungelesen'}</Text></View>
+    <Pressable accessibilityRole="button" accessibilityLabel={title+' vom '+formatDate(row.created_at)+' löschen'}
+     accessibilityState={{disabled:busy}} disabled={busy} onPress={()=>erase(row.id)} style={s.deleteOne}><Text style={s.deleteSymbol}>×</Text></Pressable>
+   </View>
    <Text style={s.text}>{description}</Text>
    <Action disabled={busy} onPress={()=>open(row)}>{action}</Action>
    {!row.read_at?<Action disabled={busy} onPress={async()=>{if(busy)return;setBusy(true);try{await inbox.markRead(row.id);}finally{setBusy(false);}}}>Als gelesen markieren</Action>:null}
@@ -64,5 +85,6 @@ const s=StyleSheet.create({
  card:{backgroundColor:C.paper,borderRadius:20,padding:16,gap:10,borderWidth:1,borderColor:C.line},unread:{borderColor:C.accent,borderWidth:2},
  row:{flexDirection:'row',alignItems:'center',gap:10},icon:{width:44,height:44,borderRadius:15,backgroundColor:C.sunPale,alignItems:'center',justifyContent:'center'},
  symbol:{fontSize:24,color:C.ink},cardTitle:{fontSize:17,fontWeight:'800',color:C.ink},
+ deleteAll:{minWidth:48,minHeight:48,backgroundColor:C.sunPale,borderRadius:15,alignItems:'center',justifyContent:'center'},deleteOne:{minWidth:44,minHeight:44,backgroundColor:C.bg,borderRadius:12,alignItems:'center',justifyContent:'center'},deleteSymbol:{fontSize:28,color:C.ink,fontWeight:'700'},
  action:{minHeight:44,justifyContent:'center',alignItems:'center',padding:10,borderRadius:14,backgroundColor:C.mint},actionText:{fontSize:15,fontWeight:'800',color:C.accentDark,textAlign:'center'}
 });
