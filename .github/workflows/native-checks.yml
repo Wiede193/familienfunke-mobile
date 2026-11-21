@@ -33,6 +33,8 @@ jobs:
         run: npm run check:accessibility
       - name: Barrierefreie Artikelbeschreibungen und lokale Ortssuche prüfen
         run: npm run check:map-photo-a11y
+      - name: Interaktive visuelle Kartensuche und Kartenmarker prüfen
+        run: npm run check:interactive-map
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen

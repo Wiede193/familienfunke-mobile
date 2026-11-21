@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {AccessibilityInfo,ActivityIndicator,Alert,Linking,Pressable,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
+import {AccessibilityInfo,ActivityIndicator,Alert,Keyboard,Linking,Pressable,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
 import {WebView} from 'react-native-webview';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
@@ -29,6 +29,16 @@ const MAP_HTML=[
   '.pin{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:3px solid white;',
   'border-radius:16px;font-size:17px;box-shadow:0 2px 7px rgba(15,45,48,.3);cursor:pointer;box-sizing:border-box;}',
   '.maplibregl-ctrl-attrib{font-size:9px!important;}',
+  '.search-pin{display:flex;flex-direction:column;align-items:center;min-width:40px;cursor:pointer;}',
+  '.search-dot{width:40px;height:40px;box-sizing:border-box;border-radius:22px;border:3px solid #075A60;',
+  'display:flex;align-items:center;justify-content:center;font:900 16px system-ui,sans-serif;',
+  'background:#FFDD79;color:#253D43;box-shadow:0 3px 8px #163D4380;}',
+  '.search-pin.selected .search-dot{background:#075A60;color:#fff;border-color:#FFDD79;',
+  'box-shadow:0 0 0 4px #fff,0 5px 12px #163D4399;}',
+  '.search-caption{display:none;max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;',
+  'background:#fff;padding:6px 9px;border-radius:9px;margin-top:4px;color:#253D43;',
+  'font:800 12px system-ui,sans-serif;box-shadow:0 2px 6px #163D4344;}',
+  '.search-pin.selected .search-caption{display:block;}',
   '.draft-pin{width:18px;height:18px;background:#ED7867;border:3px solid white;border-radius:9px;',
   'box-shadow:0 0 0 4px rgba(238,120,103,.25);}</style></head><body><div id="map"></div>',
   '<script type="module">',
@@ -38,19 +48,44 @@ const MAP_HTML=[
   'const map=new ml.Map({container:"map",style:"https://tiles.openfreemap.org/styles/liberty",',
   'center:[10.45,51.2],zoom:5.3,minZoom:4,attributionControl:{compact:false}});',
   'map.addControl(new ml.NavigationControl({showCompass:false}),"top-right");',
-  'let markers=[];let draft=null;',
+  'let markers=[];let draft=null;let searchMarkers=[];let searchActive=false;',
+  'const reducedMotion=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;',
+  'const searchSelection=(id)=>{searchMarkers.forEach(m=>{const el=m.getElement();',
+  'el.classList.toggle("selected",!!id&&el.dataset.searchId===id);});};',
+  'const zoomToSearch=()=>{if(!searchMarkers.length)return;',
+  'const coords=searchMarkers.map(m=>m.getLngLat());',
+  'if(coords.length===1){map.easeTo({center:[coords[0].lng,coords[0].lat],zoom:12.4,duration:reducedMotion?0:450});return;}',
+  'const b=new ml.LngLatBounds();coords.forEach(p=>b.extend([p.lng,p.lat]));',
+  'map.fitBounds(b,{padding:55,maxZoom:12.4,duration:reducedMotion?0:450});};',
   'const glyph={playground:"♧",changing:"♥",outing:"✿",other:"◇"};',
   'const color={playground:"#0B8488",changing:"#EE7867",outing:"#9272B8",other:"#E0AB42"};',
   'window.ffMap={',
-  'flyTo:function(lat,lon,zoom){map.flyTo({center:[lon,lat],zoom:zoom||12,essential:true});},',
+  'flyTo:function(lat,lon,zoom){map.flyTo({center:[lon,lat],zoom:zoom||12,duration:reducedMotion?0:450});},',
   'setDraft:function(point){if(draft){draft.remove();draft=null;}if(!point)return;',
   'const el=document.createElement("div");el.className="draft-pin";draft=new ml.Marker({element:el}).setLngLat([point.longitude,point.latitude]).addTo(map);},',
   'setPins:function(items){markers.forEach(m=>m.remove());markers=[];',
   'items.forEach(p=>{if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))return;',
   'const el=document.createElement("div");el.className="pin";el.style.background=color[p.category]||"#E0AB42";',
+  'el.style.display=searchActive?"none":"flex";',
   'el.style.color="white";el.textContent=glyph[p.category]||"◇";el.setAttribute("aria-label",p.title||"Familienort");',
   'el.addEventListener("click",ev=>{ev.stopPropagation();send({type:"pin",id:p.id});});',
-  'markers.push(new ml.Marker({element:el,anchor:"center"}).setLngLat([p.longitude,p.latitude]).addTo(map));});}',
+  'markers.push(new ml.Marker({element:el,anchor:"center"}).setLngLat([p.longitude,p.latitude]).addTo(map));});},',
+  'setSearchResults:function(payload){searchMarkers.forEach(m=>m.remove());searchMarkers=[];',
+  'const items=Array.isArray(payload&&payload.items)?payload.items:[];',
+  'searchActive=!!(payload&&payload.active);',
+  'markers.forEach(m=>{m.getElement().style.display=searchActive?"none":"flex";});',
+  'if(!searchActive)return;',
+  'items.slice(0,10).forEach((p,i)=>{if(!Number.isFinite(p.latitude)||!Number.isFinite(p.longitude))return;',
+  'const el=document.createElement("div");el.className="search-pin";el.dataset.searchId=String(p.id);',
+  'el.setAttribute("aria-label",String(p.title||"Ort"));',
+  'const dot=document.createElement("span");dot.className="search-dot";dot.textContent=String(i+1);',
+  'const caption=document.createElement("span");caption.className="search-caption";',
+  'caption.textContent=String(p.title||"Familienort");el.appendChild(dot);el.appendChild(caption);',
+  'el.addEventListener("click",e=>{e.stopPropagation();send({type:"searchPin",id:p.id});});',
+  'searchMarkers.push(new ml.Marker({element:el,anchor:"bottom"}).setLngLat([p.longitude,p.latitude]).addTo(map));',
+  '});searchSelection(payload&&payload.selectedId);},',
+  'setSearchSelection:function(id){searchSelection(id);},',
+  'fitSearchResults:function(){zoomToSearch();}',
   '};',
   'map.on("load",()=>send({type:"ready"}));',
   'map.on("moveend",()=>{const p=map.getCenter();send({type:"move",latitude:p.lat,longitude:p.lng,zoom:map.getZoom()});});',
@@ -80,6 +115,8 @@ function inGermany(lat,lon){
 }
 export default function FamilyMapScreen({userId,active,addPlace}){
   const map=useRef(null);
+  const scroll=useRef(null);
+  const mapOffset=useRef(0);
   const [ready,setReady]=useState(false);
   const [mapError,setMapError]=useState('');
   const [center,setCenter]=useState({latitude:51.2,longitude:10.45,zoom:5.3});
@@ -102,6 +139,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
   const [selectedId,setSelectedId]=useState(null);
   const [notice,setNotice]=useState('');
   const [placeQuery,setPlaceQuery]=useState('');
+  const [selectedSearchId,setSelectedSearchId]=useState(null);
 
   const fetchCommunity=useCallback(async()=>{
     if(!supabase||!userId)return;
@@ -128,8 +166,24 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     centers:CENTERS,curated:CURATED_FAMILY_PLACES,national:NATIONAL_FAMILY_PLACES,
     community,osm
   }),[placeQuery,community,osm]);
+  const selectedSearchMatch=locationMatches.find(match=>match.id===selectedSearchId)||null;
   const selected=all.find(p=>p.id===selectedId)||null;
   useEffect(()=>{if(ready)map.current?.injectJavaScript(pinSetScript(all));},[all,ready]);
+  useEffect(()=>{
+    if(!ready)return;
+    const active=placeQuery.trim().length>=2;
+    map.current?.injectJavaScript(mapScript('setSearchResults',{
+      active,selectedId:selectedSearchId,
+      items:locationMatches.map(({id,title,latitude,longitude})=>({id,title,latitude,longitude}))
+    }));
+    if(!active||!locationMatches.length)return;
+    // Debounce fitting: the pins update immediately, but typing does not cause a jump every keystroke.
+    const timer=setTimeout(()=>map.current?.injectJavaScript(mapScript('fitSearchResults')),320);
+    return ()=>clearTimeout(timer);
+  },[ready,placeQuery,locationMatches]);
+  useEffect(()=>{
+    if(ready)map.current?.injectJavaScript(mapScript('setSearchSelection',selectedSearchId));
+  },[ready,selectedSearchId]);
   useEffect(()=>{
     if(ready)map.current?.injectJavaScript(mapScript('setDraft',draftPoint));
   },[draftPoint,ready]);
@@ -195,7 +249,13 @@ export default function FamilyMapScreen({userId,active,addPlace}){
         setLongitudeInput(String(longitude));
         setSelectedId(null);
       }
-    }else if(value.type==='pin')setSelectedId(value.id);
+    }else if(value.type==='searchPin'&&typeof value.id==='string'){
+      const match=locationMatches.find(x=>x.id===value.id);
+      if(match)selectSearchedLocation(match);
+    }else if(value.type==='pin'&&all.some(p=>p.id===value.id)){
+      setSelectedId(value.id);
+      scroll.current?.scrollTo({y:Math.max(0,mapOffset.current-12),animated:false});
+    }
   }
   function markCoordinates(){
     const latitude=Number(latitudeInput.trim().replace(',', '.'));
@@ -244,7 +304,9 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     );
   }
   function selectSearchedLocation(match){
-    setPlaceQuery('');
+    setSelectedSearchId(match.id);
+    Keyboard.dismiss();
+    scroll.current?.scrollTo({y:Math.max(0,mapOffset.current-12),animated:false});
     AccessibilityInfo.announceForAccessibility(match.source==='city'
       ?'Stadt '+match.title+' ausgewählt. Hier nach Orten suchen ist unter der Karte verfügbar.'
       :match.title+' ausgewählt. Die Ortsdetails stehen weiter unten.');
@@ -272,7 +334,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     try{await Linking.openURL(url);}
     catch{Alert.alert('Karten-App nicht erreichbar','Der Kartendienst konnte nicht geöffnet werden. Bitte versuche es erneut.');}
   }
-  return <ScrollView style={styles.page} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+  return <ScrollView ref={scroll} style={styles.page} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
     <View style={styles.hero}><Text style={styles.eyebrow}>FAMILIENFUNKE ENTDECKT DEUTSCHLAND</Text>
       <Text style={styles.title}>Familienkarte ♡</Text>
       <Text style={styles.sub}>Spielplätze, Wickelmöglichkeiten in Restaurants und Cafés sowie Ausflugsziele – direkt auf der Karte entdecken.</Text>
@@ -284,20 +346,67 @@ export default function FamilyMapScreen({userId,active,addPlace}){
         Die Suche läuft auf deinem Gerät; Straßenadressen werden hier nicht nachgeschlagen.
       </Text>
       <TextInput accessibilityLabel="Stadt oder Ausflugsziel suchen"
-        value={placeQuery} onChangeText={setPlaceQuery}
+        value={placeQuery} onChangeText={value=>{setPlaceQuery(value);setSelectedSearchId(null);setSelectedId(null);}}
         style={styles.field} placeholder="z. B. Berlin, Storkow, Europa-Park"
         placeholderTextColor={C.muted} maxLength={80}
         autoCorrect={false} returnKeyType="search"/>
+    </View>
+    <View style={styles.mapFrame} onLayout={event=>{mapOffset.current=event.nativeEvent.layout.y;}}>
+      <WebView ref={map} originWhitelist={['*']} source={{html:MAP_HTML}}
+       accessible={false} importantForAccessibility="no-hide-descendants"
+       javaScriptEnabled domStorageEnabled scrollEnabled={false}
+       style={styles.map} onMessage={onMapMessage} onError={()=>setMapError('Die Vektorkarte konnte nicht geladen werden.')}
+       setSupportMultipleWindows={false} allowsInlineMediaPlayback/>
+      {!ready?<View pointerEvents="none" style={styles.mapLoading}><ActivityIndicator color={C.teal}/><Text style={styles.micro}>Vektorkarte laden …</Text></View>:null}
+      <View pointerEvents="none" style={styles.mapTag}><Text style={styles.mapTagText}>
+        {placeQuery.trim().length>=2?'Suchtreffer auf der Karte: '+locationMatches.length:'Vektorkarte · Deutschland'}
+      </Text></View>
+    </View>
+    {selectedSearchMatch?<View accessibilityLiveRegion="polite" style={styles.mapSelectedInfo}>
+      <Text accessibilityRole="header" style={styles.selectedTitle}>{selectedSearchMatch.title}</Text>
+      <Text style={styles.micro}>{selectedSearchMatch.subtitle} · Auf der Karte hervorgehoben</Text>
+      {selectedSearchMatch.source==='city'?<Pressable accessibilityRole="button"
+         accessibilityLabel={'Familienorte in '+selectedSearchMatch.title+' laden'}
+         onPress={()=>loadAround(selectedSearchMatch.latitude,selectedSearchMatch.longitude,12.3)}
+         style={[styles.mainBtn,{marginTop:11}]}>
+         <Text style={styles.mainBtnText}>Familienorte in dieser Stadt suchen</Text>
+       </Pressable>:null}
+    </View>:null}
+    {selected?<View style={styles.selectedCard}>
+      <Text style={styles.cardEyebrow}>{typeLabel(selected.category)} · {selected.source==='osm'?'OpenStreetMap':selected.source==='curated'?'Redaktioneller Ausflugstipp':selected.source==='national'?'Deutschlandweiter Ausflugstipp':selected.moderation_status==='pending'?'Dein Vorschlag in Prüfung':'Familien-Tipp'}</Text>
+      <Text style={styles.selectedTitle}>{selected.title}</Text>
+      <Text style={styles.micro}>{selected.description||'Keine Beschreibung hinterlegt.'}</Text>
+      {selected.address?<Text style={[styles.micro,{marginTop:8}]}>⌖ {selected.address}</Text>:null}
+      {selected.source==='national'?<Text style={[styles.micro,{marginTop:7}]}>Kategorie: {selected.kind_label} · {selected.state}</Text>:null}
+      {['curated','national'].includes(selected.source)?<Text style={[styles.micro,{marginTop:8}]}>Recherchestand November 2026. Aktuelle Besuchsbedingungen beim Anbieter erfragen.</Text>:null}
+      {selected.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(selected.info_url).catch(()=>{})}
+        style={styles.minorBtn}><Text style={styles.minorBtnText}>Offizielle Informationen öffnen ↗</Text></Pressable>:null}
+      {selected.has_changing_table?<Text style={styles.tagGood}>Wickelmöglichkeit angegeben</Text>:null}
+      <Text style={[styles.micro,{fontWeight:'800',color:C.ink,marginTop:17,marginBottom:10}]}>Route zu diesem Ort planen</Text>
+      <View style={styles.navigationRow}>
+        <Pressable accessibilityRole="link" accessibilityLabel={'Route mit Google Maps zu '+selected.title}
+          onPress={()=>openDirections(selected,'google')} style={styles.navigationGoogle}>
+          <Text style={styles.navigationGoogleText}>⌖  Google Maps</Text>
+        </Pressable>
+        <Pressable accessibilityRole="link" accessibilityLabel={'Route mit Apple Karten zu '+selected.title}
+          onPress={()=>openDirections(selected,'apple')} style={styles.navigationApple}>
+          <Text style={styles.navigationAppleText}>⌖  Apple Karten</Text>
+        </Pressable>
+      </View>
+      <Text style={[styles.micro,{marginTop:8}]}>Der Kartendienst öffnet sich außerhalb von Familienfunke. Startpunkt und Verkehrsmittel wählst du dort.</Text>
+      <Pressable accessibilityRole="link" onPress={()=>openInOSM(selected)} style={styles.minorBtn}><Text style={styles.minorBtnText}>In OpenStreetMap ansehen ↗</Text></Pressable>
+    </View>:null}
+
       {placeQuery.trim().length>=2?
-        <View style={{marginTop:9}}>
+        <View style={styles.searchResultPanel}>
           <Text accessibilityLiveRegion="polite" style={[styles.micro,{marginBottom:6}]}>
             {locationMatches.length} {locationMatches.length===1?'passender Ort':'passende Orte'} im Familienfunke-Katalog
           </Text>
           {locationMatches.map(match=><Pressable key={match.id}
-            accessibilityRole="button"
+            accessibilityRole="button" accessibilityState={{selected:selectedSearchId===match.id}}
             accessibilityLabel={match.title+', '+match.subtitle+', auf der Karte anzeigen'}
             onPress={()=>selectSearchedLocation(match)}
-            style={styles.searchResult}>
+            style={[styles.searchResult,selectedSearchId===match.id&&styles.searchResultSelected]}>
             <View style={{flex:1}}>
               <Text style={styles.placeTitle}>{match.title}</Text>
               <Text style={styles.micro}>{match.subtitle}</Text>
@@ -309,16 +418,13 @@ export default function FamilyMapScreen({userId,active,addPlace}){
             Einreichung eines neuen Ortes die Koordinatenfelder.
           </Text>:null}
         </View>:null}
-    </View>
-    <View style={styles.mapFrame}>
-      <WebView ref={map} originWhitelist={['*']} source={{html:MAP_HTML}}
-       accessible={false} importantForAccessibility="no-hide-descendants"
-       javaScriptEnabled domStorageEnabled scrollEnabled={false}
-       style={styles.map} onMessage={onMapMessage} onError={()=>setMapError('Die Vektorkarte konnte nicht geladen werden.')}
-       setSupportMultipleWindows={false} allowsInlineMediaPlayback/>
-      {!ready?<View pointerEvents="none" style={styles.mapLoading}><ActivityIndicator color={C.teal}/><Text style={styles.micro}>Vektorkarte laden …</Text></View>:null}
-      <View pointerEvents="none" style={styles.mapTag}><Text style={styles.mapTagText}>Vektorkarte · Deutschland</Text></View>
-    </View>
+
+    {placeQuery.trim().length>=2&&locationMatches.length>0?<Pressable accessibilityRole="button"
+      accessibilityLabel="Alle Suchtreffer auf der Karte anzeigen"
+      onPress={()=>map.current?.injectJavaScript(mapScript('fitSearchResults'))}
+      style={[styles.outlineBtn,{marginTop:10,minHeight:46}]}>
+      <Text style={styles.outlineText}>Alle Suchtreffer auf der Karte anzeigen</Text>
+    </Pressable>:null}
     {mapError?<View accessibilityLiveRegion="polite" style={styles.warn}><Text style={styles.micro}>{mapError} Die Ortsliste kann weiterhin genutzt werden.</Text></View>:null}
     <Text style={[styles.micro,{marginTop:7}]}>Kartengrundlage: OpenFreeMap / OpenStreetMap. Zum Navigieren die Karte verschieben und zoomen. Standortzugriff ist nicht nötig. Alle verfügbaren Orte sind zusätzlich als bedienbare Liste unter der Karte erreichbar.</Text>
     <View style={styles.curatedBox}>
@@ -421,30 +527,6 @@ export default function FamilyMapScreen({userId,active,addPlace}){
       {TYPES.map(([id,label,icon])=><Chip key={id} label={icon+' '+label} selected={types===id} onPress={()=>{setTypes(id);setSelectedId(null);}}/>)}
     </ScrollView>
     <Text style={[styles.micro,{marginTop:12}]}>Orte aus OpenStreetMap sind nicht von Familienfunke überprüft. Ein Wickeltisch ist nur dann als vorhanden markiert, wenn die Quelle oder der Eintrag das ausdrücklich angibt.</Text>
-    {selected?<View style={styles.selectedCard}>
-      <Text style={styles.cardEyebrow}>{typeLabel(selected.category)} · {selected.source==='osm'?'OpenStreetMap':selected.source==='curated'?'Redaktioneller Ausflugstipp':selected.source==='national'?'Deutschlandweiter Ausflugstipp':selected.moderation_status==='pending'?'Dein Vorschlag in Prüfung':'Familien-Tipp'}</Text>
-      <Text style={styles.selectedTitle}>{selected.title}</Text>
-      <Text style={styles.micro}>{selected.description||'Keine Beschreibung hinterlegt.'}</Text>
-      {selected.address?<Text style={[styles.micro,{marginTop:8}]}>⌖ {selected.address}</Text>:null}
-      {selected.source==='national'?<Text style={[styles.micro,{marginTop:7}]}>Kategorie: {selected.kind_label} · {selected.state}</Text>:null}
-      {['curated','national'].includes(selected.source)?<Text style={[styles.micro,{marginTop:8}]}>Recherchestand November 2026. Aktuelle Besuchsbedingungen beim Anbieter erfragen.</Text>:null}
-      {selected.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(selected.info_url).catch(()=>{})}
-        style={styles.minorBtn}><Text style={styles.minorBtnText}>Offizielle Informationen öffnen ↗</Text></Pressable>:null}
-      {selected.has_changing_table?<Text style={styles.tagGood}>Wickelmöglichkeit angegeben</Text>:null}
-      <Text style={[styles.micro,{fontWeight:'800',color:C.ink,marginTop:17,marginBottom:10}]}>Route zu diesem Ort planen</Text>
-      <View style={styles.navigationRow}>
-        <Pressable accessibilityRole="link" accessibilityLabel={'Route mit Google Maps zu '+selected.title}
-          onPress={()=>openDirections(selected,'google')} style={styles.navigationGoogle}>
-          <Text style={styles.navigationGoogleText}>⌖  Google Maps</Text>
-        </Pressable>
-        <Pressable accessibilityRole="link" accessibilityLabel={'Route mit Apple Karten zu '+selected.title}
-          onPress={()=>openDirections(selected,'apple')} style={styles.navigationApple}>
-          <Text style={styles.navigationAppleText}>⌖  Apple Karten</Text>
-        </Pressable>
-      </View>
-      <Text style={[styles.micro,{marginTop:8}]}>Der Kartendienst öffnet sich außerhalb von Familienfunke. Startpunkt und Verkehrsmittel wählst du dort.</Text>
-      <Pressable accessibilityRole="link" onPress={()=>openInOSM(selected)} style={styles.minorBtn}><Text style={styles.minorBtnText}>In OpenStreetMap ansehen ↗</Text></Pressable>
-    </View>:null}
     <View style={[styles.row,{justifyContent:'space-between',marginTop:24}]}>
       <Text style={styles.sectionNoMargin}>Orte im Kartenausschnitt</Text>
       <Text style={styles.micro}>{list.length} angezeigt</Text>
@@ -520,6 +602,9 @@ const styles=StyleSheet.create({
  title:{fontSize:25,fontWeight:'900',color:C.ink},
  sub:{fontSize:13.5,color:C.ink,lineHeight:20,marginTop:7},
  locationSearch:{backgroundColor:C.paper,borderRadius:18,borderWidth:1,borderColor:C.line,padding:16,marginBottom:12},
+ searchResultPanel:{marginTop:12,padding:14,backgroundColor:C.paper,borderRadius:18,borderWidth:1,borderColor:C.line},
+ searchResultSelected:{backgroundColor:C.sunPale,borderColor:C.teal},
+ mapSelectedInfo:{marginTop:12,padding:15,backgroundColor:C.sunPale,borderRadius:17,borderWidth:1,borderColor:C.line},
  searchResult:{minHeight:48,flexDirection:'row',alignItems:'center',paddingVertical:10,paddingHorizontal:12,borderRadius:12,borderWidth:1,borderColor:C.line,backgroundColor:C.bg,marginTop:7},
  mapFrame:{height:350,backgroundColor:'#E7F0ED',borderRadius:20,overflow:'hidden',borderWidth:1,borderColor:C.line,position:'relative'},
  map:{flex:1,backgroundColor:'#E7F0ED'},mapLoading:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',gap:10,backgroundColor:'#E7F0ED'},
