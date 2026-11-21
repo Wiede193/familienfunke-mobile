@@ -22,7 +22,7 @@ function Pick({title,items,selected,onChange}){
   })}</View>
  </View>;
 }
-export default function FamilyOutingScreen({draft,onSave,onMap}){
+export default function FamilyOutingScreen({draft,onSave,onMap,onCalendar}){
  const [form,setForm]=useState(()=>draft||initial);
  const [remote,setRemote]=useState([]),[looking,setLooking]=useState(false),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const current=useRef(form);const seq=useRef(0),alive=useRef(true),locked=useRef(false);
@@ -112,6 +112,7 @@ export default function FamilyOutingScreen({draft,onSave,onMap}){
       <Text style={s.text}>{p.description}</Text>
       {p.lowCostLead?<Text style={s.muted}>Öffentliches Natur-/Spielziel als möglicher Spartipp. Aktuelle Kosten und Zugang prüfen.</Text>:null}
       <Action secondary onPress={()=>onMap(p.id)}>Auf Familienkarte ansehen</Action>
+      <Action secondary onPress={()=>onCalendar(p)}>Im Kalender einplanen</Action>
       {p.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(p.info_url).catch(()=>setNotice('Betreiberseite konnte nicht geöffnet werden.'))} style={s.link}><Text style={s.linkText}>Aktuelle Besuchsinfos beim Betreiber prüfen ↗</Text></Pressable>:null}
     </View>)}
     <Text accessibilityRole="header" style={s.heading}>Flexibler Ablauf</Text>

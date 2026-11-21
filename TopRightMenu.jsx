@@ -12,6 +12,7 @@ export const MENU_GROUPS=[
   ['savedSearches','♡','Meine Suchaufträge','Gespeicherte Basar-Suchen und Mitteilungen']
  ]},
  {title:'Familienalltag',items:[
+  ['calendar','▦','Mein Familienkalender','Private Termine und gemerkte Veranstaltungen'],
   ['events','▦','Treffen & Veranstaltungen','Gemeinsame Aktivitäten'],
   ['outing','☀','Ausflugsplaner','Ausflüge mit oder ohne KI planen'],
   ['partners','✿','Kitas & Partnerwelt','Einrichtungen und Kita-Veranstaltungen'],

@@ -53,6 +53,8 @@ jobs:
         run: npm run check:saved-searches
       - name: Preisalarme für gemerkte Artikel prüfen
         run: npm run check:price-alerts
+      - name: Privaten Familienkalender prüfen
+        run: npm run check:calendar
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen

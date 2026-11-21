@@ -15,6 +15,7 @@ import WelcomeIntro from './WelcomeIntro';
 import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
+import FamilyCalendar,{CalendarEventButton} from './FamilyCalendar';
 import SavedMarketSearches,{saveMarketSearch} from './SavedMarketSearches';
 import PriceAlertPreference from './PriceAlertPreference';
 import TopRightMenu,{MenuIcon,MORE_ITEMS} from './TopRightMenu';
@@ -192,6 +193,7 @@ const [menuOpen,setMenuOpen]=useState(false);
 const [marketIntent,setMarketIntent]=useState(null);
 const [outingDraft,setOutingDraft]=useState(null);
 const [mapIntent,setMapIntent]=useState(null);
+const [calendarSeed,setCalendarSeed]=useState(null);
 const [eventIntent,setEventIntent]=useState(null);
 const [extraReturnTab,setExtraReturnTab]=useState('more');
 const [inboxReturnTab,setInboxReturnTab]=useState('home');
@@ -293,7 +295,7 @@ useEffect(()=>{
   setShowInfo(false);
   setShowLoginHelp(false);
   setShowEventForm(false);
-  setMarketIntent(null);setOutingDraft(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
+  setMarketIntent(null);setOutingDraft(null);setCalendarSeed(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
   setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
   setPhotosUrls({});setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
 },[me]);
@@ -424,14 +426,19 @@ async function openInboxEvent(event){
   }catch(e){if(accountRef.current===me)setNotice('Neuigkeit konnte nicht geöffnet werden. Bitte erneut versuchen.');return false;}
 }
 function navigateFromHome(id,marketQuery='',placeId=null){
-  const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp'];
+  const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar'];
   if(!routes.includes(id))return;
   if(id==='inbox'){openInbox();return;}
+  setCalendarSeed(null);
   setMapIntent(id==='map'&&typeof placeId==='string'?{id:placeId,returnTab:'home'}:null);
   setEventIntent(['events','partners'].includes(id)&&typeof placeId==='string'?{id:placeId,tab:id,owner:me}:null);
   setMarketIntent(id==='box'||id==='sell'?id:(id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null));
   setExtraReturnTab('home');
   setTab(id==='box'||id==='sell'?'market':id);
+}
+function planCalendarPlace(place){
+  setCalendarSeed({owner:me,place:{id:place.id,title:place.title}});
+  setExtraReturnTab(tab);setTab('calendar');
 }
 function selectMenuItem(id){
   setMenuOpen(false);
@@ -442,7 +449,7 @@ function selectMenuItem(id){
   if(!MORE_ITEMS.some(item=>item[0]===id)&&id!=='more')return;
   if(tab===id&&!detailFamily&&!selectedContact&&!showInfo)return;
   const previous=TABS.some(t=>t[0]===tab)||tab==='more'?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:'home');
-  setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setShowEventForm(false);
+  setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);setMapIntent(null);setCalendarSeed(null);setEventIntent(null);setFocusContactId(null);setShowEventForm(false);
   setExtraReturnTab(previous===id?'home':previous);setTab(id);
 }
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
@@ -454,9 +461,9 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 </View><TechnicalHelpScreen initialCategory="Anmeldung & Konto"/></>:
 <Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
 </SafeAreaView>;
-const EXTRA_TITLES={savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',more:'Weitere Bereiche'};
+const EXTRA_TITLES={calendar:'Mein Familienkalender',savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',more:'Weitere Bereiche'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else{setMapIntent(null);setTab('outing');}}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches'].includes(tab))setTab(extraReturnTab);}
+function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='calendar'){setMapIntent(null);setTab('calendar');}else if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else{setMapIntent(null);setTab('outing');}}else if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);}else if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches'].includes(tab))setTab(extraReturnTab);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
@@ -468,7 +475,7 @@ return <SafeAreaView style={styles.screen}>
   </View>
 </View>
 {tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><Text accessibilityElementsHidden importantForAccessibility="no" style={{fontSize:22,color:C.ink}}>🔔︎</Text>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
-{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
+{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
 <Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
 {error?<Pressable accessibilityRole="button" accessibilityLabel={'Fehlermeldung schließen. '+error} accessibilityLiveRegion="assertive" onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
@@ -503,9 +510,10 @@ send={(body)=>execute(async()=>{
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
 tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome}/>:
-tab==='outing'?<FamilyOutingScreen key={me} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
+tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
+tab==='outing'?<FamilyOutingScreen key={me} onCalendar={planCalendarPlace} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
 tab==='guide'?<FamilyGuideScreen userId={me} regionLabel={myProfile?.region_label}/>:
-tab==='map'?<FamilyMapScreen userId={me} active={active} entryPlaceId={mapIntent?.id} addPlace={(v)=>execute(async()=>{
+tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={active} entryPlaceId={mapIntent?.id} addPlace={(v)=>execute(async()=>{
  await moderateTextOrThrow([v.title,v.description,v.region_label]);
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
@@ -607,7 +615,7 @@ blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
+{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
 accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id)&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 <TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
@@ -1910,6 +1918,7 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
           <Text style={styles.cardTitle}>{e.title}</Text>
           <Text style={styles.micro}>{organizations.find(o=>o.id===e.organization_id)?.name||'Einrichtung'} · {e.region_label||'Ort auf Anfrage'}</Text>
           {e.description?<Text style={[styles.body,{marginTop:8}]}>{e.description}</Text>:null}
+          {e.moderation_status==='approved'&&new Date(e.starts_at)>new Date()?<CalendarEventButton userId={me} kind="partner" id={e.id}/>:null}
           {e.creator_id===me&&e.moderation_status!=='approved'?<Text style={[styles.micro,{marginTop:10}]}>Für dich sichtbar · wartet auf Freigabe</Text>:null}
        </Card>;
   if(focusId)return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
@@ -2178,7 +2187,7 @@ if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');}
 }
 const upcoming=focusId?(focus.row?[focus.row]:[]):events.filter(e=>new Date(e.ends_at)>new Date());
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-<Info>{SECTION_MESSAGES.events}</Info><H sub="Gemeinsame Aktivitäten statt öffentlicher Diskussionen.">Familienkalender</H>
+<Info>{SECTION_MESSAGES.events}</Info><H sub="Gemeinsame Aktivitäten statt öffentlicher Diskussionen.">Treffen & Veranstaltungen</H>
 <Button title={showForm?'Formular schließen':'＋ Aktivität erstellen'} disabled={!active} onPress={()=>setShowForm(!showForm)}/>
 {showForm?<Card style={{marginTop:14}}>
 <Text style={styles.cardTitle}>Neue Aktivität</Text><Text style={[styles.sub,{marginBottom:15}]}>Vor Veröffentlichung wird der Termin geprüft. Bitte keine Privatadressen veröffentlichen.</Text>
@@ -2200,6 +2209,7 @@ return <Card key={e.id} style={{marginBottom:12}}>
 <Text style={styles.eyebrow}>▦ {formatDate(e.starts_at)}</Text><Text style={[styles.cardTitle,{fontSize:19,marginTop:5}]}>{e.title}</Text>
 <Text style={[styles.sub,{marginTop:7}]}>{e.description||'Gemeinsames Familientreffen'}</Text>
 <Text style={[styles.micro,{marginTop:10}]}>⌖ {e.region_label||'Region nach Absprache'} · max. {e.max_participants} Personen</Text>
+{e.moderation_status==='approved'&&new Date(e.ends_at)>new Date()?<CalendarEventButton userId={me} kind="family" id={e.id}/>:null}
 {self?<Info warning>{e.moderation_status==='pending'?'Dein Termin wartet auf Freigabe.':'Du organisierst diesen Termin.'}</Info>:
 request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request.status==='requested'?'angefragt':request.status==='declined'?'abgelehnt':'zurückgezogen'}</Info>:
 <Button title="Teilnahme anfragen" disabled={busy||!active} small style={{marginTop:12}} onPress={()=>requestEvent(e.id)}/>}
