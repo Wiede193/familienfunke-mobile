@@ -685,6 +685,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [boxBatches,setBoxBatches]=useState([]);
   const [boxCurrentBatch,setBoxCurrentBatch]=useState(null);
   const [boxSelected,setBoxSelected]=useState(null);
+  const [boxFilter,setBoxFilter]=useState('all');
   const [boxStorage,setBoxStorage]=useState('loading');
   const [boxSaveError,setBoxSaveError]=useState(false);
   const [boxPending,setBoxPending]=useState(null);
@@ -697,6 +698,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const selectedBoxDrafts=boxDrafts.filter(d=>selectedBoxIds.includes(d.id));
   const boxSummary=useMemo(()=>summarizeBox(boxDrafts),[boxDrafts]);
   const boxSizeGroups=useMemo(()=>sizeGroups(boxDrafts),[boxDrafts]);
+  const visibleBoxDrafts=boxDrafts.filter(d=>boxFilter==='unknown'?d.category==='Kleidung'&&!d.facts.size:boxFilter==='review'?!!d.uncertainty||!d.title.trim():boxFilter==='selected'?selectedBoxIds.includes(d.id):true);
   function boxSnapshot(pending=boxPending){
     let drafts=boxDrafts,bundle=boxPackageDraft;
     if(boxEditor){
@@ -730,8 +732,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(boxStorage!=='ready')return;
     let live=true;
     const data=boxSnapshot();
-    if(!data.drafts.length&&!data.batches.length&&!data.photo&&!data.bundle&&!data.pending&&!boxRegion)return;
-    saveBoxSnapshot(me,data).then(()=>{if(live)setBoxSaveError(false);}).catch(()=>{if(live)setBoxSaveError(true);});
+    const hasContent=data.drafts.length||data.batches.length||data.photo||data.bundle||data.pending||data.region;
+    saveBoxSnapshot(me,hasContent?data:null).then(()=>{if(live)setBoxSaveError(false);}).catch(()=>{if(live)setBoxSaveError(true);});
     return ()=>{live=false;};
   },[me,boxStorage,boxDrafts,boxBatches,boxCurrentBatch,boxPhoto,boxScanned,boxOverflow,boxRegion,boxSeq,boxSelected,boxPackageDraft,boxPending,boxEditor,title,category,facts,photo,condition,trade,price,description,region,organizationId]);
   const packageForm=boxEditor?.packageIds?parsePackageNote(description):null;
@@ -803,7 +805,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     try{
       await deleteBoxStorage(me);
       setBoxPhoto(null);setBoxDrafts([]);setBoxNotice('');setBoxScanned(false);
-      setBoxOverflow(false);setBoxEditor(null);setBoxPackageDraft(null);setBoxBatches([]);setBoxCurrentBatch(null);setBoxSelected(null);
+      setBoxOverflow(false);setBoxEditor(null);setBoxPackageDraft(null);setBoxBatches([]);setBoxCurrentBatch(null);setBoxSelected(null);setBoxFilter('all');
       setBoxRegion('');setBoxInspect(null);setBoxBulkSize('');setBoxStorage('ready');setBoxSaveError(false);setBoxPending(null);
     }catch(e){setBoxNotice('Kiste konnte nicht vollständig gelöscht werden: '+humanError(e));}
     finally{setChoosing(false);}
@@ -836,6 +838,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const canCaptureBox=boxStorage==='ready'&&boxBatches.length<BOX_MAX_BATCHES&&boxDrafts.length<BOX_MAX_ITEMS;
   async function chooseBoxPhoto(asset){
     if(!asset?.uri||!canCaptureBox)return;
+    if(asset.assetId&&boxBatches.some(b=>b.photo?.sourceAssetId===asset.assetId)){setBoxNotice('Dieses Galeriefoto wurde bereits als Fotogruppe erfasst. Wähle ein anderes Bild, damit die Teile nicht doppelt gezählt werden.');return;}
     const kept=await keepBoxPhoto(me,asset);
     setBoxPhoto(kept);setBoxCurrentBatch(null);setBoxNotice('');setBoxScanned(false);setBoxOverflow(false);
   }
@@ -1105,7 +1108,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           const w=boxPhoto.width*scale,h=boxPhoto.height*scale;
           const left=Math.max(0,Math.min(boxImageFrame.width-26,(boxImageFrame.width-w)/2+w*d.x/100-13));
           const top=Math.max(0,Math.min(boxImageFrame.height-26,(boxImageFrame.height-h)/2+h*d.y/100-13));
-          return <Pressable key={d.id} accessibilityRole="button" accessibilityLabel={'Ungefähre Position Artikel '+(i+1)} onPress={()=>setBoxInspect(d.id)} style={{position:'absolute',left,top,width:26,height:26,borderRadius:13,backgroundColor:boxInspect===d.id?C.coralDeep:C.accent,borderColor:C.white,borderWidth:2,alignItems:'center',justifyContent:'center'}}><Text style={{fontSize:12,fontWeight:'900',color:C.white}}>{i+1}</Text></Pressable>;
+          return <Pressable key={d.id} accessibilityRole="button" accessibilityLabel={'Ungefähre Position Artikel '+(i+1)} onPress={()=>{setBoxFilter('all');setBoxInspect(d.id);}} style={{position:'absolute',left,top,width:26,height:26,borderRadius:13,backgroundColor:boxInspect===d.id?C.coralDeep:C.accent,borderColor:C.white,borderWidth:2,alignItems:'center',justifyContent:'center'}}><Text style={{fontSize:12,fontWeight:'900',color:C.white}}>{i+1}</Text></Pressable>;
         }):null}
       </View>:null}
       {boxDrafts.length&&boxPhoto?<Text style={[styles.micro,{marginBottom:8}]}>Die Nummern markieren ungefähre KI-Positionen. Bitte mit den tatsächlichen Artikeln abgleichen.</Text>:null}
@@ -1146,9 +1149,16 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Text style={[styles.micro,{marginTop:7}]}>Größen-Gruppen verwenden nur erfasste Größen. Unbekannte Größen werden nicht automatisch zugeordnet.</Text>
       </View>:null}
       <Text style={styles.sectionTitle}>{boxDrafts.length} offene Entwürfe</Text>
-      {boxDrafts.map((d,index)=><View key={d.id} style={{borderWidth:1,borderColor:C.line,borderRadius:13,padding:12,marginBottom:9}}>
+      {boxDrafts.length?<Row style={{flexWrap:'wrap',marginBottom:10}}>
+        <Chip text={'Alle · '+boxDrafts.length} selected={boxFilter==='all'} onPress={()=>setBoxFilter('all')}/>
+        <Chip text={'Größen offen · '+boxDrafts.filter(d=>d.category==='Kleidung'&&!d.facts.size).length} selected={boxFilter==='unknown'} onPress={()=>setBoxFilter('unknown')}/>
+        <Chip text={'KI-Hinweise · '+boxDrafts.filter(d=>!!d.uncertainty||!d.title.trim()).length} selected={boxFilter==='review'} onPress={()=>setBoxFilter('review')}/>
+        <Chip text={'Im Paket · '+selectedBoxIds.length} selected={boxFilter==='selected'} onPress={()=>setBoxFilter('selected')}/>
+      </Row>:null}
+      {boxDrafts.length&&!visibleBoxDrafts.length?<Text style={[styles.micro,{marginBottom:10}]}>Für diesen Filter sind keine Teile vorhanden. Bitte wähle bei Bedarf „Alle“.</Text>:null}
+      {visibleBoxDrafts.map(d=><View key={d.id} style={{borderWidth:1,borderColor:C.line,borderRadius:13,padding:12,marginBottom:9}}>
         <Row style={{justifyContent:'space-between',alignItems:'center'}}>
-          <Text style={[styles.micro,{color:C.accentDark,fontWeight:'800',flex:1}]}>ARTIKEL {index+1} · {d.batchId?'Gruppe '+(boxBatches.findIndex(b=>b.id===d.batchId)+1)+' · ':''}{d.position||'Position prüfen'}</Text>
+          <Text style={[styles.micro,{color:C.accentDark,fontWeight:'800',flex:1}]}>ARTIKEL {boxDrafts.findIndex(x=>x.id===d.id)+1} · {d.batchId?'Gruppe '+(boxBatches.findIndex(b=>b.id===d.batchId)+1)+' · ':''}{d.position||'Position prüfen'}</Text>
           <Pressable accessibilityRole="checkbox" accessibilityState={{checked:selectedBoxIds.includes(d.id)}} disabled={busy||scanBusy||choosing} onPress={()=>toggleBoxSelection(d.id)} style={{padding:8,backgroundColor:selectedBoxIds.includes(d.id)?C.pale:C.bg,borderRadius:8}}>
             <Text style={{color:C.accentDark,fontWeight:'800',fontSize:12}}>{selectedBoxIds.includes(d.id)?'☑ Paket':'☐ Paket'}</Text>
           </Pressable>
@@ -1259,6 +1269,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Chip text="Tauschen" selected={trade==='swap'} onPress={()=>{setTrade('swap');setConfirmed(false);}}/>
       </View>
       {trade==='sell'?<Input label={packageForm?"Gesamtpreis des Pakets in €":"Preis in €"} value={price} onChangeText={v=>{setPrice(v);setConfirmed(false);}} keyboardType="decimal-pad" placeholder="z. B. 12,50"/>:null}
+      {packageForm&&trade==='sell'&&parsePrice(price)!==null&&parsePrice(price)>=0?<Text style={[styles.micro,{color:C.accentDark,marginBottom:12}]}>Rechnerisch {((parsePrice(price)/100)/packageForm.rows.length).toLocaleString('de-DE',{style:'currency',currency:'EUR'})} pro Teil – keine KI-Preisempfehlung.</Text>:null}
       <Text style={styles.label}>{packageForm?'Zustand des gesamten Pakets':'Zustand'}</Text>
       {packageForm?<Text style={[styles.micro,{marginBottom:7}]}>Bei unterschiedlichem Zustand bitte die schwächste zutreffende Zustandsnote wählen und Abweichungen unten angeben.</Text>:null}
       <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
