@@ -15,7 +15,9 @@ assert.equal(marketMatchesSize(mixedPackage,'98'),false);
 const range={title:'Kinderkleidung',description:'Artikel-Steckbrief\nGröße: 98/104',region_label:'Potsdam'};
 assert.deepEqual(marketListingSizes(range),['98/104']);
 assert.equal(marketMatchesSize(range,'98/104'),true);
-assert.equal(marketMatchesSize(range,'98'),false);
+assert.equal(marketMatchesSize(range,'98'),true);
+assert.equal(marketMatchesSize(range,'104'),true);
+assert.equal(marketMatchesSize(range,'110'),false);
 
 const noEvidence={title:'Spielzeug Modell 104',description:'Für Kinder',region_label:''};
 assert.deepEqual(marketListingSizes(noEvidence),[]);
@@ -24,4 +26,4 @@ assert.equal(marketMatchesRegion(noEvidence,'Potsdam'),false);
 assert.equal(marketMatchesRegion(clothing,'fürstenwalde/spree'),true);
 assert.equal(marketMatchesRegion(clothing,'Beeskow'),false);
 assert.equal(marketMatchesRegion(clothing,'Alle'),true);
-console.log('Familienbasar: Größen- und Regionsfilter korrekt (10 Prüfungen).');
+console.log('Familienbasar: Größen- und Regionsfilter erfolgreich geprüft.');
