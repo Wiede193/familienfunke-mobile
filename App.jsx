@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-ActivityIndicator, Alert, Image, KeyboardAvoidingView, Linking,
+ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Linking,
 Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, Modal, useWindowDimensions,
 StatusBar, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
@@ -428,7 +428,7 @@ function selectMenuItem(id){
   setMenuOpen(false);
   if(id==='refresh'){load();return;}
   if(id==='welcome'){setShowWelcome(true);return;}
-  if(id==='info'){setShowInfo(true);return;}
+  if(id==='info'){setDetailFamily(null);setSelectedContact(null);setShowInfo(true);return;}
   if(id==='inbox'){openInbox();return;}
   if(!MORE_ITEMS.some(item=>item[0]===id)&&id!=='more')return;
   if(tab===id&&!detailFamily&&!selectedContact&&!showInfo)return;
@@ -460,7 +460,7 @@ return <SafeAreaView style={styles.screen}>
 </View>
 {tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><Text accessibilityElementsHidden importantForAccessibility="no" style={{fontSize:22,color:C.ink}}>🔔︎</Text>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
 {detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||(tab==='map'&&mapIntent)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
-<Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>setMenuOpen(true)} style={styles.headerMenuButton}><MenuIcon/></Pressable>
+<Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
 {error?<Pressable accessibilityRole="button" accessibilityLabel={'Fehlermeldung schließen. '+error} accessibilityLiveRegion="assertive" onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
 {notice?<Pressable accessibilityRole="button" accessibilityLabel={'Hinweis schließen. '+notice} accessibilityLiveRegion="polite" onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
@@ -561,7 +561,7 @@ createPartnerEvent={(v)=>execute(async()=>{
  await moderateTextOrThrow([v.title,v.description,v.region_label]);
  assertResult(await supabase.from('ff_partner_events').insert({...v,creator_id:me}));
 },'Veranstaltung eingereicht. Sie erscheint nach Freigabe.')}
-openInclusion={()=>setTab('inclusion')}/>:
+openInclusion={()=>{setExtraReturnTab(tab);setTab('inclusion');}}/>:
 tab==='more'?<MoreScreen navigate={selectMenuItem} openInfo={()=>setShowInfo(true)} openWelcome={()=>setShowWelcome(true)}/>:
 tab==='inclusion'?<InclusionScreen/>:
 tab==='aboutApp'?<AboutFamilienfunkeScreen/>:
@@ -600,7 +600,7 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>si
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
 accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id)&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
-<TopRightMenu visible={menuOpen} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
+<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text accessibilityRole="header" style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
