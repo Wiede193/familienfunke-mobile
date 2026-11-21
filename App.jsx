@@ -1202,6 +1202,10 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       </>:null}
       {boxStep==='review'?<>
       <Text style={[styles.sub,{marginBottom:11}]}>Prüfe kurz die erkannten Kleidungsstücke. Fehlende Größen dürfen offen bleiben.</Text>
+      {boxQuality.length?<View style={{marginBottom:10,padding:11,borderRadius:11,backgroundColor:C.warning}}>
+        <Text style={[styles.micro,{color:C.warningText}]}>{PHOTO_ISSUES[boxQuality[0]]}</Text>
+        <Pressable accessibilityRole="button" onPress={()=>setBoxStep('photo')} style={{paddingTop:7}}><Text style={[styles.micro,{color:C.accentDark,fontWeight:'900'}]}>Foto ansehen ›</Text></Pressable>
+      </View>:null}
       {boxDrafts.length>0?<View style={{backgroundColor:'#FFF4DA',borderRadius:14,padding:12,marginVertical:10}}>
         <Text style={styles.sectionTitle}>{boxSummary.total} Teile · {boxSummary.sized} Größen erfasst</Text>
         <Text style={styles.micro}>{boxSummary.detail||'Artikel noch prüfen'}</Text>
@@ -1397,6 +1401,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           {scanned?<Button title="Merkmale einklappen" mode="ghost" small onPress={()=>setExpandFacts(false)}/>:null}
         </>:['Kleidung','Babyausstattung'].includes(category)&&askSize?<Input label="Welche Größe hat der Artikel? (optional)" value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder="Größe vom Etikett"/>:null}
       </View>:null}
+      {packageForm?<Text style={[styles.micro,{marginBottom:4}]}>Angebot: {trade==='sell'?'Verkaufen':trade==='gift'?'Verschenken':'Tauschen'}</Text>:null}
       {packageForm?<Button title={boxFormExtras?'Optionen wieder ausblenden':'Weitere Optionen (freiwillig)'} mode="ghost" small onPress={()=>setBoxFormExtras(v=>!v)}/>:null}
       {(!packageForm||boxFormExtras)?<><Text style={styles.label}>Ich möchte</Text>
       <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
