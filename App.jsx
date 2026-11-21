@@ -225,7 +225,7 @@ const queries=await Promise.all([
 supabase.from('profiles').select('*').limit(150),
 supabase.from('contact_requests').select('*').order('created_at',{ascending:false}).limit(200),
 supabase.from('messages').select('*').order('created_at',{ascending:false}).limit(300),
-supabase.from('events').select('*').order('starts_at',{ascending:true}).limit(150),
+supabase.from('events').select('*').gt('ends_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(150),
 supabase.from('event_requests').select('*').limit(200),
 supabase.from('profile_photos').select('*').order('created_at',{ascending:false}).limit(100),
 supabase.from('blocks').select('*').limit(200),
@@ -235,7 +235,7 @@ supabase.from('ff_market_listings').select('*').order('created_at',{ascending:fa
 supabase.from('ff_market_photos').select('*').order('slot',{ascending:true}).limit(800),
 supabase.from('ff_market_favorites').select('*').eq('user_id',me).limit(800),
 supabase.from('ff_organizations').select('*').order('created_at',{ascending:false}).limit(100),
-supabase.from('ff_partner_events').select('*').order('starts_at',{ascending:true}).limit(100),
+supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(100),
 ]);
 if(accountRef.current!==me)return null;
 const firstError=queries.find(x=>x.error)?.error;
@@ -1866,6 +1866,18 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
        description:safeString(eventDesc,1000),region_label:safeString(eventRegion,80),starts_at:start.toISOString()});
     if(ok){setEventForm(false);setEventTitle('');setEventDesc('');setEventDate('');}
   }
+  const renderEvent=e=><Card key={e.id} style={{marginBottom:12}}>
+          <Text style={[styles.eyebrow,{marginBottom:7}]}>{formatDate(e.starts_at)}</Text>
+          <Text style={styles.cardTitle}>{e.title}</Text>
+          <Text style={styles.micro}>{organizations.find(o=>o.id===e.organization_id)?.name||'Einrichtung'} · {e.region_label||'Ort auf Anfrage'}</Text>
+          {e.description?<Text style={[styles.body,{marginTop:8}]}>{e.description}</Text>:null}
+          {e.creator_id===me&&e.moderation_status!=='approved'?<Text style={[styles.micro,{marginTop:10}]}>Für dich sichtbar · wartet auf Freigabe</Text>:null}
+       </Card>;
+  if(focusId)return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <H sub="Direkt aus deiner Suche geöffnet.">Partnerveranstaltung</H>
+    <FocusedEventStatus focus={focus} clearFocus={clearFocus}/>
+    {events.map(renderEvent)}
+  </ScrollView>;
   return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <H sub="Kitas, Fördervereine und Familienzentren in deiner Region.">Kita & Partnerwelt</H>
     <Info>{SECTION_MESSAGES.partners}</Info>
@@ -1920,15 +1932,8 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
         </View>:null}
     </Card>:null}
     <Text style={[styles.sectionTitle,{marginTop:15}]}>Flohmärkte & Veranstaltungen</Text>
-    {focusId?<FocusedEventStatus focus={focus} clearFocus={clearFocus}/>:null}
     {events.length===0?(focusId?null:<Blank title="Noch keine Partnerveranstaltungen" body="Bestätigte Einrichtungen können hier ihre Flohmärkte und Termine bewerben."/>):
-       events.map(e=><Card key={e.id} style={{marginBottom:12}}>
-          <Text style={[styles.eyebrow,{marginBottom:7}]}>{formatDate(e.starts_at)}</Text>
-          <Text style={styles.cardTitle}>{e.title}</Text>
-          <Text style={styles.micro}>{organizations.find(o=>o.id===e.organization_id)?.name||'Einrichtung'} · {e.region_label||'Ort auf Anfrage'}</Text>
-          {e.description?<Text style={[styles.body,{marginTop:8}]}>{e.description}</Text>:null}
-          {e.creator_id===me&&e.moderation_status!=='approved'?<Text style={[styles.micro,{marginTop:10}]}>Für dich sichtbar · wartet auf Freigabe</Text>:null}
-       </Card>)}
+       events.map(renderEvent)}
     <View style={{marginTop:13}}><Button title="Inklusion und Familienunterstützung" mode="ghost" onPress={openInclusion}/></View>
   </ScrollView>;
 }
