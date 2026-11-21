@@ -35,6 +35,7 @@ export function looksLikeMarketProductQuery(value){
 export function findHomeRoutes(value){
  const intent=normalize(value);
  if(/\b(kalender|familienkalender|wochenplan)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='calendar')];
+ if(/^(treffen|veranstaltungen|veranstaltung|events)$/.test(intent))return [HOME_ROUTES.find(x=>x.id==='events')];
  if(/^(chat|chats|private nachrichten|unterhaltungen)$/.test(intent))return [HOME_ROUTES.find(x=>x.id==='chat')];
  if(/\b(push|pushnachrichten|benachrichtigungseinstellungen|sperrbildschirm)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='push')];
  if(/\b(neuigkeiten|benachrichtigungszentrale|benachrichtigungen|ungelesen)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='inbox')];
