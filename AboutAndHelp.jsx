@@ -1,7 +1,8 @@
 import React, {useMemo, useState} from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
+import {FAMILY_COLORS} from './FamilyTheme';
 
-const C={background:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',accent:'#087F87',accentDark:'#075D67',pale:'#E4F5F1',line:'#F0E5DC',coral:'#EE7867',sunny:'#FFE4AA'};
+const C=FAMILY_COLORS;
 const topics=[
   ['Anmeldung & Konto','Wie melde ich mich an?','Öffne Familienfunke, gib deine E-Mail-Adresse und dein Passwort ein und tippe auf „Anmelden“. Du benötigst ein bereits eingerichtetes Konto.'],
   ['Anmeldung & Konto','Warum funktioniert meine Anmeldung nicht?','Prüfe die Schreibweise deiner E-Mail-Adresse und deines Passworts sowie deine Internetverbindung. Wenn du eine Meldung zur E-Mail-Bestätigung erhältst, schließe diese zuerst ab.'],
@@ -122,11 +123,11 @@ const styles=StyleSheet.create({
   content:{padding:19,paddingBottom:46},
   h:{fontSize:25,fontWeight:'900',color:C.ink,marginBottom:7},
   card:{padding:18,borderRadius:24,backgroundColor:C.white,borderWidth:1,borderColor:C.line,marginBottom:13},
-  hero:{backgroundColor:C.accentDark,borderRadius:27,padding:23,marginBottom:16},
-  pill:{alignSelf:'flex-start',backgroundColor:C.sunny,borderRadius:22,paddingHorizontal:12,paddingVertical:7,marginBottom:12},
+  hero:{backgroundColor:C.sun,borderRadius:25,padding:23,marginBottom:16},
+  pill:{alignSelf:'flex-start',backgroundColor:C.white,borderRadius:22,paddingHorizontal:12,paddingVertical:7,marginBottom:12},
   pillText:{fontSize:11,color:'#624315',fontWeight:'900',letterSpacing:1},
-  heroTitle:{fontSize:26,color:C.white,fontWeight:'900',lineHeight:33,marginBottom:10},
-  heroSub:{color:'#E5F8F6',fontSize:14,lineHeight:21},
+  heroTitle:{fontSize:26,color:C.ink,fontWeight:'900',lineHeight:33,marginBottom:10},
+  heroSub:{color:'#66512F',fontSize:14,lineHeight:21},
   sectionTitle:{fontSize:18,fontWeight:'900',color:C.ink,marginBottom:11},
   body:{fontSize:15,lineHeight:23,color:C.ink},
   caption:{fontSize:13.5,lineHeight:21,color:C.muted},
