@@ -2010,7 +2010,7 @@ function MoreScreen({navigate,openInfo,openWelcome}){
   return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
     <H sub={t("Deine Kontakte, Einstellungen und unterstützenden Angebote.")}>{t("Weitere Bereiche")}</H>
     <Button title={t("Sprache & Region")} mode="outline" onPress={openLanguage}/>
-    {items.map(([id,icon,title,subtitle])=><Pressable accessibilityRole="button" accessibilityLabel={title} key={id} onPress={()=>id==='welcome'?openWelcome():navigate(id)}>
+    {items.map(([id,icon,title,subtitle])=><Pressable accessibilityRole="button" accessibilityLabel={t(title)} key={id} onPress={()=>id==='welcome'?openWelcome():navigate(id)}>
       <Card style={{marginBottom:12}}><Row><Text style={{fontSize:26,color:C.coral,width:36}}>{icon}</Text>
       <View style={{flex:1}}><Text style={styles.cardTitle}>{t(title)}</Text><Text style={styles.sub}>{t(subtitle)}</Text></View>
       <Text style={{fontSize:20,color:C.accent}}>›</Text></Row></Card></Pressable>)}

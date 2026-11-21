@@ -9,7 +9,7 @@ export default function FamilyVoiceSearch({disabled=false,onText,onBusyChange}){
  const {t,locale}=useFamilyLocale();
  const [phase,setPhase]=useState('idle'),[notice,setNotice]=useState('');
  const control=useRef({mounted:false,session:0,phase:'idle',accept:false});
- const callbacks=useRef({onText,onBusyChange});callbacks.current={onText,onBusyChange};
+ const callbacks=useRef({onText,onBusyChange,t});callbacks.current={onText,onBusyChange,t};
  function transition(next){
   control.current.phase=next;
   if(control.current.mounted){setPhase(next);callbacks.current.onBusyChange?.(next!=='idle');}
@@ -29,13 +29,13 @@ export default function FamilyVoiceSearch({disabled=false,onText,onBusyChange}){
     const value=event?.results?.[0]?.transcript;
     if(c.mounted&&c.accept&&c.phase==='listening'&&event.isFinal&&typeof value==='string'&&value.trim()){
      c.accept=false;callbacks.current.onText?.(value.trim().slice(0,600));
-     setNotice(t("Text eingefügt. Prüfe ihn und tippe auf Suchen oder KI fragen."));
-     AccessibilityInfo.announceForAccessibility(t("Gesprochener Text eingefügt."));
+     setNotice(callbacks.current.t("Text eingefügt. Prüfe ihn und tippe auf Suchen oder KI fragen."));
+     AccessibilityInfo.announceForAccessibility(callbacks.current.t("Gesprochener Text eingefügt."));
     }
    }),
    speech.addListener('error',()=>{
     if(!c.mounted||c.phase==='idle')return;
-    c.accept=false;setNotice(t("Spracherkennung nicht verfügbar. Bitte prüfe die lokale deutsche Spracherkennung oder nutze die Tastatur."));
+    c.accept=false;setNotice(callbacks.current.t("Spracherkennung nicht verfügbar. Bitte prüfe die lokale deutsche Spracherkennung oder nutze die Tastatur."));
     // Wait for the terminal event instead of allowing a new session while old events may arrive.
     transition('stopping');
     const session=c.session;
@@ -57,6 +57,7 @@ export default function FamilyVoiceSearch({disabled=false,onText,onBusyChange}){
    if(['listening','stopping'].includes(c.phase))try{speech.abort();}catch{}
   };
  },[]);
+ useEffect(()=>{if(control.current.phase!=='idle')cancel();setNotice('');},[locale]);
  async function start(){
   const c=control.current;
   if(!speech||!c.mounted||disabled||c.phase!=='idle')return;

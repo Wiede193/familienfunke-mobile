@@ -56,7 +56,7 @@ export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}
        const selected=id===activeTab;
        return <Pressable key={id} accessibilityRole="button" accessibilityLabel={t(title)+(id==='inbox'&&unread>0?', '+unread+' '+t('ungelesen'):'')} accessibilityState={{selected}}
         onPress={()=>onSelect(id)} style={[s.item,selected&&s.selected]}>
-        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.glyphWrap}><FamilyIcon name={id} size={23}/></View>
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.glyphWrap}><FamilyIcon name={id==='language'?'layout':id} size={23}/></View>
         <View style={{flex:1,minWidth:0}}>
          <Text style={s.name}>{t(title)}</Text><Text style={s.subtitle}>{t(subtitle)}</Text>
          {id==='inbox'&&unread>0?<Text style={s.unread}>{unread} {t('ungelesen')}</Text>:null}

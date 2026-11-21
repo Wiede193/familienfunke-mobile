@@ -55,7 +55,7 @@ function AssistantReply({entry,onNavigate}){
             onPress={()=>onNavigate('market',entry.searchQuery)}
             style={s.offerItem}>
             <Text style={s.offerTitle}>{offer.title}</Text>
-            {offer.matchItem?<Text style={s.mutedSmall}>Passender Artikel: {offer.matchItem}</Text>:null}
+            {offer.matchItem?<Text style={s.mutedSmall}>{t('Passender Artikel: ')}{offer.matchItem}</Text>:null}
             <Text style={s.offerPrice}>{offer.price}</Text>
           </Pressable>
         ):<Text style={s.mutedSmall}>{t("Für diese Suche gibt es momentan keine freigegebenen Treffer.")}</Text>}
@@ -66,7 +66,7 @@ function AssistantReply({entry,onNavigate}){
       accessibilityLabel={t("Vorgeschlagenen App-Bereich öffnen")}
       onPress={()=>onNavigate(entry.pageId,entry.pageId==='market'?entry.searchQuery||entry.question:'')}
       style={({pressed})=>[s.answerAction,pressed&&s.pressed]}>
-      <Text style={s.answerActionLabel}>{t(HOME_ROUTES.find(x=>x.id===entry.pageId)?.title||t("Passenden Bereich öffnen"))} ›</Text>
+      <Text style={s.answerActionLabel}>{t(HOME_ROUTES.find(x=>x.id===entry.pageId)?.title||'Passenden Bereich öffnen')} ›</Text>
       
     </Pressable>:null}
   </View>;
@@ -86,6 +86,7 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
   const [searchBusy,setSearchBusy]=useState(false);
   const [voiceBusy,setVoiceBusy]=useState(false);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;requestSeq.current++;};},[]);
+  useEffect(()=>{requestSeq.current++;pending.current=false;setSearchResult(null);setSearchBusy(false);setBusy(false);setError('');},[language]);
   function updateQuestion(value){
     requestSeq.current++;pending.current=false;
     setQuestion(value);setSearchResult(null);setSearchBusy(false);setBusy(false);setError('');
@@ -212,7 +213,7 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
           <Text style={s.askButtonLabel}>{busy?t("KI antwortet …"):t("KI fragen")}</Text>
         </Pressable>
       </View>
-      <FamilyVoiceSearch key={language} disabled={busy||searchBusy} onText={updateQuestion} onBusyChange={setVoiceBusy}/>
+      <FamilyVoiceSearch disabled={busy||searchBusy} onText={updateQuestion} onBusyChange={setVoiceBusy}/>
       <Text style={s.searchHint}>{t("App-Funktionen, Angebote, Orte und Veranstaltungen finden oder Fragen stellen. Du kannst auch über das Mikrofon deiner Tastatur diktieren, sofern dein Gerät dies unterstützt.")}</Text>
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
     </View>
