@@ -25,6 +25,8 @@ assert.equal(findHomeRoutes('Passwort ändern')[0]?.id,'profile','Password setti
 assert.equal(findHomeRoutes('Kinderwagen kaufen')[0]?.id,'market','Items should point to the bazaar');
 assert.equal(findHomeRoutes('Spielplätze finden')[0]?.id,'map','Play spaces must open the map');
 assert.equal(findHomeRoutes('Kindergarten')[0]?.id,'partners','Kitas must open partner world');
+assert.equal(findHomeRoutes('Kinderwagen verkaufen')[0]?.id,'sell','Selling a product must not open buyer search');
+assert.equal(findHomeRoutes('Personen in meiner Nähe suchen')[0]?.id,'discover','People nearby should open family discovery');
 assert.ok(findHomeRoutes('Datenschutz').some(x=>x.id==='profile'),'Privacy settings must be discoverable');
 
 const home=readFileSync(new URL('../HomeAssistant.jsx',import.meta.url),'utf8');
