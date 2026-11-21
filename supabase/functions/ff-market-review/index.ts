@@ -124,7 +124,7 @@ async function reviewOne(db:any,listingId:string,uid:string):Promise<Response>{
     db.from("memberships").select("status").eq("user_id",uid).maybeSingle(),
    ]);
   if(profileError||verificationError||membershipError)return fail("Kontoberechtigung nicht prüfbar");
-  if(profile?.moderation_status!=="approved" || verification?.status!=="verified" || membership?.status==="suspended")
+  if(profile?.moderation_status!=="approved" || verification?.status!=="verified" || !membership||membership.status==="suspended")
     return Response.json({status:"review_required",reason:"account"});
   if(listing.organization_id){
     const {data:org,error:orgError}=await db.from("ff_organizations")
@@ -164,6 +164,9 @@ async function reviewOne(db:any,listingId:string,uid:string):Promise<Response>{
       return Response.json({status:"review_required",reason:"extra_photo_path"});
     paths.push(expected);
   }
+  const {data:allowed,error:quotaError}=await db.rpc("ff_moderation_claim",{p_service:"market_review",p_user_id:uid});
+  if(quotaError)return fail("Prüfung derzeit nicht verfügbar",503);
+  if(allowed!==true)return fail("Prüflimit erreicht",429);
   // Ein Multipart-/Upload-Fehler darf niemals eine automatische Freigabe auslösen.
   for(const path of paths){
     const {data:file,error:fileError}=await db.storage.from(BUCKET).download(path);
@@ -300,13 +303,19 @@ export default {
    const listingId=incoming && typeof incoming==="object" && "listing_id" in incoming
      ? (incoming as {listing_id:unknown}).listing_id:null;
    if(typeof listingId!=="string"||!UUID.test(listingId))return fail("Ungültige Inserat-ID",400);
+   // Check ownership before any queue record, including errors.
+   const {data:own,error:ownError}=await db.from("ff_market_listings")
+     .select("id,moderation_status").eq("id",listingId).eq("seller_id",uid).maybeSingle();
+   if(ownError)return fail("Inserat nicht prüfbar",503);
+   if(!own)return fail("Inserat nicht gefunden",404);
+   if(own.moderation_status!=="pending")return Response.json({status:own.moderation_status});
    let result:Response;
    try{result=await reviewOne(db,listingId,uid);}
    catch(e){
      console.error("ff-market-review: unexpected review error",String(e));
      result=fail("KI-Prüfung vorübergehend nicht verfügbar");
    }
-   await recordOutcome(db,listingId,result);
+   if(result.status!==429)await recordOutcome(db,listingId,result);
    return result;
  })
 };
