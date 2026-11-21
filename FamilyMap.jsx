@@ -182,7 +182,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
       active,selectedId:selectedSearchId,
       items:locationMatches.map(({id,title,latitude,longitude})=>({id,title,latitude,longitude}))
     }));
-    if(!active||!locationMatches.length)return;
+    if(!active||!locationMatches.length||locationMatches.some(m=>m.id===selectedSearchId))return;
     // Debounce fitting: the pins update immediately, but typing does not cause a jump every keystroke.
     fitTimer.current=setTimeout(()=>map.current?.injectJavaScript(mapScript('fitSearchResults')),320);
     return ()=>clearTimeout(fitTimer.current);
@@ -387,7 +387,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
       <Text style={[styles.micro,{marginTop:7,marginBottom:11}]}>
         Suche nach Orten, Postleitzahlen, Straßen und öffentlichen Adressen in ganz Deutschland. Familienfunke-Tipps erscheinen direkt beim Tippen.
       </Text>
-      <TextInput accessibilityLabel="Stadt oder Ausflugsziel suchen"
+      <TextInput accessibilityLabel="Stadt oder Ausflugsziel suchen" accessibilityHint="Auch Postleitzahl, Straße und öffentliche Adresse möglich. Deutschlandweite Suche mit der Suchtaste starten."
         value={placeQuery} onChangeText={changePlaceQuery}
         style={styles.field} placeholder="z. B. 15230, Rathausplatz oder Berlin"
         placeholderTextColor={C.muted} maxLength={160}
@@ -418,10 +418,11 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     </View>
     {selectedSearchMatch?<View accessibilityLiveRegion="polite" style={styles.mapSelectedInfo}>
       <Text accessibilityRole="header" style={styles.selectedTitle}>{selectedSearchMatch.title}</Text>
-      <Text style={styles.micro}>{selectedSearchMatch.subtitle} · Auf der Karte hervorgehoben</Text>
+      <Text style={styles.micro}>{selectedSearchMatch.subtitle}{ready?' · Auf der Karte hervorgehoben':''}</Text>
       {selectedSearchMatch.source==='geocode'?<View><Text style={[styles.micro,{marginTop:8}]}>Externer Kartentreffer, keine geprüfte Familienfunke-Empfehlung. Adressdaten können unvollständig sein.</Text><Pressable accessibilityRole="link" onPress={()=>openDirections(selectedSearchMatch,'google')} style={[styles.minorBtn,{minHeight:44}]}><Text style={styles.minorBtnText}>Route in Google Maps öffnen ↗</Text></Pressable><Pressable accessibilityRole="link" onPress={()=>openDirections(selectedSearchMatch,'apple')} style={[styles.minorBtn,{minHeight:44}]}><Text style={styles.minorBtnText}>Route in Apple Karten öffnen ↗</Text></Pressable></View>:null}
       {(selectedSearchMatch.source==='city'||selectedSearchMatch.source==='geocode')?<Pressable accessibilityRole="button"
-         accessibilityLabel={'Familienorte in '+selectedSearchMatch.title+' laden'}
+         accessibilityLabel={'Familienorte in der Umgebung von '+selectedSearchMatch.title+' laden'}
+         accessibilityState={{disabled:loading}} disabled={loading}
          onPress={()=>searchNearMatch(selectedSearchMatch)}
          style={[styles.mainBtn,{marginTop:11}]}>
          <Text style={styles.mainBtnText}>Familienorte in dieser Umgebung suchen</Text>
