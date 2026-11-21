@@ -3,6 +3,19 @@
 // Bei Unklarheit/Fehler verbleibt das Inserat im gesperrten Status.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "npm:@supabase/server@^1";
+// Record only token counts. Never log content or identities.
+async function trackAI(db:any,day:string,service:string,model:string,stage:"attempt"|"measured",usage?:any){
+ try{
+  const {data,error}=await db.rpc("ff_ai_usage_record",{
+   p_day:day,p_service:service,p_model:model,p_stage:stage,
+   p_input:stage==="measured"?usage?.prompt_tokens??null:0,
+   p_output:stage==="measured"?usage?.completion_tokens??null:0,
+   p_cached:stage==="measured"?usage?.prompt_tokens_details?.cached_tokens??0:0
+  });
+  if(error||data!==true)console.warn("AI usage counter unavailable",service,stage);
+ }catch{console.warn("AI usage counter unavailable",service,stage);}
+}
+
 
 const BUCKET = "ff-market-photos";
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -197,6 +210,9 @@ async function reviewOne(db:any,listingId:string,uid:string):Promise<Response>{
   let itemDecision:string;
   let itemReason:string;
   try {
+    const usageDay=new Date().toISOString().slice(0,10);
+    const usageModel="gpt-4o-mini";
+    await trackAI(db,usageDay,"market_review",usageModel,"attempt");
     const response=await fetch("https://api.openai.com/v1/chat/completions",{
       method:"POST",
       headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},
@@ -212,6 +228,7 @@ async function reviewOne(db:any,listingId:string,uid:string):Promise<Response>{
     });
     if(!response.ok) return fail("Kontextprüfung vorübergehend nicht verfügbar");
     const data=await response.json();
+    await trackAI(db,usageDay,"market_review",usageModel,"measured",data.usage);
     const raw=data?.choices?.[0]?.message?.content;
     if(typeof raw!=="string")return fail("Unklare Kontextprüfung");
     const answer=JSON.parse(raw);

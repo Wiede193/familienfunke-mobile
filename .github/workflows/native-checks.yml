@@ -41,6 +41,8 @@ jobs:
         run: npm run check:security
       - name: Zweiten Faktor und KI-Schutzgrenzen prüfen
         run: npm run check:mfa-ai
+      - name: KI-Verbrauchserfassung prüfen
+        run: npm run check:ai-usage
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen
