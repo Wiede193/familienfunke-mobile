@@ -1,11 +1,8 @@
 import React, {useEffect, useRef} from 'react';
 import {AccessibilityInfo, Modal, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {FAMILY_COLORS} from './FamilyTheme';
 
-const P={
-  ink:'#193C48',muted:'#607984',white:'#FFFFFF',
-  yellow:'#FFE5A7',cream:'#FFF9F3',accent:'#087F87',
-  coral:'#EE7867',line:'#EFDFCB',
-};
+const P=FAMILY_COLORS;
 
 const highlights=[
   ['♡','Echte Verbindungen','Andere Familien in deiner Nähe kennenlernen'],
