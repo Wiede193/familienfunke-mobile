@@ -33,6 +33,8 @@ jobs:
         run: npm run check:market-search
       - name: KI-Freigabe und Fehlerbehandlung prüfen
         run: npm run check:market-auto-review
+      - name: Automatische Wiederholung und Moderationsausnahmen prüfen
+        run: npm run check:market-review-queue
       - name: iOS-Bundle erstellen
         run: npx expo export --platform ios --output-dir dist/ios
       - name: Android-Bundle erstellen
