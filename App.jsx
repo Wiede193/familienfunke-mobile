@@ -20,6 +20,7 @@ import {keepBoxPhoto,availableBoxPhoto,loadBoxSnapshot,saveBoxSnapshot,deleteBox
 import { cropBounds,suggestedCrop,changeCrop,pixelCrop,photoIssues,PHOTO_ISSUES } from './MarketBoxCrop';
 import {suggestBoxPackages,packageCheck} from './MarketBoxSuggestions';
 import {collectMarketSizeLabels,marketListingSizes,marketMatchesSize,marketMatchesRegion} from './MarketListingFilters';
+import {MARKET_ITEM_TYPES,MARKET_COLORS,canonicalPattern,marketAiTypeSuggestion,buildMarketAttributes} from './MarketAttributeSchema';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
@@ -720,6 +721,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('Alle');
   const [sizeFilter,setSizeFilter]=useState('Alle');
+  const [itemTypeFilter,setItemTypeFilter]=useState('Alle');
+  const [colorFilter,setColorFilter]=useState('Alle');
   const [serverListings,setServerListings]=useState(null);
   const [serverPhotos,setServerPhotos]=useState([]);
   const [serverPrimaryUrls,setServerPrimaryUrls]=useState({});
@@ -746,6 +749,9 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [description,setDescription]=useState('');
   const [region,setRegion]=useState('');
   const [category,setCategory]=useState('Kleidung');
+  const [itemType,setItemType]=useState('');
+  const [patternCode,setPatternCode]=useState('');
+  const [materialLabel,setMaterialLabel]=useState('');
   const [condition,setCondition]=useState('Gut');
   const [trade,setTrade]=useState('sell');
   const [price,setPrice]=useState('');
@@ -853,6 +859,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         ?editingListing.size_labels||[]
         :[facts.size];
   const listingSizeLabels=collectMarketSizeLabels(sizeSources);
+  const marketAttributes=buildMarketAttributes({category,itemType,facts,pattern:patternCode,material:materialLabel,
+    packageItems:boxEditor?.packageIds?boxDrafts.filter(d=>boxEditor.packageIds.includes(d.id)):null});
   const existingPhotoCount=editingListing?(editingListing.photo_path?1:0)
     +visiblePhotos.filter(x=>x.listing_id===editingId).length:0;
   const galleryOf=x=>{
@@ -864,14 +872,14 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     return pictures;
   };
   function resetForm(){
-    setBoxEditor(null);setEditingId(null);setEditingSnapshot(null);setTitle('');setDescription('');setRegion('');setCategory('Kleidung');
+    setBoxEditor(null);setEditingId(null);setEditingSnapshot(null);setTitle('');setDescription('');setRegion('');setCategory('Kleidung');setItemType('');setPatternCode('');setMaterialLabel('');
     setCondition('Gut');setTrade('sell');setPrice('');setOrganizationId('');setPhoto([]);
     setQuick(false);setFacts({...EMPTY_FACTS});setProposal(null);setScanNotice('');setConfirmed(false);setExpandFacts(false);setScanned(false);setAskSize(false);
   }
   function beginEdit(x){
     setBoxOpen(false);resetForm();setEditingId(x.id);setEditingSnapshot(x);setOnlyMine(true);setOnlyFavorites(false);
     const decoded=decodeArticleFacts(x.description);
-    setQuick(!!decoded);setFacts(decoded?.facts||{...EMPTY_FACTS,size:(x.size_labels||[]).length===1?x.size_labels[0]:''});setExpandFacts(true);
+    setQuick(!!decoded);setFacts(decoded?.facts||{...EMPTY_FACTS,size:(x.size_labels||[]).length===1?x.size_labels[0]:''});setItemType((x.item_types||[]).length===1?x.item_types[0]:'');setPatternCode((x.pattern_labels||[])[0]||'');setMaterialLabel((x.material_labels||[])[0]||'');setExpandFacts(true);
     setTitle(x.title);setDescription(decoded?decoded.note:x.description||'');setRegion(x.region_label||'');
     setCategory(x.category);setCondition(x.item_condition);setTrade(x.trade_type);
     setPrice(x.trade_type==='sell'?String((x.price_cents/100).toFixed(2)).replace('.',','):'');
@@ -889,6 +897,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       const {data,error}=await supabase.rpc('ff_market_search',{
         p_query:query.trim(),p_category:filter==='Alle'?null:filter,
         p_size:sizeFilter==='Alle'?null:sizeFilter,
+        p_item_type:itemTypeFilter==='Alle'?null:itemTypeFilter,
+        p_color:colorFilter==='Alle'?null:colorFilter,
         p_region:placeFilter==='Alle'?null:placeFilter,
         p_trade_type:tradeFilter,p_min_price:minimum,p_max_price:maximum,
         p_sort:sortBy,p_only_mine:onlyMine,p_only_favorites:onlyFavorites,
@@ -927,7 +937,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     setServerLoading(true);setServerHasMore(false);setServerError('');
     const timer=setTimeout(()=>{fetchServerMarket(0,id);},220);
     return ()=>clearTimeout(timer);
-  },[me,query,filter,sizeFilter,placeFilter,tradeFilter,minPrice,maxPrice,sortBy,onlyMine,onlyFavorites,listings,favorites]);
+  },[me,query,filter,sizeFilter,itemTypeFilter,colorFilter,placeFilter,tradeFilter,minPrice,maxPrice,sortBy,onlyMine,onlyFavorites,listings,favorites]);
   function loadNextServerPage(){
     if(serverLoading||serverLoadingMore||!serverHasMore)return;
     setServerLoadingMore(true);
@@ -937,10 +947,10 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const sizeOptions=[...new Set([...MARKET_STANDARD_SIZES,...availableListings.flatMap(marketListingSizes)])].sort((a,b)=>a.localeCompare(b,'de',{numeric:true}));
   const placeOptions=[...new Set(availableListings.map(x=>String(x.region_label||'').trim()).filter(Boolean))]
     .sort((a,b)=>a.localeCompare(b,'de',{numeric:true}));
-  const activeFilterCount=Number(filter!=='Alle')+Number(sizeFilter!=='Alle')+Number(placeFilter!=='Alle')
+  const activeFilterCount=Number(filter!=='Alle')+Number(sizeFilter!=='Alle')+Number(itemTypeFilter!=='Alle')+Number(colorFilter!=='Alle')+Number(placeFilter!=='Alle')
     +Number(tradeFilter!=='all')+Number(!!minPrice.trim())+Number(!!maxPrice.trim());
   function resetMarketFilters(){
-    setFilter('Alle');setSizeFilter('Alle');setPlaceFilter('Alle');setTradeFilter('all');
+    setFilter('Alle');setSizeFilter('Alle');setItemTypeFilter('Alle');setColorFilter('Alle');setPlaceFilter('Alle');setTradeFilter('all');
     setMinPrice('');setMaxPrice('');setSortBy('newest');setQuery('');
   }
   const filtered=visibleListings.filter(x=>
@@ -948,6 +958,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     && !blocked(x.seller_id)
     && (filter==='Alle'||x.category===filter)
     && marketMatchesSize(x,sizeFilter)
+    && (itemTypeFilter==='Alle'||(x.item_types||[]).includes(itemTypeFilter))
+    && (colorFilter==='Alle'||(x.color_labels||[]).includes(colorFilter))
     && marketMatchesRegion(x,placeFilter)
     && (tradeFilter==='all'||x.trade_type===tradeFilter)
     && (minimum===null||(x.trade_type==='sell'&&x.price_cents>=minimum))
@@ -1058,7 +1070,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       const drafts=result.items.slice(0,Math.min(10,BOX_MAX_ITEMS-boxDrafts.length)).filter(x=>typeof x?.title==='string'&&MARKET_CATEGORIES.includes(x.category)).map((x,i)=>({
         id:'scan-'+boxSeq+'-'+i,batchId,listingId:listingDraftId(),title:safeString(x.title,100),category:x.category,position:safeString(x.position,50),
         facts:{...EMPTY_FACTS,...Object.fromEntries(FACT_KEYS.map(([k,,max])=>[k,safeString(x[k],max)])),detail:compactBoxDetail(x)},
-        garmentType:safeString(x.garmentType,40),shape:safeString(x.shape,60),pattern:safeString(x.pattern,40),features:safeString(x.features,80),material:safeString(x.material,50),
+        itemType:marketAiTypeSuggestion(x),patternCode:canonicalPattern(x.patternCode),garmentType:safeString(x.garmentType,40),shape:safeString(x.shape,60),pattern:safeString(x.pattern,40),features:safeString(x.features,80),material:safeString(x.material,50),
         sizeEvidence:x.sizeEvidence==='label'?'label':'unknown',relativeSize:safeString(x.relativeSize,95),uncertainty:safeString(x.uncertainty,90),x:x.x,y:x.y,bounds:cropBounds(x.bounds),visibility:['isolated','overlapping','cutoff','unclear'].includes(x.visibility)?x.visibility:'unclear',
         confirmed:false,photos:[],condition:'',trade:'sell',price:'',description:'',region:boxRegion,organizationId:''
       }));
@@ -1159,7 +1171,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   }
   function openBoxEditor(d,packageIds=null){
     setBoxCrop(null);resetForm();setBoxFormExtras(false);setBoxOpen(false);setOpen(true);setQuick(true);setBoxEditor({id:d.id,packageIds,listingId:d.listingId||listingDraftId()});
-    setTitle(d.title||'');setCategory(d.category||'Kleidung');setFacts({...EMPTY_FACTS,...d.facts});
+    setTitle(d.title||'');setCategory(d.category||'Kleidung');setItemType(d.itemType||'');setPatternCode(d.patternCode||'');setMaterialLabel(d.material||'');setFacts({...EMPTY_FACTS,...d.facts});
     setCondition(d.condition||'');setTrade(d.trade||'sell');setPrice(d.price||'');
     setPhoto(d.photos||[]);setDescription(d.description||'');setRegion(d.region||boxRegion);
     setOrganizationId(d.organizationId||'');setExpandFacts(true);setConfirmed(false);
@@ -1221,7 +1233,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   }
   function useProposal(){
     if(!proposal)return;
-    setTitle(proposal.title);setCategory(proposal.category);
+    setTitle(proposal.title);setCategory(proposal.category);setItemType(marketAiTypeSuggestion(proposal));setPatternCode(canonicalPattern(proposal.patternCode));setMaterialLabel(proposal.material||'');
     setFacts(prev=>({...prev,...Object.fromEntries(FACT_KEYS.map(([key])=>[key,proposal[key]||prev[key]||'']))}));
     setAskSize(!proposal.size&&!facts.size);setProposal(null);setScanned(true);setExpandFacts(false);setScanNotice('Vorschläge übernommen. Bitte prüfe alle Angaben und ergänze, was fehlt.');setConfirmed(false);
   }
@@ -1239,7 +1251,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       return Alert.alert('Preis prüfen','Bitte einen Preis in Euro zwischen 0 und 100.000 angeben.');
     const values={title:safeString(title,100),description:quick?encodeArticleFacts(facts,description):safeString(description,1500),
       category,item_condition:condition,trade_type:trade,price_cents:trade==='sell'?cents:0,
-      region_label:safeString(region,80),organization_id:organizationId||null};
+      region_label:safeString(region,80),organization_id:organizationId||null,...marketAttributes};
     submitLock.current=true;
     const submittedSnapshot=boxEditor?boxSnapshot({listingId:boxEditor.listingId,ids:boxEditor.packageIds||[boxEditor.id],isPackage:!!boxEditor.packageIds}):null;
     try{
@@ -1548,7 +1560,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <Text style={[styles.label,{marginBottom:9}]}>2 · Angaben zum Angebot</Text>
       {packageForm&&!boxFormExtras?<Text style={[styles.body,{fontWeight:'900',marginBottom:12}]}>{title}</Text>:<>
         <Input label="Anzeigentitel" value={title} onChangeText={v=>{setTitle(v);setConfirmed(false);}} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
-        <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={v=>{setCategory(v);setConfirmed(false);}} options={MARKET_CATEGORIES}/>
+        <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={v=>{setCategory(v);setItemType('');setConfirmed(false);}} options={MARKET_CATEGORIES}/>
       </>}
       {packageForm?<View style={{marginBottom:14,padding:13,borderRadius:15,backgroundColor:'#FFF4DA'}}>
         <Text style={styles.sectionTitle}>Dein Paket · {packageForm.rows.length} Teile</Text>
