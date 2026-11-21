@@ -94,7 +94,7 @@ export default function FamilyOutingScreen({draft,onSave,onMap}){
    <Pick title="Gesamtbudget für den Ausflug" items={BUDGETS.map(x=>[x,x===0?'0 €':'bis '+x+' €'])} selected={form.prefs.budget} onChange={v=>pref('budget',v)}/>
    <Pick title="Was möchtet ihr erleben?" items={INTERESTS} selected={form.prefs.interest} onChange={v=>pref('interest',v)}/>
    <Pick title="Wie viel Zeit habt ihr?" items={DURATIONS} selected={form.prefs.duration} onChange={v=>pref('duration',v)}/>
-   <Text style={s.muted}>Das sind Wünsche, keine Preis- oder Altersgarantie. Die KI erhält nur Altersgruppen, Budget, Interesse, Dauer und öffentliche Zielkandidaten, nicht eure Kontodaten oder Ausgangskoordinaten.</Text>
+   <Text style={s.muted}>Das sind Wünsche, keine Preis- oder Altersgarantie. Bei 0 € werden nur mögliche öffentliche Natur- und Spielziele berücksichtigt. Die KI erhält nur Altersgruppen, Budget, Interesse, Dauer und öffentliche Zielkandidaten, nicht eure Kontodaten oder Ausgangskoordinaten.</Text>
    <Action disabled={busy||looking||!form.origin||!form.prefs.ages.length} onPress={()=>generate(true)}>{busy?'Ausflug wird geplant …':'Ausflug mit KI planen'}</Action>
    <Action secondary disabled={busy||looking||!form.origin||!form.prefs.ages.length} onPress={()=>generate(false)}>Ohne KI passende Ziele finden</Action>
   </View>
@@ -103,7 +103,7 @@ export default function FamilyOutingScreen({draft,onSave,onMap}){
   {form.result?<View style={s.card}>
    <Text accessibilityRole="header" style={s.heading}>{form.result.mode==='ai'?'Eure KI-Auswahl':'Passende Ziele aus dem Katalog'}</Text>
    <Text style={s.muted}>{form.result.candidateCount} passende Katalogziele im gewählten Radius; bis zu drei Vorschläge. Keine Live-Prüfung von Wetter, Öffnungszeiten, Fahrzeiten oder Preisen.</Text>
-   {!results.length?<Text style={s.note}>Der bisherige Ausflugskatalog enthält keine passenden Ziele. Erweitert den Radius, ändert das Interesse oder nutzt die Familienkarte.</Text>:null}
+   {!results.length?<Text style={s.note}>Der bisherige Ausflugskatalog enthält keine passenden Ziele. Erweitert den Radius, ändert das Interesse oder Budget oder nutzt die Familienkarte.</Text>:null}
    {results.length>0?<>
     <Text style={s.note}>Gesamtbudget: {form.prefs.budget} €. Eintritt, Anfahrt und Verpflegung sind nicht berechnet. Kein Ziel ist als budgetkonform bestätigt.</Text>
     {results.map((p,i)=><View style={s.destination} key={p.id}>
@@ -115,7 +115,7 @@ export default function FamilyOutingScreen({draft,onSave,onMap}){
       {p.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(p.info_url).catch(()=>setNotice('Betreiberseite konnte nicht geöffnet werden.'))} style={s.link}><Text style={s.linkText}>Aktuelle Besuchsinfos beim Betreiber prüfen ↗</Text></Pressable>:null}
     </View>)}
     <Text accessibilityRole="header" style={s.heading}>Flexibler Ablauf</Text>
-    {planSteps(form.prefs.duration).map(step=><Text key={step} style={s.text}>{step}</Text>)}
+    {planSteps(form.prefs.duration,results,form.prefs.ages).map(step=><Text key={step} style={s.text}>{step}</Text>)}
    </>:null}
   </View>:null}
  </ScrollView>;
