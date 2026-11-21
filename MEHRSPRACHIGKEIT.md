@@ -9,3 +9,5 @@ Bestätigungen für Kontaktanfragen, Blockieren und Profilfoto-Löschung sowie M
 
 ## Ausbaustufe 3 – Familienbasar
 Deterministische englische Alias-Suche für bekannte Produkt- und Farbbegriffe. Basar, Startseite und gespeicherter Suchauftrag nutzen denselben kanonischen Suchbegriff; sichtbar bei Änderung. Unbekannte Begriffe, Zahlen und Marken werden nicht absichtlich übersetzt; keine generelle Übersetzung oder Größenumrechnung. Deutsch bleibt unverändert. Keine SQL-Migration, kein zusätzlicher KI-Aufruf. Echte Katalog- und Gerätetests bleiben notwendig. Deutschsprachige Bestandsangebote sind das primäre Ziel, englische Freitexte können zunächst fehlen.
+
+Basar: Oberfläche für Browsing, Filter, Sortierung, Einzelanzeige, Artikel-Steckbrief, Details, Suchaufträge und Preisalarme erweitert. Übersetzte Zustände und Kategorien sind reine Anzeige; DB-Enums und die deutschsprachige Steckbrief-Kodierung bleiben gleich. Fortgeschrittener Kistenmodus, einzelne Fehler-/Screenreader-Texte und KI-Fotovorschläge bleiben teils deutsch; echte Gerätetests ausstehend.

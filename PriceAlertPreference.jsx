@@ -1,9 +1,11 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {Pressable,StyleSheet,Switch,Text,View} from 'react-native';
 import {supabase} from './supabase';
+import {useFamilyLocale} from './FamilyLocale';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 
 export default function PriceAlertPreference({userId,active}){
+ const {t}=useFamilyLocale();
  const [enabled,setEnabled]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[retry,setRetry]=useState(0);
  const alive=useRef(true),lock=useRef(false);
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
@@ -27,13 +29,13 @@ export default function PriceAlertPreference({userId,active}){
   finally{lock.current=false;if(alive.current)setBusy(false);}
  }
  return <View style={s.card}>
-  <Text accessibilityRole="header" style={s.title}>Preisalarme für gemerkte Artikel</Text>
-  <Text style={s.text}>Standardmäßig aktiv. Ausschalten stoppt neue Preisalarme, vorhandene Hinweise bleiben erhalten. Bei erneutem Einschalten werden keine alten Preissenkungen nachgemeldet. Kein externer Push-Versand.</Text>
+  <Text accessibilityRole="header" style={s.title}>{t("Preisalarme für gemerkte Artikel")}</Text>
+  <Text style={s.text}>{t("Standardmäßig aktiv. Ausschalten stoppt neue Preisalarme, vorhandene Hinweise bleiben erhalten. Bei erneutem Einschalten werden keine alten Preissenkungen nachgemeldet. Kein externer Push-Versand.")}</Text>
   <View style={s.row}>
-   <Text style={[s.text,{flex:1}]}>{enabled===null?'Wird geprüft …':enabled?'Preisalarme an':'Preisalarme aus'}</Text>
-   <Switch accessibilityLabel="Preisalarme für gemerkte Artikel" disabled={busy||enabled===null||(!active&&!enabled)} value={enabled===true} onValueChange={change}/>
+   <Text style={[s.text,{flex:1}]}>{enabled===null?t("Wird geprüft …"):enabled?t("Preisalarme an"):t("Preisalarme aus")}</Text>
+   <Switch accessibilityLabel={t("Preisalarme für gemerkte Artikel")} disabled={busy||enabled===null||(!active&&!enabled)} value={enabled===true} onValueChange={change}/>
   </View>
-  {error?<><Text accessibilityLiveRegion="assertive" style={s.text}>{error}</Text><Pressable accessibilityRole="button" onPress={()=>setRetry(n=>n+1)} style={s.retry}><Text style={s.title}>Erneut laden</Text></Pressable></>:null}
+  {error?<><Text accessibilityLiveRegion="assertive" style={s.text}>{t(error)}</Text><Pressable accessibilityRole="button" onPress={()=>setRetry(n=>n+1)} style={s.retry}><Text style={s.title}>{t("Erneut laden")}</Text></Pressable></>:null}
  </View>;
 }
 const s=StyleSheet.create({card:{padding:15,borderRadius:18,borderWidth:1,borderColor:C.line,backgroundColor:C.paper,gap:8,marginBottom:12},title:{fontWeight:'800',fontSize:16,color:C.ink},text:{fontSize:14,lineHeight:21,color:C.ink},row:{flexDirection:'row',alignItems:'center',gap:10,minHeight:48},retry:{minHeight:44,justifyContent:'center',alignItems:'center',borderRadius:12,backgroundColor:C.mint}});

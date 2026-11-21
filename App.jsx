@@ -770,22 +770,23 @@ async function selectMarketPhotos(max=5){
 }
 
 function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
+  const {t}=useFamilyLocale();
   const [expanded,setExpanded]=useState(false);
   const items=allOption?['Alle Kategorien',...options]:options;
   const selected=value==='Alle'?'Alle Kategorien':value;
   return <View style={{marginBottom:13}}>
-    <Text style={styles.label}>{label}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel={label+': '+selected}
+    <Text style={styles.label}>{t(label)}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={t(label)+': '+t(selected)}
       accessibilityState={{expanded}} onPress={()=>setExpanded(v=>!v)}
       style={styles.marketDropdown}>
-      <Text style={[styles.body,{fontWeight:'700',flex:1}]}>{selected}</Text>
+      <Text style={[styles.body,{fontWeight:'700',flex:1}]}>{t(selected)}</Text>
       <Text style={{fontSize:19,fontWeight:'800',color:C.accentDark}}>{expanded?'⌃':'⌄'}</Text>
     </Pressable>
     {expanded?<View style={styles.marketDropdownOptions}>
       {items.map(option=><Pressable accessibilityRole="button" key={option}
         accessibilityState={{selected:option===selected}} style={styles.marketDropdownOption}
         onPress={()=>{onChange(option==='Alle Kategorien'?'Alle':option);setExpanded(false);}}>
-        <Text style={[styles.body,option===selected&&{color:C.accentDark,fontWeight:'900'}]}>{option}</Text>
+        <Text style={[styles.body,option===selected&&{color:C.accentDark,fontWeight:'900'}]}>{t(option)}</Text>
         {option===selected?<Text style={{color:C.accentDark,fontWeight:'900'}}>✓</Text>:null}
       </Pressable>)}
     </View>:null}
@@ -912,8 +913,8 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
     setSavingSearch(true);
     try{
       await saveMarketSearch({query:canonicalQuery,category:filter,trade:tradeFilter,minPrice,maxPrice});
-      Alert.alert('Suche gespeichert','Du findest den Suchauftrag unter Meine Suchaufträge. Dort kannst du Mitteilungen jederzeit ein- oder ausschalten.');
-    }catch(e){Alert.alert('Suchauftrag',e.message||'Speichern nicht möglich.');}
+      Alert.alert(t("Suche gespeichert"),t("Du findest den Suchauftrag unter Meine Suchaufträge. Dort kannst du Mitteilungen jederzeit ein- oder ausschalten."));
+    }catch(e){Alert.alert(t("Suchauftrag"),t(e.message||'Speichern nicht möglich.'));}
     finally{setSavingSearch(false);}
   }
   const [boxSaveError,setBoxSaveError]=useState(false);
@@ -1355,16 +1356,16 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
   }
   async function submit(){
     if(!active||scanBusy||busy||submitLock.current)return;
-    if(boxEditor?.packageIds&&(!packageForm||packageForm.rows.length!==boxEditor.packageIds.length))return Alert.alert('Paket prüfen','Bitte kehre zur Kiste zurück und erstelle die Paketliste erneut.');
-    if(boxEditor&&!photo.length)return Alert.alert('Artikelfoto fehlt',boxEditor.packageIds?'Bitte füge ein Foto des vollständigen Pakets hinzu.':'Bitte füge ein eigenes Foto dieses einzelnen Artikels hinzu.');
-    if(!['Neu','Sehr gut','Gut','Gebraucht'].includes(condition))return Alert.alert('Zustand wählen','Wie ist der tatsächliche Zustand des Artikels?');
-    if(quick&&!DEFECTS.includes(facts.defect))return Alert.alert('Mängel angeben','Bitte wähle, ob Mängel bekannt sind.');
-    if(quick&&facts.defect==='Vorhanden'&&!facts.defectText.trim())return Alert.alert('Mängel beschreiben','Bitte beschreibe kurz die bekannten Mängel.');
-    if(quick&&!confirmed)return Alert.alert('Angaben bestätigen','Bitte überprüfe den Steckbrief vor dem Einreichen.');
-    if(title.trim().length<4||title.trim().length>100)return Alert.alert('Titel prüfen','Bitte mindestens 4 Zeichen eingeben.');
+    if(boxEditor?.packageIds&&(!packageForm||packageForm.rows.length!==boxEditor.packageIds.length))return Alert.alert(t("Paket prüfen"),t("Bitte kehre zur Kiste zurück und erstelle die Paketliste erneut."));
+    if(boxEditor&&!photo.length)return Alert.alert(t("Artikelfoto fehlt"),boxEditor.packageIds?'Bitte füge ein Foto des vollständigen Pakets hinzu.':'Bitte füge ein eigenes Foto dieses einzelnen Artikels hinzu.');
+    if(!['Neu','Sehr gut','Gut','Gebraucht'].includes(condition))return Alert.alert(t("Zustand wählen"),t("Wie ist der tatsächliche Zustand des Artikels?"));
+    if(quick&&!DEFECTS.includes(facts.defect))return Alert.alert(t("Mängel angeben"),t("Bitte wähle, ob Mängel bekannt sind."));
+    if(quick&&facts.defect==='Vorhanden'&&!facts.defectText.trim())return Alert.alert(t("Mängel beschreiben"),t("Bitte beschreibe kurz die bekannten Mängel."));
+    if(quick&&!confirmed)return Alert.alert(t("Angaben bestätigen"),t("Bitte überprüfe den Steckbrief vor dem Einreichen."));
+    if(title.trim().length<4||title.trim().length>100)return Alert.alert(t("Titel prüfen"),t("Bitte mindestens 4 Zeichen eingeben."));
     const cents=parsePrice(price);
     if(trade==='sell'&&(cents===null||cents<0||cents>10000000))
-      return Alert.alert('Preis prüfen','Bitte einen Preis in Euro zwischen 0 und 100.000 angeben.');
+      return Alert.alert(t("Preis prüfen"),t("Bitte einen Preis in Euro zwischen 0 und 100.000 angeben."));
     const values={title:safeString(title,100),description:quick?encodeArticleFacts(facts,description):safeString(description,1500),
       category,item_condition:condition,trade_type:trade,price_cents:trade==='sell'?cents:0,
       region_label:safeString(region,80),organization_id:organizationId||null};
@@ -1407,9 +1408,9 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
   function contactButton(x,contact){
     if(x.seller_id===me || x.moderation_status!=='approved')return null;
     if(contact?.status==='accepted'){
-      return <Button title="Nachricht an Verkäufer schreiben" disabled={busy||!active} mode="primary" onPress={()=>onChat(contact.id)}/>;
+      return <Button title={t("Nachricht an Verkäufer schreiben")} disabled={busy||!active} mode="primary" onPress={()=>onChat(contact.id)}/>;
     }
-    const label=contact?.status==='pending'?'Kontaktanfrage läuft':contact?'Kontaktanfrage vorhanden':'Verkäufer kontaktieren';
+    const label=contact?.status==='pending'?t("Kontaktanfrage läuft"):contact?t("Kontaktanfrage vorhanden"):t("Verkäufer kontaktieren");
     return <Button title={label} disabled={busy||!active||!!contact} mode="primary" onPress={()=>onContact(x.seller_id)}/>;
   }
   const selected=selectedListing?shown.find(x=>x.id===selectedListing):null;
@@ -1419,31 +1420,31 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
   const shownImage=gallery[Math.min(galleryIndex,Math.max(0,gallery.length-1))]?.uri;
   const imageDescription=selected?marketPhotoAlt(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length):'';
   return <ScrollView ref={marketScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-    <H sub="Kinderkleidung, Spielzeug und vieles mehr – direkt von Familien in deiner Nähe.">Familienbasar</H>
-    <Info>{SECTION_MESSAGES.market}</Info>
+    <H sub={t("Kinderkleidung, Spielzeug und vieles mehr – direkt von Familien in deiner Nähe.")}>{t("Familienbasar")}</H>
+    <Info>{t(SECTION_MESSAGES.market)}</Info>
     <View style={styles.marketTopActions}>
       <View style={{flex:1}}>
-        <Text style={styles.marketTopTitle}>Entdecken & weitergeben</Text>
-        <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
+        <Text style={styles.marketTopTitle}>{t("Entdecken & weitergeben")}</Text>
+        <Text style={styles.micro}>{t("Faire Angebote von geprüften Erwachsenen")}</Text>
       </View>
-      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':drafts.has('market-new')?'Entwurf fortsetzen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){confirmRemoval({title:'Anzeige verwerfen?',description:'Die nicht gespeicherten Änderungen an dieser Anzeige gehen verloren.',confirmLabel:'Verwerfen',onConfirm:()=>{if(!editingId)drafts.clear('market-new');resetForm();setOpen(false);}});}else{startQuick();}}}/>
+      <Button title={boxEditor?t("‹ Zur Kiste"):boxOpen?t("Schließen"):open?t("Schließen"):drafts.has('market-new')?t("Entwurf fortsetzen"):t("＋ Inserieren")} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){confirmRemoval({translate:t,title:'Anzeige verwerfen?',description:'Die nicht gespeicherten Änderungen an dieser Anzeige gehen verloren.',confirmLabel:'Verwerfen',onConfirm:()=>{if(!editingId)drafts.clear('market-new');resetForm();setOpen(false);}});}else{startQuick();}}}/>
     </View>
-    {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
+    {!active?<Info warning>{t("Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.")}</Info>:null}
     <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
-      <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
+      <View style={{flex:1}}><Button title={t("Stöbern")} mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyMine(false);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
-      <View style={{flex:1}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+')'}
+      <View style={{flex:1}}><Button title={t('Meine')+' ('+listings.filter(x=>x.seller_id===me).length+')'}
         mode={onlyMine?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
-      <View style={{flex:1}}><Button title={'♡ Merkliste ('+favorites.filter(f=>listings.some(x=>x.id===f.listing_id&&x.moderation_status==='approved')).length+')'}
+      <View style={{flex:1}}><Button title={'♡ '+t('Merkliste')+' ('+favorites.filter(f=>listings.some(x=>x.id===f.listing_id&&x.moderation_status==='approved')).length+')'}
         mode={onlyFavorites?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
     {onlyFavorites&&!open&&!boxOpen?<PriceAlertPreference key={me} userId={me} active={active}/>:null}
     {!open&&!boxOpen&&active?<Card style={{marginBottom:15,backgroundColor:'#FFF4DA'}}>
-      <Text style={styles.sectionTitle}>Kistenmodus</Text>
-      <Text style={[styles.micro,{marginBottom:10}]}>Viele Sachen auf einmal erfassen. Ein Foto, mehrere Entwürfe – einzeln oder im Paket.</Text>
-      <Button title={boxDrafts.length?'Kiste weiterbearbeiten ('+boxDrafts.length+')':'✦ Kiste erfassen'} disabled={busy||choosing||scanBusy||boxStorage==='loading'} onPress={showBox}/>
+      <Text style={styles.sectionTitle}>{t("Kistenmodus")}</Text>
+      <Text style={[styles.micro,{marginBottom:10}]}>{t("Viele Sachen auf einmal erfassen. Ein Foto, mehrere Entwürfe – einzeln oder im Paket.")}</Text>
+      <Button title={boxDrafts.length?t('Kiste weiterbearbeiten')+' ('+boxDrafts.length+')':t("✦ Kiste erfassen")} disabled={busy||choosing||scanBusy||boxStorage==='loading'} onPress={showBox}/>
     </Card>:null}
     {boxOpen&&boxPending?<Card style={{marginBottom:18,backgroundColor:'#FFF4DA'}}>
       <Text style={styles.sectionTitle}>Unterbrochene Einreichung</Text>
@@ -1568,8 +1569,8 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
         {boxInspect===d.id?<View>
           <Input label="Artikelbezeichnung" value={d.title} onChangeText={v=>updateBoxDraft(d.id,{title:v,garmentType:v})} maxLength={100} placeholder="z. B. Langarmbody"/>
           <Input label="Größe (Etikett / geprüft)" value={d.facts.size} onChangeText={v=>updateBoxDraft(d.id,{sizeEvidence:v?'seller':'unknown'},{size:v})} maxLength={40} placeholder="Unbekannt darf leer bleiben"/>
-          <Input label="Farbe" value={d.facts.color} onChangeText={v=>updateBoxDraft(d.id,{}, {color:v})} maxLength={40}/>
-          <Input label="Marke" value={d.facts.brand} onChangeText={v=>updateBoxDraft(d.id,{}, {brand:v})} maxLength={60}/>
+          <Input label={t("Farbe")} value={d.facts.color} onChangeText={v=>updateBoxDraft(d.id,{}, {color:v})} maxLength={40}/>
+          <Input label={t("Marke")} value={d.facts.brand} onChangeText={v=>updateBoxDraft(d.id,{}, {brand:v})} maxLength={60}/>
           <Input label="Muster, Form & weitere Merkmale" value={d.facts.detail} onChangeText={v=>updateBoxDraft(d.id,{pattern:'',shape:'',features:''},{detail:v})} maxLength={100}/>
           <Button title="Etikett fotografieren & lesen" small mode="outline" disabled={busy||scanBusy||choosing} onPress={()=>photographBoxLabel(d)}/>
           <Button title="Etikettfoto auswählen & lesen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>pick(assets=>readBoxLabel(d,assets[0]),1)}/>
@@ -1600,7 +1601,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
           <Text style={[styles.micro,{marginVertical:8}]}>Bestätige nur, wenn wirklich das richtige, vollständige Kleidungsstück sichtbar ist. Das Bild wird erst bei der späteren Anzeige hochgeladen.</Text>
           <Button title="Richtiges Einzelbild übernehmen" disabled={cropBusy} onPress={acceptBoxCrop}/>
         </View>:null}
-        <Button title="Abbrechen" mode="ghost" small disabled={cropBusy} onPress={()=>setBoxCrop(null)}/>
+        <Button title={t("Abbrechen")} mode="ghost" small disabled={cropBusy} onPress={()=>setBoxCrop(null)}/>
       </View>:null}
         {!d.photos?.length&&['overlapping','cutoff'].includes(d.visibility)?<Text style={[styles.micro,{color:C.warningText,marginTop:6}]}>Für ein vollständiges Einzelbild bitte separat fotografieren.</Text>:null}
         {boxInspect===d.id?<Text style={[styles.micro,{marginVertical:5}]}>{d.photos.length?'Artikelfoto vorhanden':'Einzelfoto nur beim Einzelverkauf nötig'} · {d.condition||'Zustand noch offen'}</Text>:null}
@@ -1618,132 +1619,132 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
         <Text style={[styles.micro,{marginTop:6}]}>Verkaufsfotos werden nur übernommen, wenn vollständige Fotogruppen genau zum Paket passen. Andernfalls bitte ein aktuelles Paketfoto auswählen.</Text>
       </View>:null}
       </>:null}
-      <Button title="‹ Zurück" mode="ghost" small disabled={busy||scanBusy||choosing} onPress={()=>setBoxStep(boxStep==='package'?'review':'photo')}/>
+      <Button title={t("‹ Zurück")} mode="ghost" small disabled={busy||scanBusy||choosing} onPress={()=>setBoxStep(boxStep==='package'?'review':'photo')}/>
       <Button title="Kiste schließen & später fortsetzen" mode="outline" small disabled={busy||scanBusy||choosing} onPress={closeBox}/>
       {boxAdvanced?<Button title="Gespeicherte Kiste löschen" mode="ghost" small disabled={busy||scanBusy||choosing||boxStorage==='loading'} onPress={confirmClearBox}/>:null}
     </Card>:null}
     {open?<Card style={{marginBottom:18}}>
-      <Text style={styles.sectionTitle}>{boxEditor?(boxEditor.packageIds?'Kistenpaket bearbeiten':'Kistenartikel bearbeiten'):editingId?'Anzeige bearbeiten':'Schnellverkauf'}</Text>
+      <Text style={styles.sectionTitle}>{boxEditor?(boxEditor.packageIds?t("Kistenpaket bearbeiten"):t("Kistenartikel bearbeiten")):editingId?t("Anzeige bearbeiten"):t("Schnellverkauf")}</Text>
       {boxEditor?<Info>{boxEditor.packageIds?'Prüfe, ob alle Artikel in der Paketliste und auf den Fotos enthalten sind.':'Bitte zeige auf den Verkaufsfotos nur diesen einzelnen Artikel. Du kannst jederzeit zur Kiste zurückkehren.'}</Info>:null}
       {!editingId&&!boxEditor?<View style={{flexDirection:'row',gap:8,marginVertical:10,flexWrap:'wrap'}}>
-        <Chip text="Foto & Steckbrief" selected={quick} onPress={scanBusy?undefined:()=>{setQuick(true);setCondition('');setConfirmed(false);}}/>
-        <Chip text="Manuell schreiben" selected={!quick} onPress={scanBusy?undefined:()=>{setQuick(false);setCondition(condition||'Gut');setProposal(null);setConfirmed(false);}}/>
+        <Chip text={t("Foto & Steckbrief")} selected={quick} onPress={scanBusy?undefined:()=>{setQuick(true);setCondition('');setConfirmed(false);}}/>
+        <Chip text={t("Manuell schreiben")} selected={!quick} onPress={scanBusy?undefined:()=>{setQuick(false);setCondition(condition||'Gut');setProposal(null);setConfirmed(false);}}/>
       </View>:null}
       {quick&&!editingId&&!boxEditor?<View style={{backgroundColor:'#FFF4DA',borderRadius:15,padding:13,marginBottom:13}}>
-        <Text style={[styles.label,{color:C.accentDark}]}>Fotografieren. Fakten prüfen. Fertig.</Text>
-        <Text style={styles.micro}>Zeige einen Artikel und nach Möglichkeit sein Etikett. Die KI schlägt sichtbare Merkmale vor, ohne einen Werbetext zu schreiben. Du entscheidest, welche Angaben richtig sind.</Text>
+        <Text style={[styles.label,{color:C.accentDark}]}>{t("Fotografieren. Fakten prüfen. Fertig.")}</Text>
+        <Text style={styles.micro}>{t("Zeige einen Artikel und nach Möglichkeit sein Etikett. Die KI schlägt sichtbare Merkmale vor, ohne einen Werbetext zu schreiben. Du entscheidest, welche Angaben richtig sind.")}</Text>
       </View>:null}
-      <Text style={[styles.sub,{marginBottom:17}]}>{packageForm?'Ein letzter Blick auf dein Paket – danach wird es wie gewohnt geprüft.':editingId?
-        'Beim Speichern wird deine Anzeige erneut vollständig geprüft und bis zur Freigabe ausgeblendet. Bereits hochgeladene Fotos bleiben erhalten.':
-        'Kostenlos einstellen. Titel, Beschreibung und alle Fotos werden vor Veröffentlichung geprüft.'}</Text>
+      <Text style={[styles.sub,{marginBottom:17}]}>{packageForm?t("Ein letzter Blick auf dein Paket – danach wird es wie gewohnt geprüft."):editingId?
+        t("Beim Speichern wird deine Anzeige erneut vollständig geprüft und bis zur Freigabe ausgeblendet. Bereits hochgeladene Fotos bleiben erhalten."):
+        t("Kostenlos einstellen. Titel, Beschreibung und alle Fotos werden vor Veröffentlichung geprüft.")}</Text>
       <View style={{marginBottom:15}}>
-        <Button title={'＋ Fotos auswählen ('+(existingPhotoCount+photo.length)+'/5)'} mode="outline"
+        <Button title={t('＋ Fotos auswählen')+' ('+(existingPhotoCount+photo.length)+'/5)'} mode="outline"
           disabled={choosing||busy||scanBusy||existingPhotoCount+photo.length>=5}
           onPress={()=>pick(async assets=>{const kept=boxEditor?await Promise.all(assets.map(a=>keepBoxPhoto(me,a))):assets;setPhoto(old=>[...old,...kept].slice(0,5-existingPhotoCount));setProposal(null);setConfirmed(false);},
             5-existingPhotoCount-photo.length)}/>
-        {quick&&!editingId?<Button title="＋ Mit der Kamera fotografieren" mode="ghost" small disabled={choosing||busy||scanBusy||photo.length>=5} onPress={takeArticlePhoto}/>:null}
+        {quick&&!editingId?<Button title={t("＋ Mit der Kamera fotografieren")} mode="ghost" small disabled={choosing||busy||scanBusy||photo.length>=5} onPress={takeArticlePhoto}/>:null}
         {photo.length>0?<ScrollView horizontal style={{marginTop:11}} contentContainerStyle={{gap:9}}>
           {photo.map((asset,index)=><View key={asset.assetId||asset.uri+index} style={{width:100}}>
             <Image accessibilityLabel={"Foto "+(index+1)+" zur Anzeige"} source={{uri:asset.uri}} style={{width:100,height:100,borderRadius:13}} resizeMode="cover"/>
             <Pressable accessibilityRole="button" accessibilityLabel={'Foto '+(index+1)+' entfernen'}
               disabled={scanBusy||busy} onPress={()=>{setPhoto(p=>p.filter((_,i)=>i!==index));setProposal(null);setConfirmed(false);}} style={{padding:7,alignItems:'center'}}>
-              <Text style={[styles.micro,{color:C.coralDeep,fontWeight:'900'}]}>Entfernen ×</Text>
+              <Text style={[styles.micro,{color:C.coralDeep,fontWeight:'900'}]}>{t("Entfernen ×")}</Text>
             </Pressable>
           </View>)}
         </ScrollView>:null}
-        <Text style={[styles.micro,{marginTop:8}]}>{packageForm?'Nur die tatsächlich enthaltenen Artikel zeigen.':'Bis zu fünf Bilder pro Angebot. Bei Änderungen werden alle Bilder erneut geprüft.'}</Text>
+        <Text style={[styles.micro,{marginTop:8}]}>{packageForm?t("Nur die tatsächlich enthaltenen Artikel zeigen."):t("Bis zu fünf Bilder pro Angebot. Bei Änderungen werden alle Bilder erneut geprüft.")}</Text>
       </View>
       {quick&&!editingId&&!boxEditor?<View style={{marginBottom:16}}>
-        <Button title={scanBusy?'Fotos werden analysiert …':'✦ Artikel aus Fotos erkennen'} disabled={scanBusy||choosing||busy||!photo.length||!active} onPress={recognize}/>
-        <Text style={[styles.micro,{marginTop:7}]}>Freiwillig: Bei Antippen werden die ersten bis zu drei verkleinerten Artikelfotos zur KI-Auswertung an OpenAI übermittelt. Keine Personen oder privaten Dokumente fotografieren. Die KI veröffentlicht nichts.</Text>
-        {scanNotice?<Info>{scanNotice}</Info>:null}
+        <Button title={scanBusy?t("Fotos werden analysiert …"):t("✦ Artikel aus Fotos erkennen")} disabled={scanBusy||choosing||busy||!photo.length||!active} onPress={recognize}/>
+        <Text style={[styles.micro,{marginTop:7}]}>{t("Freiwillig: Bei Antippen werden die ersten bis zu drei verkleinerten Artikelfotos zur KI-Auswertung an OpenAI übermittelt. Keine Personen oder privaten Dokumente fotografieren. Die KI veröffentlicht nichts.")}</Text>
+        {scanNotice?<Info>{t(scanNotice)}</Info>:null}
         {proposal?<View style={{borderWidth:1,borderColor:C.line,borderRadius:14,padding:12,marginTop:10}}>
-          <Text style={styles.label}>Vorschlag aus deinen Fotos – noch nicht bestätigt</Text>
-          <Text style={styles.body}>{proposal.title} · {proposal.category}</Text>
-          {FACT_KEYS.filter(([k])=>proposal[k]).map(([k,label])=><Text key={k} style={[styles.micro,{marginTop:5}]}>{label}: {proposal[k]}</Text>)}
-          <Button title="Vorschläge übernehmen & prüfen" small onPress={useProposal} disabled={scanBusy||busy}/>
-          <Button title="Verwerfen" small mode="ghost" onPress={()=>setProposal(null)}/>
+          <Text style={styles.label}>{t("Vorschlag aus deinen Fotos – noch nicht bestätigt")}</Text>
+          <Text style={styles.body}>{proposal.title} · {t(proposal.category)}</Text>
+          {FACT_KEYS.filter(([k])=>proposal[k]).map(([k,label])=><Text key={k} style={[styles.micro,{marginTop:5}]}>{t(label)}: {proposal[k]}</Text>)}
+          <Button title={t("Vorschläge übernehmen & prüfen")} small onPress={useProposal} disabled={scanBusy||busy}/>
+          <Button title={t("Verwerfen")} small mode="ghost" onPress={()=>setProposal(null)}/>
         </View>:null}
       </View>:null}
       {packageForm&&!boxFormExtras?<Text style={[styles.body,{fontWeight:'900',marginBottom:12}]}>{title}</Text>:<>
-        <Input label="Anzeigentitel" value={title} onChangeText={v=>{setTitle(v);setConfirmed(false);}} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
-        <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={v=>{setCategory(v);setConfirmed(false);}} options={MARKET_CATEGORIES}/>
+        <Input label={t("Anzeigentitel")} value={title} onChangeText={v=>{setTitle(v);setConfirmed(false);}} maxLength={100} placeholder={t("z. B. Winterjacke Größe 116")}/>
+        <MarketCategoryDropdown label={t("Kategorie wählen")} value={category} onChange={v=>{setCategory(v);setConfirmed(false);}} options={MARKET_CATEGORIES}/>
       </>}
       {packageForm?<View style={{marginBottom:14,padding:13,borderRadius:15,backgroundColor:'#FFF4DA'}}>
-        <Text style={styles.sectionTitle}>Dein Paket · {packageForm.rows.length} Teile</Text>
+        <Text style={styles.sectionTitle}>{t('Dein Paket')} · {packageForm.rows.length} {t('Teile')}</Text>
         {packageForm.rows.map((line,i)=><Text key={i} style={[styles.body,{paddingVertical:5,borderBottomWidth:1,borderBottomColor:C.line}]}>{line}</Text>)}
-        <Text style={[styles.micro,{marginTop:8}]}>{facts.size?'Gemeinsame Größe: '+facts.size:'Einzelgrößen stehen beim jeweiligen Teil.'}</Text>
-        <Button title="Paketinhalt ändern" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={saveBoxEditor}/>
+        <Text style={[styles.micro,{marginTop:8}]}>{facts.size?t("Gemeinsame Größe: ")+facts.size:t("Einzelgrößen stehen beim jeweiligen Teil.")}</Text>
+        <Button title={t("Paketinhalt ändern")} small mode="ghost" disabled={busy||scanBusy||choosing} onPress={saveBoxEditor}/>
       </View>:quick?<View style={{marginBottom:12}}>
-        <Text style={styles.sectionTitle}>Artikel-Steckbrief</Text>
-        <Text style={[styles.micro,{marginBottom:12}]}>Unbekanntes darf leer bleiben. Falsche Vorschläge korrigieren oder löschen.</Text>
+        <Text style={styles.sectionTitle}>{t("Artikel-Steckbrief")}</Text>
+        <Text style={[styles.micro,{marginBottom:12}]}>{t("Unbekanntes darf leer bleiben. Falsche Vorschläge korrigieren oder löschen.")}</Text>
         {scanned&&!expandFacts?<View style={{borderWidth:1,borderColor:C.line,borderRadius:12,padding:11,marginBottom:12}}>
           {FACT_KEYS.filter(([k])=>!!facts[k]).map(([k,label])=><Row key={k} style={{justifyContent:'space-between',gap:8,paddingVertical:4}}>
-            <Text style={[styles.micro,{flex:1}]}>{label}</Text><Text style={[styles.body,{flex:1,textAlign:'right'}]}>{facts[k]}</Text>
+            <Text style={[styles.micro,{flex:1}]}>{t(label)}</Text><Text style={[styles.body,{flex:1,textAlign:'right'}]}>{facts[k]}</Text>
           </Row>)}
-          {!FACT_KEYS.some(([k])=>!!facts[k])?<Text style={styles.micro}>Keine weiteren Merkmale eindeutig erkannt.</Text>:null}
-          <Button title="Merkmale ändern / ergänzen" small mode="outline" onPress={()=>setExpandFacts(true)}/>
+          {!FACT_KEYS.some(([k])=>!!facts[k])?<Text style={styles.micro}>{t("Keine weiteren Merkmale eindeutig erkannt.")}</Text>:null}
+          <Button title={t("Merkmale ändern / ergänzen")} small mode="outline" onPress={()=>setExpandFacts(true)}/>
         </View>:null}
         {(!scanned||expandFacts)?<>
-          <Input label="Marke (optional)" value={facts.brand} onChangeText={v=>changeFact('brand',v)} maxLength={60} placeholder="Nur falls bekannt"/>
-          {['Kleidung','Babyausstattung'].includes(category)||facts.size?<Input label="Größe (optional)" value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder="z. B. 104 oder 28"/>:null}
-          <Input label="Farbe (optional)" value={facts.color} onChangeText={v=>changeFact('color',v)} maxLength={40} placeholder="z. B. dunkelblau"/>
-          <Input label={({Bücher:'Autor / Reihe (optional)',Spielzeug:'Set / Modell (optional)',Möbel:'Maße / Modell (optional)',Babyausstattung:'Modell / Ausführung (optional)'})[category]||'Weitere Angabe (optional)'} value={facts.detail} onChangeText={v=>changeFact('detail',v)} maxLength={100} placeholder="Kurzes, wichtiges Merkmal"/>
-          {scanned?<Button title="Merkmale einklappen" mode="ghost" small onPress={()=>setExpandFacts(false)}/>:null}
-        </>:['Kleidung','Babyausstattung'].includes(category)&&askSize?<Input label="Welche Größe hat der Artikel? (optional)" value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder="Größe vom Etikett"/>:null}
+          <Input label={t("Marke (optional)")} value={facts.brand} onChangeText={v=>changeFact('brand',v)} maxLength={60} placeholder={t("Nur falls bekannt")}/>
+          {['Kleidung','Babyausstattung'].includes(category)||facts.size?<Input label={t("Größe (optional)")} value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder={t("z. B. 104 oder 28")}/>:null}
+          <Input label={t("Farbe (optional)")} value={facts.color} onChangeText={v=>changeFact('color',v)} maxLength={40} placeholder={t("z. B. dunkelblau")}/>
+          <Input label={({Bücher:t("Autor / Reihe (optional)"),Spielzeug:t("Set / Modell (optional)"),Möbel:t("Maße / Modell (optional)"),Babyausstattung:t("Modell / Ausführung (optional)")})[category]||t("Weitere Angabe (optional)")} value={facts.detail} onChangeText={v=>changeFact('detail',v)} maxLength={100} placeholder={t("Kurzes, wichtiges Merkmal")}/>
+          {scanned?<Button title={t("Merkmale einklappen")} mode="ghost" small onPress={()=>setExpandFacts(false)}/>:null}
+        </>:['Kleidung','Babyausstattung'].includes(category)&&askSize?<Input label={t("Welche Größe hat der Artikel? (optional)")} value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder={t("Größe vom Etikett")}/>:null}
       </View>:null}
-      {packageForm?<Text style={[styles.micro,{marginBottom:4}]}>Angebot: {trade==='sell'?'Verkaufen':trade==='gift'?'Verschenken':'Tauschen'}</Text>:null}
-      {packageForm?<Button title={boxFormExtras?'Optionen wieder ausblenden':'Weitere Optionen (freiwillig)'} mode="ghost" small onPress={()=>setBoxFormExtras(v=>!v)}/>:null}
-      {(!packageForm||boxFormExtras)?<><Text style={styles.label}>Ich möchte</Text>
+      {packageForm?<Text style={[styles.micro,{marginBottom:4}]}>{t('Angebot: ')}{trade==='sell'?t("Verkaufen"):trade==='gift'?t("Verschenken"):t("Tauschen")}</Text>:null}
+      {packageForm?<Button title={boxFormExtras?t("Optionen wieder ausblenden"):t("Weitere Optionen (freiwillig)")} mode="ghost" small onPress={()=>setBoxFormExtras(v=>!v)}/>:null}
+      {(!packageForm||boxFormExtras)?<><Text style={styles.label}>{t("Ich möchte")}</Text>
       <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
-        <Chip text="Verkaufen" selected={trade==='sell'} onPress={()=>{setTrade('sell');setConfirmed(false);}}/>
-        <Chip text="Verschenken" selected={trade==='gift'} onPress={()=>{setTrade('gift');setConfirmed(false);}}/>
-        <Chip text="Tauschen" selected={trade==='swap'} onPress={()=>{setTrade('swap');setConfirmed(false);}}/>
+        <Chip text={t("Verkaufen")} selected={trade==='sell'} onPress={()=>{setTrade('sell');setConfirmed(false);}}/>
+        <Chip text={t("Verschenken")} selected={trade==='gift'} onPress={()=>{setTrade('gift');setConfirmed(false);}}/>
+        <Chip text={t("Tauschen")} selected={trade==='swap'} onPress={()=>{setTrade('swap');setConfirmed(false);}}/>
       </View>
       </>:null}
-      {trade==='sell'?<Input label={packageForm?"Gesamtpreis des Pakets in €":"Preis in €"} value={price} onChangeText={v=>{setPrice(v);setConfirmed(false);}} keyboardType="decimal-pad" placeholder="z. B. 12,50"/>:null}
+      {trade==='sell'?<Input label={packageForm?t("Gesamtpreis des Pakets in €"):t("Preis in €")} value={price} onChangeText={v=>{setPrice(v);setConfirmed(false);}} keyboardType="decimal-pad" placeholder={t("z. B. 12,50")}/>:null}
       {packageForm&&trade==='sell'&&parsePrice(price)!==null&&parsePrice(price)>=0?<Text style={[styles.micro,{color:C.accentDark,marginBottom:12}]}>Rechnerisch {((parsePrice(price)/100)/packageForm.rows.length).toLocaleString('de-DE',{style:'currency',currency:'EUR'})} pro Teil – keine KI-Preisempfehlung.</Text>:null}
-      <Text style={styles.label}>{packageForm?'Zustand des gesamten Pakets':'Zustand'}</Text>
-      {packageForm?<Text style={[styles.micro,{marginBottom:7}]}>Bei unterschiedlichem Zustand bitte die schwächste zutreffende Zustandsnote wählen und Abweichungen unten angeben.</Text>:null}
+      <Text style={styles.label}>{packageForm?t("Zustand des gesamten Pakets"):t('Zustand')}</Text>
+      {packageForm?<Text style={[styles.micro,{marginBottom:7}]}>{t("Bei unterschiedlichem Zustand bitte die schwächste zutreffende Zustandsnote wählen und Abweichungen unten angeben.")}</Text>:null}
       <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
-        {['Neu','Sehr gut','Gut','Gebraucht'].map(x=><Chip key={x} text={x} selected={condition===x} onPress={()=>{setCondition(x);setConfirmed(false);}}/>)}
+        {['Neu','Sehr gut','Gut','Gebraucht'].map(x=><Chip key={x} text={t(x)} selected={condition===x} onPress={()=>{setCondition(x);setConfirmed(false);}}/>)}
       </View>
       {quick?<View style={{marginBottom:13}}>
-        <Text style={styles.label}>Gibt es bekannte Mängel?</Text>
+        <Text style={styles.label}>{t("Gibt es bekannte Mängel?")}</Text>
         <View style={[styles.chipsRow,{marginTop:0,marginBottom:9}]}>
-          {DEFECTS.map(x=><Chip key={x} text={x} selected={facts.defect===x} onPress={()=>changeFact('defect',x)}/>)}
+          {DEFECTS.map(x=><Chip key={x} text={t(x)} selected={facts.defect===x} onPress={()=>changeFact('defect',x)}/>)}
         </View>
-        {facts.defect==='Vorhanden'?<Input label="Welche Mängel?" value={facts.defectText} onChangeText={v=>changeFact('defectText',v)} maxLength={180} multiline placeholder="z. B. kleiner Fleck am Ärmel"/>:null}
-        {packageForm?(boxFormExtras?<Input label="Persönliche Notiz (optional)" multiline value={packageForm.personal} onChangeText={v=>{setDescription(packageNote(packageForm.rows,v));setConfirmed(false);}} maxLength={packagePersonalLimit(packageForm.rows)} placeholder="z. B. alles zusammen abzugeben"/>:null):<Input label="Deine persönliche Notiz (optional)" multiline value={description} onChangeText={v=>{setDescription(v);setConfirmed(false);}} maxLength={900} placeholder="Was möchtest du persönlich ergänzen?"/>}
-      </View>:<Input label="Beschreibung" multiline value={description} onChangeText={setDescription} maxLength={1500} placeholder="Größe, Farbe, Zustand, Abholung …"/>}
-      <Input label="Ort / Region – keine Privatadresse" value={region} onChangeText={v=>{setRegion(v);setConfirmed(false);}} maxLength={80} placeholder="z. B. Fürstenwalde/Spree"/>
-      {myOrgs.length>0&&!editingId&&(!packageForm||boxFormExtras)?<><Text style={styles.label}>Anbieten als</Text><View style={[styles.chipsRow,{marginTop:0,marginBottom:15}]}>
-        <Chip text="Privat" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
+        {facts.defect==='Vorhanden'?<Input label={t("Welche Mängel?")} value={facts.defectText} onChangeText={v=>changeFact('defectText',v)} maxLength={180} multiline placeholder={t("z. B. kleiner Fleck am Ärmel")}/>:null}
+        {packageForm?(boxFormExtras?<Input label={t("Persönliche Notiz (optional)")} multiline value={packageForm.personal} onChangeText={v=>{setDescription(packageNote(packageForm.rows,v));setConfirmed(false);}} maxLength={packagePersonalLimit(packageForm.rows)} placeholder={t("z. B. alles zusammen abzugeben")}/>:null):<Input label={t("Deine persönliche Notiz (optional)")} multiline value={description} onChangeText={v=>{setDescription(v);setConfirmed(false);}} maxLength={900} placeholder={t("Was möchtest du persönlich ergänzen?")}/>}
+      </View>:<Input label={t("Beschreibung")} multiline value={description} onChangeText={setDescription} maxLength={1500} placeholder={t("Größe, Farbe, Zustand, Abholung …")}/>}
+      <Input label={t("Ort / Region – keine Privatadresse")} value={region} onChangeText={v=>{setRegion(v);setConfirmed(false);}} maxLength={80} placeholder={t("z. B. Fürstenwalde/Spree")}/>
+      {myOrgs.length>0&&!editingId&&(!packageForm||boxFormExtras)?<><Text style={styles.label}>{t("Anbieten als")}</Text><View style={[styles.chipsRow,{marginTop:0,marginBottom:15}]}>
+        <Chip text={t("Privat")} selected={!organizationId} onPress={()=>setOrganizationId('')}/>
         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
       </View></>:null}
-      {packageForm?<Text style={[styles.micro,{marginBottom:11}]}>Deine Anzeige wird vor Veröffentlichung geprüft.</Text>:<Info>Erlaubt sind auch Kuscheltiere, Tierfiguren und eindeutig harmloses Kinderspielzeug. Echte Tiere sind bei uns ausnahmslos verboten – ebenso Waffen, Drogen, Medikamente, 18+-Waren und andere gefährliche oder illegale Artikel. Die Anzeige erscheint erst nach Prüfung.</Info>}
+      {packageForm?<Text style={[styles.micro,{marginBottom:11}]}>{t("Deine Anzeige wird vor Veröffentlichung geprüft.")}</Text>:<Info>{t("Erlaubt sind auch Kuscheltiere, Tierfiguren und eindeutig harmloses Kinderspielzeug. Echte Tiere sind bei uns ausnahmslos verboten – ebenso Waffen, Drogen, Medikamente, 18+-Waren und andere gefährliche oder illegale Artikel. Die Anzeige erscheint erst nach Prüfung.")}</Info>}
       {quick?<Pressable accessibilityRole="checkbox" accessibilityState={{checked:confirmed}} onPress={()=>setConfirmed(v=>!v)} style={{flexDirection:'row',gap:10,padding:12,marginBottom:12,borderRadius:12,borderWidth:1,borderColor:C.line}}>
         <Text style={{fontSize:19,color:C.accentDark}}>{confirmed?'☑':'☐'}</Text>
-        <Text style={[styles.body,{flex:1}]}>{packageForm?'Ich habe Paketinhalt und Zustand geprüft.':'Ich habe die Angaben geprüft. Der Steckbrief beschreibt mein Angebot korrekt.'}</Text>
+        <Text style={[styles.body,{flex:1}]}>{packageForm?t("Ich habe Paketinhalt und Zustand geprüft."):t("Ich habe die Angaben geprüft. Der Steckbrief beschreibt mein Angebot korrekt.")}</Text>
       </Pressable>:null}
-      <Button title={busy?'Wird gespeichert …':editingId?'Änderungen zur Prüfung einreichen':packageForm?'Paket zur Prüfung einreichen':'Anzeige kostenlos einreichen'} disabled={busy||choosing||scanBusy||!active||(quick&&!confirmed)} onPress={submit}/>
-      {boxEditor?<Button title="Entwurf behalten und zurück zur Kiste" mode="outline" disabled={busy||choosing||scanBusy} onPress={saveBoxEditor}/>:null}
-      {!editingId&&!boxEditor?<Button title="Viele Artikel? Zum Kistenmodus" mode="ghost" disabled={busy||choosing||scanBusy} onPress={()=>Alert.alert('Zum Kistenmodus wechseln?','Die Angaben dieser einzelnen Anzeige werden verworfen.',[{text:'Abbrechen',style:'cancel'},{text:'Wechseln',onPress:()=>{resetForm();showBox();}}])}/>:null}
+      <Button title={busy?t("Wird gespeichert …"):editingId?t("Änderungen zur Prüfung einreichen"):packageForm?t("Paket zur Prüfung einreichen"):t("Anzeige kostenlos einreichen")} disabled={busy||choosing||scanBusy||!active||(quick&&!confirmed)} onPress={submit}/>
+      {boxEditor?<Button title={t("Entwurf behalten und zurück zur Kiste")} mode="outline" disabled={busy||choosing||scanBusy} onPress={saveBoxEditor}/>:null}
+      {!editingId&&!boxEditor?<Button title={t("Viele Artikel? Zum Kistenmodus")} mode="ghost" disabled={busy||choosing||scanBusy} onPress={()=>Alert.alert(t("Zum Kistenmodus wechseln?"),t("Die Angaben dieser einzelnen Anzeige werden verworfen."),[{text:'Abbrechen',style:'cancel'},{text:'Wechseln',onPress:()=>{resetForm();showBox();}}])}/>:null}
     </Card>:null}
     {!boxOpen&&!boxEditor&&selected?<View>
       <Pressable accessibilityRole="button" onPress={()=>{setSelectedListing(null);setBuyerFocus(null);}} style={{marginBottom:14,paddingVertical:8}}>
-        <Text style={{color:C.accentDark,fontWeight:'800',fontSize:15}}>‹ Zurück zu den Anzeigen</Text>
+        <Text style={{color:C.accentDark,fontWeight:'800',fontSize:15}}>{t("‹ Zurück zu den Anzeigen")}</Text>
       </Pressable>
       <Card style={styles.marketDetailCard}>
         <View style={styles.marketDetailImage}>
           {shownImage?<Image accessibilityLabel={imageDescription} source={{uri:shownImage}} style={styles.marketFullImage} resizeMode="contain"/>:
-            <View style={[styles.marketFullImage,styles.marketImagePlaceholder]}><Text style={{fontSize:34}}>♧</Text><Text style={styles.micro}>Kein Foto hinterlegt</Text></View>}
+            <View style={[styles.marketFullImage,styles.marketImagePlaceholder]}><Text style={{fontSize:34}}>♧</Text><Text style={styles.micro}>{t("Kein Foto hinterlegt")}</Text></View>}
         </View>
         {gallery.length>1?<View style={{marginTop:12}}>
           <Row style={{justifyContent:'space-between',marginBottom:10}}>
-            <Button title="‹ Zurück" small mode="outline" onPress={()=>setGalleryIndex(i=>(i+gallery.length-1)%gallery.length)}/>
+            <Button title={t("‹ Zurück")} small mode="outline" onPress={()=>setGalleryIndex(i=>(i+gallery.length-1)%gallery.length)}/>
             <Text style={[styles.micro,{fontWeight:'800'}]}>{(galleryIndex%gallery.length)+1} von {gallery.length} Bildern</Text>
-            <Button title="Weiter ›" small mode="outline" onPress={()=>setGalleryIndex(i=>(i+1)%gallery.length)}/>
+            <Button title={t("Weiter ›")} small mode="outline" onPress={()=>setGalleryIndex(i=>(i+1)%gallery.length)}/>
           </Row>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:9}}>
             {gallery.map((image,index)=><Pressable key={image.id} accessibilityRole="button"
@@ -1754,101 +1755,100 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
           </ScrollView>
         </View>:null}
         {gallery.length>0?<View style={{marginTop:12}}>
-          <Text accessibilityRole="header" style={[styles.label,{marginBottom:5}]}>Bildbeschreibung aus Artikelangaben</Text>
+          <Text accessibilityRole="header" style={[styles.label,{marginBottom:5}]}>{t("Bildbeschreibung aus Artikelangaben")}</Text>
           <Text style={styles.micro}>{marketPhotoFacts(selected,selectedFacts,selectedPackage)}</Text>
           <Text style={[styles.micro,{marginTop:5}]}>
-            Diese Angaben stammen aus dem Inserat und können ursprünglich aus KI-Vorschlägen stammen,
-            die der Anbieter bestätigt hat. Einzelne Fotos wurden nicht gesondert beschrieben.
+            {t('Diese Angaben stammen aus dem Inserat und können ursprünglich aus KI-Vorschlägen stammen, die der Anbieter bestätigt hat. Einzelne Fotos wurden nicht gesondert beschrieben.')}
           </Text>
         </View>:null}
         <Text style={[styles.marketPrice,{fontSize:26,marginTop:15}]}>{priceLabel(selected)}</Text>
         <Text style={[styles.h,{marginTop:5}]}>{selected.title}</Text>
         {selected.seller_id!==me&&selected.moderation_status==='approved'?
-          <View style={{marginTop:12}}><Button title={favoriteIds.has(selected.id)?'♥ Aus Merkliste entfernen':'♡ Zur Merkliste hinzufügen'}
+          <View style={{marginTop:12}}><Button title={favoriteIds.has(selected.id)?t("♥ Aus Merkliste entfernen"):t("♡ Zur Merkliste hinzufügen")}
             mode={favoriteIds.has(selected.id)?'primary':'outline'} disabled={busy||!active}
             onPress={()=>toggleFavorite(selected.id,favoriteIds.has(selected.id))}/></View>:null}
-        <Text style={[styles.sub,{marginTop:8}]}>{selected.item_condition} · {selected.category} · {selected.region_label||'Region auf Anfrage'}</Text>
+        <Text style={[styles.sub,{marginTop:8}]}>{t(selected.item_condition)} · {t(selected.category)} · {selected.region_label||t("Region auf Anfrage")}</Text>
         <View style={{height:1,backgroundColor:C.line,marginVertical:18}}/>
         {selectedFacts?<View>
-          <Text style={styles.sectionTitle}>Auf einen Blick</Text>
+          <Text style={styles.sectionTitle}>{t("Auf einen Blick")}</Text>
           {[['Zustand',selected.item_condition],...articleFactRows(selectedFacts.facts)].map(([label,value])=><View key={label} style={{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between',gap:12,paddingVertical:9,borderBottomWidth:1,borderBottomColor:C.line}}>
-            <Text style={[styles.micro,{flex:1}]}>{label}</Text><Text style={[styles.body,{flex:1,fontWeight:'700',textAlign:'right'}]}>{value}</Text>
+            <Text style={[styles.micro,{flex:1}]}>{t(label)}</Text><Text style={[styles.body,{flex:1,fontWeight:'700',textAlign:'right'}]}>{label==='Zustand'||label==='Mängel'?t(value):value}</Text>
           </View>)}
           {selectedPackage?<View style={{marginTop:15}}>
-            <Text style={styles.sectionTitle}>Paketinhalt · {selectedPackage.rows.length} Teile</Text>
+            <Text style={styles.sectionTitle}>{t('Paketinhalt')} · {selectedPackage.rows.length} {t('Teile')}</Text>
             {selectedPackage.rows.map((line,i)=><Text key={i} style={[styles.body,{paddingVertical:6,borderBottomWidth:1,borderBottomColor:C.line}]}>{line}</Text>)}
-            {selectedPackage.personal?<View style={{marginTop:12}}><Text style={styles.label}>Persönliche Notiz</Text><Text style={styles.body}>{selectedPackage.personal}</Text></View>:null}
-          </View>:selectedFacts.note?<View style={{marginTop:15}}><Text style={styles.label}>Persönliche Notiz</Text><Text style={styles.body}>{selectedFacts.note}</Text></View>:null}
-        </View>:<><Text style={styles.sectionTitle}>Beschreibung</Text><Text style={styles.body}>{selected.description||'Keine weiteren Angaben.'}</Text></>}
+            {selectedPackage.personal?<View style={{marginTop:12}}><Text style={styles.label}>{t("Persönliche Notiz")}</Text><Text style={styles.body}>{selectedPackage.personal}</Text></View>:null}
+          </View>:selectedFacts.note?<View style={{marginTop:15}}><Text style={styles.label}>{t("Persönliche Notiz")}</Text><Text style={styles.body}>{selectedFacts.note}</Text></View>:null}
+        </View>:<><Text style={styles.sectionTitle}>{t("Beschreibung")}</Text><Text style={styles.body}>{selected.description||t("Keine weiteren Angaben.")}</Text></>}
         {(()=>{const seller=sellerInformation(selected);return <View style={{marginTop:20}}>
-          <Text style={styles.sectionTitle}>Anbieter</Text>
+          <Text style={styles.sectionTitle}>{t("Anbieter")}</Text>
           <Text style={styles.body}>{seller.seller}{seller.org?' ✦':''}</Text>
-          <Text style={[styles.micro,{marginTop:4}]}>Grobe Region: {selected.region_label||'auf Anfrage'}</Text>
-          {seller.own&&selected.moderation_status==='pending'?<Info warning>Deine Anzeige ist noch nicht veröffentlicht. Die KI prüft automatisch; falls die Prüfung fehlschlägt, kannst du sie erneut starten. Unklare Fälle bleiben zurückgehalten.</Info>:null}
+          <Text style={[styles.micro,{marginTop:4}]}>{t('Grobe Region: ')}{selected.region_label||t("auf Anfrage")}</Text>
+          {seller.own&&selected.moderation_status==='pending'?<Info warning>{t("Deine Anzeige ist noch nicht veröffentlicht. Die KI prüft automatisch; falls die Prüfung fehlschlägt, kannst du sie erneut starten. Unklare Fälle bleiben zurückgehalten.")}</Info>:null}
           {seller.own&&selected.moderation_status==='pending'?
-            <View style={{marginTop:12}}><Button title="KI-Prüfung erneut starten" mode="outline"
+            <View style={{marginTop:12}}><Button title={t("KI-Prüfung erneut starten")} mode="outline"
               disabled={busy||!active} onPress={()=>retryReview(selected.id)}/></View>:null}
-          {seller.own&&selected.moderation_status==='sold'?<Info>Dieses Angebot ist vergeben und für andere nicht mehr sichtbar. Eine Zahlung über die App hat nicht stattgefunden.</Info>:null}
-          {seller.own&&selected.moderation_status==='rejected'?<Info warning>Dein Inserat wurde nicht freigegeben.</Info>:null}
-          {seller.own&&selected.moderation_status==='removed'?<Info warning>Dieses Inserat wurde entfernt.</Info>:null}
+          {seller.own&&selected.moderation_status==='sold'?<Info>{t("Dieses Angebot ist vergeben und für andere nicht mehr sichtbar. Eine Zahlung über die App hat nicht stattgefunden.")}</Info>:null}
+          {seller.own&&selected.moderation_status==='rejected'?<Info warning>{t("Dein Inserat wurde nicht freigegeben.")}</Info>:null}
+          {seller.own&&selected.moderation_status==='removed'?<Info warning>{t("Dieses Inserat wurde entfernt.")}</Info>:null}
           {seller.own&&['approved','pending','rejected'].includes(selected.moderation_status)?
-            <View style={{marginTop:13}}><FamilyActionButton title="Anzeige bearbeiten" disabled={busy||!active}
+            <View style={{marginTop:13}}><FamilyActionButton title={t("Anzeige bearbeiten")} disabled={busy||!active}
               onPress={()=>beginEdit(selected)}/></View>:null}
           {seller.own&&selected.moderation_status==='approved'?
-            <View style={{marginTop:13}}><FamilyActionButton title="Als vergeben markieren" disabled={busy}
-              onPress={()=>confirmRemoval({title:'Angebot abschließen?',description:'Das Inserat verschwindet für andere Familien aus dem Basar. Damit wird kein Kauf oder Zahlungsvorgang ausgelöst.',confirmLabel:'Als vergeben markieren',onConfirm:()=>markListingSold(selected.id)})}/></View>:null}
+            <View style={{marginTop:13}}><FamilyActionButton title={t("Als vergeben markieren")} disabled={busy}
+              onPress={()=>confirmRemoval({translate:t,title:'Angebot abschließen?',description:'Das Inserat verschwindet für andere Familien aus dem Basar. Damit wird kein Kauf oder Zahlungsvorgang ausgelöst.',confirmLabel:'Als vergeben markieren',onConfirm:()=>markListingSold(selected.id)})}/></View>:null}
           {seller.own&&selected.moderation_status==='pending'&&
             ((selected.photo_path?1:0)+marketPhotos.filter(x=>x.listing_id===selected.id).length<5)?
-            <View style={{marginTop:12}}><Button title="Weitere Fotos hinzufügen" mode="outline" disabled={choosing||busy}
+            <View style={{marginTop:12}}><Button title={t("Weitere Fotos hinzufügen")} mode="outline" disabled={choosing||busy}
               onPress={()=>pick(assets=>addPendingPhotos(selected.id,assets),
                 5-(selected.photo_path?1:0)-marketPhotos.filter(x=>x.listing_id===selected.id).length)}/></View>:null}
           <View style={{marginTop:17}}>{contactButton(selected,seller.contact)}</View>
         </View>;})()}
-        <Text style={[styles.micro,{marginTop:20}]}>Keine Zahlung über Familienfunke möglich. Prüfe Artikel und Übergabe sorgfältig.</Text>
+        <Text style={[styles.micro,{marginTop:20}]}>{t("Keine Zahlung über Familienfunke möglich. Prüfe Artikel und Übergabe sorgfältig.")}</Text>
       </Card>
     </View>:!boxOpen&&!boxEditor?<>
       <View style={styles.marketSearchBox}>
         <Text style={{fontSize:19,color:C.accentDark,marginRight:10}}>⌕</Text>
-        <TextInput accessibilityLabel="Angebote durchsuchen" style={styles.marketSearchInput}
+        <TextInput accessibilityLabel={t("Angebote durchsuchen")} style={styles.marketSearchInput}
           placeholder={t("z. B. Kinderjeans Größe 110 blau")} maxLength={160} placeholderTextColor="#647D82" value={query} onChangeText={setQuery} returnKeyType="search"/>
-        {query.length>0?<Pressable accessibilityRole="button" accessibilityLabel="Suche löschen" hitSlop={12} onPress={()=>setQuery('')}>
+        {query.length>0?<Pressable accessibilityRole="button" accessibilityLabel={t("Suche löschen")} hitSlop={12} onPress={()=>setQuery('')}>
           <Text style={{fontSize:20,color:C.muted}}>×</Text>
         </Pressable>:null}
       </View>
       {language==='en'&&query.trim()!==canonicalQuery?<Text style={styles.micro}>German catalogue terms: {canonicalQuery}. Saved searches use these terms. Prices remain in EUR.</Text>:null}
-      <MarketCategoryDropdown label="Kategorie" value={filter} onChange={setFilter} options={MARKET_CATEGORIES} allOption/>
+      <MarketCategoryDropdown label={t("Kategorie")} value={filter} onChange={setFilter} options={MARKET_CATEGORIES} allOption/>
       <View style={styles.marketFilters}>
         <Pressable accessibilityRole="button" accessibilityState={{expanded:filterOpen}} onPress={()=>setFilterOpen(v=>!v)}
           style={[styles.marketFilterToggle,filterOpen&&{borderColor:C.accent}]}>
-          <Text style={styles.marketFilterLabel}>⚙  Filter {filterOpen?'ausblenden':'anzeigen'}</Text>
+          <Text style={styles.marketFilterLabel}>{language==='en'?(filterOpen?'⚙ Hide filters':'⚙ Show filters'):(filterOpen?'⚙  Filter ausblenden':'⚙  Filter anzeigen')}</Text>
         </Pressable>
         <View style={{flex:1}}>
           <MarketSortSelect value={sortBy} onChange={setSortBy}/>
         </View>
       </View>
       {filterOpen?<Card style={{marginBottom:15,padding:15}}>
-        <Text style={styles.label}>Art des Angebots</Text>
+        <Text style={styles.label}>{t("Art des Angebots")}</Text>
         <View style={[styles.chipsRow,{marginTop:0,marginBottom:14}]}>
-          {[['all','Alle'],['sell','Verkaufen'],['gift','Verschenken'],['swap','Tauschen']].map(([id,label])=>
-            <Chip key={id} text={label} selected={tradeFilter===id} onPress={()=>setTradeFilter(id)}/>)}
+          {[['all','Alle'],['sell',t("Verkaufen")],['gift',t("Verschenken")],['swap',t("Tauschen")]].map(([id,label])=>
+            <Chip key={id} text={t(label)} selected={tradeFilter===id} onPress={()=>setTradeFilter(id)}/>)}
         </View>
         <Row style={{gap:12,alignItems:'flex-start'}}>
-          <View style={{flex:1}}><Input label="Preis ab (€)" value={minPrice} onChangeText={setMinPrice} keyboardType="decimal-pad" placeholder="0"/></View>
-          <View style={{flex:1}}><Input label="Preis bis (€)" value={maxPrice} onChangeText={setMaxPrice} keyboardType="decimal-pad" placeholder="100"/></View>
+          <View style={{flex:1}}><Input label={t("Preis ab (€)")} value={minPrice} onChangeText={setMinPrice} keyboardType="decimal-pad" placeholder="0"/></View>
+          <View style={{flex:1}}><Input label={t("Preis bis (€)")} value={maxPrice} onChangeText={setMaxPrice} keyboardType="decimal-pad" placeholder="100"/></View>
         </Row>
-        <Button mode="ghost" title="Filter zurücksetzen" small
+        <Button mode="ghost" title={t("Filter zurücksetzen")} small
           onPress={()=>{setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');setSortBy('relevance');}}/>
       </Card>:null}
-      {!onlyMine&&!onlyFavorites&&!buyerFocus?<Button title={savingSearch?'Speichert …':'♡ Suche speichern'} mode="outline" disabled={savingSearch||!active} onPress={saveCurrentSearch}/>:null}
-      <View style={{marginTop:8,marginBottom:12}}><Button title="Meine Suchaufträge" mode="ghost" onPress={onSavedSearches}/></View>
+      {!onlyMine&&!onlyFavorites&&!buyerFocus?<Button title={savingSearch?t("Speichert …"):t("♡ Suche speichern")} mode="outline" disabled={savingSearch||!active} onPress={saveCurrentSearch}/>:null}
+      <View style={{marginTop:8,marginBottom:12}}><Button title={t("Meine Suchaufträge")} mode="ghost" onPress={onSavedSearches}/></View>
       <Row style={{justifyContent:'space-between',marginBottom:12}}>
-        <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length}{serverSearchActive&&remoteHasMore?'+':''} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
-        <Text style={styles.micro}>Neu und gebraucht</Text>
+        <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length}{serverSearchActive&&remoteHasMore?'+':''} {language==='en'?(shown.length===1?'listing found':'listings found'):(shown.length===1?'Anzeige gefunden':'Anzeigen gefunden')}</Text>
+        <Text style={styles.micro}>{t("Neu und gebraucht")}</Text>
       </Row>
-      {remoteBusy?<View style={{paddingVertical:12,flexDirection:'row',alignItems:'center'}}><ActivityIndicator color={C.accent}/><Text style={[styles.micro,{marginLeft:9}]}>Suche im gesamten Familienbasar …</Text></View>:null}
-      {remoteError?<Info warning>{remoteError}</Info>:null}
-      {serverSearchActive&&query.trim()&&!remoteBusy&&!remoteError?<Text style={[styles.micro,{marginBottom:12}]}>Auch einzelne Teile innerhalb eines Pakets werden gefunden. Größen und Farben sind Angaben, die Verkäufer prüfen müssen.</Text>:null}
-      {shown.length===0?(remoteBusy||remoteError?null:<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>):
+      {remoteBusy?<View style={{paddingVertical:12,flexDirection:'row',alignItems:'center'}}><ActivityIndicator color={C.accent}/><Text style={[styles.micro,{marginLeft:9}]}>{t("Suche im gesamten Familienbasar …")}</Text></View>:null}
+      {remoteError?<Info warning>{t(remoteError)}</Info>:null}
+      {serverSearchActive&&query.trim()&&!remoteBusy&&!remoteError?<Text style={[styles.micro,{marginBottom:12}]}>{t("Auch einzelne Teile innerhalb eines Pakets werden gefunden. Größen und Farben sind Angaben, die Verkäufer prüfen müssen.")}</Text>:null}
+      {shown.length===0?(remoteBusy||remoteError?null:<Blank title={onlyFavorites?t("Deine Merkliste ist noch leer"):t("Noch keine passenden Angebote")} body={onlyFavorites?t("Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate."):t("Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.")}/>):
         <View style={styles.marketGrid}>
         {shown.map(x=>{
           const seller=sellerInformation(x);
@@ -1857,10 +1857,10 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
             onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={[styles.marketTile,singleColumn&&{width:'100%'}]}>
             <View style={styles.marketTileImage}>
               {(remotePhotoUrls[x.id]||photoUrls[x.id])?<Image accessible={false} source={{uri:remotePhotoUrls[x.id]||photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
-                <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>Noch kein Foto</Text></View>}
+                <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>{t("Noch kein Foto")}</Text></View>}
               <View style={styles.marketPricePill}><Text style={styles.marketPricePillText} numberOfLines={1}>{priceLabel(x)}</Text></View>
               {x.seller_id!==me&&x.moderation_status==='approved'?
-                <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'} hitSlop={9}
+                <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.has(x.id)?t("Von Merkliste entfernen"):t("Zur Merkliste hinzufügen")} hitSlop={9}
                   disabled={busy||!active}
                   onPress={event=>{event.stopPropagation();toggleFavorite(x.id,favoriteIds.has(x.id));}}
                   style={{position:'absolute',right:7,top:8,backgroundColor:'#FFFFFFF2',borderRadius:20,paddingHorizontal:10,paddingVertical:7}}>
@@ -1869,34 +1869,35 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
             </View>
             <View style={styles.marketTileBody}>
               <Text style={styles.marketTileTitle} numberOfLines={2}>{x.title}</Text>
-              {x.match_item?<Text style={[styles.micro,{color:C.accentDark,marginTop:3}]} numberOfLines={2}>Passender Artikel: {x.match_item}</Text>:null}
+              {x.match_item?<Text style={[styles.micro,{color:C.accentDark,marginTop:3}]} numberOfLines={2}>{t('Passender Artikel: ')}{x.match_item}</Text>:null}
               {galleryOf(x).length>1?<Text style={[styles.micro,{fontWeight:'800',color:C.accentDark}]}>{galleryOf(x).length} Bilder</Text>:null}
-              <Text style={styles.micro} numberOfLines={1}>{x.item_condition} · {x.category}</Text>
-              <Text style={[styles.micro,{marginTop:3}]} numberOfLines={1}>⌖ {x.region_label||'Region auf Anfrage'}</Text>
+              <Text style={styles.micro} numberOfLines={1}>{t(x.item_condition)} · {t(x.category)}</Text>
+              <Text style={[styles.micro,{marginTop:3}]} numberOfLines={1}>⌖ {x.region_label||t("Region auf Anfrage")}</Text>
               {seller.org?<Text style={[styles.micro,{marginTop:3,color:C.accentDark}]} numberOfLines={1}>{seller.org.name} ✦</Text>:null}
-              {seller.own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{color:x.moderation_status==='sold'?C.accentDark:C.warningText,marginTop:4}]}>{x.moderation_status==='sold'?'Vergeben · nur für dich sichtbar':x.moderation_status==='pending'?'In Prüfung · nur für dich sichtbar':'Nicht veröffentlicht'}</Text>:null}
+              {seller.own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{color:x.moderation_status==='sold'?C.accentDark:C.warningText,marginTop:4}]}>{x.moderation_status==='sold'?t("Vergeben · nur für dich sichtbar"):x.moderation_status==='pending'?t("In Prüfung · nur für dich sichtbar"):t("Nicht veröffentlicht")}</Text>:null}
             </View>
           </Pressable>;
         })}
         </View>}
-      {serverSearchActive&&remoteHasMore&&!remoteBusy&&!remoteError?<Button title="Weitere Treffer laden" mode="outline" onPress={()=>setSearchPage(n=>n+1)}/>:null}
+      {serverSearchActive&&remoteHasMore&&!remoteBusy&&!remoteError?<Button title={t("Weitere Treffer laden")} mode="outline" onPress={()=>setSearchPage(n=>n+1)}/>:null}
     </>:null}
   </ScrollView>;
 }
 function MarketSortSelect({value,onChange}){
+  const {t}=useFamilyLocale();
   const [open,setOpen]=useState(false);
   const options=[['relevance','Beste Treffer'],['newest','Neueste zuerst'],['low','Preis aufsteigend'],['high','Preis absteigend']];
   const selected=options.find(x=>x[0]===value)?.[1]||'Beste Treffer';
   return <View style={{position:'relative'}}>
-    <Pressable accessibilityRole="button" accessibilityLabel={'Sortierung: '+selected} accessibilityState={{expanded:open}}
+    <Pressable accessibilityRole="button" accessibilityLabel={t('Sortierung: ')+t(selected)} accessibilityState={{expanded:open}}
       onPress={()=>setOpen(x=>!x)} style={styles.marketFilterToggle}>
-      <Text style={styles.marketFilterLabel} numberOfLines={1}>{selected} ⌄</Text>
+      <Text style={styles.marketFilterLabel} numberOfLines={1}>{t(selected)} ⌄</Text>
     </Pressable>
     {open?<View style={styles.marketSortOptions}>
       {options.map(([id,label])=><Pressable key={id} accessibilityRole="button"
         accessibilityState={{selected:value===id}} onPress={()=>{onChange(id);setOpen(false);}}
         style={styles.marketDropdownOption}>
-        <Text style={[styles.body,value===id&&{color:C.accentDark,fontWeight:'800'}]}>{label}</Text>
+        <Text style={[styles.body,value===id&&{color:C.accentDark,fontWeight:'800'}]}>{t(label)}</Text>
         {value===id?<Text style={{color:C.accentDark}}>✓</Text>:null}
       </Pressable>)}
     </View>:null}

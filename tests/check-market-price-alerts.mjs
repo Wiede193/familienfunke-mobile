@@ -22,7 +22,7 @@ assert.match(app,/onlyFavorites&&!open&&!boxOpen\?<PriceAlertPreference/);
 assert.match(read('PushSettings.jsx'),/<PriceAlertPreference/);
 assert.match(ui,/ff_market_price_alert_status/);
 assert.match(ui,/ff_market_price_alert_set/);
-assert.match(ui,/accessibilityLabel="Preisalarme für gemerkte Artikel"/);
+assert.match(ui,/accessibilityLabel=\{t\("Preisalarme für gemerkte Artikel"\)\}/);
 assert.match(inbox,/price:\['Preis gesenkt'/);
 assert.match(inbox,/money\(row\.old_price_cents\)/);
 assert.match(inbox,/money\(row\.new_price_cents\)/);

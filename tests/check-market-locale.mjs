@@ -18,3 +18,10 @@ assert.match(app,/saveMarketSearch\(\{query:canonicalQuery,category:filter,trade
 assert.match(home,/p_query:marketSearchQuery\(query,language\)/);
 assert.match(app,/category,item_condition:condition,trade_type:trade,price_cents:trade==='sell'\?cents:0/);
 console.log('Marketplace aliases, stable filter codes, saved search parity and EUR amounts checked');
+
+assert.ok(app.includes("onChange(option==='Alle Kategorien'?'Alle':option)"));
+assert.ok(app.includes('text={t(x)} selected={condition===x}'));
+assert.ok(app.includes('text={t(x)} selected={facts.defect===x}'));
+assert.ok(app.includes('text={t(label)} selected={tradeFilter===id}'));
+assert.ok(app.includes('encodeArticleFacts(facts,description)'));
+assert.ok(read('SavedMarketSearches.jsx').includes("p_category:p.category,p_trade_type:p.trade_type"));
