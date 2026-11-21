@@ -1162,8 +1162,11 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <Button title="Kiste schließen" mode="outline" small disabled={scanBusy||busy||choosing} onPress={closeBox}/>
     </Card>:null}
     {boxOpen&&!boxPending?<Card style={{marginBottom:18}}>
-      <Text style={styles.sectionTitle}>Deine Verkaufskiste</Text>
-      <Text style={[styles.sub,{marginBottom:12}]}>Pro Fotogruppe bis zu zehn Teile flach nebeneinander auslegen. Nächste Gruppe: nur andere Kleidungsstücke. Insgesamt bis zu 30 Teile in einer Kiste; bis zu zehn pro Verkaufsanzeige.</Text>
+      <Text style={styles.sectionTitle}>{boxStep==='photo'?'1 · Kleidung fotografieren':boxStep==='review'?'2 · Kleidung prüfen':'3 · Paket auswählen'}</Text>
+      <Text style={[styles.micro,{marginBottom:12}]}>Foto › Prüfen › Paket · {boxDrafts.length} Teile erfasst</Text>
+      {boxNotice?<Info>{boxNotice}</Info>:null}
+      {boxStep==='photo'?<>
+      <Text style={[styles.sub,{marginBottom:12}]}>Lege bis zu zehn unterschiedliche Kleidungsstücke nebeneinander und fotografiere sie von oben. Weitere Gruppen kannst du später ergänzen.</Text>
       {boxPhoto?<View onLayout={e=>setBoxImageFrame(e.nativeEvent.layout)} style={{width:'100%',height:300,borderRadius:14,marginBottom:10,overflow:'hidden',backgroundColor:C.bg}}>
         <Image source={{uri:boxPhoto.uri}} style={{width:'100%',height:'100%'}} resizeMode="contain"/>
         {boxImageFrame.width>0&&boxImageFrame.height>0&&boxPhoto.width>0&&boxPhoto.height>0&&boxCurrentBatch?boxDrafts.map((d,i)=>{
@@ -1188,7 +1191,6 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <Button title="＋ Neue Fotogruppe fotografieren" disabled={busy||choosing||scanBusy||!canCaptureBox} mode="ghost" small onPress={takeBoxPhoto}/>
       <Text style={[styles.micro,{marginVertical:8}]}>Die freiwillige Analyse sendet ein verkleinertes Foto an OpenAI. Keine Personen oder Dokumente fotografieren. Entwürfe und Artikelfotos bleiben lokal im Gerätespeicher, bis du die Kiste löschst. Kein geräteübergreifender Abgleich.</Text>
       <Button title={scanBusy?'Artikel werden erkannt …':'✦ Fotogruppe analysieren'} disabled={!boxPhoto||scanBusy||choosing||busy||boxScanned||!canCaptureBox} onPress={recognizeBox}/>
-      {boxNotice?<Info>{boxNotice}</Info>:null}
       {boxQuality.length?<View style={{backgroundColor:C.warning,borderRadius:12,padding:12,marginVertical:8}}>
         <Text style={[styles.label,{color:C.warningText}]}>Hinweise zur Fotoqualität</Text>
         {boxQuality.map(issue=><Text key={issue} style={[styles.micro,{color:C.warningText,marginBottom:5}]}>• {PHOTO_ISSUES[issue]}</Text>)}
@@ -1196,19 +1198,22 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       </View>:null}
       {boxOverflow?<Text style={[styles.micro,{marginVertical:8,color:C.warningText}]}>Diese Fotogruppe ist nicht vollständig erfasst. Für Teilpakete passende neue Verkaufsfotos verwenden.</Text>:null}
       {boxCurrentBatch&&(boxQuality.length>0||boxOverflow)?<Button title="Diese Fotogruppe neu erfassen" mode="outline" small disabled={cropBusy} onPress={discardCurrentBatch}/>:null}
-      <Input label="Ort / Region für alle weiteren Entwürfe (optional)" value={boxRegion} onChangeText={setBoxRegion} maxLength={80} placeholder="z. B. Fürstenwalde"/>
+      {boxDrafts.length>0?<Button title={'Weiter: '+boxDrafts.length+' Artikel prüfen'} disabled={cropBusy} onPress={()=>{setBoxStep('review');setBoxAdvanced(false);}}/>:null}
+      </>:null}
+      {boxStep==='review'?<>
+      <Text style={[styles.sub,{marginBottom:11}]}>Prüfe kurz die erkannten Kleidungsstücke. Fehlende Größen dürfen offen bleiben.</Text>
       {boxDrafts.length>0?<View style={{backgroundColor:'#FFF4DA',borderRadius:14,padding:12,marginVertical:10}}>
         <Text style={styles.sectionTitle}>{boxSummary.total} Teile · {boxSummary.sized} Größen erfasst</Text>
         <Text style={styles.micro}>{boxSummary.detail||'Artikel noch prüfen'}</Text>
         {boxSummary.sizes.length?<Text style={[styles.micro,{marginTop:5}]}>Erfasste Größen: {boxSummary.sizes.join(', ')}</Text>:null}
       </View>:null}
-      {boxDrafts.some(d=>d.category==='Kleidung'&&!d.facts.size)?<View style={{borderWidth:1,borderColor:C.line,borderRadius:14,padding:12,marginBottom:13}}>
+      {boxAdvanced&&boxDrafts.some(d=>d.category==='Kleidung'&&!d.facts.size)?<View style={{borderWidth:1,borderColor:C.line,borderRadius:14,padding:12,marginBottom:13}}>
         <Text style={styles.label}>Alles dieselbe Größe?</Text>
         <Text style={[styles.micro,{marginBottom:7}]}>Nur wenn du alle fehlenden Größen tatsächlich geprüft hast. Bereits erfasste Größen bleiben unverändert.</Text>
         <Input label="Gemeinsame Größe" value={boxBulkSize} onChangeText={setBoxBulkSize} maxLength={40} placeholder="z. B. 98/104"/>
         <Button title="Auf fehlende Größen anwenden" small mode="outline" disabled={!boxBulkSize.trim()||busy||scanBusy||choosing} onPress={applyBoxSize}/>
       </View>:null}
-      {boxDrafts.length>=2?<View style={{borderWidth:1,borderColor:C.line,borderRadius:14,padding:12,marginVertical:10}}>
+      {boxStep==='package'&&boxAdvanced&&boxDrafts.length>=2?<View style={{borderWidth:1,borderColor:C.line,borderRadius:14,padding:12,marginVertical:10}}>
         <Text style={styles.sectionTitle}>Paket zusammenstellen</Text>
         <Text style={styles.micro}>{selectedBoxIds.length} von {boxDrafts.length} Teilen ausgewählt · maximal zehn pro Angebot. Wähle passende Teile oder eine bekannte Größe.</Text>
         <Row style={{flexWrap:'wrap',marginTop:9}}>
@@ -1219,7 +1224,28 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         {selectedBoxIds.length>=2?<Button title={selectedBoxIds.length+' Teile als Paket anbieten'} disabled={busy||scanBusy||choosing||boxStorage!=='ready'} onPress={openBoxPackage}/>:null}
         <Text style={[styles.micro,{marginTop:7}]}>Größen-Gruppen verwenden nur erfasste Größen. Unbekannte Größen werden nicht automatisch zugeordnet.</Text>
       </View>:null}
-      <Text style={styles.sectionTitle}>{boxDrafts.length} offene Entwürfe</Text>
+      {boxDrafts.length>=2?<Button title="Weiter: Paketvorschläge ansehen" disabled={cropBusy||boxStorage!=='ready'} onPress={()=>{setBoxStep('package');setBoxAdvanced(false);setBoxCrop(null);}}/>:null}
+      <Button title="＋ Weitere Kleidung fotografieren" mode="outline" small disabled={cropBusy||!canCaptureBox} onPress={()=>{setBoxStep('photo');setBoxCrop(null);}}/>
+      </>:null}
+      {boxStep==='package'?<View style={{marginVertical:8}}>
+        <Text style={[styles.sub,{marginBottom:10}]}>Wähle einen Vorschlag. Anschließend fehlen nur noch Preis, Zustand und Verkaufsfoto.</Text>
+        {boxSuggestions.length?boxSuggestions.map((idea,index)=><Pressable key={idea.id}
+          accessibilityRole="button" accessibilityLabel={idea.title+', '+idea.ids.length+' Artikel als Paket auswählen'}
+          disabled={cropBusy||boxStorage!=='ready'} onPress={()=>openBoxPackage(idea.ids)}
+          style={{padding:14,marginBottom:10,borderRadius:16,borderWidth:1,borderColor:index===0?C.accent:C.line,backgroundColor:index===0?C.pale:C.white}}>
+          <Row style={{justifyContent:'space-between',alignItems:'center'}}>
+            <View style={{flex:1}}>
+              <Text style={[styles.body,{fontWeight:'900'}]}>{idea.title}</Text>
+              <Text style={[styles.micro,{marginTop:4}]}>{idea.description}</Text>
+            </View>
+            <Text style={{fontSize:18,fontWeight:'900',color:C.accentDark}}>›</Text>
+          </Row>
+        </Pressable>):<Text style={styles.micro}>Noch nicht genügend Artikel für einen Paketvorschlag vorhanden.</Text>}
+        <Text style={[styles.micro,{marginTop:2,marginBottom:8}]}>Vorschläge beruhen nur auf erfassten Größen und Kleidungsarten. Bitte selbst prüfen.</Text>
+        <Button title={boxAdvanced?'Individuelle Auswahl schließen':'Auswahl selbst zusammenstellen'} mode="outline" small onPress={()=>setBoxAdvanced(v=>!v)}/>
+      </View>:null}
+      {(boxStep==='review'||(boxStep==='package'&&boxAdvanced))?<>
+            <Text style={styles.sectionTitle}>{boxDrafts.length} offene Entwürfe</Text>
       {boxDrafts.length?<Row style={{flexWrap:'wrap',marginBottom:10}}>
         <Chip text={'Alle · '+boxDrafts.length} selected={boxFilter==='all'} onPress={()=>setBoxFilter('all')}/>
         <Chip text={'Größen offen · '+boxDrafts.filter(d=>d.category==='Kleidung'&&!d.facts.size).length} selected={boxFilter==='unknown'} onPress={()=>setBoxFilter('unknown')}/>
