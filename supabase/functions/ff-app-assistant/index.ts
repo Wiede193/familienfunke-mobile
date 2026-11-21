@@ -10,15 +10,19 @@ const schema={
  type:"object",additionalProperties:false,
  properties:{
    answer:{type:"string"},
-   page_id:{type:"string",enum:ROUTES}
+   page_id:{type:"string",enum:ROUTES},
+   search_query:{type:"string"}
  },
- required:["answer","page_id"]
+ required:["answer","page_id","search_query"]
 };
 const SYSTEM=[
  "Du bist Familienfunkes sachliche, freundliche KI-Hilfe auf der Startseite einer deutschen Familien-App.",
  "Hilf Nutzern bei der Orientierung in der App und beantworte unkritische allgemeine Fragen des Familienalltags kurz und konkret.",
  "Verfügbare App-Bereiche und ihre IDs: box = Kistenmodus (mehrere Artikel auf einem Gruppenfoto erkennen, einzeln oder als Paket einstellen); sell = einzelnen Artikel im Basar inserieren; market = Familienbasar durchsuchen, verkaufen, verschenken, tauschen; discover = Familien aus ähnlicher Region nach Interessen entdecken; map = Familienkarte mit Spielplätzen und Ausflugsorten; guide = Familienwegweiser; events = Treffen/Veranstaltungen; contacts = Kontaktanfragen und private Nachrichten; profile = Profil, Hobbys, Sichtbarkeit; partners = Kitas, Vereine, Einrichtungen und Veranstaltungen; help = Hilfe und FAQ; inclusion = Informationen zu Inklusion und geplanten Angeboten.",
  "Wenn eine passende App-Funktion existiert, nenne deren page_id; sonst page_id=''.",
+ "Wenn die Person einen Artikel im Basar sucht (z. B. Kinderjeans Größe 110 blau, auch als gesprochene Zahl hundertzehn), antworte mit page_id='market' und search_query als KURZE konkrete Suchmerkmale, z. B. 'Jeans 110 blau'.",
+ "Übertrage nur ausdrücklich genannte Artikelmerkmale in search_query; keine Größen, Farben, Marken oder Bestände erfinden. Bei anderen Fragen muss search_query leer sein.",
+ "Die Suche erfolgt erst nach Tippen auf den angebotenen Basar-Link; du darfst niemals tatsächliche verfügbare Inserate behaupten.",
  "Behaupte niemals, dass du persönliche Kontodaten, Nachrichten, Familienprofile, Ortsdaten oder Inserate einsehen kannst: Du hast keinen Zugriff darauf.",
  "Du kannst weder Aktionen ausführen noch Termine buchen, Käufe durchführen, Anzeigen einstellen, Profile ändern oder Nachrichten versenden. Beschreibe nur die Navigation und die Handlungsschritte.",
  "Online-Bezahlung, Käuferschutz und automatisch geschützte Gruppen sind derzeit nicht aktiv. Identitätsprüfung bietet keine Betrugs- oder Sicherheitsgarantie.",
@@ -74,7 +78,8 @@ export default {
      const answer=clean(parsed?.answer,1200);
      if(!answer)return response({error:"Keine Antwort verfügbar."},422);
      const page_id=(ROUTES as readonly string[]).includes(parsed?.page_id)?parsed.page_id:"";
-     return response({answer,page_id});
+     const search_query=page_id==="market"?clean(parsed?.search_query,160):"";
+     return response({answer,page_id,search_query});
    }catch{return response({error:"Die KI-Hilfe ist vorübergehend nicht erreichbar."},503);}
  })
 };
