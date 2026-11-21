@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 ActivityIndicator, Alert, Image, KeyboardAvoidingView, Linking,
 Platform, Pressable, RefreshControl, SafeAreaView, ScrollView,
@@ -687,6 +687,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [boxSelected,setBoxSelected]=useState(null);
   const [boxStorage,setBoxStorage]=useState('loading');
   const [boxSaveError,setBoxSaveError]=useState(false);
+  const [boxPending,setBoxPending]=useState(null);
+  const submitLock=useRef(false);
   const [boxSeq,setBoxSeq]=useState(0);
   const [boxInspect,setBoxInspect]=useState(null);
   const [boxBulkSize,setBoxBulkSize]=useState('');
@@ -695,14 +697,14 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const selectedBoxDrafts=boxDrafts.filter(d=>selectedBoxIds.includes(d.id));
   const boxSummary=useMemo(()=>summarizeBox(boxDrafts),[boxDrafts]);
   const boxSizeGroups=useMemo(()=>sizeGroups(boxDrafts),[boxDrafts]);
-  function boxSnapshot(){
+  function boxSnapshot(pending=boxPending){
     let drafts=boxDrafts,bundle=boxPackageDraft;
     if(boxEditor){
       const d={id:boxEditor.id,listingId:boxEditor.listingId,packageIds:boxEditor.packageIds,title,category,facts:{...facts},photos:photo,condition,trade,price,description,region,organizationId};
       if(boxEditor.packageIds)bundle=d;
       else drafts=drafts.map(old=>old.id===d.id?{...old,...d,sizeEvidence:d.facts.size!==old.facts.size?'seller':old.sizeEvidence}:old);
     }
-    return {version:2,drafts,batches:boxBatches,currentBatch:boxCurrentBatch,photo:boxPhoto,scanned:boxScanned,overflow:boxOverflow,region:boxRegion,seq:boxSeq,selection:boxSelected,bundle};
+    return {version:2,drafts,batches:boxBatches,currentBatch:boxCurrentBatch,photo:boxPhoto,scanned:boxScanned,overflow:boxOverflow,region:boxRegion,seq:boxSeq,selection:boxSelected,bundle,pending};
   }
   useEffect(()=>{
     let live=true;
@@ -716,6 +718,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         setBoxPhoto(availableBoxPhoto(me,data.photo));setBoxScanned(!!data.scanned);setBoxOverflow(!!data.overflow);
         setBoxRegion(data.region||'');setBoxSeq(Number.isInteger(data.seq)?data.seq:0);
         setBoxSelected(Array.isArray(data.selection)?data.selection:null);
+        setBoxPending(data.pending?.listingId&&Array.isArray(data.pending.ids)?data.pending:null);
         setBoxPackageDraft(data.bundle?{...data.bundle,photos:cleanPhotos(data.bundle.photos)}:null);
         if(data.drafts.length||data.photo)setBoxNotice('Deine gespeicherte Kiste ist wieder da. Bei unterbrochenen Einreichungen prüfe zuerst „Meine“. Fehlende Fotos können neu hinzugefügt werden.');
       }
@@ -727,9 +730,10 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(boxStorage!=='ready')return;
     let live=true;
     const data=boxSnapshot();
+    if(!data.drafts.length&&!data.batches.length&&!data.photo&&!data.bundle&&!data.pending&&!boxRegion)return;
     saveBoxSnapshot(me,data).then(()=>{if(live)setBoxSaveError(false);}).catch(()=>{if(live)setBoxSaveError(true);});
     return ()=>{live=false;};
-  },[me,boxStorage,boxDrafts,boxBatches,boxCurrentBatch,boxPhoto,boxScanned,boxOverflow,boxRegion,boxSeq,boxSelected,boxPackageDraft,boxEditor,title,category,facts,photo,condition,trade,price,description,region,organizationId]);
+  },[me,boxStorage,boxDrafts,boxBatches,boxCurrentBatch,boxPhoto,boxScanned,boxOverflow,boxRegion,boxSeq,boxSelected,boxPackageDraft,boxPending,boxEditor,title,category,facts,photo,condition,trade,price,description,region,organizationId]);
   const packageForm=boxEditor?.packageIds?parsePackageNote(description):null;
   const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
   const favoriteIds=new Set(favorites.map(x=>x.listing_id));
@@ -800,7 +804,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       await deleteBoxStorage(me);
       setBoxPhoto(null);setBoxDrafts([]);setBoxNotice('');setBoxScanned(false);
       setBoxOverflow(false);setBoxEditor(null);setBoxPackageDraft(null);setBoxBatches([]);setBoxCurrentBatch(null);setBoxSelected(null);
-      setBoxRegion('');setBoxInspect(null);setBoxBulkSize('');setBoxStorage('ready');setBoxSaveError(false);
+      setBoxRegion('');setBoxInspect(null);setBoxBulkSize('');setBoxStorage('ready');setBoxSaveError(false);setBoxPending(null);
     }catch(e){setBoxNotice('Kiste konnte nicht vollständig gelöscht werden: '+humanError(e));}
     finally{setChoosing(false);}
   }
@@ -810,6 +814,25 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     ]);
   }
   function closeBox(){setBoxOpen(false);}
+  async function recoverBoxSubmission(){
+    if(!boxPending||scanBusy||busy||choosing)return;
+    setScanBusy(true);
+    try{
+      const {data,error:e}=await supabase.from('ff_market_listings').select('id').eq('id',boxPending.listingId).eq('seller_id',me).maybeSingle();
+      if(e)throw e;
+      if(data?.id===boxPending.listingId){
+        const saved=boxSnapshot(null);saved.drafts=saved.drafts.filter(d=>!boxPending.ids.includes(d.id));saved.bundle=null;saved.selection=null;
+        await saveBoxSnapshot(me,saved);
+        setBoxDrafts(saved.drafts);setBoxPackageDraft(null);setBoxSelected(null);setBoxPending(null);
+        setBoxNotice('Die Anzeige wurde bereits gespeichert. Bitte prüfe Fotos und Freigabestatus unter „Meine“.');
+      }else{
+        const draft=boxPending.isPackage?boxPackageDraft:boxDrafts.find(d=>d.id===boxPending.ids[0]);
+        if(!draft||draft.listingId!==boxPending.listingId)throw new Error('Der zugehörige Entwurf konnte nicht wiederhergestellt werden. Bitte prüfe „Meine“ und lösche die Kiste erst, wenn du sicher bist.');
+        openBoxEditor(draft,boxPending.isPackage?boxPending.ids:null);
+      }
+    }catch(e){setBoxNotice('Einreichung konnte nicht abgeglichen werden: '+humanError(e));}
+    finally{setScanBusy(false);}
+  }
   const canCaptureBox=boxStorage==='ready'&&boxBatches.length<BOX_MAX_BATCHES&&boxDrafts.length<BOX_MAX_ITEMS;
   async function chooseBoxPhoto(asset){
     if(!asset?.uri||!canCaptureBox)return;
@@ -975,7 +998,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     setAskSize(!proposal.size&&!facts.size);setProposal(null);setScanned(true);setExpandFacts(false);setScanNotice('Vorschläge übernommen. Bitte prüfe alle Angaben und ergänze, was fehlt.');setConfirmed(false);
   }
   async function submit(){
-    if(!active||scanBusy)return;
+    if(!active||scanBusy||busy||submitLock.current)return;
     if(boxEditor?.packageIds&&(!packageForm||packageForm.rows.length!==boxEditor.packageIds.length))return Alert.alert('Paket prüfen','Bitte kehre zur Kiste zurück und erstelle die Paketliste erneut.');
     if(boxEditor&&!photo.length)return Alert.alert('Artikelfoto fehlt',boxEditor.packageIds?'Bitte füge ein Foto des vollständigen Pakets hinzu.':'Bitte füge ein eigenes Foto dieses einzelnen Artikels hinzu.');
     if(!['Neu','Sehr gut','Gut','Gebraucht'].includes(condition))return Alert.alert('Zustand wählen','Wie ist der tatsächliche Zustand des Artikels?');
@@ -989,9 +1012,13 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     const values={title:safeString(title,100),description:quick?encodeArticleFacts(facts,description):safeString(description,1500),
       category,item_condition:condition,trade_type:trade,price_cents:trade==='sell'?cents:0,
       region_label:safeString(region,80),organization_id:organizationId||null};
+    submitLock.current=true;
+    const submittedSnapshot=boxEditor?boxSnapshot({listingId:boxEditor.listingId,ids:boxEditor.packageIds||[boxEditor.id],isPackage:!!boxEditor.packageIds}):null;
+    try{
     if(boxEditor){
       if(boxStorage!=='ready')return Alert.alert('Kiste nicht gespeichert','Bitte stelle zuerst die lokale Speicherung wieder her.');
-      try{await saveBoxSnapshot(me,boxSnapshot());}
+      setScanBusy(true);
+      try{await saveBoxSnapshot(me,submittedSnapshot);setBoxPending(submittedSnapshot.pending);}
       catch{return Alert.alert('Kiste nicht gespeichert','Bitte prüfe den Gerätespeicher und versuche es erneut.');}
     }
     const ok=editingId?await editListing(editingId,values,photo):await createListing(values,photo,boxEditor?.listingId);
@@ -999,14 +1026,20 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       const submitted=boxEditor;
       if(submitted){
         const ids=submitted.packageIds||[submitted.id];
-        setBoxDrafts(old=>old.filter(d=>!ids.includes(d.id)));
-        setBoxSelected(null);setBoxPackageDraft(null);
+        const saved={...submittedSnapshot,drafts:submittedSnapshot.drafts.filter(d=>!ids.includes(d.id)),bundle:null,selection:null,pending:null};
+        // Persist the consumed IDs even if the screen was unmounted during the request.
+        try{await saveBoxSnapshot(me,saved);}catch{/* The pending ID lets recovery reconcile the listing on return. */}
+        setBoxDrafts(saved.drafts);
+        setBoxSelected(null);setBoxPackageDraft(null);setBoxPending(null);
         if(region.trim())setBoxRegion(region.trim());
         setBoxNotice('Zur Prüfung eingereicht. Weitere Entwürfe kannst du jetzt bearbeiten.');
       }
       resetForm();setOpen(false);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);
       if(submitted)setBoxOpen(true);
+    }else if(boxEditor){
+      saveBoxEditor();setBoxNotice('Einreichung unterbrochen. Wir prüfen beim Fortsetzen die bereits verwendete Anzeigen-ID.');
     }
+    }finally{submitLock.current=false;if(boxEditor)setScanBusy(false);}
   }
   function sellerInformation(x){
     const own=x.seller_id===me;
@@ -1053,7 +1086,14 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <Text style={[styles.micro,{marginBottom:10}]}>Viele Sachen auf einmal erfassen. Ein Foto, mehrere Entwürfe – einzeln oder im Paket.</Text>
       <Button title={boxDrafts.length?'Kiste weiterbearbeiten ('+boxDrafts.length+')':'✦ Kiste erfassen'} disabled={busy||choosing||scanBusy||boxStorage==='loading'} onPress={showBox}/>
     </Card>:null}
-    {boxOpen?<Card style={{marginBottom:18}}>
+    {boxOpen&&boxPending?<Card style={{marginBottom:18,backgroundColor:'#FFF4DA'}}>
+      <Text style={styles.sectionTitle}>Unterbrochene Einreichung</Text>
+      <Text style={[styles.body,{marginBottom:12}]}>Wir prüfen zuerst, ob deine Anzeige bereits beim Server angekommen ist. So werden dieselben Artikel nicht versehentlich zweimal eingestellt.</Text>
+      {boxNotice?<Info>{boxNotice}</Info>:null}
+      <Button title={scanBusy?'Wird abgeglichen …':'Einreichung prüfen & fortsetzen'} disabled={scanBusy||busy||choosing||boxStorage!=='ready'} onPress={recoverBoxSubmission}/>
+      <Button title="Kiste schließen" mode="outline" small disabled={scanBusy||busy||choosing} onPress={closeBox}/>
+    </Card>:null}
+    {boxOpen&&!boxPending?<Card style={{marginBottom:18}}>
       <Text style={styles.sectionTitle}>Deine Verkaufskiste</Text>
       <Text style={[styles.sub,{marginBottom:12}]}>Pro Fotogruppe bis zu zehn Teile flach nebeneinander auslegen. Nächste Gruppe: nur andere Kleidungsstücke. Insgesamt bis zu 30 Teile in einer Kiste; bis zu zehn pro Verkaufsanzeige.</Text>
       {boxPhoto?<View onLayout={e=>setBoxImageFrame(e.nativeEvent.layout)} style={{width:'100%',height:300,borderRadius:14,marginBottom:10,overflow:'hidden',backgroundColor:C.bg}}>
