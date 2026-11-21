@@ -11,6 +11,7 @@
     "fix": "expo install --fix",
     "check:box-ux": "node tests/check-box-ux.mjs",
     "check:home": "node tests/check-home-assistant.mjs",
+    "check:design": "node tests/check-design-system.mjs",
     "check:market-search": "node tests/check-market-search.mjs",
     "check:market-auto-review": "node tests/check-market-auto-review.mjs",
     "check:market-review-queue": "node tests/check-market-review-queue.mjs"

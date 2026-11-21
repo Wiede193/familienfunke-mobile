@@ -1,13 +1,10 @@
 import React, {useRef, useState} from 'react';
 import {ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 import {supabase} from './supabase';
+import {FAMILY_COLORS} from './FamilyTheme';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
 
-const C={
-  bg:'#FFF9F0',paper:'#FFFFFF',ink:'#253D43',muted:'#61757A',
-  teal:'#0B777A',tealDark:'#075A60',sun:'#FFDD79',sunPale:'#FFF0B8',
-  peach:'#F9D9C9',mint:'#E8F3E9',line:'#EAE4D9',danger:'#9B493F'
-};
+const C=FAMILY_COLORS;
 const FEATURED=['discover','map','market','box'];
 const SUGGESTIONS=['Spielplätze finden','Familien kennenlernen','Profil bearbeiten'];
 function SunMark(){

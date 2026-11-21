@@ -12,6 +12,7 @@ import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WelcomeIntro from './WelcomeIntro';
+import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
 import FamilyMapScreen from './FamilyMap';
@@ -21,12 +22,7 @@ import {keepBoxPhoto,availableBoxPhoto,loadBoxSnapshot,saveBoxSnapshot,deleteBox
 import { cropBounds,suggestedCrop,changeCrop,pixelCrop,photoIssues,PHOTO_ISSUES } from './MarketBoxCrop';
 import {suggestBoxPackages,packageCheck} from './MarketBoxSuggestions';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
-const C = {
-bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
-accent:'#087F87',accentDark:'#075D67',pale:'#E4F5F1',line:'#F0E5DC',
-coral:'#EE7867',coralDeep:'#B9474C',sunny:'#FFE4AA',
-lavender:'#F2EEFF',warning:'#FFF1D6',warningText:'#75521D',
-};
+const C = FAMILY_COLORS;
 const INTERESTS = ['Spielplatz','Natur','Radfahren','Wandern','Kochen','Musik','Basteln','Sport','Tiere','Lesen','Ausflüge','Spieleabende','Schwimmen','Fußball','Tanzen','Camping','Gärtnern','Fotografie','Brettspiele','Museen','Backen','Picknick','Kino','Yoga','Familiencafés','Handarbeiten','Konzerte','Reisen'];
 const REGIONS = ['Landkreis Oder-Spree','Fürstenwalde/Spree','Beeskow','Eisenhüttenstadt','Bad Saarow','Storkow (Mark)','Frankfurt (Oder)','Landkreis Dahme-Spreewald','Landkreis Märkisch-Oderland','Berlin','Potsdam','Cottbus'];
 const normalizeLabel = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -110,7 +106,13 @@ return <Pressable accessibilityRole="button" accessibilityLabel={text} accessibi
 </Pressable>;
 }
 function Card({children,style}) {return <View style={[styles.card,style]}>{children}</View>;}
-function H({children,sub}) {return <View style={{marginBottom:17}}><Text style={styles.h}>{children}</Text>{sub?<Text style={styles.sub}>{sub}</Text>:null}</View>;}
+function H({children,sub}) {return <View style={styles.headingWrap}>
+  <View style={styles.headingBar}/>
+  <View style={{flex:1}}>
+    <Text style={styles.h}>{children}</Text>
+    {sub?<Text style={styles.sub}>{sub}</Text>:null}
+  </View>
+</View>;}
 function Info({children,warning=false}) {return <View style={[styles.info,warning&&styles.warning]}><Text style={[styles.infoText,warning&&{color:C.warningText}]}>{children}</Text></View>;}
 function Avatar({name,size=52,uri}) {return <View style={[styles.avatar,{width:size,height:size,borderRadius:size/2}]}>{uri?<Image source={{uri}} style={{width:size,height:size,borderRadius:size/2}}/>:<Text style={[styles.avatarText,{fontSize:size*.30}]}>{initial(name)}</Text>}</View>;}
 function Row({children,style}) {return <View style={[{flexDirection:'row',alignItems:'center',gap:10},style]}>{children}</View>;}
@@ -512,7 +514,7 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>su
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,tab===id&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 {reportTarget?<View style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -2072,7 +2074,7 @@ async function submitDraftPhoto(){
 const completed=[form.display_name?.trim().length>=2,!!form.region_label?.trim(),!!form.about?.trim(),(form.interests||[]).length>0].filter(Boolean).length;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 <H sub="Du entscheidest, was andere Familien von euch erfahren.">Mein Familienprofil</H>
-<Card>
+<Card style={{backgroundColor:C.sunPale}}>
 <Row><Avatar size={65} name={profile?.display_name}/><View style={{flex:1}}><Text style={styles.cardTitle}>{profile?.display_name||'Deine Familie'}</Text><Text style={styles.micro}>{active?'✓ Erwachsener geprüft, Profil freigegeben':'⌛ Prüfung oder Freigabe ausstehend'}</Text><Text style={styles.micro}>Mitgliedschaft: {membership?.status||'–'}</Text></View></Row>
 <View style={{marginTop:15}}>
 <Row style={{justifyContent:'space-between',marginBottom:6}}><Text style={styles.label}>Profil gestalten</Text><Text style={styles.micro}>{completed} von 4 freiwilligen Angaben</Text></Row>
@@ -2195,23 +2197,25 @@ scroll:{flex:1},content:{padding:19,paddingBottom:40},
 brand:{fontSize:33,fontWeight:'900',color:C.ink,letterSpacing:-1.15,textAlign:'center'},
 smallBrand:{fontSize:19,fontWeight:'900',color:C.ink,letterSpacing:-.7},tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:9},
 loginPage:{flexGrow:1,alignItems:'center',justifyContent:'center',padding:20,backgroundColor:C.bg},
-loginMark:{width:95,height:95,borderRadius:31,backgroundColor:'#F7C65B',alignItems:'center',justifyContent:'center',marginBottom:22,transform:[{rotate:'-7deg'}]},
+loginMark:{width:95,height:95,borderRadius:31,backgroundColor:C.sun,alignItems:'center',justifyContent:'center',marginBottom:22,transform:[{rotate:'-7deg'}]},
 topBar:{minHeight:74,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:19,flexDirection:'row',alignItems:'center',gap:10,paddingVertical:8},
 headerIdentity:{flex:1,flexDirection:'row',alignItems:'center',gap:10},
-headerHeartBadge:{width:37,height:37,borderRadius:13,backgroundColor:'#F7CB66',alignItems:'center',justifyContent:'center'},
+headerHeartBadge:{width:37,height:37,borderRadius:13,backgroundColor:C.sun,alignItems:'center',justifyContent:'center'},
 headerHeart:{fontSize:21,fontWeight:'900',color:'#9A4A43'},
 topHint:{fontSize:12,color:C.muted,marginTop:1,fontWeight:'600'},
-card:{backgroundColor:C.white,borderRadius:25,padding:18,borderColor:C.line,borderWidth:1,shadowColor:'#C28368',shadowOpacity:0.07,shadowRadius:11,shadowOffset:{width:0,height:3},elevation:2},
-hero:{backgroundColor:C.accentDark,borderRadius:29,paddingHorizontal:23,paddingVertical:27,marginBottom:25,overflow:'hidden',minHeight:238},
-heroDecorationOne:{position:'absolute',width:165,height:165,borderRadius:83,backgroundColor:'#137D85',top:-64,right:-64},
-heroDecorationTwo:{position:'absolute',width:88,height:88,borderRadius:44,backgroundColor:C.coral,opacity:0.65,bottom:-37,right:22},
-heroPill:{alignSelf:'flex-start',backgroundColor:C.sunny,borderRadius:40,paddingHorizontal:13,paddingVertical:7,marginBottom:12},
+card:{backgroundColor:C.white,borderRadius:22,padding:18,borderColor:C.line,borderWidth:1,shadowColor:'#C28368',shadowOpacity:0.07,shadowRadius:11,shadowOffset:{width:0,height:3},elevation:2},
+hero:{backgroundColor:C.sun,borderRadius:25,paddingHorizontal:23,paddingVertical:27,marginBottom:25,overflow:'hidden',minHeight:238},
+heroDecorationOne:{position:'absolute',width:165,height:165,borderRadius:83,backgroundColor:'#FFE9A3',top:-64,right:-64},
+heroDecorationTwo:{position:'absolute',width:88,height:88,borderRadius:44,backgroundColor:C.peach,opacity:0.65,bottom:-37,right:22},
+heroPill:{alignSelf:'flex-start',backgroundColor:C.white,borderRadius:40,paddingHorizontal:13,paddingVertical:7,marginBottom:12},
 heroPillText:{fontSize:10.5,fontWeight:'900',letterSpacing:1.1,color:'#624315'},
 eyebrow:{fontSize:11,fontWeight:'900',letterSpacing:1.5,color:C.coralDeep},
-heroTitle:{fontSize:28,fontWeight:'900',color:C.white,letterSpacing:-.8,lineHeight:35,maxWidth:295},
-heroText:{color:'#E5F8F6',fontSize:14,lineHeight:21,marginTop:10,maxWidth:285},
-heroTagline:{alignSelf:'flex-start',backgroundColor:'rgba(255,255,255,0.13)',borderRadius:12,paddingVertical:8,paddingHorizontal:10,marginTop:18},
-heroTaglineText:{color:C.white,fontSize:11.5,fontWeight:'700'},
+heroTitle:{fontSize:28,fontWeight:'900',color:C.ink,letterSpacing:-.8,lineHeight:35,maxWidth:295},
+heroText:{color:'#66512F',fontSize:14,lineHeight:21,marginTop:10,maxWidth:285},
+heroTagline:{alignSelf:'flex-start',backgroundColor:'#FFFDF3',borderRadius:12,paddingVertical:8,paddingHorizontal:10,marginTop:18},
+heroTaglineText:{color:C.ink,fontSize:11.5,fontWeight:'700'},
+headingWrap:{flexDirection:'row',alignItems:'flex-start',gap:12,marginBottom:17},
+headingBar:{width:5,height:37,borderRadius:4,backgroundColor:C.sun,marginTop:3},
 h:{fontSize:25,fontWeight:'900',color:C.ink,letterSpacing:-.6},
 sub:{fontSize:13.5,lineHeight:21,color:C.muted,marginTop:6},
 body:{fontSize:14.5,lineHeight:22,color:C.ink},
@@ -2219,20 +2223,20 @@ micro:{fontSize:11.5,color:C.muted,lineHeight:17},
 sectionTitle:{fontSize:18,color:C.ink,fontWeight:'900',marginBottom:13},
 cardTitle:{fontSize:17,fontWeight:'900',color:C.ink},
 label:{fontSize:13,color:C.ink,fontWeight:'800',marginBottom:8},
-input:{backgroundColor:'#FFFEFC',borderColor:'#E5DBD3',borderWidth:1,borderRadius:17,paddingHorizontal:15,paddingVertical:13,fontSize:15,color:C.ink,minHeight:48},
-button:{minHeight:50,paddingHorizontal:18,paddingVertical:12,borderRadius:18,justifyContent:'center',alignItems:'center',flexDirection:'row'},
+input:{backgroundColor:C.white,borderColor:'#D9DED6',borderWidth:1,borderRadius:15,paddingHorizontal:15,paddingVertical:13,fontSize:15,color:C.ink,minHeight:48},
+button:{minHeight:50,paddingHorizontal:18,paddingVertical:12,borderRadius:15,justifyContent:'center',alignItems:'center',flexDirection:'row'},
 button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#AEDBDD',borderWidth:1.5},
 button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:39,paddingVertical:8,paddingHorizontal:13},
 buttonText:{color:C.white,fontSize:14,fontWeight:'900'},buttonTextDark:{color:C.accentDark},
 chip:{borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:13,paddingVertical:8},
-chipSelected:{backgroundColor:C.coralDeep,borderColor:C.coralDeep},chipText:{color:C.accentDark,fontSize:12,fontWeight:'800'},
+chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{color:C.accentDark,fontSize:12,fontWeight:'800'},
 chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},
-info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertical:14,marginHorizontal:12,marginTop:7,marginBottom:12},
+info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertical:14,marginHorizontal:0,marginTop:7,marginBottom:12},
 warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:C.accentDark},
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
 tabBar:{height:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
-tab:{flex:1,alignItems:'center',paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:'#FFF0C9'},tabIcon:{fontSize:25,color:'#8E9FA4',fontWeight:'500'},tabLabel:{fontSize:10,color:'#8E9FA4',marginTop:3,fontWeight:'600'},
+tab:{flex:1,alignItems:'center',paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{fontSize:24,color:'#708186',fontWeight:'500'},tabLabel:{fontSize:10.5,color:'#61757A',marginTop:3,fontWeight:'700'},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},

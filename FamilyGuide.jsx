@@ -1,9 +1,10 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {FAMILY_COLORS} from './FamilyTheme';
 import {VERIFIED_GUIDE_DETAILS, ODER_SPREE_GUIDE} from './FamilyGuideVerified';
 
-const P={bg:'#FFF9F3',paper:'#FFFFFF',ink:'#193C48',muted:'#647D82',teal:'#087F87',tealDark:'#075D67',pale:'#E4F5F1',coral:'#EE7867',sun:'#FFE4AA',line:'#F0E5DC',warn:'#FFF1D6'};
+const P=FAMILY_COLORS;
 const TYPES={
   recommended:{label:'Empfohlener Zeitpunkt',short:'Empfohlen',color:'#087F87',bg:'#E4F5F1'},
   voluntary:{label:'Freiwillig – keine Pflicht',short:'Freiwillig',color:'#785518',bg:'#FFF1D6'},
@@ -215,7 +216,7 @@ export default function FamilyGuideScreen({userId,regionLabel}){
 const st=StyleSheet.create({
   page:{flex:1,backgroundColor:P.bg},content:{padding:17,paddingBottom:46},
   loading:{flex:1,justifyContent:'center',alignItems:'center',gap:12},small:{fontSize:12.5,lineHeight:19,color:P.muted},
-  hero:{borderRadius:26,backgroundColor:'#FFF0CF',padding:22,marginBottom:15,borderWidth:1,borderColor:'#FFE0AA'},
+  hero:{borderRadius:25,backgroundColor:P.sun,padding:22,marginBottom:15,borderWidth:1,borderColor:P.sunPale},
   sunDot:{width:49,height:49,backgroundColor:P.paper,borderRadius:18,alignItems:'center',justifyContent:'center',marginBottom:12},
   sunSymbol:{fontSize:27,color:P.coral,fontWeight:'900'},
   eyebrow:{fontSize:10,fontWeight:'900',color:P.tealDark,letterSpacing:1.3,marginBottom:6},
