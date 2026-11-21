@@ -3,7 +3,7 @@
 begin;
 create or replace function public.ff_layout_unique(items text[]) returns boolean
 language sql immutable security invoker set search_path=pg_catalog
-as $ select coalesce(array_ndims(items),1)=1 and coalesce(array_lower(items,1),1)=1 and cardinality(items)=(select count(distinct item) from unnest(items) as item) $;
+as $ff_unique$ select coalesce(array_ndims(items),1)=1 and coalesce(array_lower(items,1),1)=1 and cardinality(items)=(select count(distinct value) from unnest(items) as t(value)) $ff_unique$;
 revoke all on function public.ff_layout_unique(text[]) from public,anon,authenticated;
 grant execute on function public.ff_layout_unique(text[]) to authenticated;
 create table if not exists public.ff_layout_preferences (
@@ -26,14 +26,14 @@ grant select,insert on table public.ff_layout_preferences to authenticated;
 grant update(home,bottom,revision) on table public.ff_layout_preferences to authenticated;
 create or replace function public.ff_layout_revision_guard() returns trigger
 language plpgsql security invoker set search_path=pg_catalog
-as $ begin
+as $ff_revision$ begin
  if tg_op='INSERT' then
   if new.revision<>1 then raise exception 'Initial revision must be 1' using errcode='23514'; end if;
  elsif new.revision<>old.revision+1 then
   raise exception 'Revision must advance by one' using errcode='23514';
  end if;
  return new;
-end $;
+end; $ff_revision$;
 revoke all on function public.ff_layout_revision_guard() from public,anon,authenticated;
 drop trigger if exists ff_layout_revision_guard on public.ff_layout_preferences;
 create trigger ff_layout_revision_guard before insert or update on public.ff_layout_preferences

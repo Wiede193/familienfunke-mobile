@@ -10,3 +10,5 @@ Der Quellcode ist vorhanden, die native Erweiterung ist bewusst noch NICHT als A
 Quellen: https://github.com/jamsch/expo-speech-recognition und https://docs.expo.dev/versions/v58.0.0/sdk/expo/
 
 Isolierter CI-Test: `.github/workflows/voice-native-check.yml` installiert 58.0.1 nur im Runner, überprüft Herkunft und Integrität, erzeugt die iOS-/Android-Projekte, kontrolliert Mikrofonberechtigungen und stellt einen Lockfile-Kandidaten zur Prüfung bereit. Kein produktiver Build oder automatischer Merge.
+
+CI-Lauf 1: Installation, Integrität und Prebuild erfolgreich, Android-Berechtigung fehlgeschlagen. Ursache: expo-image-picker mit microphonePermission:false blockiert RECORD_AUDIO für sämtliche Plugins. Die dynamische Konfiguration setzt deshalb nur bei installiertem Sprachpaket die deutsche Berechtigungsbeschreibung und aktiviert RECORD_AUDIO. Ohne Sprachpaket bleibt der ursprüngliche Block erhalten. Erneuter CI-Lauf und echte Gerätetests erforderlich.

@@ -38,12 +38,14 @@ jobs:
           android=ET.parse('android/app/src/main/AndroidManifest.xml').getroot()
           ns='{http://schemas.android.com/apk/res/android}'
           tools='{http://schemas.android.com/tools}'
-          assert any(e.get(ns+'name')=='android.permission.RECORD_AUDIO' and e.get(tools+'node')!='remove' for e in android.findall('uses-permission'))
-          assert not any(e.get(ns+'name')=='android.permission.RECORD_AUDIO' and e.get(tools+'node')=='remove' for e in android.findall('uses-permission'))
+          audio=[e.attrib for e in android.findall('uses-permission') if e.get(ns+'name')=='android.permission.RECORD_AUDIO']
+          print('Android microphone permission:', audio)
+          assert any(e.get(tools+'node')!='remove' for e in audio), 'Android RECORD_AUDIO missing'
+          assert not any(e.get(tools+'node')=='remove' for e in audio), 'Android RECORD_AUDIO blocked by plugin'
           plist=glob.glob('ios/*/Info.plist')[0]
           with open(plist,'rb') as f: info=plistlib.load(f)
-          assert info.get('NSMicrophoneUsageDescription')
-          assert info.get('NSSpeechRecognitionUsageDescription')
+          assert info.get('NSMicrophoneUsageDescription'), 'iOS microphone usage missing'
+          assert info.get('NSSpeechRecognitionUsageDescription'), 'iOS speech usage missing'
           PY
       - name: Lockfile-Kandidat zur Prüfung sichern
         uses: actions/upload-artifact@v4
