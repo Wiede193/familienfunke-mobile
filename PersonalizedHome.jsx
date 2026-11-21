@@ -16,9 +16,6 @@ function LinkRow({title,detail,onPress}){
   <View style={{flex:1,minWidth:0}}><Text style={s.name}>{title}</Text>{detail?<Text style={s.muted}>{detail}</Text>:null}</View><Text accessibilityElementsHidden importantForAccessibility="no" style={s.arrow}>›</Text>
  </Pressable>;
 }
-function Group({title,children}){
- return <View style={s.group}><Text accessibilityRole="header" style={s.heading}>{title}</Text>{children}</View>;
-}
 export default function PersonalizedHome({userId,profile,active,events,partnerEvents,listings,onNavigate}){
  const key='familienfunke.home.preferences.v1.'+userId;
  const [prefs,setPrefs]=useState(null),[editing,setEditing]=useState(false),[expanded,setExpanded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -33,11 +30,12 @@ export default function PersonalizedHome({userId,profile,active,events,partnerEv
  },[key]);
  async function change(next){
   if(lock.current||!prefs)return;lock.current=true;setBusy(true);setError('');
-  const clean=sanitizeHomePrefs(next);
+  const clean=sanitizeHomePrefs(next.enabled?next:DEFAULT_HOME_PREFS);
   // Switch off immediately, even if storage fails. Never display recommendations after opting out.
   if(!clean.enabled)setPrefs(clean);
   try{
-   await AsyncStorage.setItem(key,JSON.stringify(clean));
+   if(clean.enabled)await AsyncStorage.setItem(key,JSON.stringify(clean));
+   else await AsyncStorage.removeItem(key);
    if(live.current)setPrefs(clean);
   }catch{
    if(live.current)setError('Einstellung konnte nicht dauerhaft gespeichert werden. Bitte erneut versuchen.');
@@ -50,7 +48,7 @@ export default function PersonalizedHome({userId,profile,active,events,partnerEv
   recommendations.places.map(p=>({key:'place-'+p.id,kind:'place',title:p.title,detail:'Ausflug · '+p.region+(p.km!==null?' · ca. '+p.km+' km Luftlinie':'')+' · '+p.reason,open:()=>onNavigate('map','',p.id)})),
   recommendations.events.map(e=>({key:'event-'+e.kind+e.id,kind:'event',title:e.title,detail:'Treffen · '+new Date(e.starts_at).toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+' · '+e.region,open:()=>onNavigate(e.kind==='family'?'events':'partners','',e.id)})),
   recommendations.offers.map(x=>({key:'offer-'+x.id,kind:'offer',title:x.title,detail:'Basar · '+[price(x),x.category,x.region].filter(Boolean).join(' · '),open:()=>onNavigate('market','',x.id)})),
-  [recommendations.quiz?{key:'quiz',kind:'play',title:quizLabels[recommendations.quiz],detail:'Familienzeit · freiwillige Altersauswahl',open:()=>onNavigate('play','',recommendations.quiz)}:null,recommendations.activity?{key:'activity',kind:'play',title:recommendations.activity.title,detail:'Spielidee · '+recommendations.activity.duration+' · ab etwa 4, mit Begleitung',open:()=>onNavigate('play')}:null].filter(Boolean)
+  [recommendations.quiz?{key:'quiz',kind:'play',title:quizLabels[recommendations.quiz],detail:'Familienzeit · freiwillige Altersauswahl',open:()=>onNavigate('play','',recommendations.quiz)}:null,recommendations.activity?{key:'activity',kind:'play',title:'Spielideen entdecken',detail:'Zum Beispiel '+recommendations.activity.title+' · ab etwa 4, mit Begleitung',open:()=>onNavigate('play')}:null].filter(Boolean)
  ];
  // Round-robin from different sections; never more than three on the default home.
  const ranked=[]; 
@@ -63,7 +61,7 @@ export default function PersonalizedHome({userId,profile,active,events,partnerEv
    <Pressable accessibilityRole="button" accessibilityLabel="Personalisierung einstellen" accessibilityState={{expanded:editing}} onPress={()=>setEditing(v=>!v)} style={s.settings}><Text style={s.settingText}>{editing?'Schließen':'Anpassen'}</Text></Pressable>
   </View>
   {editing?<View style={s.group}>
-   <Text style={s.text}>Mit eurer freiwillig angegebenen Region, euren Hobbys und optionalen Altersgruppen wählen wir passende Inhalte aus. Keine Auswertung eures Klickverhaltens, keine Weitergabe an die KI.</Text>
+   <Text style={s.text}>Mit eurer freiwillig angegebenen Region, euren Hobbys und optionalen Altersgruppen wählen wir passende Inhalte aus. Keine Auswertung eures Klickverhaltens und keine Weitergabe dieser Angaben an die KI. Ausschalten löscht auch die lokale Altersauswahl.</Text>
    <View style={s.row}><Text style={[s.name,{flex:1}]}>Persönliche Empfehlungen</Text>
     <Switch accessibilityLabel="Persönliche Empfehlungen" disabled={!prefs||busy} value={prefs?.enabled===true} onValueChange={enabled=>change({...prefs,enabled})}/></View>
    {prefs?.enabled?<><Text style={s.heading}>Altersgruppen (optional)</Text><Text style={s.muted}>Mehrfachauswahl ohne Namen oder Geburtsdaten. Nur auf diesem Gerät und für dieses Konto gespeichert.</Text>
