@@ -12,8 +12,8 @@ const highlights=[
 
 export default function WelcomeIntro({visible,onClose}){
   return <Modal visible={!!visible} transparent animationType="fade" onRequestClose={onClose}
-    statusBarTranslucent accessibilityViewIsModal>
-    <View style={styles.overlay}>
+    statusBarTranslucent>
+    <View accessibilityViewIsModal style={styles.overlay}>
       <View style={styles.dialog}>
         <ScrollView contentContainerStyle={styles.content} bounces={false}>
           <View style={styles.sunArea}>
@@ -21,7 +21,7 @@ export default function WelcomeIntro({visible,onClose}){
             <View style={styles.stamp}><Text style={styles.stampTop}>MADE IN</Text><Text style={styles.stampBottom}>GERMANY</Text></View>
           </View>
           <Text style={styles.eyebrow}>SCHÖN, DASS IHR DA SEID!</Text>
-          <Text style={styles.title}>Willkommen bei Familienfunke</Text>
+          <Text accessibilityRole="header" style={styles.title}>Willkommen bei Familienfunke</Text>
           <Text style={styles.subtitle}>Ein Platz für Familien. Ein Funke für neue Freundschaften.</Text>
           <View style={styles.highlights}>
             {highlights.map(([glyph,title,body])=>
