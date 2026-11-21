@@ -1020,9 +1020,9 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     const launch=()=>openBoxEditor({id:'package',listingId:listingDraftId(),title:summary.title,category:summary.category,
       facts:{...EMPTY_FACTS,size:summary.commonSize,detail:summary.detail},description:packageNote(summary.rows),
       photos:matchingBatchPhotos(items,boxBatches),region:boxRegion},ids);
-    if(summary.sized<summary.total&&summary.allClothing){
-      Alert.alert('Noch '+(summary.total-summary.sized)+' Größen offen','Du kannst unbekannte Größen offen lassen oder die Etiketten zuerst lesen. Es wird keine Größe erfunden.',[{text:'Größen ergänzen',style:'cancel'},{text:'Paket weiter erstellen',onPress:launch}]);
-    }else launch();
+    // Unbekannte Größen bleiben ausdrücklich offen – kein unnötiges Bestätigungsfenster.
+    // Die überprüfbare Paketliste ist im nächsten Schritt weiterhin vollständig sichtbar.
+    launch();
   }
   function saveBoxEditor(){
     if(!boxEditor)return;
