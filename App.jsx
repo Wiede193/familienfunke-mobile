@@ -106,7 +106,13 @@ return <Pressable accessibilityRole="button" accessibilityLabel={text} accessibi
 </Pressable>;
 }
 function Card({children,style}) {return <View style={[styles.card,style]}>{children}</View>;}
-function H({children,sub}) {return <View style={{marginBottom:17}}><Text style={styles.h}>{children}</Text>{sub?<Text style={styles.sub}>{sub}</Text>:null}</View>;}
+function H({children,sub}) {return <View style={styles.headingWrap}>
+  <View style={styles.headingBar}/>
+  <View style={{flex:1}}>
+    <Text style={styles.h}>{children}</Text>
+    {sub?<Text style={styles.sub}>{sub}</Text>:null}
+  </View>
+</View>;}
 function Info({children,warning=false}) {return <View style={[styles.info,warning&&styles.warning]}><Text style={[styles.infoText,warning&&{color:C.warningText}]}>{children}</Text></View>;}
 function Avatar({name,size=52,uri}) {return <View style={[styles.avatar,{width:size,height:size,borderRadius:size/2}]}>{uri?<Image source={{uri}} style={{width:size,height:size,borderRadius:size/2}}/>:<Text style={[styles.avatarText,{fontSize:size*.30}]}>{initial(name)}</Text>}</View>;}
 function Row({children,style}) {return <View style={[{flexDirection:'row',alignItems:'center',gap:10},style]}>{children}</View>;}
@@ -508,7 +514,7 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>su
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,tab===id&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,tab===id&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help'].includes(tab)))&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 {reportTarget?<View style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -2068,7 +2074,7 @@ async function submitDraftPhoto(){
 const completed=[form.display_name?.trim().length>=2,!!form.region_label?.trim(),!!form.about?.trim(),(form.interests||[]).length>0].filter(Boolean).length;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 <H sub="Du entscheidest, was andere Familien von euch erfahren.">Mein Familienprofil</H>
-<Card>
+<Card style={{backgroundColor:C.sunPale}}>
 <Row><Avatar size={65} name={profile?.display_name}/><View style={{flex:1}}><Text style={styles.cardTitle}>{profile?.display_name||'Deine Familie'}</Text><Text style={styles.micro}>{active?'✓ Erwachsener geprüft, Profil freigegeben':'⌛ Prüfung oder Freigabe ausstehend'}</Text><Text style={styles.micro}>Mitgliedschaft: {membership?.status||'–'}</Text></View></Row>
 <View style={{marginTop:15}}>
 <Row style={{justifyContent:'space-between',marginBottom:6}}><Text style={styles.label}>Profil gestalten</Text><Text style={styles.micro}>{completed} von 4 freiwilligen Angaben</Text></Row>
@@ -2208,6 +2214,8 @@ heroTitle:{fontSize:28,fontWeight:'900',color:C.ink,letterSpacing:-.8,lineHeight
 heroText:{color:'#66512F',fontSize:14,lineHeight:21,marginTop:10,maxWidth:285},
 heroTagline:{alignSelf:'flex-start',backgroundColor:'#FFFDF3',borderRadius:12,paddingVertical:8,paddingHorizontal:10,marginTop:18},
 heroTaglineText:{color:C.ink,fontSize:11.5,fontWeight:'700'},
+headingWrap:{flexDirection:'row',alignItems:'flex-start',gap:12,marginBottom:17},
+headingBar:{width:5,height:37,borderRadius:4,backgroundColor:C.sun,marginTop:3},
 h:{fontSize:25,fontWeight:'900',color:C.ink,letterSpacing:-.6},
 sub:{fontSize:13.5,lineHeight:21,color:C.muted,marginTop:6},
 body:{fontSize:14.5,lineHeight:22,color:C.ink},
@@ -2228,7 +2236,7 @@ warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
 tabBar:{height:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
-tab:{flex:1,alignItems:'center',paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{fontSize:25,color:'#8E9FA4',fontWeight:'500'},tabLabel:{fontSize:10,color:'#8E9FA4',marginTop:3,fontWeight:'600'},
+tab:{flex:1,alignItems:'center',paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{fontSize:24,color:'#708186',fontWeight:'500'},tabLabel:{fontSize:10.5,color:'#61757A',marginTop:3,fontWeight:'700'},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},
