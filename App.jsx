@@ -16,6 +16,8 @@ import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
 import PushSettings from './PushSettings';
+import NotificationCenterScreen from './NotificationCenterScreen';
+import {useNotificationCenter} from './NotificationCenter';
 import {signOutWithPush} from './PushDevice';
 import FamilyMapScreen from './FamilyMap';
 import {FACT_KEYS,EMPTY_FACTS,DEFECTS,encodeArticleFacts,decodeArticleFacts,articleFactRows} from './MarketArticleFacts';
@@ -184,6 +186,8 @@ const [session,setSession]=useState(undefined);
 const [tab,setTab]=useState('home');
 const [marketIntent,setMarketIntent]=useState(null);
 const [extraReturnTab,setExtraReturnTab]=useState('more');
+const [inboxReturnTab,setInboxReturnTab]=useState('home');
+const [focusContactId,setFocusContactId]=useState(null);
 const [selectedContact,setSelectedContact]=useState(null);
 const [chatReturnTab,setChatReturnTab]=useState('more');
 const [detailFamily,setDetailFamily]=useState(null);
@@ -205,6 +209,8 @@ const [photosUrls,setPhotosUrls]=useState({});
 const [marketPhotoUrls,setMarketPhotoUrls]=useState({});
 const [marketExtraPhotoUrls,setMarketExtraPhotoUrls]=useState({});
 const me=session?.user?.id;
+const accountRef=useRef(me);accountRef.current=me;
+const inbox=useNotificationCenter(me);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
 if(!silent)setLoading(true);
@@ -225,6 +231,7 @@ supabase.from('ff_market_favorites').select('*').eq('user_id',me).limit(800),
 supabase.from('ff_organizations').select('*').order('created_at',{ascending:false}).limit(100),
 supabase.from('ff_partner_events').select('*').order('starts_at',{ascending:true}).limit(100),
 ]);
+if(accountRef.current!==me)return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
 const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketPhotos,marketFavorites,organizations,partnerEvents]=queries;
@@ -238,11 +245,13 @@ const images=await Promise.all((photos.data||[]).map(async(p)=>{
 try {const {data,error:e}=await supabase.storage.from('familienfunke-photos').createSignedUrl(p.storage_path,1800);
 return [p.id,e?null:data?.signedUrl||null];} catch {return [p.id,null];}
 }));
+if(accountRef.current!==me)return null;
 setPhotosUrls(Object.fromEntries(images));
 const marketImages=await Promise.all((listings.data||[]).filter(x=>x.photo_path).map(async(x)=>{
  try {const {data,error:e}=await supabase.storage.from('ff-market-photos').createSignedUrl(x.photo_path,600);return [x.id,e?null:data?.signedUrl||null];}
  catch{return [x.id,null];}
 }));
+if(accountRef.current!==me)return null;
 setMarketPhotoUrls(Object.fromEntries(marketImages));
 const extraImages=await Promise.all((marketPhotos.data||[]).map(async(p)=>{
  try{
@@ -250,9 +259,11 @@ const extraImages=await Promise.all((marketPhotos.data||[]).map(async(p)=>{
    return [p.photo_path,e?null:data?.signedUrl||null];
  }catch{return [p.photo_path,null];}
 }));
+if(accountRef.current!==me)return null;
 setMarketExtraPhotoUrls(Object.fromEntries(extraImages));
-} catch(e){setError(humanError(e));}
-finally{setLoading(false);}
+return {contacts:contacts.data||[],listings:listings.data||[]};
+} catch(e){if(accountRef.current===me)setError(humanError(e));return null;}
+finally{if(accountRef.current===me)setLoading(false);}
 },[me]);
 useEffect(()=>{
 if(!supabase){setSession(null);return;}
@@ -273,6 +284,9 @@ useEffect(()=>{
   setShowInfo(false);
   setShowLoginHelp(false);
   setShowEventForm(false);
+  setMarketIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
+  setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
+  setPhotosUrls({});setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
 },[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
 // Einmalige Begrüßung je Konto auf diesem Gerät. Ein erneuter Aufruf unter „Mehr“ ist jederzeit möglich.
@@ -356,6 +370,38 @@ async function changePassword(password){
 if(password.length<12)throw new Error('Das Passwort braucht mindestens 12 Zeichen.');
 return execute(async()=>assertResult(await supabase.auth.updateUser({password})),'Passwort geändert.');
 }
+function openInbox(){
+  if(tab!=='inbox')setInboxReturnTab(tab==='push'?'more':tab);
+  setDetailFamily(null);setSelectedContact(null);setShowInfo(false);
+  setMarketIntent(null);setFocusContactId(null);setTab('inbox');inbox.refresh();
+}
+async function openInboxEvent(event){
+  try{
+   const {data:row,error:e}=await supabase.from('ff_notifications')
+    .select('id,kind,contact_id,listing_id,listing_status').eq('id',event.id).eq('user_id',me).maybeSingle();
+   if(accountRef.current!==me)return false;
+   if(e)throw e;
+   if(!row){setNotice('Diese Neuigkeit ist nicht mehr verfügbar.');inbox.refresh();return false;}
+   const fresh=await load(true);
+   if(!fresh||accountRef.current!==me)return false;
+   setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);
+   setExtraReturnTab('inbox');
+   if(row.kind==='market'){
+     const listing=fresh.listings.find(x=>x.id===row.listing_id&&x.seller_id===me);
+     if(!listing){setNotice('Die Anzeige ist nicht mehr verfügbar oder befindet sich außerhalb der geladenen Angebote.');return false;}
+     setMarketIntent({type:'inboxListing',id:listing.id});setTab('market');
+   }else{
+     const contact=fresh.contacts.find(c=>c.id===row.contact_id&&(c.sender_id===me||c.recipient_id===me));
+     if(!contact){setNotice('Der Kontakt ist nicht mehr verfügbar.');return false;}
+     if(row.kind==='message'&&contact.status==='accepted'){
+       setChatReturnTab('inbox');setSelectedContact(contact.id);setTab('chat');
+     }else{
+       setFocusContactId(contact.id);setTab('contacts');
+     }
+   }
+   return true;
+  }catch(e){if(accountRef.current===me)setNotice('Neuigkeit konnte nicht geöffnet werden. Bitte erneut versuchen.');return false;}
+}
 function navigateFromHome(id,marketQuery=''){
   const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion'];
   if(!routes.includes(id))return;
@@ -372,9 +418,9 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 </View><TechnicalHelpScreen initialCategory="Anmeldung & Konto"/></>:
 <Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
 </SafeAreaView>;
-const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen'};
+const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push'].includes(tab))setTab(extraReturnTab);}
+function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab))setTab(extraReturnTab);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
@@ -385,7 +431,8 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{detailFamily||selectedContact||showInfo||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" accessibilityLabel="Daten aktualisieren" onPress={()=>load()} small mode="ghost"/>}
+{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><Text style={{fontSize:23,color:C.ink}}>♢</Text>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
+{detailFamily||selectedContact||showInfo||tab==='inbox'||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" accessibilityLabel="Daten aktualisieren" onPress={()=>load()} small mode="ghost"/>}
 </View>
 {error?<Pressable accessibilityRole="button" accessibilityLabel={'Fehlermeldung schließen. '+error} accessibilityLiveRegion="assertive" onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
 {notice?<Pressable accessibilityRole="button" accessibilityLabel={'Hinweis schließen. '+notice} accessibilityLiveRegion="polite" onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
@@ -486,15 +533,16 @@ createPartnerEvent={(v)=>execute(async()=>{
  assertResult(await supabase.from('ff_partner_events').insert({...v,creator_id:me}));
 },'Veranstaltung eingereicht. Sie erscheint nach Freigabe.')}
 openInclusion={()=>setTab('inclusion')}/>:
-tab==='more'?<MoreScreen navigate={setTab} openInfo={()=>setShowInfo(true)} openWelcome={()=>setShowWelcome(true)}/>:
+tab==='more'?<MoreScreen navigate={id=>id==='inbox'?openInbox():setTab(id)} openInfo={()=>setShowInfo(true)} openWelcome={()=>setShowWelcome(true)}/>:
 tab==='inclusion'?<InclusionScreen/>:
 tab==='aboutApp'?<AboutFamilienfunkeScreen/>:
 tab==='help'?<TechnicalHelpScreen/>:
 tab==='push'?<PushSettings key={me} userId={me} active={active}/>:
+tab==='inbox'?<NotificationCenterScreen key={me} inbox={inbox} active={active} onOpen={openInboxEvent} onSettings={()=>{setExtraReturnTab('inbox');setTab('push');}}/>:
 tab==='discover'?<DiscoverScreen matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
 myProfile={myProfile} verification={verification} membership={membership}
 showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked}/>:
-tab==='contacts'?<ContactsScreen pending={pending} accepted={accepted} me={me} nameOf={findName}
+tab==='contacts'?<ContactsScreen focusId={focusContactId} pending={pending} accepted={accepted} me={me} nameOf={findName}
 respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onUnblock={unblockUser}
 onChat={(id)=>{setChatReturnTab('contacts');setSelectedContact(id);setTab('chat');}}/>:
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
@@ -521,7 +569,7 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>si
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push'].includes(tab)))&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push'].includes(tab)))&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)))&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)))&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
@@ -765,6 +813,12 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
     setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');
     setSortBy('relevance');setOnlyMine(false);setOnlyFavorites(false);
     setOpen(false);setBoxOpen(false);setSelectedListing(null);
+  },[entryIntent]);
+  useEffect(()=>{
+    if(entryIntent?.type!=='inboxListing')return;
+    setQuery('');setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');
+    setOnlyMine(true);setOnlyFavorites(false);setOpen(false);setBoxOpen(false);setGalleryIndex(0);
+    setSelectedListing(entryIntent.id);
   },[entryIntent]);
   const [boxSaveError,setBoxSaveError]=useState(false);
   const [boxPending,setBoxPending]=useState(null);
@@ -1845,7 +1899,7 @@ function PartnersScreen({organizations,partnerEvents,me,active,busy,applyOrg,cre
   </ScrollView>;
 }
 function MoreScreen({navigate,openInfo,openWelcome}){
-  const items=[['events','▦','Treffen & Veranstaltungen','Familientreffen planen und gemeinsam etwas unternehmen'],
+  const items=[['inbox','◉','Neuigkeiten','Deine Benachrichtigungen ansehen und verwalten'],['events','▦','Treffen & Veranstaltungen','Familientreffen planen und gemeinsam etwas unternehmen'],
   ['contacts','♡','Kontakte','Kontaktanfragen und Freundschaften verwalten'],
   ['chat','✉','Nachrichten','Private Unterhaltungen mit bestätigten Kontakten'],
   ['push','◉','Benachrichtigungen','Freiwillige Hinweise auf diesem Gerät einstellen'],
@@ -1968,17 +2022,19 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 {photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image accessibilityLabel={photo.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
 </ScrollView>;
 }
-function ContactsScreen({pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat}){
+function ContactsScreen({focusId,pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat}){
+pending=[...pending].sort((a,b)=>Number(b.id===focusId)-Number(a.id===focusId));
+accepted=[...accepted].sort((a,b)=>Number(b.id===focusId)-Number(a.id===focusId));
 const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <H sub="Nachrichten sind erst nach gegenseitiger Bestätigung möglich.">Deine Kontakte</H>
 <Text style={styles.sectionTitle}>Offene Anfragen</Text>
-{pending.length===0?<Blank title="Keine offenen Anfragen" body="Neue Kontaktwünsche erscheinen hier."/>:pending.map(c=><Card key={c.id} style={{marginBottom:10}}>
+{pending.length===0?<Blank title="Keine offenen Anfragen" body="Neue Kontaktwünsche erscheinen hier."/>:pending.map(c=><Card key={c.id} style={{marginBottom:10,borderColor:c.id===focusId?C.accent:C.line,borderWidth:c.id===focusId?2:1}}>
 <Row><Avatar name={nameOf(other(c))}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other(c))}</Text><Text style={styles.micro}>{c.recipient_id===me?'Möchte dich kennenlernen':'Von dir angefragt'}</Text></View></Row>
 <Row style={{marginTop:13}}>{c.recipient_id===me?<><Button title="Annehmen" small disabled={disabled} onPress={()=>respond(c.id,'accepted')} style={{flex:1}}/><Button title="Ablehnen" mode="outline" small disabled={disabled} onPress={()=>respond(c.id,'declined')} style={{flex:1}}/></>:<Button title="Zurückziehen" small mode="outline" disabled={disabled} onPress={()=>respond(c.id,'cancelled')}/>}</Row>
 </Card>)}
 <Text style={styles.sectionTitle}>Bestätigte Kontakte</Text>
-{accepted.length===0?<Blank title="Noch keine Kontakte" body="Bestätigte Familien erscheinen hier."/>:accepted.map(c=>{const uid=other(c);return <Card key={c.id} style={{marginBottom:10}}>
+{accepted.length===0?<Blank title="Noch keine Kontakte" body="Bestätigte Familien erscheinen hier."/>:accepted.map(c=>{const uid=other(c);return <Card key={c.id} style={{marginBottom:10,borderColor:c.id===focusId?C.accent:C.line,borderWidth:c.id===focusId?2:1}}>
 <Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text style={styles.micro}>{blocked(uid)?'Blockiert':'Kontakt bestätigt'}</Text></View></Row>
 <Row style={{marginTop:12}}><Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>{blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:<Button title="Blockieren" small mode="outline" onPress={()=>onBlock(uid)}/>}</Row>
 </Card>;})}
@@ -2219,6 +2275,9 @@ smallBrand:{fontSize:19,fontWeight:'900',color:C.ink,letterSpacing:-.7},tagline:
 loginPage:{flexGrow:1,alignItems:'center',justifyContent:'center',padding:20,backgroundColor:C.bg},
 loginMark:{width:95,height:95,borderRadius:31,backgroundColor:C.sun,alignItems:'center',justifyContent:'center',marginBottom:22,transform:[{rotate:'-7deg'}]},
 topBar:{minHeight:74,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:19,flexDirection:'row',alignItems:'center',gap:10,paddingVertical:8},
+inboxBell:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:14,backgroundColor:C.sunPale},
+inboxBadge:{position:'absolute',top:0,right:0,backgroundColor:C.accentDark,minWidth:20,borderRadius:12,paddingHorizontal:4,paddingVertical:2},
+inboxBadgeText:{fontSize:12,fontWeight:'900',color:C.white,textAlign:'center'},
 headerIdentity:{flex:1,flexDirection:'row',alignItems:'center',gap:10},
 headerHeartBadge:{width:37,height:37,borderRadius:13,backgroundColor:C.sun,alignItems:'center',justifyContent:'center'},
 headerHeart:{fontSize:21,fontWeight:'900',color:'#9A4A43'},
