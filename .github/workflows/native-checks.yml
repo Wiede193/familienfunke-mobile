@@ -29,6 +29,8 @@ jobs:
         run: npm run check:home
       - name: Einheitliches Farbdesign und Lesbarkeit prüfen
         run: npm run check:design
+      - name: Barrierefreiheit für Navigation, Formulare und Screenreader prüfen
+        run: npm run check:accessibility
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen
