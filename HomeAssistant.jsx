@@ -149,23 +149,30 @@ export default function HomeAssistant({onNavigate}){
     const query=needle;
     if(query.length<2||pending.current)return;
     Keyboard.dismiss();setError('');
-    if(!marketIntent){setSearchResult({query,offers:null});return;}
     const request=++requestSeq.current;pending.current=true;setSearchBusy(true);
     try{
-      const {data:rows,error:e}=await supabase.rpc('ff_market_search',{
-        p_query:query.slice(0,160),p_category:'Alle',p_trade_type:'all',
-        p_sort:'relevance',p_limit:5,p_offset:0
-      });
-      if(e||!Array.isArray(rows))throw Error();
+      // Searches run independently, so one unavailable service does not erase other results.
+      const [eventResponse,marketResponse]=await Promise.allSettled([
+        supabase.rpc('ff_search_events',{p_query:query.slice(0,160)}),
+        marketIntent?supabase.rpc('ff_market_search',{
+          p_query:query.slice(0,160),p_category:'Alle',p_trade_type:'all',
+          p_sort:'relevance',p_limit:5,p_offset:0
+        }):Promise.resolve(null)
+      ]);
       if(!alive.current||request!==requestSeq.current)return;
-      const offers=rows.filter(row=>row?.listing?.moderation_status==='approved').map(row=>({
+      const eventData=eventResponse.status==='fulfilled'?eventResponse.value:null;
+      const marketData=marketResponse.status==='fulfilled'?marketResponse.value:null;
+      const eventsError=!eventData||!!eventData.error||!Array.isArray(eventData.data);
+      const events=eventsError?[]:eventData.data.filter(row=>['family','partner'].includes(row.kind)&&row.id&&new Date(row.starts_at)>new Date());
+      const offersError=marketIntent&&(!marketData||!!marketData.error||!Array.isArray(marketData.data));
+      const offers=marketIntent&&!offersError?marketData.data.filter(row=>row?.listing?.moderation_status==='approved').map(row=>({
         id:row.listing.id,title:String(row.listing.title||'').slice(0,100),
         price:row.listing.trade_type==='gift'?'Zu verschenken':row.listing.trade_type==='swap'?'Tausch':
           (Number(row.listing.price_cents||0)/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'})
-      }));
-      setSearchResult({query,offers});
-      AccessibilityInfo.announceForAccessibility(offers.length+' Basar-Treffer in der Vorschau.');
-    }catch{if(alive.current&&request===requestSeq.current)setError('Basar-Treffer konnten nicht geladen werden. Die direkte Basar-Suche bleibt verfügbar.');}
+      })):null;
+      setSearchResult({query,offers,events,eventsError,offersError});
+      AccessibilityInfo.announceForAccessibility(events.length+' Veranstaltungstreffer und '+(offers?.length||0)+' Basar-Treffer in der Vorschau.');
+    }catch{if(alive.current&&request===requestSeq.current)setError('Die Online-Suche konnte nicht geladen werden. App-Bereiche und Katalogorte bleiben verfügbar.');}
     finally{if(alive.current&&request===requestSeq.current){pending.current=false;setSearchBusy(false);}}
   }
   return <ScrollView ref={scrollRef} style={s.page} contentContainerStyle={s.content}
@@ -199,7 +206,7 @@ export default function HomeAssistant({onNavigate}){
           <Text style={s.askButtonLabel}>{busy?'KI antwortet …':'KI fragen'}</Text>
         </Pressable>
       </View>
-      <Text style={s.searchHint}>App-Funktionen, Angebote und Orte finden oder Fragen stellen.</Text>
+      <Text style={s.searchHint}>App-Funktionen, Angebote, Orte und Veranstaltungen finden oder Fragen stellen.</Text>
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
     </View>
     {needle?<View style={s.section}>
@@ -210,6 +217,14 @@ export default function HomeAssistant({onNavigate}){
       {places.map(hit=><Pressable key={hit.id} accessibilityRole="button" accessibilityLabel={hit.title+' auf der Familienkarte öffnen'} onPress={()=>onNavigate('map','',hit.place.id)} style={s.areaRow}>
         <View style={s.areaAccent}/><View style={{flex:1}}><Text style={s.areaTitle}>{hit.title}</Text><Text style={s.areaSubtitle}>{hit.subtitle}</Text></View><Text style={s.areaArrow}>›</Text>
       </Pressable>)}</>:null}
+      {visibleSearch?.eventsError?<Text style={s.mutedSmall}>Veranstaltungen konnten gerade nicht geladen werden.</Text>:null}
+      {visibleSearch?.events&&!visibleSearch.eventsError?<View style={s.offerGroup}>
+        <Text accessibilityRole="header" style={s.offerHeading}>Anstehende Veranstaltungen</Text>
+        {visibleSearch.events.length?visibleSearch.events.map(event=><Pressable key={event.kind+event.id} accessibilityRole="button" accessibilityLabel={event.title+' öffnen'} onPress={()=>onNavigate(event.kind==='family'?'events':'partners','',event.id)} style={s.offerItem}>
+          <Text style={s.offerTitle}>{event.title}</Text><Text style={s.mutedSmall}>{event.kind==='family'?'Familientreffen':'Partnerveranstaltung'} · {event.region_label||'Region nach Absprache'}</Text><Text style={s.offerPrice}>{new Date(event.starts_at).toLocaleString('de-DE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</Text>
+        </Pressable>):<Text style={s.mutedSmall}>Keine passenden bevorstehenden Veranstaltungen gefunden.</Text>}
+      </View>:null}
+      {visibleSearch?.offersError?<Text style={s.mutedSmall}>Basar-Treffer konnten gerade nicht geladen werden.</Text>:null}
       {visibleSearch?.offers?<View style={s.offerGroup}>
         <Text style={s.offerHeading}>Freigegebene Basar-Angebote (Vorschau)</Text>
         {visibleSearch.offers.length?visibleSearch.offers.map(offer=><Pressable key={offer.id} accessibilityRole="button" accessibilityLabel={offer.title+' im Basar suchen'} onPress={()=>onNavigate('market',needle)} style={s.offerItem}>
@@ -217,8 +232,8 @@ export default function HomeAssistant({onNavigate}){
         </Pressable>):<Text style={s.mutedSmall}>Keine passenden freigegebenen Angebote gefunden.</Text>}
         <Pressable accessibilityRole="button" onPress={()=>onNavigate('market',needle)} style={s.answerAction}><Text style={s.answerActionLabel}>Alle Basar-Ergebnisse ansehen ›</Text></Pressable>
       </View>:null}
-      {!matches.length&&!places.length&&!visibleSearch?.offers?<Text style={s.empty}>Keine direkten Treffer. Stelle deine Frage der KI oder ändere die Suche.</Text>:null}
-      {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>Tippe auf „Suchen“, um aktuelle Basar-Angebote abzurufen.</Text>:null}
+      {!matches.length&&!places.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Stelle deine Frage der KI oder ändere die Suche.</Text>:null}
+      {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>Tippe auf „Suchen“, um aktuelle Basar-Angebote und Termine abzurufen.</Text>:null}
     </View>:null}
     {conversation.length?<View style={s.section}>
       <View style={s.replyHeader}>
