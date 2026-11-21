@@ -2,10 +2,11 @@ import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {ActivityIndicator,Alert,Linking,Pressable,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
 import {WebView} from 'react-native-webview';
 import {supabase} from './supabase';
+import {FAMILY_COLORS} from './FamilyTheme';
 import {CURATED_REGION,CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {NATIONAL_FAMILY_PLACES,NATIONAL_TYPES,NATIONAL_AREAS} from './FamilyMapNational';
 
-const C={bg:'#FFF9F3',paper:'#FFFFFF',ink:'#193C48',muted:'#647D82',teal:'#087F87',dark:'#075D67',pale:'#E4F5F1',sun:'#FFE4AA',coral:'#EE7867',line:'#F0E5DC'};
+const C=FAMILY_COLORS;
 const TYPES=[['all','Alle','◎'],['playground','Spielplätze','♧'],['changing','Wickeltische','♡'],['outing','Ausflüge','✿'],['other','Sonstiges','◇']];
 const CENTERS=[
   {name:'Fürstenwalde',lat:52.36,lon:14.06},
@@ -424,7 +425,7 @@ const styles=StyleSheet.create({
  navigationApple:{flex:1,minHeight:48,backgroundColor:C.paper,borderRadius:14,justifyContent:'center',alignItems:'center',paddingHorizontal:8,paddingVertical:11,borderWidth:1,borderColor:C.teal},
  navigationGoogleText:{fontSize:13,fontWeight:'900',color:C.paper},
  navigationAppleText:{fontSize:13,fontWeight:'900',color:C.dark},
- hero:{backgroundColor:'#FFF0CF',borderRadius:23,padding:19,marginBottom:12},
+ hero:{backgroundColor:C.sun,borderRadius:25,padding:19,marginBottom:12},
  eyebrow:{fontSize:10,fontWeight:'900',color:C.dark,letterSpacing:1.3,marginBottom:6},
  title:{fontSize:25,fontWeight:'900',color:C.ink},
  sub:{fontSize:13.5,color:C.ink,lineHeight:20,marginTop:7},
