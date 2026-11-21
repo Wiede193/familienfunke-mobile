@@ -5,7 +5,7 @@ const source=readFileSync(new URL('../HomeNavigation.js',import.meta.url),'utf8'
 const {HOME_ROUTES,HOME_PAGE_IDS,findHomeRoutes}=await import(
   'data:text/javascript;base64,'+Buffer.from(source).toString('base64')
 );
-assert.equal(HOME_ROUTES.length,17,'Expected 17 real, navigable functions');
+assert.equal(HOME_ROUTES.length,18,'Expected 18 real, navigable functions');
 assert.equal(new Set(HOME_PAGE_IDS).size,HOME_PAGE_IDS.length,'Page IDs must be unique');
 for(const [phrase,id] of [
   ['Kistenmodus','box'],
@@ -21,7 +21,8 @@ for(const [phrase,id] of [
   ['Kinderhose','market'],
   ['Benachrichtigungen löschen','inbox'],
   ['Push deaktivieren','push'],
-  ['Chat','chat']
+  ['Chat','chat'],
+  ['Mein Familienkalender','calendar']
 ]){
   assert.equal(findHomeRoutes(phrase)[0]?.id,id,'Wrong landing page for: '+phrase);
 }
