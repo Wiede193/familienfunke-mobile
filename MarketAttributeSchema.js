@@ -1,4 +1,4 @@
-import {collectMarketSizeLabels} from './MarketListingFilters';
+import {collectMarketSizeLabels} from './MarketListingFilters.js';
 
 export const MARKET_ITEM_TYPES={
   Kleidung:['Body','Strampler','T-Shirt','Langarmshirt','Hemd','Bluse','Pullover','Sweatshirt','Hoodie','Hose','Jeans','Leggings','Shorts','Kleid','Rock','Jacke','Weste','Overall','Schlafanzug','Unterwäsche','Socken','Strumpfhose','Mütze','Schuhe','Sonstige Kleidung'],
