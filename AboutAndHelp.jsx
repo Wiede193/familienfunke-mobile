@@ -60,7 +60,7 @@ export function AboutFamilienfunkeScreen(){
   return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
     <View style={styles.hero}>
       <View style={styles.pill}><Text style={styles.pillText}>UNSERE GESCHICHTE</Text></View>
-      <Text style={styles.heroTitle}>Aus Nachbarschaft wird Freundschaft.</Text>
+      <Text accessibilityRole="header" style={styles.heroTitle}>Aus Nachbarschaft wird Freundschaft.</Text>
       <Text style={styles.heroSub}>Warum wir Familienfunke ins Leben gerufen haben.</Text>
     </View>
     <Block title="Die Idee begann im Familienalltag">
@@ -87,7 +87,7 @@ export function TechnicalHelpScreen({initialCategory='Alle'}){
   const categories=useMemo(()=>['Alle',...new Set(topics.map(t=>t[0]))],[]);
   const results=useMemo(()=>topics.filter(([c,q,a])=>(category==='Alle'||category===c)&&normalized(q+' '+a).includes(normalized(search.trim()))),[category,search]);
   return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-    <Text style={styles.h}>Hilfe & FAQ</Text>
+    <Text accessibilityRole="header" style={styles.h}>Hilfe & FAQ</Text>
     <Text style={[styles.caption,{marginBottom:17}]}>Schritt für Schritt durch Familienfunke. Suche nach einer Funktion oder wähle ein Thema.</Text>
     <View style={styles.card}>
       <Text style={styles.label}>Wie können wir dir helfen?</Text>
@@ -103,12 +103,12 @@ export function TechnicalHelpScreen({initialCategory='Alle'}){
         <Text style={[styles.chipText,category===c&&{color:C.white}]}>{c}</Text>
       </Pressable>)}
     </ScrollView>
-    <Text style={[styles.caption,{marginBottom:10}]}>{results.length} {results.length===1?'Antwort':'Antworten'} gefunden</Text>
+    <Text accessibilityLiveRegion="polite" style={[styles.caption,{marginBottom:10}]}>{results.length} {results.length===1?'Antwort':'Antworten'} gefunden</Text>
     {results.length===0?<Block title="Keine passende Frage gefunden">Versuche es mit einem anderen Suchbegriff oder wähle „Alle“.</Block>:null}
     {results.map(([c,q,a])=><Pressable key={q} accessibilityRole="button"
       accessibilityLabel={q} accessibilityState={{expanded:open===q}}
       onPress={()=>setOpen(open===q?null:q)}
-      style={styles.card}>
+      style={[styles.card,{minHeight:48}]}>
       <View style={styles.questionRow}>
         <View style={{flex:1}}><Text style={styles.overline}>{c}</Text><Text style={styles.question}>{q}</Text></View>
         <Text style={styles.toggle}>{open===q?'−':'+'}</Text>
@@ -134,7 +134,7 @@ const styles=StyleSheet.create({
   label:{fontSize:13,fontWeight:'800',color:C.ink,marginBottom:9},
   input:{minHeight:50,borderWidth:1,borderColor:'#D0DFDE',borderRadius:15,paddingHorizontal:14,fontSize:15,color:C.ink,backgroundColor:C.white},
   categories:{gap:8,paddingVertical:5,paddingBottom:15},
-  chip:{borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,borderRadius:22,paddingHorizontal:14,paddingVertical:11,minHeight:42},
+  chip:{borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,borderRadius:22,paddingHorizontal:14,paddingVertical:11,minHeight:44},
   activeChip:{backgroundColor:C.accentDark,borderColor:C.accentDark},
   chipText:{color:C.accentDark,fontWeight:'800',fontSize:12.5},
   questionRow:{flexDirection:'row',alignItems:'flex-start',gap:10},
