@@ -298,13 +298,30 @@ const matches=useMemo(()=>db.profiles.filter(p=>p.user_id!==me&&p.moderation_sta
 .map(p=>({...p,match:(p.interests||[]).filter(x=>myProfile?.interests?.includes(x)).length,localMatch:sameRegion(p.region_label,myProfile?.region_label)}))
 .sort((a,b)=>Number(b.localMatch)-Number(a.localMatch)||b.match-a.match||String(a.display_name).localeCompare(String(b.display_name))),[db.profiles,me,myProfile]);
 async function reviewMarketListing(listingId){
- const {data:review,error:reviewError}=await supabase.functions.invoke('ff-market-review',{body:{listing_id:listingId}});
- if(!reviewError&&review?.status==='approved')setNotice('Deine Anzeige wurde geprüft und ist jetzt sichtbar.');
- else if(!reviewError&&review?.status==='rejected'){
+ let review,reviewError;
+ try{
+   ({data:review,error:reviewError}=await supabase.functions.invoke('ff-market-review',{body:{listing_id:listingId}}));
+ }catch(e){reviewError=e;}
+ if(reviewError){
+   setNotice('Anzeige gespeichert, aber die automatische KI-Prüfung ist gerade nicht verfügbar. Unter „Meine“ kannst du die Prüfung erneut starten.');
+   return 'error';
+ }
+ if(review?.status==='approved'){
+   setNotice('Die KI hat deine Anzeige geprüft. Sie ist jetzt veröffentlicht.');
+   return 'approved';
+ }
+ if(review?.status==='rejected'){
    setNotice(review.reason==='live_animal'
      ?'Lebende Tiere dürfen nicht angeboten oder vermittelt werden. Die Anzeige wurde abgelehnt.'
-     :'Die Anzeige wurde aufgrund der Basar-Regeln nicht freigegeben.');
- }else setNotice('Deine Anzeige ist gespeichert und bleibt bis zur Freigabe in Prüfung.');
+     :'Die Anzeige verstößt nach der automatischen Prüfung gegen unsere Basar-Regeln und wurde nicht freigegeben.');
+   return 'rejected';
+ }
+ if(review?.status==='review_required'){
+   setNotice('Die KI konnte keine sichere Freigabe erteilen. Die Anzeige bleibt für andere verborgen und muss gesondert geprüft werden.');
+   return 'review_required';
+ }
+ setNotice('Die Anzeige ist gespeichert, aber noch nicht veröffentlicht. Die KI-Prüfung kann unter „Meine“ erneut gestartet werden.');
+ return 'pending';
 }
 async function execute(fn,success){
 if(busy)return;
@@ -444,6 +461,11 @@ toggleFavorite={(listingId,isFavorite)=>execute(async()=>{
  else assertResult(await supabase.from('ff_market_favorites').insert({user_id:me,listing_id:listingId}));
 },isFavorite?'Aus der Merkliste entfernt.':'In deiner Merkliste gespeichert.')}
 markListingSold={(id)=>execute(async()=>{const {data,error:e}=await supabase.rpc('ff_market_mark_sold',{p_listing_id:id});if(e)throw e;if(data!==true)throw new Error('Das Inserat konnte nicht abgeschlossen werden. Bitte aktualisiere den Basar.');},'Angebot abgeschlossen. Es ist für andere nicht mehr sichtbar.')}
+retryReview={(id)=>execute(async()=>{
+ const ownPending=db.listings.some(x=>x.id===id&&x.seller_id===me&&x.moderation_status==='pending');
+ if(!ownPending)throw new Error('Nur eine eigene, noch nicht veröffentlichte Anzeige kann erneut geprüft werden.');
+ await reviewMarketListing(id);
+})}
 onContact={sendRequest} onChat={(cid)=>{setChatReturnTab('market');setSelectedContact(cid);setTab('chat');}} nameOf={findName} blocked={blocked}/>:
 tab==='partners'?<PartnersScreen organizations={db.organizations} partnerEvents={db.partnerEvents}
 me={me} active={active} busy={busy}
@@ -653,7 +675,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
     </View>:null}
   </View>;
 }
-function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,onContact,onChat,nameOf,blocked}){
+function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked}){
   const [open,setOpen]=useState(false);
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('Alle');
@@ -1584,7 +1606,10 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
           <Text style={styles.sectionTitle}>Anbieter</Text>
           <Text style={styles.body}>{seller.seller}{seller.org?' ✦':''}</Text>
           <Text style={[styles.micro,{marginTop:4}]}>Grobe Region: {selected.region_label||'auf Anfrage'}</Text>
-          {seller.own&&selected.moderation_status==='pending'?<Info warning>Dein Inserat wartet auf Freigabe und ist nur für dich sichtbar.</Info>:null}
+          {seller.own&&selected.moderation_status==='pending'?<Info warning>Deine Anzeige ist noch nicht veröffentlicht. Die KI prüft automatisch; falls die Prüfung fehlschlägt, kannst du sie erneut starten. Unklare Fälle bleiben zurückgehalten.</Info>:null}
+          {seller.own&&selected.moderation_status==='pending'?
+            <View style={{marginTop:12}}><Button title="KI-Prüfung erneut starten" mode="outline"
+              disabled={busy||!active} onPress={()=>retryReview(selected.id)}/></View>:null}
           {seller.own&&selected.moderation_status==='sold'?<Info>Dieses Angebot ist vergeben und für andere nicht mehr sichtbar. Eine Zahlung über die App hat nicht stattgefunden.</Info>:null}
           {seller.own&&selected.moderation_status==='rejected'?<Info warning>Dein Inserat wurde nicht freigegeben.</Info>:null}
           {seller.own&&selected.moderation_status==='removed'?<Info warning>Dieses Inserat wurde entfernt.</Info>:null}
