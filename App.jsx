@@ -15,7 +15,7 @@ import WelcomeIntro from './WelcomeIntro';
 import FamilyGuideScreen from './FamilyGuide';
 import FamilyMapScreen from './FamilyMap';
 import {FACT_KEYS,EMPTY_FACTS,DEFECTS,encodeArticleFacts,decodeArticleFacts,articleFactRows} from './MarketArticleFacts';
-import {compactBoxDetail,summarizeBox,packageNote,parsePackageNote,labelSource} from './MarketBoxPackage';
+import {compactBoxDetail,summarizeBox,packageNote,packagePersonalLimit,parsePackageNote,labelSource} from './MarketBoxPackage';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
@@ -681,6 +681,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [boxBulkSize,setBoxBulkSize]=useState('');
   const [boxImageFrame,setBoxImageFrame]=useState({width:0,height:0});
   const boxSummary=useMemo(()=>summarizeBox(boxDrafts),[boxDrafts]);
+  const packageForm=boxEditor?.packageIds?parsePackageNote(description):null;
   const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
   const favoriteIds=new Set(favorites.map(x=>x.listing_id));
   const editingListing=editingId?listings.find(x=>x.id===editingId&&x.seller_id===me):null;
@@ -816,7 +817,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       Alert.alert('Etikett: '+(d.title||'Artikel'),lines+'\n\nStimmen die Angaben und gehört das Etikett zu diesem Artikel?',[
         {text:'Verwerfen',style:'cancel'},
         {text:'Übernehmen',onPress:()=>{
-          const detail=compactBoxDetail({...d,material:result.material||d.material,detail:d.facts.detail});
+          const detail=result.material?('Material: '+result.material+' · '+d.facts.detail).slice(0,100):d.facts.detail;
           updateBoxDraft(d.id,{sizeEvidence:result.size?'label':d.sizeEvidence,material:result.material||d.material||''},{
             ...(result.size?{size:result.size}:{}),...(result.brand?{brand:result.brand}:{}),detail
           });
@@ -905,6 +906,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   }
   async function submit(){
     if(!active||scanBusy)return;
+    if(boxEditor?.packageIds&&(!packageForm||packageForm.rows.length!==boxEditor.packageIds.length))return Alert.alert('Paket prüfen','Bitte kehre zur Kiste zurück und erstelle die Paketliste erneut.');
     if(boxEditor&&!photo.length)return Alert.alert('Artikelfoto fehlt',boxEditor.packageIds?'Bitte füge ein Foto des vollständigen Pakets hinzu.':'Bitte füge ein eigenes Foto dieses einzelnen Artikels hinzu.');
     if(!['Neu','Sehr gut','Gut','Gebraucht'].includes(condition))return Alert.alert('Zustand wählen','Wie ist der tatsächliche Zustand des Artikels?');
     if(quick&&!DEFECTS.includes(facts.defect))return Alert.alert('Mängel angeben','Bitte wähle, ob Mängel bekannt sind.');
@@ -1015,6 +1017,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Text style={[styles.body,{fontWeight:'800',marginTop:4}]}>{d.title||'Neuer Artikel'}</Text>
         <Text style={styles.micro}>{[d.category,d.facts.color,d.pattern].filter(Boolean).join(' · ')}</Text>
         {d.facts.detail?<Text style={[styles.micro,{marginTop:4}]}>{d.facts.detail}</Text>:null}
+        {d.facts.brand?<Text style={styles.micro}>Marke: {d.facts.brand}</Text>:null}
+        {d.material?<Text style={styles.micro}>Etikettmaterial: {d.material}</Text>:null}
         <Text style={[styles.micro,{marginTop:6,color:d.facts.size?C.accentDark:C.warningText}]}>{d.facts.size?'Gr. '+d.facts.size+' · ':''}{labelSource(d)}</Text>
         {!d.facts.size&&d.relativeSize?<Text style={[styles.micro,{marginTop:5}]}>Nur Größenvergleich: {d.relativeSize}</Text>:null}
         {d.uncertainty?<Text style={[styles.micro,{marginTop:5,color:C.warningText}]}>Bitte prüfen: {d.uncertainty}</Text>:null}
@@ -1085,7 +1089,12 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       </View>:null}
       <Input label="Anzeigentitel" value={title} onChangeText={v=>{setTitle(v);setConfirmed(false);}} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
       <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={v=>{setCategory(v);setConfirmed(false);}} options={MARKET_CATEGORIES}/>
-      {quick?<View style={{marginBottom:12}}>
+      {packageForm?<View style={{marginBottom:14,padding:13,borderRadius:15,backgroundColor:'#FFF4DA'}}>
+        <Text style={styles.sectionTitle}>Dein Paket · {packageForm.rows.length} Teile</Text>
+        {packageForm.rows.map((line,i)=><Text key={i} style={[styles.body,{paddingVertical:5,borderBottomWidth:1,borderBottomColor:C.line}]}>{line}</Text>)}
+        <Text style={[styles.micro,{marginTop:8}]}>{facts.size?'Gemeinsame Größe: '+facts.size:'Einzelgrößen stehen beim jeweiligen Teil.'}</Text>
+        <Button title="Paketinhalt ändern" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={saveBoxEditor}/>
+      </View>:quick?<View style={{marginBottom:12}}>
         <Text style={styles.sectionTitle}>Artikel-Steckbrief</Text>
         <Text style={[styles.micro,{marginBottom:12}]}>Unbekanntes darf leer bleiben. Falsche Vorschläge korrigieren oder löschen.</Text>
         {scanned&&!expandFacts?<View style={{borderWidth:1,borderColor:C.line,borderRadius:12,padding:11,marginBottom:12}}>
@@ -1109,8 +1118,9 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Chip text="Verschenken" selected={trade==='gift'} onPress={()=>{setTrade('gift');setConfirmed(false);}}/>
         <Chip text="Tauschen" selected={trade==='swap'} onPress={()=>{setTrade('swap');setConfirmed(false);}}/>
       </View>
-      {trade==='sell'?<Input label="Preis in €" value={price} onChangeText={v=>{setPrice(v);setConfirmed(false);}} keyboardType="decimal-pad" placeholder="z. B. 12,50"/>:null}
-      <Text style={styles.label}>Zustand</Text>
+      {trade==='sell'?<Input label={packageForm?"Gesamtpreis des Pakets in €":"Preis in €"} value={price} onChangeText={v=>{setPrice(v);setConfirmed(false);}} keyboardType="decimal-pad" placeholder="z. B. 12,50"/>:null}
+      <Text style={styles.label}>{packageForm?'Zustand des gesamten Pakets':'Zustand'}</Text>
+      {packageForm?<Text style={[styles.micro,{marginBottom:7}]}>Bei unterschiedlichem Zustand bitte die schwächste zutreffende Zustandsnote wählen und Abweichungen unten angeben.</Text>:null}
       <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
         {['Neu','Sehr gut','Gut','Gebraucht'].map(x=><Chip key={x} text={x} selected={condition===x} onPress={()=>{setCondition(x);setConfirmed(false);}}/>)}
       </View>
@@ -1120,7 +1130,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           {DEFECTS.map(x=><Chip key={x} text={x} selected={facts.defect===x} onPress={()=>changeFact('defect',x)}/>)}
         </View>
         {facts.defect==='Vorhanden'?<Input label="Welche Mängel?" value={facts.defectText} onChangeText={v=>changeFact('defectText',v)} maxLength={180} multiline placeholder="z. B. kleiner Fleck am Ärmel"/>:null}
-        <Input label={boxEditor?.packageIds?"Paketinhalt & persönliche Notiz":"Deine persönliche Notiz (optional)"} multiline value={description} onChangeText={v=>{setDescription(v);setConfirmed(false);}} maxLength={900} placeholder="Was möchtest du persönlich ergänzen?"/>
+        {packageForm?<Input label="Deine persönliche Notiz (optional)" multiline value={packageForm.personal} onChangeText={v=>{setDescription(packageNote(packageForm.rows,v));setConfirmed(false);}} maxLength={packagePersonalLimit(packageForm.rows)} placeholder="z. B. alles zusammen abzugeben"/>:<Input label="Deine persönliche Notiz (optional)" multiline value={description} onChangeText={v=>{setDescription(v);setConfirmed(false);}} maxLength={900} placeholder="Was möchtest du persönlich ergänzen?"/>}
       </View>:<Input label="Beschreibung" multiline value={description} onChangeText={setDescription} maxLength={1500} placeholder="Größe, Farbe, Zustand, Abholung …"/>}
       <Input label="Ort / Region – keine Privatadresse" value={region} onChangeText={v=>{setRegion(v);setConfirmed(false);}} maxLength={80} placeholder="z. B. Fürstenwalde/Spree"/>
       {myOrgs.length>0&&!editingId?<><Text style={styles.label}>Anbieten als</Text><View style={[styles.chipsRow,{marginTop:0,marginBottom:15}]}>
@@ -1130,7 +1140,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <Info>Erlaubt sind auch Kuscheltiere, Tierfiguren und eindeutig harmloses Kinderspielzeug. Echte Tiere sind bei uns ausnahmslos verboten – ebenso Waffen, Drogen, Medikamente, 18+-Waren und andere gefährliche oder illegale Artikel. Die Anzeige erscheint erst nach Prüfung.</Info>
       {quick?<Pressable accessibilityRole="checkbox" accessibilityState={{checked:confirmed}} onPress={()=>setConfirmed(v=>!v)} style={{flexDirection:'row',gap:10,padding:12,marginBottom:12,borderRadius:12,borderWidth:1,borderColor:C.line}}>
         <Text style={{fontSize:19,color:C.accentDark}}>{confirmed?'☑':'☐'}</Text>
-        <Text style={[styles.body,{flex:1}]}>Ich habe die Angaben geprüft. Der Steckbrief beschreibt meinen Artikel korrekt.</Text>
+        <Text style={[styles.body,{flex:1}]}>Ich habe die Angaben geprüft. Der Steckbrief beschreibt mein Angebot korrekt.</Text>
       </Pressable>:null}
       <Button title={busy?'Wird gespeichert …':editingId?'Änderungen zur Prüfung einreichen':'Anzeige kostenlos einreichen'} disabled={busy||choosing||scanBusy||!active||(quick&&!confirmed)} onPress={submit}/>
       {boxEditor?<Button title="Entwurf behalten und zurück zur Kiste" mode="outline" disabled={busy||choosing||scanBusy} onPress={saveBoxEditor}/>:null}
