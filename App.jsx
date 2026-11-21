@@ -803,7 +803,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(boxPackageDraft){openBoxEditor(boxPackageDraft,boxDrafts.map(d=>d.id));return;}
     const sameCategory=boxDrafts.every(d=>d.category===boxDrafts[0].category);
     const category=sameCategory?boxDrafts[0].category:'Sonstiges';
-    const details=boxDrafts.map((d,i)=>[String(i+1)+'.',d.title||'Artikel',d.facts.size?'Gr. '+d.facts.size:'',d.facts.color].filter(Boolean).join(' ')).join('\n');
+    const details=boxDrafts.map((d,i)=>[String(i+1)+'.',safeString(d.title||'Artikel',45),d.facts.size?'Gr. '+safeString(d.facts.size,18):'',safeString(d.facts.color,15)].filter(Boolean).join(' ')).join('\n');
     openBoxEditor({id:'package',title:boxDrafts.length+'-teiliges '+(category==='Kleidung'?'Kleidungspaket':'Familienpaket'),
       category,facts:{...EMPTY_FACTS,detail:boxDrafts.length+' Artikel'},description:details.slice(0,900),
       photos:boxGroupReusable&&boxPhoto?[boxPhoto]:[],region:boxRegion},boxDrafts.map(d=>d.id));
@@ -812,7 +812,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(!boxEditor)return;
     const draft={id:boxEditor.id,title,category,facts:{...facts},photos:[...photo],condition,trade,price,description,region,organizationId};
     if(boxEditor.packageIds)setBoxPackageDraft(draft);
-    else setBoxDrafts(old=>old.map(d=>d.id===draft.id?{...d,...draft}:d));
+    else {setBoxDrafts(old=>old.map(d=>d.id===draft.id?{...d,...draft}:d));setBoxPackageDraft(null);}
     if(region.trim())setBoxRegion(region.trim());
     resetForm();setOpen(false);setBoxOpen(true);
   }
@@ -1027,7 +1027,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           {DEFECTS.map(x=><Chip key={x} text={x} selected={facts.defect===x} onPress={()=>changeFact('defect',x)}/>)}
         </View>
         {facts.defect==='Vorhanden'?<Input label="Welche Mängel?" value={facts.defectText} onChangeText={v=>changeFact('defectText',v)} maxLength={180} multiline placeholder="z. B. kleiner Fleck am Ärmel"/>:null}
-        <Input label="Deine persönliche Notiz (optional)" multiline value={description} onChangeText={v=>{setDescription(v);setConfirmed(false);}} maxLength={900} placeholder="Was möchtest du persönlich ergänzen?"/>
+        <Input label={boxEditor?.packageIds?"Paketinhalt & persönliche Notiz":"Deine persönliche Notiz (optional)"} multiline value={description} onChangeText={v=>{setDescription(v);setConfirmed(false);}} maxLength={900} placeholder="Was möchtest du persönlich ergänzen?"/>
       </View>:<Input label="Beschreibung" multiline value={description} onChangeText={setDescription} maxLength={1500} placeholder="Größe, Farbe, Zustand, Abholung …"/>}
       <Input label="Ort / Region – keine Privatadresse" value={region} onChangeText={v=>{setRegion(v);setConfirmed(false);}} maxLength={80} placeholder="z. B. Fürstenwalde/Spree"/>
       {myOrgs.length>0&&!editingId?<><Text style={styles.label}>Anbieten als</Text><View style={[styles.chipsRow,{marginTop:0,marginBottom:15}]}>
@@ -1043,7 +1043,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       {boxEditor?<Button title="Entwurf behalten und zurück zur Kiste" mode="outline" disabled={busy||choosing||scanBusy} onPress={saveBoxEditor}/>:null}
       {!editingId&&!boxEditor?<Button title="Viele Artikel? Zum Kistenmodus" mode="ghost" disabled={busy||choosing||scanBusy} onPress={()=>Alert.alert('Zum Kistenmodus wechseln?','Die Angaben dieser einzelnen Anzeige werden verworfen.',[{text:'Abbrechen',style:'cancel'},{text:'Wechseln',onPress:()=>{resetForm();showBox();}}])}/>:null}
     </Card>:null}
-    {selected?<View>
+    {!boxOpen&&!boxEditor&&selected?<View>
       <Pressable accessibilityRole="button" onPress={()=>setSelectedListing(null)} style={{marginBottom:14,paddingVertical:8}}>
         <Text style={{color:C.accentDark,fontWeight:'800',fontSize:15}}>‹ Zurück zu den Anzeigen</Text>
       </Pressable>
@@ -1107,7 +1107,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         </View>;})()}
         <Text style={[styles.micro,{marginTop:20}]}>Keine Zahlung über Familienfunke möglich. Prüfe Artikel und Übergabe sorgfältig.</Text>
       </Card>
-    </View>:<>
+    </View>:!boxOpen&&!boxEditor?<>
       <View style={styles.marketSearchBox}>
         <Text style={{fontSize:19,color:C.accentDark,marginRight:10}}>⌕</Text>
         <TextInput accessibilityLabel="Angebote durchsuchen" style={styles.marketSearchInput}
@@ -1173,7 +1173,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           </Pressable>;
         })}
         </View>}
-    </>}
+    </>:null}
   </ScrollView>;
 }
 function MarketSortSelect({value,onChange}){
