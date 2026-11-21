@@ -55,3 +55,39 @@ export function labelSource(draft){
   default:return 'Größenangabe prüfen';
  }
 }
+
+// A box can contain several distinct photo groups; each individual listing remains capped at ten items.
+export const BOX_MAX_ITEMS=30;
+export const BOX_MAX_BATCHES=5;
+export const BOX_MAX_PACKAGE=10;
+export function sizeGroups(drafts){
+ const groups=new Map();
+ for(const d of drafts){
+   if(d.category!=='Kleidung')continue;
+   const size=brief(d.facts?.size,40);
+   if(!size)continue;
+   if(!groups.has(size))groups.set(size,[]);
+   groups.get(size).push(d.id);
+ }
+ return [...groups].sort(([a],[b])=>a.localeCompare(b,'de',{numeric:true})).map(([size,ids])=>({size,ids}));
+}
+export function matchingBatchPhotos(drafts,batches){
+ const selected=new Set(drafts.map(d=>d.id)),covered=new Set(),photos=[];
+ for(const batch of batches){
+   if(!batch.reusable||!batch.photo?.uri||!batch.ids?.length)continue;
+   if(!batch.ids.every(id=>selected.has(id)))continue;
+   if(batch.ids.some(id=>covered.has(id)))return [];
+   for(const id of batch.ids)covered.add(id);
+   photos.push(batch.photo);
+ }
+ return selected.size>0&&covered.size===selected.size&&photos.length<=5?photos:[];
+}
+export function sameBoxSelection(a,b){
+ return Array.isArray(a)&&Array.isArray(b)&&a.length===b.length&&new Set(a).size===a.length&&a.every(id=>b.includes(id));
+}
+// IDs are not secrets and do not confer access; database RLS still checks seller ownership.
+export function listingDraftId(){
+ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+   const r=Math.floor(Math.random()*16);return (c==='x'?r:((r&3)|8)).toString(16);
+ });
+}
