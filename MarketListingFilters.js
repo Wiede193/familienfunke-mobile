@@ -14,7 +14,11 @@ export function marketListingSizes(listing){
 }
 
 export function marketMatchesSize(listing,selected){
-  return !selected||selected==='Alle'||marketListingSizes(listing).some(size=>normalize(size)===normalize(selected));
+  const requested=normalize(selected);
+  return !selected||selected==='Alle'||marketListingSizes(listing).some(size=>{
+    const actual=normalize(size);
+    return actual===requested||(actual.includes('/')&&actual.split('/').includes(requested));
+  });
 }
 
 export function marketMatchesRegion(listing,selected){
