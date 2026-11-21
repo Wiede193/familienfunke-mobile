@@ -10,7 +10,8 @@
     "check": "expo install --check",
     "fix": "expo install --fix",
     "check:box-ux": "node tests/check-box-ux.mjs",
-    "check:home": "node tests/check-home-assistant.mjs"
+    "check:home": "node tests/check-home-assistant.mjs",
+    "check:market-search": "node tests/check-market-search.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
