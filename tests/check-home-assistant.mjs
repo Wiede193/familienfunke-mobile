@@ -88,3 +88,46 @@ assert.match(server,/ff_app_assistant_claim/,'Budget check must be mandatory');
 assert.match(server,/store:false/,'Do not opt in to provider response storage');
 assert.match(server,/Cache-Control":"no-store"/,'Do not cache private answers');
 console.log('KI-Startseite: navigation, deep links, privacy and API contracts passed');
+
+const personal=await import('data:text/javascript;base64,'+Buffer.from(readFileSync(new URL('../HomePersonalization.js',import.meta.url),'utf8')).toString('base64'));
+const {recommendHome,sanitizeHomePrefs,sameHomeRegion}=personal;
+const now=Date.parse('2026-11-21T12:00:00Z');
+const profile={user_id:'a',region_label:'Frankfurt (Oder)',interests:['Tiere','Lesen']};
+const fixture={profile,prefs:{enabled:true,ages:['school']},userId:'a',active:true,now,places:[
+ {id:'curated-wildpark-frankfurt',source:'curated',title:'Wildpark',region_label:'Frankfurt (Oder)'},
+ {id:'far',source:'national',title:'Fern',region_label:'Frankfurt am Main'}
+],events:[
+ {id:'future',moderation_status:'approved',starts_at:'2026-11-25T12:00:00Z',region_label:profile.region_label},
+ {id:'past',moderation_status:'approved',starts_at:'2026-11-20T12:00:00Z',region_label:profile.region_label},
+ {id:'pending',moderation_status:'pending',starts_at:'2026-11-25T12:00:00Z',region_label:profile.region_label}
+],listings:[
+ {id:'book',seller_id:'b',category:'Bücher',moderation_status:'approved'},
+ {id:'own',seller_id:'a',category:'Bücher',moderation_status:'approved'},
+ {id:'pending',seller_id:'b',category:'Bücher',moderation_status:'pending'},
+ {id:'unrelated',seller_id:'b',category:'Kleidung',moderation_status:'approved'}
+],ideas:[{title:'Geräusche-Rätsel',duration:'5 Minuten'}]};
+const rec=recommendHome(fixture);
+assert.deepEqual(rec.places.map(x=>x.id),['curated-wildpark-frankfurt']);
+assert.deepEqual(rec.events.map(x=>x.id),['future']);
+assert.deepEqual(rec.offers.map(x=>x.id),['book']);
+assert.equal(rec.quiz,'school');assert.equal(rec.activity.title,'Geräusche-Rätsel');
+for(const patch of [{prefs:{enabled:false,ages:['school']}},{userId:'other'}]){
+ const r=recommendHome({...fixture,...patch});
+ assert.ok(!r.places.length&&!r.events.length&&!r.offers.length&&!r.quiz&&!r.activity);
+}
+const inactive=recommendHome({...fixture,active:false});assert.ok(!inactive.events.length&&!inactive.offers.length);
+const baby=recommendHome({...fixture,prefs:{enabled:true,ages:['baby']}});assert.ok(!baby.quiz&&!baby.activity);
+assert.ok(sameHomeRegion('Landkreis Oder-Spree','Beeskow'));
+assert.ok(!sameHomeRegion('Frankfurt (Oder)','Frankfurt am Main'));
+assert.deepEqual(sanitizeHomePrefs({enabled:true,ages:['baby','bad','baby']}),{enabled:true,ages:['baby']});
+assert.equal(personal.DEFAULT_HOME_PREFS.enabled,false);
+const personalization=readFileSync(new URL('../PersonalizedHome.jsx',import.meta.url),'utf8');
+assert.match(personalization,/preview=ranked\.slice\(0,3\)/,'No more than three initial tips');
+assert.match(personalization,/\{expanded\?<View/);
+assert.match(personalization,/\{editing\?<View/);
+assert.match(personalization,/AsyncStorage\.removeItem\(key\)/,'Opt-out clears local age data');
+assert.doesNotMatch(personalization,/functions\.invoke|supabase|fetch\(/,'No additional network requests');
+assert.match(home,/!needle&&!conversation\.length\?<PersonalizedHome/,'Search and assistant replies take priority');
+assert.match(home,/!needle&&showAll\?<View/);
+assert.match(app,/profile=\{myProfile\?\.user_id===me\?myProfile:null\}/);
+console.log('Personalization: regional relevance, approvals, local opt-in, account isolation and compact preview passed');

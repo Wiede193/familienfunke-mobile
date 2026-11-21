@@ -195,6 +195,7 @@ const [marketIntent,setMarketIntent]=useState(null);
 const [outingDraft,setOutingDraft]=useState(null);
 const [mapIntent,setMapIntent]=useState(null);
 const [calendarSeed,setCalendarSeed]=useState(null);
+const [playSeed,setPlaySeed]=useState(null);
 const [eventIntent,setEventIntent]=useState(null);
 const [extraReturnTab,setExtraReturnTab]=useState('more');
 const [inboxReturnTab,setInboxReturnTab]=useState('home');
@@ -296,7 +297,7 @@ useEffect(()=>{
   setShowInfo(false);
   setShowLoginHelp(false);
   setShowEventForm(false);
-  setMarketIntent(null);setOutingDraft(null);setCalendarSeed(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
+  setMarketIntent(null);setOutingDraft(null);setPlaySeed(null);setCalendarSeed(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
   setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
   setPhotosUrls({});setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
 },[me]);
@@ -431,9 +432,10 @@ function navigateFromHome(id,marketQuery='',placeId=null){
   if(!routes.includes(id))return;
   if(id==='inbox'){openInbox();return;}
   setCalendarSeed(null);
+  setPlaySeed(id==='play'&&['little','school','family'].includes(placeId)?{owner:me,level:placeId}:null);
   setMapIntent(id==='map'&&typeof placeId==='string'?{id:placeId,returnTab:'home'}:null);
   setEventIntent(['events','partners'].includes(id)&&typeof placeId==='string'?{id:placeId,tab:id,owner:me}:null);
-  setMarketIntent(id==='box'||id==='sell'?id:(id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null));
+  setMarketIntent(id==='box'||id==='sell'?id:(id==='market'&&typeof placeId==='string'&&/^[0-9a-f-]{36}$/i.test(placeId)?{type:'buyerListing',id:placeId,returnTab:'home'}:id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null));
   setExtraReturnTab('home');
   setTab(id==='box'||id==='sell'?'market':id);
 }
@@ -450,7 +452,7 @@ function selectMenuItem(id){
   if(!MORE_ITEMS.some(item=>item[0]===id)&&id!=='more')return;
   if(tab===id&&!detailFamily&&!selectedContact&&!showInfo)return;
   const previous=TABS.some(t=>t[0]===tab)||tab==='more'?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:'home');
-  setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);setMapIntent(null);setCalendarSeed(null);setEventIntent(null);setFocusContactId(null);setShowEventForm(false);
+  setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);setMapIntent(null);setCalendarSeed(null);setPlaySeed(null);setEventIntent(null);setFocusContactId(null);setShowEventForm(false);
   setExtraReturnTab(previous===id?'home':previous);setTab(id);
 }
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
@@ -510,8 +512,8 @@ send={(body)=>execute(async()=>{
 },'Nachricht gesendet.')}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
-tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome}/>:
-tab==='play'?<FamilyPlayScreen key={me}/>:
+tab==='home'?<HomeAssistant key={me} userId={me} profile={myProfile?.user_id===me?myProfile:null} active={active} events={db.events} partnerEvents={db.partnerEvents} listings={db.listings} onNavigate={navigateFromHome}/>:
+tab==='play'?<FamilyPlayScreen key={me} initialLevel={playSeed?.owner===me?playSeed.level:undefined}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
 tab==='outing'?<FamilyOutingScreen key={me} onCalendar={planCalendarPlace} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
 tab==='guide'?<FamilyGuideScreen userId={me} regionLabel={myProfile?.region_label}/>:

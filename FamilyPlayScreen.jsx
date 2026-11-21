@@ -14,8 +14,8 @@ function Choices({label,items,value,onChange}){
   {items.map(([id,title])=><Pressable key={id} accessibilityRole="button" accessibilityState={{selected:id===value}} onPress={()=>onChange(id)} style={[s.chip,id===value&&s.active]}><Text style={[s.text,id===value&&{color:C.white,fontWeight:'800'}]}>{title}</Text></Pressable>)}
  </View></View>;
 }
-export default function FamilyPlayScreen(){
- const [level,setLevel]=useState('school'),[topic,setTopic]=useState('all'),[round,setRound]=useState([]),[index,setIndex]=useState(0),[answer,setAnswer]=useState(null),[score,setScore]=useState(0),[stage,setStage]=useState('start'),[ideas,setIdeas]=useState(()=>IDEAS.slice(0,3));
+export default function FamilyPlayScreen({initialLevel}={}){
+ const [level,setLevel]=useState(LEVELS.some(([id])=>id===initialLevel)?initialLevel:'school'),[topic,setTopic]=useState('all'),[round,setRound]=useState([]),[index,setIndex]=useState(0),[answer,setAnswer]=useState(null),[score,setScore]=useState(0),[stage,setStage]=useState('start'),[ideas,setIdeas]=useState(()=>IDEAS.slice(0,3));
  const scroll=useRef(null),locked=useRef(false),seen=useRef(new Set());
  const top=()=>scroll.current?.scrollTo({y:0,animated:false});
  const start=()=>{
