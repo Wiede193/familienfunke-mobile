@@ -161,7 +161,8 @@ begin
   update private.ff_market_review_cron_key
     set last_timestamp=p_timestamp
   where singleton=true and last_timestamp<p_timestamp;
-  return found;
+  if found then return true; end if;
+  return false;
 end $fn$;
 revoke all on function public.ff_market_review_cron_verify(bigint,text)
   from public,anon,authenticated;
