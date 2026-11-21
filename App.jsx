@@ -17,6 +17,7 @@ import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
 import FamilyMapScreen from './FamilyMap';
 import {FACT_KEYS,EMPTY_FACTS,DEFECTS,encodeArticleFacts,decodeArticleFacts,articleFactRows} from './MarketArticleFacts';
+import {marketPhotoAlt,marketPhotoFacts} from './MarketAccessibleDescription';
 import {compactBoxDetail,summarizeBox,packageNote,packagePersonalLimit,parsePackageNote,labelSource,BOX_MAX_ITEMS,BOX_MAX_BATCHES,BOX_MAX_PACKAGE,sizeGroups,matchingBatchPhotos,sameBoxSelection,listingDraftId} from './MarketBoxPackage';
 import {keepBoxPhoto,availableBoxPhoto,loadBoxSnapshot,saveBoxSnapshot,deleteBoxStorage,makeBoxCrop} from './MarketBoxStorage';
 import { cropBounds,suggestedCrop,changeCrop,pixelCrop,photoIssues,PHOTO_ISSUES } from './MarketBoxCrop';
@@ -1256,6 +1257,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
   const selectedPackage=selectedFacts?parsePackageNote(selectedFacts.note):null;
   const gallery=selected?galleryOf(selected):[];
   const shownImage=gallery[Math.min(galleryIndex,Math.max(0,gallery.length-1))]?.uri;
+  const imageDescription=selected?marketPhotoAlt(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length):'';
   return <ScrollView ref={marketScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <H sub="Kinderkleidung, Spielzeug und vieles mehr – direkt von Familien in deiner Nähe.">Familienbasar</H>
     <Info>{SECTION_MESSAGES.market}</Info>
@@ -1573,7 +1575,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
       </Pressable>
       <Card style={styles.marketDetailCard}>
         <View style={styles.marketDetailImage}>
-          {shownImage?<Image accessibilityLabel={"Anzeigenfoto: "+selected.title+", Bild "+(galleryIndex+1)+" von "+gallery.length} source={{uri:shownImage}} style={styles.marketFullImage} resizeMode="contain"/>:
+          {shownImage?<Image accessibilityLabel={imageDescription} source={{uri:shownImage}} style={styles.marketFullImage} resizeMode="contain"/>:
             <View style={[styles.marketFullImage,styles.marketImagePlaceholder]}><Text style={{fontSize:34}}>♧</Text><Text style={styles.micro}>Kein Foto hinterlegt</Text></View>}
         </View>
         {gallery.length>1?<View style={{marginTop:12}}>
@@ -1584,11 +1586,19 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
           </Row>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:9}}>
             {gallery.map((image,index)=><Pressable key={image.id} accessibilityRole="button"
-              accessibilityLabel={'Bild '+(index+1)+' anzeigen'} accessibilityState={{selected:galleryIndex===index}}
+              accessibilityLabel={marketPhotoAlt(selected,selectedFacts,selectedPackage,index,gallery.length)} accessibilityState={{selected:galleryIndex===index}}
               onPress={()=>setGalleryIndex(index)}>
               <Image accessible={false} source={{uri:image.uri}} style={{width:66,height:66,borderRadius:12,borderWidth:galleryIndex===index?3:1,borderColor:galleryIndex===index?C.accent:C.line}} resizeMode="cover"/>
             </Pressable>)}
           </ScrollView>
+        </View>:null}
+        {gallery.length>0?<View style={{marginTop:12}}>
+          <Text accessibilityRole="header" style={[styles.label,{marginBottom:5}]}>Bildbeschreibung aus Artikelangaben</Text>
+          <Text style={styles.micro}>{marketPhotoFacts(selected,selectedFacts,selectedPackage)}</Text>
+          <Text style={[styles.micro,{marginTop:5}]}>
+            Diese Angaben stammen aus dem Inserat und können ursprünglich aus KI-Vorschlägen stammen,
+            die der Anbieter bestätigt hat. Einzelne Fotos wurden nicht gesondert beschrieben.
+          </Text>
         </View>:null}
         <Text style={[styles.marketPrice,{fontSize:26,marginTop:15}]}>{priceLabel(selected)}</Text>
         <Text style={[styles.h,{marginTop:5}]}>{selected.title}</Text>
@@ -1682,7 +1692,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
         {shown.map(x=>{
           const seller=sellerInformation(x);
           return <Pressable key={x.id} accessibilityRole="button"
-            accessibilityLabel={x.title+', '+priceLabel(x)+', '+x.item_condition+', '+(x.region_label||'Region nicht angegeben')}
+            accessibilityLabel={marketPhotoFacts(x,decodeArticleFacts(x.description),parsePackageNote(decodeArticleFacts(x.description)?.note||''))+' Preis: '+priceLabel(x)+'. Region: '+(x.region_label||'nicht angegeben')}
             onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={[styles.marketTile,singleColumn&&{width:'100%'}]}>
             <View style={styles.marketTileImage}>
               {(remotePhotoUrls[x.id]||photoUrls[x.id])?<Image accessible={false} source={{uri:remotePhotoUrls[x.id]||photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
