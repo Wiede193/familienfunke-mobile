@@ -115,7 +115,7 @@ export default function FamilyGuideScreen({userId,regionLabel}){
       <Pressable accessibilityRole="button" onPress={()=>{setStepId(null);setPhaseId(activeStep.phaseId);}} style={st.back}><Text style={st.backText}>‹ Zurück zur Zeitleiste</Text></Pressable>
       <View style={st.detailCard}>
         <Text style={st.eyebrow}>{activeStep.phaseName}</Text>
-        <Text style={st.detailTitle}>{activeStep.title}</Text>
+        <Text accessibilityRole="header" style={st.detailTitle}>{activeStep.title}</Text>
         <View style={[st.tag,{backgroundColor:TYPES[activeStep.kind].bg,alignSelf:'flex-start'}]}><Text style={[st.tagText,{color:TYPES[activeStep.kind].color}]}>{TYPES[activeStep.kind].label}</Text></View>
         <Text style={[st.body,{marginTop:15}]}>{activeStep.intro}</Text>
         {activeStep.deadline?<View style={st.deadlineCard}>
@@ -156,7 +156,7 @@ export default function FamilyGuideScreen({userId,regionLabel}){
     <View style={st.hero}>
       <View style={st.sunDot}><Text style={st.sunSymbol}>♥</Text></View>
       <Text style={st.eyebrow}>VON DER SCHWANGERSCHAFT BIS ZUM KITA-START</Text>
-      <Text style={st.heroTitle}>Familien-Wegweiser</Text>
+      <Text accessibilityRole="header" style={st.heroTitle}>Familien-Wegweiser</Text>
       <Text style={st.heroDescription}>Was steht wann an? Wir begleiten euch mit verständlichen Schritten – ohne unnötigen Druck.</Text>
       <Text style={st.region}>⌖ {regionLabel?.trim()?regionLabel.trim():'Deutschland'} · örtliche Regeln beachten</Text>
     </View>
@@ -251,17 +251,17 @@ const st=StyleSheet.create({
   stepIconText:{fontSize:15,color:P.tealDark,fontWeight:'900'},
   stepTitle:{fontSize:13.5,color:P.ink,fontWeight:'900',marginBottom:3},
   arrow:{fontSize:24,color:P.teal},
-  back:{paddingVertical:10,marginBottom:11},backText:{fontWeight:'900',fontSize:14.5,color:P.tealDark},
+  back:{minHeight:44,justifyContent:'center',paddingVertical:10,marginBottom:11},backText:{fontWeight:'900',fontSize:14.5,color:P.tealDark},
   detailCard:{backgroundColor:P.paper,borderRadius:24,padding:18,borderWidth:1,borderColor:P.line},
   detailTitle:{fontSize:24,fontWeight:'900',color:P.ink,marginBottom:13},
   body:{fontSize:13.5,color:P.ink,lineHeight:21},
   detailDivider:{height:1,backgroundColor:P.line,marginVertical:16},
   detailSection:{marginBottom:16},question:{fontSize:14,fontWeight:'900',color:P.ink,marginBottom:7},
   source:{backgroundColor:P.pale,borderRadius:15,padding:14,marginTop:5},
-  sourceButton:{backgroundColor:P.teal,borderRadius:13,padding:12,alignItems:'center',marginTop:12},
+  sourceButton:{backgroundColor:P.teal,borderRadius:13,padding:12,alignItems:'center',justifyContent:'center',minHeight:44,marginTop:12},
   sourceButtonText:{fontSize:12.5,fontWeight:'900',color:P.paper},
   statusRow:{flexDirection:'row',flexWrap:'wrap',gap:7},
-  statusButton:{paddingHorizontal:11,paddingVertical:10,borderRadius:13,backgroundColor:'#EDF3F2'},
+  statusButton:{minHeight:44,justifyContent:'center',paddingHorizontal:11,paddingVertical:10,borderRadius:13,backgroundColor:'#EDF3F2'},
   statusSelected:{backgroundColor:P.teal},
   statusText:{color:P.tealDark,fontSize:12,fontWeight:'900'},
   deadlineCard:{backgroundColor:'#FFF4D8',borderRadius:15,padding:15,marginTop:17},
@@ -276,7 +276,7 @@ const st=StyleSheet.create({
   regionButtonText:{fontWeight:'900',color:P.paper,fontSize:13},
   regionDetails:{marginTop:15},
   officeCard:{paddingVertical:12,borderTopWidth:1,borderTopColor:P.line},
-  officeLink:{marginTop:3},
+  officeLink:{minHeight:44,justifyContent:'center',marginTop:3},
   note:{backgroundColor:P.warn,padding:15,borderRadius:16,marginTop:16},
   noteText:{color:'#6A542E',lineHeight:20,fontSize:12.5},
 });
