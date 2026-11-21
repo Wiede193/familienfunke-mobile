@@ -998,7 +998,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     setBoxDrafts(old=>old.filter(d=>d.id!==id));setBoxPackageDraft(null);
   }
   function openBoxEditor(d,packageIds=null){
-    setBoxCrop(null);resetForm();setBoxOpen(false);setOpen(true);setQuick(true);setBoxEditor({id:d.id,packageIds,listingId:d.listingId||listingDraftId()});
+    setBoxCrop(null);resetForm();setBoxFormExtras(false);setBoxOpen(false);setOpen(true);setQuick(true);setBoxEditor({id:d.id,packageIds,listingId:d.listingId||listingDraftId()});
     setTitle(d.title||'');setCategory(d.category||'Kleidung');setFacts({...EMPTY_FACTS,...d.facts});
     setCondition(d.condition||'');setTrade(d.trade||'sell');setPrice(d.price||'');
     setPhoto(d.photos||[]);setDescription(d.description||'');setRegion(d.region||boxRegion);
@@ -1337,7 +1337,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Text style={[styles.label,{color:C.accentDark}]}>Fotografieren. Fakten prüfen. Fertig.</Text>
         <Text style={styles.micro}>Zeige einen Artikel und nach Möglichkeit sein Etikett. Die KI schlägt sichtbare Merkmale vor, ohne einen Werbetext zu schreiben. Du entscheidest, welche Angaben richtig sind.</Text>
       </View>:null}
-      <Text style={[styles.sub,{marginBottom:17}]}>{editingId?
+      <Text style={[styles.sub,{marginBottom:17}]}>{packageForm?'Ein letzter Blick auf dein Paket – danach wird es wie gewohnt geprüft.':editingId?
         'Beim Speichern wird deine Anzeige erneut vollständig geprüft und bis zur Freigabe ausgeblendet. Bereits hochgeladene Fotos bleiben erhalten.':
         'Kostenlos einstellen. Titel, Beschreibung und alle Fotos werden vor Veröffentlichung geprüft.'}</Text>
       <View style={{marginBottom:15}}>
@@ -1355,7 +1355,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
             </Pressable>
           </View>)}
         </ScrollView>:null}
-        <Text style={[styles.micro,{marginTop:8}]}>Bis zu fünf Bilder pro Angebot. Bei Änderungen werden alle Bilder erneut geprüft.</Text>
+        <Text style={[styles.micro,{marginTop:8}]}>{packageForm?'Nur die tatsächlich enthaltenen Artikel zeigen.':'Bis zu fünf Bilder pro Angebot. Bei Änderungen werden alle Bilder erneut geprüft.'}</Text>
       </View>
       {quick&&!editingId&&!boxEditor?<View style={{marginBottom:16}}>
         <Button title={scanBusy?'Fotos werden analysiert …':'✦ Artikel aus Fotos erkennen'} disabled={scanBusy||choosing||busy||!photo.length||!active} onPress={recognize}/>
@@ -1369,8 +1369,10 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           <Button title="Verwerfen" small mode="ghost" onPress={()=>setProposal(null)}/>
         </View>:null}
       </View>:null}
-      <Input label="Anzeigentitel" value={title} onChangeText={v=>{setTitle(v);setConfirmed(false);}} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
-      <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={v=>{setCategory(v);setConfirmed(false);}} options={MARKET_CATEGORIES}/>
+      {packageForm&&!boxFormExtras?<Text style={[styles.body,{fontWeight:'900',marginBottom:12}]}>{title}</Text>:<>
+        <Input label="Anzeigentitel" value={title} onChangeText={v=>{setTitle(v);setConfirmed(false);}} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
+        <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={v=>{setCategory(v);setConfirmed(false);}} options={MARKET_CATEGORIES}/>
+      </>}
       {packageForm?<View style={{marginBottom:14,padding:13,borderRadius:15,backgroundColor:'#FFF4DA'}}>
         <Text style={styles.sectionTitle}>Dein Paket · {packageForm.rows.length} Teile</Text>
         {packageForm.rows.map((line,i)=><Text key={i} style={[styles.body,{paddingVertical:5,borderBottomWidth:1,borderBottomColor:C.line}]}>{line}</Text>)}
@@ -1394,12 +1396,14 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           {scanned?<Button title="Merkmale einklappen" mode="ghost" small onPress={()=>setExpandFacts(false)}/>:null}
         </>:['Kleidung','Babyausstattung'].includes(category)&&askSize?<Input label="Welche Größe hat der Artikel? (optional)" value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder="Größe vom Etikett"/>:null}
       </View>:null}
-      <Text style={styles.label}>Ich möchte</Text>
+      {packageForm?<Button title={boxFormExtras?'Optionen wieder ausblenden':'Weitere Optionen (freiwillig)'} mode="ghost" small onPress={()=>setBoxFormExtras(v=>!v)}/>:null}
+      {(!packageForm||boxFormExtras)?<><Text style={styles.label}>Ich möchte</Text>
       <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
         <Chip text="Verkaufen" selected={trade==='sell'} onPress={()=>{setTrade('sell');setConfirmed(false);}}/>
         <Chip text="Verschenken" selected={trade==='gift'} onPress={()=>{setTrade('gift');setConfirmed(false);}}/>
         <Chip text="Tauschen" selected={trade==='swap'} onPress={()=>{setTrade('swap');setConfirmed(false);}}/>
       </View>
+      </>:null}
       {trade==='sell'?<Input label={packageForm?"Gesamtpreis des Pakets in €":"Preis in €"} value={price} onChangeText={v=>{setPrice(v);setConfirmed(false);}} keyboardType="decimal-pad" placeholder="z. B. 12,50"/>:null}
       {packageForm&&trade==='sell'&&parsePrice(price)!==null&&parsePrice(price)>=0?<Text style={[styles.micro,{color:C.accentDark,marginBottom:12}]}>Rechnerisch {((parsePrice(price)/100)/packageForm.rows.length).toLocaleString('de-DE',{style:'currency',currency:'EUR'})} pro Teil – keine KI-Preisempfehlung.</Text>:null}
       <Text style={styles.label}>{packageForm?'Zustand des gesamten Pakets':'Zustand'}</Text>
@@ -1413,19 +1417,19 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           {DEFECTS.map(x=><Chip key={x} text={x} selected={facts.defect===x} onPress={()=>changeFact('defect',x)}/>)}
         </View>
         {facts.defect==='Vorhanden'?<Input label="Welche Mängel?" value={facts.defectText} onChangeText={v=>changeFact('defectText',v)} maxLength={180} multiline placeholder="z. B. kleiner Fleck am Ärmel"/>:null}
-        {packageForm?<Input label="Deine persönliche Notiz (optional)" multiline value={packageForm.personal} onChangeText={v=>{setDescription(packageNote(packageForm.rows,v));setConfirmed(false);}} maxLength={packagePersonalLimit(packageForm.rows)} placeholder="z. B. alles zusammen abzugeben"/>:<Input label="Deine persönliche Notiz (optional)" multiline value={description} onChangeText={v=>{setDescription(v);setConfirmed(false);}} maxLength={900} placeholder="Was möchtest du persönlich ergänzen?"/>}
+        {packageForm?(boxFormExtras?<Input label="Persönliche Notiz (optional)" multiline value={packageForm.personal} onChangeText={v=>{setDescription(packageNote(packageForm.rows,v));setConfirmed(false);}} maxLength={packagePersonalLimit(packageForm.rows)} placeholder="z. B. alles zusammen abzugeben"/>:null):<Input label="Deine persönliche Notiz (optional)" multiline value={description} onChangeText={v=>{setDescription(v);setConfirmed(false);}} maxLength={900} placeholder="Was möchtest du persönlich ergänzen?"/>}
       </View>:<Input label="Beschreibung" multiline value={description} onChangeText={setDescription} maxLength={1500} placeholder="Größe, Farbe, Zustand, Abholung …"/>}
       <Input label="Ort / Region – keine Privatadresse" value={region} onChangeText={v=>{setRegion(v);setConfirmed(false);}} maxLength={80} placeholder="z. B. Fürstenwalde/Spree"/>
-      {myOrgs.length>0&&!editingId?<><Text style={styles.label}>Anbieten als</Text><View style={[styles.chipsRow,{marginTop:0,marginBottom:15}]}>
+      {myOrgs.length>0&&!editingId&&(!packageForm||boxFormExtras)?<><Text style={styles.label}>Anbieten als</Text><View style={[styles.chipsRow,{marginTop:0,marginBottom:15}]}>
         <Chip text="Privat" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
       </View></>:null}
-      <Info>Erlaubt sind auch Kuscheltiere, Tierfiguren und eindeutig harmloses Kinderspielzeug. Echte Tiere sind bei uns ausnahmslos verboten – ebenso Waffen, Drogen, Medikamente, 18+-Waren und andere gefährliche oder illegale Artikel. Die Anzeige erscheint erst nach Prüfung.</Info>
+      {packageForm?<Text style={[styles.micro,{marginBottom:11}]}>Deine Anzeige wird vor Veröffentlichung geprüft.</Text>:<Info>Erlaubt sind auch Kuscheltiere, Tierfiguren und eindeutig harmloses Kinderspielzeug. Echte Tiere sind bei uns ausnahmslos verboten – ebenso Waffen, Drogen, Medikamente, 18+-Waren und andere gefährliche oder illegale Artikel. Die Anzeige erscheint erst nach Prüfung.</Info>}
       {quick?<Pressable accessibilityRole="checkbox" accessibilityState={{checked:confirmed}} onPress={()=>setConfirmed(v=>!v)} style={{flexDirection:'row',gap:10,padding:12,marginBottom:12,borderRadius:12,borderWidth:1,borderColor:C.line}}>
         <Text style={{fontSize:19,color:C.accentDark}}>{confirmed?'☑':'☐'}</Text>
-        <Text style={[styles.body,{flex:1}]}>Ich habe die Angaben geprüft. Der Steckbrief beschreibt mein Angebot korrekt.</Text>
+        <Text style={[styles.body,{flex:1}]}>{packageForm?'Ich habe Paketinhalt und Zustand geprüft.':'Ich habe die Angaben geprüft. Der Steckbrief beschreibt mein Angebot korrekt.'}</Text>
       </Pressable>:null}
-      <Button title={busy?'Wird gespeichert …':editingId?'Änderungen zur Prüfung einreichen':'Anzeige kostenlos einreichen'} disabled={busy||choosing||scanBusy||!active||(quick&&!confirmed)} onPress={submit}/>
+      <Button title={busy?'Wird gespeichert …':editingId?'Änderungen zur Prüfung einreichen':packageForm?'Paket zur Prüfung einreichen':'Anzeige kostenlos einreichen'} disabled={busy||choosing||scanBusy||!active||(quick&&!confirmed)} onPress={submit}/>
       {boxEditor?<Button title="Entwurf behalten und zurück zur Kiste" mode="outline" disabled={busy||choosing||scanBusy} onPress={saveBoxEditor}/>:null}
       {!editingId&&!boxEditor?<Button title="Viele Artikel? Zum Kistenmodus" mode="ghost" disabled={busy||choosing||scanBusy} onPress={()=>Alert.alert('Zum Kistenmodus wechseln?','Die Angaben dieser einzelnen Anzeige werden verworfen.',[{text:'Abbrechen',style:'cancel'},{text:'Wechseln',onPress:()=>{resetForm();showBox();}}])}/>:null}
     </Card>:null}
