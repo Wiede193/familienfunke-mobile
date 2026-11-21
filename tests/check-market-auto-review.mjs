@@ -10,7 +10,10 @@ assert.match(grants,/grant update \(moderation_status\) on table public\.ff_mark
 assert.match(grants,/grant select on table public\.ff_market_photos to service_role;/i,'Server must inspect all photos');
 assert.match(grants,/grant select on table public\.ff_organizations to service_role;/i,'Partner listings need verified organizations');
 assert.match(grants,/has_column_privilege\('authenticated'.*'moderation_status'.*'UPDATE'\)/,'Members must not self-approve');
-assert.match(review,/withSupabase\(\{auth:"user"\}/,'Only authenticated sellers may trigger review');
+assert.match(review,/withSupabase\(\{auth:\["user","none"\]\}/,'Seller JWTs and separately signed cron requests are the only supported entry paths');
+assert.match(review,/if\(ctx\.authMode==="none"\)/,'Anonymous scheduling path must validate a signature');
+assert.match(review,/ff_market_review_cron_verify/,'Cron signature must be verified server-side');
+assert.match(review,/if\(!uid\)return fail\("Anmeldung erforderlich"/,'Seller path must reject unauthenticated requests');
 assert.match(review,/model:"omni-moderation-latest"/,'Moderation API must run');
 assert.match(review,/model:"gpt-4o-mini"/,'Contextual product review must run');
 assert.match(review,/itemDecision==="review"/,'Uncertain results must not auto-publish');
