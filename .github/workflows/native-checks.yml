@@ -27,6 +27,8 @@ jobs:
         run: npx expo install --check
       - name: KI-Startseite Navigation und Datenschutz prüfen
         run: npm run check:home
+      - name: Einheitliches Farbdesign und Lesbarkeit prüfen
+        run: npm run check:design
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen
