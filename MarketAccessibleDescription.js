@@ -2,7 +2,7 @@
 // Photo recognition suggests facts elsewhere; this module never guesses unseen
 // objects, missing sizes, defects or what supplementary photos show.
 const brief=(value,max=100)=>String(value||'')
- .replace(/[\\x00-\\x1f\\x7f]+/g,' ').replace(/\\s+/g,' ').trim().slice(0,max);
+ .replace(/[\x00-\x1f\x7f]+/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 
 export function marketPhotoFacts(listing={},decoded=null,packageInfo=null){
  const title=brief(listing.title,100)||'Unbenanntes Angebot';
