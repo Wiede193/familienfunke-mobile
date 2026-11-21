@@ -93,7 +93,7 @@ begin
       insert into private.ff_market_search_items
         (listing_id,item_no,item_name,category,size_label,color_label,item_text)
       values (p_listing_id,i,left(line_text,150),item_category,item_size,item_color,
-        left(line_text||' '||item_category,450));
+        left(line_text||' '||item_category||' '||private.ff_market_normalize_query(line_text),450));
     end loop;
   end if;
   if i=0 then
@@ -107,7 +107,7 @@ begin
     insert into private.ff_market_search_items
       (listing_id,item_no,item_name,category,size_label,color_label,item_text)
     values(p_listing_id,1,left(coalesce(p_title,''),150),p_category,
-      left(item_size,40),left(item_color,45),line_text);
+      left(item_size,40),left(item_color,45),left(line_text||' '||private.ff_market_normalize_query(coalesce(p_title,'')),2200));
   end if;
 end;
 $fn$;
