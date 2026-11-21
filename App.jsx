@@ -740,6 +740,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [onlyMine,setOnlyMine]=useState(false);
   const [onlyFavorites,setOnlyFavorites]=useState(false);
   const [editingId,setEditingId]=useState(null);
+  const [editingSnapshot,setEditingSnapshot]=useState(null);
   const [galleryIndex,setGalleryIndex]=useState(0);
   const [title,setTitle]=useState('');
   const [description,setDescription]=useState('');
@@ -844,12 +845,13 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const visiblePhotos=[...marketPhotos,...serverPhotos.filter(p=>!marketPhotos.some(old=>old.listing_id===p.listing_id&&old.slot===p.slot))];
   const visiblePhotoUrls={...photoUrls,...serverPrimaryUrls};
   const visibleExtraPhotoUrls={...extraPhotoUrls,...serverExtraUrls};
-  const editingListing=editingId?visibleListings.find(x=>x.id===editingId&&x.seller_id===me):null;
-  const sizeSources=boxEditor?.packageIds
-    ?boxDrafts.filter(d=>boxEditor.packageIds.includes(d.id)).map(d=>d.facts?.size)
-    :editingId&&editingListing&&!facts.size&&parsePackageNote(decodeArticleFacts(editingListing.description)?.note||'')
-      ?editingListing.size_labels||[]
-      :[facts.size];
+  const editingListing=editingId?(visibleListings.find(x=>x.id===editingId&&x.seller_id===me)||editingSnapshot):null;
+  const sizeSources=!['Kleidung','Babyausstattung'].includes(category)?[]
+    :boxEditor?.packageIds
+      ?boxDrafts.filter(d=>boxEditor.packageIds.includes(d.id)).map(d=>d.facts?.size)
+      :editingId&&editingListing&&!facts.size&&parsePackageNote(decodeArticleFacts(editingListing.description)?.note||'')
+        ?editingListing.size_labels||[]
+        :[facts.size];
   const listingSizeLabels=collectMarketSizeLabels(sizeSources);
   const existingPhotoCount=editingListing?(editingListing.photo_path?1:0)
     +visiblePhotos.filter(x=>x.listing_id===editingId).length:0;
@@ -862,14 +864,14 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     return pictures;
   };
   function resetForm(){
-    setBoxEditor(null);setEditingId(null);setTitle('');setDescription('');setRegion('');setCategory('Kleidung');
+    setBoxEditor(null);setEditingId(null);setEditingSnapshot(null);setTitle('');setDescription('');setRegion('');setCategory('Kleidung');
     setCondition('Gut');setTrade('sell');setPrice('');setOrganizationId('');setPhoto([]);
     setQuick(false);setFacts({...EMPTY_FACTS});setProposal(null);setScanNotice('');setConfirmed(false);setExpandFacts(false);setScanned(false);setAskSize(false);
   }
   function beginEdit(x){
-    setBoxOpen(false);resetForm();setEditingId(x.id);setOnlyMine(true);setOnlyFavorites(false);
+    setBoxOpen(false);resetForm();setEditingId(x.id);setEditingSnapshot(x);setOnlyMine(true);setOnlyFavorites(false);
     const decoded=decodeArticleFacts(x.description);
-    setQuick(!!decoded);setFacts(decoded?.facts||{...EMPTY_FACTS});setExpandFacts(true);
+    setQuick(!!decoded);setFacts(decoded?.facts||{...EMPTY_FACTS,size:(x.size_labels||[]).length===1?x.size_labels[0]:''});setExpandFacts(true);
     setTitle(x.title);setDescription(decoded?decoded.note:x.description||'');setRegion(x.region_label||'');
     setCategory(x.category);setCondition(x.item_condition);setTrade(x.trade_type);
     setPrice(x.trade_type==='sell'?String((x.price_cents/100).toFixed(2)).replace('.',','):'');
