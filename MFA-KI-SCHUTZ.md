@@ -1,0 +1,11 @@
+# MFA und KI-Schutz (Beta)
+
+## Admin-Einrichtung
+Vor Aktivierung ist das bestehende Betreiberkonto weiterhin serverseitig zugänglich. Die aktualisierte Admin-Weboberfläche fordert TOTP-Einrichtung bzw. Bestätigung, bevor sie Daten lädt. Nach dem erfolgreich bestätigten Code muss der Betreiber bewusst „Verbindlichen Schutz aktivieren“ wählen. Erst dieser Schritt setzt die persistente MFA-Pflicht für sein Konto. Das Entfernen des Faktors deaktiviert die Pflicht nicht. Vor dem endgültigen öffentlichen Start müssen alle aktiven Teammitglieder aktiviert und ein sicherer Wiederherstellungsweg über die Projektadministration vereinbart sein. Die Einrichtung mit echter Authenticator-App und erneute Anmeldung sind noch nicht praktisch getestet. Keine QR-Codes, Schlüssel oder OTPs protokollieren, teilen oder in Supporttickets speichern.
+
+Alle 13 vorherigen Admin-RPCs prüfen die neue MFA-Regel; auch der Basar-Storage-Preview-Helfer prüft sie. Rollenprüfungen bleiben unverändert. SQL-Test in zurückgerollter Transaktion: Passwortsession kann die Pflicht nicht einschalten; nach simuliertem Setzen der Pflicht werden Adminübersicht und AAL2 ohne bestätigten TOTP-Faktor abgelehnt. Kein Konto wurde durch den Test dauerhaft verändert.
+
+## Limits
+Bestehende Tageslimits: Assistent 20/Konto und 500/global; Artikel-Scan 12/Konto und 300/global. Neue Textmoderation 250/4000 täglich und 15/120 pro Minute; Profilfotoprüfung 25/300 täglich und 5/30 pro Minute; Marktmoderation 40/300 täglich und 5/30 pro Minute. UTC-Zeitfenster; kurze Überlappung an Minuten-/Tagesgrenzen möglich. Atomare serverseitige Reservierung vor externer Anfrage; begrenzt Moderationsaufrufe, keine garantierte Euro-Kostenobergrenze. Keine Inhalte in Zählern. Textmoderation ist auch für die Anmeldung/Profileingabe erforderlich. Bei Fehlern kein ungeprüftes Speichern/Freigeben. Bestehende Retry-Logik der Basarprüfung bleibt bestehen. Nutzeranfragen an nicht eigene Inserate dürfen keine Queue-Einträge verändern.
+
+Prüfung: Server-Quota ist nicht für App-Clients aufrufbar; Textgrenze 15/16 in zurückgerollter Transaktion bestätigt. Live-Edge-Funktionen bereitgestellt; echte Nutzerabläufe und produktionsweite Monitoring-/Kostenalarme bleiben offen.
