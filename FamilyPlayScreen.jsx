@@ -1,7 +1,8 @@
 import React,{useRef,useState} from 'react';
 import {AccessibilityInfo,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
-import {LEVELS,TOPICS,IDEAS,makeRound,shuffled} from './FamilyPlayContent';
+import {LEVELS,TOPICS,IDEAS,QUESTIONS,makeRound,shuffled} from './FamilyPlayContent';
+import {PairsGame,ThreeGame,PatternGame} from './FamilyMiniGameScreens';
 
 function Action({children,onPress,secondary=false,disabled=false}){
  return <Pressable accessibilityRole="button" disabled={disabled} accessibilityState={{disabled}} onPress={onPress} style={[s.action,secondary&&s.secondary,disabled&&{opacity:.5}]}><Text style={[s.actionText,secondary&&{color:C.accentDark}]}>{children}</Text></Pressable>;
@@ -13,9 +14,14 @@ function Choices({label,items,value,onChange}){
 }
 export default function FamilyPlayScreen(){
  const [level,setLevel]=useState('school'),[topic,setTopic]=useState('all'),[round,setRound]=useState([]),[index,setIndex]=useState(0),[answer,setAnswer]=useState(null),[score,setScore]=useState(0),[stage,setStage]=useState('start'),[ideas,setIdeas]=useState(()=>IDEAS.slice(0,3));
- const scroll=useRef(null),locked=useRef(false);
+ const scroll=useRef(null),locked=useRef(false),seen=useRef(new Set());
  const top=()=>scroll.current?.scrollTo({y:0,animated:false});
- const start=()=>{setRound(makeRound(level,topic));setIndex(0);setAnswer(null);setScore(0);locked.current=false;setStage('round');top();};
+ const start=()=>{
+ const pool=QUESTIONS.filter(q=>q.level===level&&(topic==='all'||q.topic===topic));
+ if(pool.every(q=>seen.current.has(q.id)))pool.forEach(q=>seen.current.delete(q.id));
+ const nextRound=makeRound(level,topic,Math.random,[...seen.current]);
+ nextRound.forEach(q=>seen.current.add(q.id));
+ setRound(nextRound);setIndex(0);setAnswer(null);setScore(0);locked.current=false;setStage('round');top();};
  const question=round[index];
  function select(i){
   if(locked.current||stage!=='round'||!question)return;
@@ -34,15 +40,20 @@ export default function FamilyPlayScreen(){
   {stage==='start'?<>
    <View style={s.card}>
     <Text accessibilityRole="header" style={s.titleSmall}>Familienquiz</Text>
-    <Text style={s.text}>Je Runde vier bis fünf kurze Fragen. Ihr könnt euch gemeinsam beraten. Für jüngere Kinder liest ein Erwachsener vor.</Text>
+    <Text style={s.text}>Fünf kurze Fragen pro Runde aus 144 Fragen in sechs Themen. Noch nicht gespielte Fragen werden bevorzugt. Ihr könnt euch gemeinsam beraten. Für jüngere Kinder liest ein Erwachsener vor.</Text>
     <Choices label="Altersstufe" items={LEVELS} value={level} onChange={setLevel}/>
     <Choices label="Thema" items={TOPICS} value={topic} onChange={setTopic}/>
     <Action onPress={start}>Quiz starten</Action>
    </View>
+   <Text accessibilityRole="header" style={s.titleSmall}>Mini-Spiele</Text>
+   {[['pairs','Paare finden','Merkt euch die Symbole und findet alle Paare.'],['three','Drei gewinnt','Spielt zu zweit abwechselnd X und O.'],['pattern','Zahlen-Detektive','Entdeckt Regeln in Zahlenfolgen.']].map(([id,title,description])=><View key={id} style={s.card}><Text accessibilityRole="header" style={s.heading}>{title}</Text><Text style={s.text}>{description}</Text><Action secondary onPress={()=>{setStage(id);top();}}>{title+' spielen'}</Action></View>)}
    <Text accessibilityRole="header" style={s.titleSmall}>Gemeinsam etwas machen</Text>
    <Text style={s.muted}>Ideen ab etwa vier Jahren, mit erwachsener Begleitung.</Text>
    {ideas.map(idea=><View style={s.card} key={idea.id}><Text style={s.eyebrow}>{idea.duration}</Text><Text style={s.heading}>{idea.title}</Text><Text style={s.text}>{idea.text}</Text></View>)}
-   <Action secondary onPress={()=>setIdeas(shuffled(IDEAS).slice(0,3))}>Andere Ideen zeigen</Action>
+   <Action secondary onPress={()=>setIdeas(old=>shuffled(IDEAS.filter(x=>!old.some(y=>y.id===x.id))).slice(0,3))}>Andere Ideen zeigen</Action>
+  </>:['pairs','three','pattern'].includes(stage)?<>
+    {stage==='pairs'?<PairsGame level={level}/>:stage==='three'?<ThreeGame/>:<PatternGame level={level}/>}
+    <Action secondary onPress={()=>{setStage('start');top();}}>Spiel beenden</Action>
   </>:stage==='round'&&question?<View style={s.card}>
    <Text style={s.eyebrow}>FRAGE {index+1} VON {round.length}</Text>
    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.track}><View style={[s.fill,{width:((index+1)/round.length*100)+'%'}]}/></View>
