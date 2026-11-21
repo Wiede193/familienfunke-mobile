@@ -76,3 +76,74 @@ assert.match(ui,/<ThreeGame\/>/);
 assert.match(ui,/<PatternGame level=\{level\}/);
 assert.doesNotMatch(read('FamilyMiniGameScreens.jsx'),/\b(supabase|fetch|AsyncStorage|setInterval|setTimeout)\b/);
 console.log('Mini-Spiele: Kartenpaare, Fehlversuche, Sieg, Unentschieden und Zahlenfolgen geprüft.');
+
+const load=async path=>import('data:text/javascript;base64,'+Buffer.from(read(path)).toString('base64'));
+const classics=await load('FamilyClassicGames.js'),sol=await load('FamilySolitaire.js');
+let seed=123456;
+const rng=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+for(const n of [4,6,9])for(let i=0;i<20;i++){
+ let puzzle=classics.newSudoku(n,rng);
+ assert.equal(classics.countSudokuSolutions(puzzle.givens,n),1);
+ assert.equal(classics.countSudokuSolutions(puzzle.solution,n),1);
+ const fixed=puzzle.givens.findIndex(Boolean),empty=puzzle.givens.indexOf(0);
+ assert.ok(empty>=0);
+ assert.equal(classics.sudokuPut(puzzle,fixed,0),puzzle);
+ const hint=classics.sudokuHint(puzzle,empty);
+ assert.equal(hint.cells[empty],puzzle.solution[empty]);
+ assert.equal(hint.hints,1);
+ for(let j=0;j<puzzle.cells.length;j++)puzzle=classics.sudokuPut(puzzle,j,puzzle.solution[j]);
+ assert.ok(classics.sudokuWon(puzzle));
+ assert.equal(classics.sudokuConflicts(puzzle).length,0);
+}
+for(const moves of [[0,1,0,1,0,1,0],[0,0,1,1,2,2,3],[0,1,1,2,4,2,2,3,4,3,5,3,3],[6,5,5,4,2,4,4,3,2,3,1,3,3]]){
+ let s=classics.newFour();
+ for(const c of moves)s=classics.dropFour(s,c);
+ assert.equal(s.winner,1);
+ assert.ok(s.line.length>=4);
+ assert.equal(classics.dropFour(s,6),s);
+}
+let column=classics.newFour();
+ for(let i=0;i<6;i++)column=classics.dropFour(column,0);
+ assert.equal(classics.dropFour(column,0),column);
+assert.equal(classics.WORDS.length,36);
+for(const [level] of LEVELS){
+ const seen=[];
+ for(let i=0;i<12;i++){
+  let p=classics.newWord(level,rng,seen);
+  assert.ok(!seen.includes(p.id));seen.push(p.id);
+  assert.notEqual(p.tiles.map(t=>t.letter).join(''),p.word);
+  for(const letter of p.word){
+   const tile=p.tiles.find(t=>t.letter===letter&&!p.selected.includes(t.id));
+   p=classics.wordPick(p,tile.id);
+  }
+  assert.ok(classics.wordWon(p));
+ }
+}
+function checkDeck(s){
+ const cards=[...s.stock,...s.waste,...s.tableau.flatMap(p=>p.cards),...s.foundations.flat()];
+ assert.equal(cards.length,52);assert.equal(new Set(cards).size,52);
+ assert.ok(s.tableau.every(p=>p.hidden>=0&&p.hidden<=Math.max(0,p.cards.length-1)));
+ assert.ok(s.foundations.every((p,i)=>p.every((id,j)=>sol.suit(id)===i&&sol.rank(id)===j+1)));
+}
+for(let deal=0;deal<20;deal++){
+ let s=sol.newSolitaire(rng);checkDeck(s);
+ assert.equal(s.stock.length,24);
+ assert.ok(s.tableau.every((p,i)=>p.cards.length===i+1&&p.hidden===i));
+ const initial=s.stock;
+ for(let i=0;i<24;i++)s=sol.drawSolitaire(s);
+ assert.equal(s.stock.length,0);assert.equal(s.waste.length,24);
+ s=sol.drawSolitaire(s);assert.deepEqual(s.stock,initial);
+ for(let i=0;i<70;i++){
+  const froms=[{type:'waste'},...s.tableau.flatMap((p,col)=>p.cards.map((_,index)=>({type:'tableau',col,index}))),...s.foundations.map((_,col)=>({type:'foundation',col}))].filter(x=>sol.sourceCards(s,x).length);
+  const tos=[...s.tableau.map((_,col)=>({type:'tableau',col})),...s.foundations.map((_,col)=>({type:'foundation',col}))];
+  let next=s;
+  for(const x of froms){for(const y of tos){const v=sol.moveSolitaire(s,x,y);if(v!==s){next=v;break;}}if(next!==s)break;}
+  s=next===s?sol.drawSolitaire(s):next;checkDeck(s);
+ }
+}
+assert.ok(sol.solitaireWon({foundations:Array.from({length:4},(_,i)=>Array.from({length:13},(_,j)=>i*13+j))}));
+for(const name of ['SudokuGame','SolitaireGame','FourGame','WordGame'])assert.ok(ui.includes('<'+name),'Missing '+name);
+assert.doesNotMatch(read('FamilyClassicGameScreens.jsx'),/\b(supabase|fetch|AsyncStorage|setInterval|setTimeout)\b/);
+const nav=await load('HomeNavigation.js');
+for(const q of ['Sudoku','Sodoku','Solitär','4 gewinnt','Vier gewinnt','Wörterrätsel','Worträtsel'])assert.equal(nav.findHomeRoutes(q)[0]?.id,'play',q);
+console.log('Klassiker: 60 eindeutige Sudokus, Vier-gewinnt-Siege, 36 Worträtsel und 20 vollständige Solitär-Austeilungen geprüft.');
