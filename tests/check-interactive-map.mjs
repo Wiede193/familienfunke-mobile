@@ -42,7 +42,7 @@ assert.match(source,/styles\.searchResultSelected/,'Selected list entry must be 
 assert.match(source,/styles\.mapSelectedInfo/,'Selected location must display readable information');
 assert.match(source,/scroll\.current\?\.scrollTo/,
   'Selecting a result must reveal the actual map');
-assert.match(source,/selectedSearchMatch\.source==='city'\?/, 'City search should offer nearby place loading');
+assert.match(source,/selectedSearchMatch\.source==='city'\|\|selectedSearchMatch\.source==='geocode'/, 'City and geocoder results should offer nearby place loading');
 assert.match(source,/onPress=\{\(\)=>map\.current\?\.injectJavaScript\(mapScript\('fitSearchResults'\)\)\}/,
   'Users should be able to refocus map on matches');
 assert.match(source,/accessible=\{false\} importantForAccessibility="no-hide-descendants"/,

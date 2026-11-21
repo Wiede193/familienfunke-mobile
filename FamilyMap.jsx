@@ -5,7 +5,7 @@ import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {CURATED_REGION,CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {NATIONAL_FAMILY_PLACES,NATIONAL_TYPES,NATIONAL_AREAS} from './FamilyMapNational';
-import {findFamilyMapLocations} from './FamilyMapSearch';
+import {findFamilyMapLocations,mergeMapSearchResults} from './FamilyMapSearch';
 
 const C=FAMILY_COLORS;
 const TYPES=[['all','Alle','◎'],['playground','Spielplätze','♧'],['changing','Wickeltische','♡'],['outing','Ausflüge','✿'],['other','Sonstiges','◇']];
@@ -140,6 +140,11 @@ export default function FamilyMapScreen({userId,active,addPlace}){
   const [notice,setNotice]=useState('');
   const [placeQuery,setPlaceQuery]=useState('');
   const [selectedSearchId,setSelectedSearchId]=useState(null);
+  const [geoResults,setGeoResults]=useState([]);
+  const [geoStatus,setGeoStatus]=useState('idle');
+  const geoRequest=useRef(0);
+  const fitTimer=useRef(null);
+  useEffect(()=>()=>{geoRequest.current++;},[]);
 
   const fetchCommunity=useCallback(async()=>{
     if(!supabase||!userId)return;
@@ -162,10 +167,11 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     const places=[...curated,...community,...osm.filter(p=>!curatedOSM.has(p.id))];
     return places.filter(p=>inGermany(p.latitude,p.longitude) && (types==='all'||p.category===types));
   },[community,osm,types,nationalShown]);
-  const locationMatches=useMemo(()=>findFamilyMapLocations(placeQuery,{
+  const localMatches=useMemo(()=>findFamilyMapLocations(placeQuery,{
     centers:CENTERS,curated:CURATED_FAMILY_PLACES,national:NATIONAL_FAMILY_PLACES,
     community,osm
   }),[placeQuery,community,osm]);
+  const locationMatches=useMemo(()=>mergeMapSearchResults(localMatches,geoResults),[localMatches,geoResults]);
   const selectedSearchMatch=locationMatches.find(match=>match.id===selectedSearchId)||null;
   const selected=all.find(p=>p.id===selectedId)||null;
   useEffect(()=>{if(ready)map.current?.injectJavaScript(pinSetScript(all));},[all,ready]);
@@ -176,10 +182,10 @@ export default function FamilyMapScreen({userId,active,addPlace}){
       active,selectedId:selectedSearchId,
       items:locationMatches.map(({id,title,latitude,longitude})=>({id,title,latitude,longitude}))
     }));
-    if(!active||!locationMatches.length)return;
+    if(!active||!locationMatches.length||locationMatches.some(m=>m.id===selectedSearchId))return;
     // Debounce fitting: the pins update immediately, but typing does not cause a jump every keystroke.
-    const timer=setTimeout(()=>map.current?.injectJavaScript(mapScript('fitSearchResults')),320);
-    return ()=>clearTimeout(timer);
+    fitTimer.current=setTimeout(()=>map.current?.injectJavaScript(mapScript('fitSearchResults')),320);
+    return ()=>clearTimeout(fitTimer.current);
   },[ready,placeQuery,locationMatches]);
   useEffect(()=>{
     if(ready)map.current?.injectJavaScript(mapScript('setSearchSelection',selectedSearchId));
@@ -187,6 +193,35 @@ export default function FamilyMapScreen({userId,active,addPlace}){
   useEffect(()=>{
     if(ready)map.current?.injectJavaScript(mapScript('setDraft',draftPoint));
   },[draftPoint,ready]);
+  function changePlaceQuery(value){
+    geoRequest.current++;
+    setPlaceQuery(value);setGeoResults([]);setGeoStatus('idle');
+    setSelectedSearchId(null);setSelectedId(null);
+  }
+  async function searchGermany(){
+    const query=placeQuery.trim();
+    if(query.length<3||geoStatus==='loading')return;
+    Keyboard.dismiss();
+    const request=++geoRequest.current;
+    setGeoStatus('loading');setGeoResults([]);setSelectedSearchId(null);setSelectedId(null);
+    try{
+      const {data,error}=await supabase.functions.invoke('ff-geocode',{body:{query}});
+      if(request!==geoRequest.current)return;
+      if(error||!Array.isArray(data?.places)){
+        setGeoStatus(error?.context?.status===429?'quota':'error');return;
+      }
+      setGeoResults(data.places);setGeoStatus(data.places.length?'done':'empty');
+      AccessibilityInfo.announceForAccessibility(data.places.length+' deutschlandweite Suchtreffer.');
+      scroll.current?.scrollTo({y:Math.max(0,mapOffset.current-12),animated:false});
+    }catch{if(request===geoRequest.current)setGeoStatus('error');}
+  }
+  function searchNearMatch(match){
+    changePlaceQuery('');
+    setTypes('all');setNationalArea('all');setNationalType('all');
+    setCenter({latitude:match.latitude,longitude:match.longitude,zoom:13.2});
+    if(ready)map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo('+match.latitude+','+match.longitude+',13.2);true;');
+    loadAround(match.latitude,match.longitude,13.2);
+  }
   async function loadAround(latitude=center.latitude,longitude=center.longitude,zoom=center.zoom){
     if(loading)return;
     setSearchError('');setNotice('');
@@ -218,11 +253,13 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     // Nutzer tippt danach bewusst auf "Hier suchen", kein automatisches Massenabfragen.
   }
   function showAllGermany(){
+    changePlaceQuery('');
     setNationalType('all');setNationalArea('all');setTypes('all');setSelectedId(null);
     setCenter({latitude:51.2,longitude:10.45,zoom:5.3});setSearchError('');
     if(ready)map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo(51.2,10.45,5.3);true;');
   }
   function showCuratedRegion(){
+    changePlaceQuery('');
     const {latitude,longitude,zoom}=CURATED_REGION;
     setSelectedId(null);
     setTypes('all');
@@ -304,6 +341,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     );
   }
   function selectSearchedLocation(match){
+    clearTimeout(fitTimer.current);
     setSelectedSearchId(match.id);
     Keyboard.dismiss();
     scroll.current?.scrollTo({y:Math.max(0,mapOffset.current-12),animated:false});
@@ -313,7 +351,12 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     if(match.source==='city')visit({
       name:match.title,latitude:match.latitude,longitude:match.longitude
     });
-    else showPlace(match.place);
+    else if(match.source==='geocode'){
+      setSelectedId(null);
+      const zoom=match.kind==='Adresse'||match.kind==='Straße'?16:12.8;
+      setCenter({latitude:match.latitude,longitude:match.longitude,zoom});
+      if(ready)map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo('+match.latitude+','+match.longitude+','+zoom+');true;');
+    }else showPlace(match.place);
   }
   function openInOSM(place){
     const url='https://www.openstreetmap.org/?mlat='+encodeURIComponent(place.latitude)+'&mlon='+encodeURIComponent(place.longitude)
@@ -342,14 +385,25 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     <View style={styles.locationSearch}>
       <Text accessibilityRole="header" style={styles.sectionNoMargin}>Ort oder Ausflugsziel suchen</Text>
       <Text style={[styles.micro,{marginTop:7,marginBottom:11}]}>
-        Suche nach einer Stadt oder einem bereits erfassten Familienort, ohne die Karte berühren zu müssen.
-        Die Suche läuft auf deinem Gerät; Straßenadressen werden hier nicht nachgeschlagen.
+        Suche nach Orten, Postleitzahlen, Straßen und öffentlichen Adressen in ganz Deutschland. Familienfunke-Tipps erscheinen direkt beim Tippen.
       </Text>
-      <TextInput accessibilityLabel="Stadt oder Ausflugsziel suchen"
-        value={placeQuery} onChangeText={value=>{setPlaceQuery(value);setSelectedSearchId(null);setSelectedId(null);}}
-        style={styles.field} placeholder="z. B. Berlin, Storkow, Europa-Park"
-        placeholderTextColor={C.muted} maxLength={80}
-        autoCorrect={false} returnKeyType="search"/>
+      <TextInput accessibilityLabel="Stadt oder Ausflugsziel suchen" accessibilityHint="Auch Postleitzahl, Straße und öffentliche Adresse möglich. Deutschlandweite Suche mit der Suchtaste starten."
+        value={placeQuery} onChangeText={changePlaceQuery}
+        style={styles.field} placeholder="z. B. 15230, Rathausplatz oder Berlin"
+        placeholderTextColor={C.muted} maxLength={160}
+        autoCorrect={false} returnKeyType="search" onSubmitEditing={searchGermany}/>
+      <Text style={[styles.micro,{marginTop:9}]}>Mit „Deutschlandweit suchen“ wird nur dein Suchtext über unseren Server an Photon übermittelt. Bitte keine privaten Wohnadressen, Namen oder vertraulichen Angaben eingeben. Kein GPS-Zugriff.</Text>
+      <Pressable accessibilityRole="button" accessibilityState={{disabled:geoStatus==='loading'||placeQuery.trim().length<3,busy:geoStatus==='loading'}}
+        disabled={geoStatus==='loading'||placeQuery.trim().length<3} onPress={searchGermany}
+        style={[styles.mainBtn,{minHeight:48,marginTop:10,opacity:geoStatus==='loading'||placeQuery.trim().length<3?0.5:1}]}>
+        <Text style={styles.mainBtnText}>{geoStatus==='loading'?'Deutschlandweite Suche läuft …':'Deutschlandweit suchen'}</Text>
+      </Pressable>
+      {placeQuery?<Pressable accessibilityRole="button" onPress={()=>changePlaceQuery('')} style={[styles.outlineBtn,{minHeight:44,marginTop:8}]}>
+        <Text style={styles.outlineText}>Suche zurücksetzen</Text>
+      </Pressable>:null}
+      {geoStatus==='quota'||geoStatus==='error'||geoStatus==='empty'?<Text accessibilityLiveRegion="polite" style={[styles.micro,{marginTop:9}]}>
+        {geoStatus==='quota'?'Suchlimit erreicht oder Dienst ausgelastet. Bitte später erneut versuchen.':geoStatus==='error'?'Die deutschlandweite Suche ist gerade nicht erreichbar. Familienfunke-Tipps bleiben verfügbar.':'Keine weiteren Kartentreffer gefunden. Prüfe die Schreibweise oder ergänze die Stadt.'}
+      </Text>:null}
     </View>
     <View style={styles.mapFrame} onLayout={event=>{mapOffset.current=event.nativeEvent.layout.y;}}>
       <WebView ref={map} originWhitelist={['*']} source={{html:MAP_HTML}}
@@ -364,12 +418,14 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     </View>
     {selectedSearchMatch?<View accessibilityLiveRegion="polite" style={styles.mapSelectedInfo}>
       <Text accessibilityRole="header" style={styles.selectedTitle}>{selectedSearchMatch.title}</Text>
-      <Text style={styles.micro}>{selectedSearchMatch.subtitle} · Auf der Karte hervorgehoben</Text>
-      {selectedSearchMatch.source==='city'?<Pressable accessibilityRole="button"
-         accessibilityLabel={'Familienorte in '+selectedSearchMatch.title+' laden'}
-         onPress={()=>loadAround(selectedSearchMatch.latitude,selectedSearchMatch.longitude,12.3)}
+      <Text style={styles.micro}>{selectedSearchMatch.subtitle}{ready?' · Auf der Karte hervorgehoben':''}</Text>
+      {selectedSearchMatch.source==='geocode'?<View><Text style={[styles.micro,{marginTop:8}]}>Externer Kartentreffer, keine geprüfte Familienfunke-Empfehlung. Adressdaten können unvollständig sein.</Text><Pressable accessibilityRole="link" onPress={()=>openDirections(selectedSearchMatch,'google')} style={[styles.minorBtn,{minHeight:44}]}><Text style={styles.minorBtnText}>Route in Google Maps öffnen ↗</Text></Pressable><Pressable accessibilityRole="link" onPress={()=>openDirections(selectedSearchMatch,'apple')} style={[styles.minorBtn,{minHeight:44}]}><Text style={styles.minorBtnText}>Route in Apple Karten öffnen ↗</Text></Pressable></View>:null}
+      {(selectedSearchMatch.source==='city'||selectedSearchMatch.source==='geocode')?<Pressable accessibilityRole="button"
+         accessibilityLabel={'Familienorte in der Umgebung von '+selectedSearchMatch.title+' laden'}
+         accessibilityState={{disabled:loading}} disabled={loading}
+         onPress={()=>searchNearMatch(selectedSearchMatch)}
          style={[styles.mainBtn,{marginTop:11}]}>
-         <Text style={styles.mainBtnText}>Familienorte in dieser Stadt suchen</Text>
+         <Text style={styles.mainBtnText}>Familienorte in dieser Umgebung suchen</Text>
        </Pressable>:null}
     </View>:null}
     {selected?<View style={styles.selectedCard}>
@@ -400,7 +456,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
       {placeQuery.trim().length>=2?
         <View style={styles.searchResultPanel}>
           <Text accessibilityLiveRegion="polite" style={[styles.micro,{marginBottom:6}]}>
-            {locationMatches.length} {locationMatches.length===1?'passender Ort':'passende Orte'} im Familienfunke-Katalog
+            {locationMatches.length} {locationMatches.length===1?'passender Ort':'passende Orte'} · Familienfunke und Kartensuche
           </Text>
           {locationMatches.map(match=><Pressable key={match.id}
             accessibilityRole="button" accessibilityState={{selected:selectedSearchId===match.id}}
@@ -408,14 +464,13 @@ export default function FamilyMapScreen({userId,active,addPlace}){
             onPress={()=>selectSearchedLocation(match)}
             style={[styles.searchResult,selectedSearchId===match.id&&styles.searchResultSelected]}>
             <View style={{flex:1}}>
-              <Text style={styles.placeTitle}>{match.title}</Text>
+              <Text style={styles.placeTitle}>{locationMatches.indexOf(match)+1}. {match.title}</Text>
               <Text style={styles.micro}>{match.subtitle}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>)}
           {locationMatches.length===0?<Text style={styles.micro}>
-            Hier ist noch kein passender Ort erfasst. Wähle eine der Städte oder nutze zur
-            Einreichung eines neuen Ortes die Koordinatenfelder.
+            Noch keine Treffer. Nutze „Deutschlandweit suchen“ oder passe deinen Suchbegriff an.
           </Text>:null}
         </View>:null}
 
@@ -426,7 +481,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
       <Text style={styles.outlineText}>Alle Suchtreffer auf der Karte anzeigen</Text>
     </Pressable>:null}
     {mapError?<View accessibilityLiveRegion="polite" style={styles.warn}><Text style={styles.micro}>{mapError} Die Ortsliste kann weiterhin genutzt werden.</Text></View>:null}
-    <Text style={[styles.micro,{marginTop:7}]}>Kartengrundlage: OpenFreeMap / OpenStreetMap. Zum Navigieren die Karte verschieben und zoomen. Standortzugriff ist nicht nötig. Alle verfügbaren Orte sind zusätzlich als bedienbare Liste unter der Karte erreichbar.</Text>
+    <Text style={[styles.micro,{marginTop:7}]}>Kartengrundlage: OpenFreeMap / OpenStreetMap. Adresssuche: Photon / © OpenStreetMap-Mitwirkende. Zum Navigieren die Karte verschieben und zoomen. Standortzugriff ist nicht nötig. Alle verfügbaren Orte sind zusätzlich als bedienbare Liste unter der Karte erreichbar.</Text>
     <View style={styles.curatedBox}>
       <View style={[styles.row,{justifyContent:'space-between',alignItems:'center',gap:10}]}>
         <View style={{flex:1}}>
