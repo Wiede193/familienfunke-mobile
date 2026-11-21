@@ -591,11 +591,11 @@ const RESEARCH_QUESTIONS=[
   "id": "x7-0",
   "level": "school",
   "topic": "language",
-  "question": "Welches Wort ist ein Verb?",
+  "question": "Welches Wort ist ein Verb (Tätigkeitswort)?",
   "answers": [
-   "Laufen",
+   "laufen",
    "Schule",
-   "Blau"
+   "blau"
   ],
   "correct": 0,
   "explanation": "Laufen bezeichnet eine Tätigkeit."
@@ -604,11 +604,11 @@ const RESEARCH_QUESTIONS=[
   "id": "x7-1",
   "level": "school",
   "topic": "language",
-  "question": "Welches Wort ist ein Adjektiv?",
+  "question": "Welches Wort ist ein Adjektiv (Eigenschaftswort)?",
   "answers": [
-   "Schnell",
+   "schnell",
    "Hund",
-   "Schreiben"
+   "schreiben"
   ],
   "correct": 0,
   "explanation": "Schnell beschreibt eine Eigenschaft."
@@ -864,7 +864,7 @@ const RESEARCH_QUESTIONS=[
   "id": "x12-0",
   "level": "little",
   "topic": "world",
-  "question": "Welche Farbe hat eine reife gelbe Banane?",
+  "question": "Welche Farbe hat die Schale einer typischen reifen Dessertbanane?",
   "answers": [
    "Gelb",
    "Blau",
@@ -981,7 +981,7 @@ const RESEARCH_QUESTIONS=[
 // Fixed arithmetic tasks, distinct and exactly solvable; no network or generative AI.
 const MATH_QUESTIONS=Array.from({length:12},(_,i)=>{
  const a=i+2,b=i%4+1,l=a+b,s=(i+3)*4,f=(i+4)*20;
- return [q('m-l'+i,'little','logic',a+' plus '+b+' ergibt?',[String(l),String(l+1),String(l-1)],0,a+' + '+b+' = '+l+'.'),q('m-s'+i,'school','logic','Was ergibt '+(i+3)+' mal 4?',[String(s),String(s+4),String(s-4)],0,(i+3)+' × 4 = '+s+'.'),q('m-f'+i,'family','logic','Was sind 15 Prozent von '+f+'?',[String(f*15/100),String(f*15/100+2),String(f*15/100-2)],0,'10 Prozent plus 5 Prozent ergeben '+(f*15/100)+'.')];
+ return [q('m-l'+i,'little','logic',a+' plus '+b+' ergibt?',[String(l),String(l+1),String(l-1)],0,'Zusammen sind das '+a+' + '+b+' = '+l+'.'),q('m-s'+i,'school','logic','Was ergibt '+(i+3)+' mal 4?',[String(s),String(s+4),String(s-4)],0,'Viererreihe: '+(i+3)+' × 4 = '+s+'.'),q('m-f'+i,'family','logic','Was sind 15 Prozent von '+f+'?',[String(f*15/100),String(f*15/100+2),String(f*15/100-2)],0,'10 Prozent plus 5 Prozent ergeben '+(f*15/100)+'.')];
 }).flat().filter(q=>q.level!=='little'||Number(q.answers[0])<=20);
 export const QUESTIONS=[...STARTER_QUESTIONS,...RESEARCH_QUESTIONS,...MATH_QUESTIONS];
 export const IDEAS=[
