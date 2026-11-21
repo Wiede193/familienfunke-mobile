@@ -24,7 +24,8 @@ export default function FamilyPlayScreen(){
   AccessibilityInfo.announceForAccessibility((i===question.correct?'Richtig. ':'Die richtige Antwort ist '+question.answers[question.correct]+'. ')+question.explanation);
  }
  function next(){
-  if(answer===null)return;
+  if(answer===null||!locked.current)return;
+  locked.current=false;
   if(index+1===round.length){setStage('done');top();return;}
   setIndex(n=>n+1);setAnswer(null);locked.current=false;top();
  }
