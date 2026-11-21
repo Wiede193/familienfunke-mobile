@@ -29,7 +29,7 @@ for(const file of [
   assert.match(read(file),/import \{FAMILY_COLORS\} from '\.\/FamilyTheme';/,
     file+' must use the common visual language');
 }
-const app=read('App.jsx');
+const app=read('App.jsx')+'\n'+read('FamilyAppStyles.js');
 assert.match(app,/const C = FAMILY_COLORS;/,'Main app palette must be centralized');
 assert.match(app,/headingBar:\{width:5/,'Section heading should have a consistent sun accent');
 assert.match(app,/tabActive:\{backgroundColor:C\.sunPale\}/,'Bottom navigation uses sunny selected state');

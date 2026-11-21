@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
 ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Linking,
 Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, Modal, useWindowDimensions,
-StatusBar, StyleSheet, Switch, Text, TextInput, View,
+StatusBar, Switch, Text, TextInput, View,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
@@ -18,6 +18,9 @@ import HomeAssistant from './HomeAssistant';
 import FamilyLayoutEditor from './FamilyLayoutEditor';
 import {confirmRemoval} from './FamilyActions';
 import FamilyActionButton from './FamilyActionButton';
+import {styles} from './FamilyAppStyles';
+import {Button,Chip,Card,H,Info,Avatar,Row,Input,Blank} from './FamilyUI';
+import ContactsScreen from './FamilyContactsScreen';
 import {useFamilyLayout} from './FamilyLayoutPreferences';
 import {BOTTOM_ITEMS} from './FamilyLayoutModel';
 import FamilyCalendar,{CalendarEventButton} from './FamilyCalendar';
@@ -56,7 +59,6 @@ const SECTION_MESSAGES={market:'Von Familien für Familien: kostenlos einstellen
 const blankProfile = {display_name:'',region_label:'',about:'',interests:[],is_discoverable:false};
 const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[],listings:[],marketPhotos:[],marketFavorites:[],organizations:[],partnerEvents:[]};
 const formatDate = (value) => { if (!value) return '–'; const d = new Date(value); return isNaN(d) ? '–' : d.toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
-const initial = (name) => String(name||'F').split(/\s+/).slice(0,2).map(s=>s[0]||'').join('').toUpperCase();
 const safeString = (value, length) => String(value||'').trim().slice(0,length);
 const eqId = (a,b) => !!a && a===b;
 const givenDate = (str,time) => { const date = new Date(`${str}T${time}:00`); return isNaN(date.getTime())?null:date; };
@@ -110,35 +112,6 @@ async function moderateTextOrThrow(parts) {
   }
 }
 
-function Button({title, onPress, mode='primary', disabled=false, small=false, style,accessibilityLabel}) {
-return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||title} accessibilityState={{disabled:!!disabled}} onPress={onPress} disabled={disabled}
-style={({pressed})=>[styles.button,styles[`button_${mode}`],small&&styles.buttonSmall,disabled&&{opacity:0.46},pressed&&{opacity:.8},style]}>
-<Text style={[styles.buttonText,mode!=='primary'&&styles.buttonTextDark,small&&{fontSize:13}]}>{title}</Text>
-</Pressable>;
-}
-function Chip({text,selected,onPress}) {
-if(!onPress)return <View style={[styles.chip,selected&&styles.chipSelected]}>
-<Text style={[styles.chipText,selected&&{color:C.white}]}>{text}</Text></View>;
-return <Pressable accessibilityRole="button" accessibilityLabel={text} accessibilityState={{selected:!!selected}} onPress={onPress} style={[styles.chip,selected&&styles.chipSelected]}>
-<Text style={[styles.chipText,selected&&{color:C.white}]}>{selected?'✓ ':''}{text}</Text>
-</Pressable>;
-}
-function Card({children,style}) {return <View style={[styles.card,style]}>{children}</View>;}
-function H({children,sub}) {return <View style={styles.headingWrap}>
-  <View style={styles.headingBar}/>
-  <View style={{flex:1}}>
-    <Text accessibilityRole="header" style={styles.h}>{children}</Text>
-    {sub?<Text style={styles.sub}>{sub}</Text>:null}
-  </View>
-</View>;}
-function Info({children,warning=false}) {return <View style={[styles.info,warning&&styles.warning]}><Text style={[styles.infoText,warning&&{color:C.warningText}]}>{children}</Text></View>;}
-function Avatar({name,size=52,uri}) {return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.avatar,{width:size,height:size,borderRadius:size/2}]}>{uri?<Image source={{uri}} style={{width:size,height:size,borderRadius:size/2}}/>:<Text style={[styles.avatarText,{fontSize:size*.30}]}>{initial(name)}</Text>}</View>;}
-function Row({children,style}) {return <View style={[{flexDirection:'row',alignItems:'center',gap:10},style]}>{children}</View>;}
-function Input({label,multiline=false,style,...props}) {
-return <View style={[{marginBottom:13},style]}><Text style={styles.label}>{label}</Text><TextInput
-accessibilityLabel={label} placeholderTextColor={C.muted} style={[styles.input,multiline&&{minHeight:95,textAlignVertical:'top',paddingTop:12}]}
-multiline={multiline} {...props}/></View>;
-}
 function RegionPicker({value,onChange}) {
 const [open,setOpen]=useState(false);
 const [search,setSearch]=useState('');
@@ -162,7 +135,6 @@ return <View style={{marginBottom:15}}>
 <Text style={[styles.micro,{marginTop:6}]}>Gib bitte keine Straße oder Hausnummer an. Deine Region ist freiwillig.</Text>
 </View>;
 }
-function Blank({title,body}) {return <Card style={{alignItems:'center',paddingVertical:30}}><Text style={{fontSize:38,marginBottom:8,color:C.coral}}>♡</Text><Text style={styles.cardTitle}>{title}</Text><Text style={[styles.sub,{textAlign:'center'}]}>{body}</Text></Card>;}
 function Login({error,setError,onHelp}) {
 const [email,setEmail]=useState('');
 const [password,setPassword]=useState('');
@@ -381,12 +353,19 @@ const ok=await execute(async()=>assertResult(await supabase.from('reports').inse
 if(ok){setReportTarget(null);setReportDetails('');}
 }
 async function sendRequest(uid){await execute(async()=>assertResult(await supabase.from('contact_requests').insert({sender_id:me,recipient_id:uid})),'Kontaktanfrage verschickt.');}
-async function replyRequest(id,status){await execute(async()=>assertResult(await supabase.from('contact_requests').update({status}).eq('id',id)),'Kontaktanfrage aktualisiert.');}
+async function replyRequest(id,status){
+ const request=db.contacts.find(c=>c.id===id&&c.status==='pending'&&(status==='cancelled'?c.sender_id===me:['accepted','declined'].includes(status)&&c.recipient_id===me));
+ if(!request||busy)return;
+ const submit=()=>{if(accountRef.current!==me)return;return execute(async()=>{
+  const {data,error}=await supabase.from('contact_requests').update({status}).eq('id',id).eq('status','pending').eq(status==='cancelled'?'sender_id':'recipient_id',me).select('id');
+  if(error||data?.length!==1)throw Error('Die Anfrage ist nicht mehr offen. Bitte aktualisiere deine Kontakte.');
+ },status==='accepted'?'Kontakt bestätigt.':status==='declined'?'Anfrage abgelehnt.':'Anfrage zurückgezogen.');};
+ if(status==='accepted')return submit();
+ confirmRemoval({title:status==='declined'?'Anfrage ablehnen?':'Anfrage zurückziehen?',description:'Die offene Anfrage wird beendet. Es wird kein bestätigter Kontakt gelöscht.',confirmLabel:status==='declined'?'Ablehnen':'Zurückziehen',onConfirm:submit});
+}
 async function blockUser(uid){
-Alert.alert('Kontakt blockieren?','Die Person kann dir dann keine neuen Nachrichten schicken.',[
-{text:'Abbrechen',style:'cancelled'},
-{text:'Blockieren',style:'destructive',onPress:()=>execute(async()=>assertResult(await supabase.from('blocks').insert({blocker_id:me,blocked_id:uid})),'Kontakt blockiert.')},
-]);
+ if(busy||!uid)return;
+ confirmRemoval({title:'Kontakt blockieren?',description:'Die Person kann dir keine neuen Nachrichten schicken. Du kannst die Blockierung später im Profil aufheben.',confirmLabel:'Blockieren',onConfirm:()=>{if(accountRef.current!==me)return;return execute(async()=>assertResult(await supabase.from('blocks').insert({blocker_id:me,blocked_id:uid})),'Kontakt blockiert.');}});
 }
 async function unblockUser(uid){await execute(async()=>assertResult(await supabase.from('blocks').delete().eq('blocker_id',me).eq('blocked_id',uid)),'Blockierung aufgehoben.');}
 async function changePassword(password){
@@ -1778,14 +1757,11 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
           {seller.own&&selected.moderation_status==='rejected'?<Info warning>Dein Inserat wurde nicht freigegeben.</Info>:null}
           {seller.own&&selected.moderation_status==='removed'?<Info warning>Dieses Inserat wurde entfernt.</Info>:null}
           {seller.own&&['approved','pending','rejected'].includes(selected.moderation_status)?
-            <View style={{marginTop:13}}><Button title="Anzeige bearbeiten" mode="outline" disabled={busy||!active}
+            <View style={{marginTop:13}}><FamilyActionButton title="Anzeige bearbeiten" disabled={busy||!active}
               onPress={()=>beginEdit(selected)}/></View>:null}
           {seller.own&&selected.moderation_status==='approved'?
-            <View style={{marginTop:13}}><Button title="Als vergeben markieren" mode="outline" disabled={busy}
-              onPress={()=>Alert.alert('Angebot abschließen?','Das Inserat verschwindet für andere Familien aus dem Basar. Damit wird kein Kauf oder Zahlungsvorgang ausgelöst.',[
-                {text:'Abbrechen',style:'cancel'},
-                {text:'Als vergeben markieren',onPress:()=>markListingSold(selected.id)}
-              ])}/></View>:null}
+            <View style={{marginTop:13}}><FamilyActionButton title="Als vergeben markieren" disabled={busy}
+              onPress={()=>confirmRemoval({title:'Angebot abschließen?',description:'Das Inserat verschwindet für andere Familien aus dem Basar. Damit wird kein Kauf oder Zahlungsvorgang ausgelöst.',confirmLabel:'Als vergeben markieren',onConfirm:()=>markListingSold(selected.id)})}/></View>:null}
           {seller.own&&selected.moderation_status==='pending'&&
             ((selected.photo_path?1:0)+marketPhotos.filter(x=>x.listing_id===selected.id).length<5)?
             <View style={{marginTop:12}}><Button title="Weitere Fotos hinzufügen" mode="outline" disabled={choosing||busy}
@@ -2113,24 +2089,6 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 {photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image accessibilityLabel={photo.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
 </ScrollView>;
 }
-function ContactsScreen({focusId,pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat}){
-pending=[...pending].sort((a,b)=>Number(b.id===focusId)-Number(a.id===focusId));
-accepted=[...accepted].sort((a,b)=>Number(b.id===focusId)-Number(a.id===focusId));
-const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-<H sub="Nachrichten sind erst nach gegenseitiger Bestätigung möglich.">Deine Kontakte</H>
-<Text style={styles.sectionTitle}>Offene Anfragen</Text>
-{pending.length===0?<Blank title="Keine offenen Anfragen" body="Neue Kontaktwünsche erscheinen hier."/>:pending.map(c=><Card key={c.id} style={{marginBottom:10,borderColor:c.id===focusId?C.accent:C.line,borderWidth:c.id===focusId?2:1}}>
-<Row><Avatar name={nameOf(other(c))}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other(c))}</Text><Text style={styles.micro}>{c.recipient_id===me?'Möchte dich kennenlernen':'Von dir angefragt'}</Text></View></Row>
-<Row style={{marginTop:13}}>{c.recipient_id===me?<><Button title="Annehmen" small disabled={disabled} onPress={()=>respond(c.id,'accepted')} style={{flex:1}}/><Button title="Ablehnen" mode="outline" small disabled={disabled} onPress={()=>respond(c.id,'declined')} style={{flex:1}}/></>:<Button title="Zurückziehen" small mode="outline" disabled={disabled} onPress={()=>respond(c.id,'cancelled')}/>}</Row>
-</Card>)}
-<Text style={styles.sectionTitle}>Bestätigte Kontakte</Text>
-{accepted.length===0?<Blank title="Noch keine Kontakte" body="Bestätigte Familien erscheinen hier."/>:accepted.map(c=>{const uid=other(c);return <Card key={c.id} style={{marginBottom:10,borderColor:c.id===focusId?C.accent:C.line,borderWidth:c.id===focusId?2:1}}>
-<Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text style={styles.micro}>{blocked(uid)?'Blockiert':'Kontakt bestätigt'}</Text></View></Row>
-<Row style={{marginTop:12}}><Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>{blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:<Button title="Blockieren" small mode="outline" onPress={()=>onBlock(uid)}/>}</Row>
-</Card>;})}
-</ScrollView>;
-}
 function ChatList({contacts,me,nameOf,messages,onChat,blocked}){
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
@@ -2359,99 +2317,3 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 {links.map(([name,subtitle,url])=><Pressable key={name} accessibilityRole="link" accessibilityLabel={name+' – '+subtitle} onPress={()=>Linking.openURL(url)}><Card style={{marginBottom:12}}><Row><View style={{flex:1}}><Text style={styles.cardTitle}>{name}</Text><Text style={styles.sub}>{subtitle}</Text></View><Text style={{fontSize:25,color:C.accent}}>↗</Text></Row></Card></Pressable>)}
 </ScrollView>;
 }
-const styles=StyleSheet.create({
-
-marketTopActions:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:C.white,padding:15,borderRadius:20,borderWidth:1,borderColor:C.line,marginBottom:17},
-marketTopTitle:{fontSize:17,fontWeight:'900',color:C.ink,marginBottom:3},
-marketDropdown:{minHeight:50,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:15,paddingVertical:10,backgroundColor:C.white,borderRadius:14,borderWidth:1,borderColor:'#D0DFDE'},
-marketDropdownOptions:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:14,marginTop:4,overflow:'hidden'},
-marketDropdownOption:{minHeight:48,paddingHorizontal:15,paddingVertical:11,borderBottomWidth:1,borderBottomColor:C.line,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
-marketSearchBox:{minHeight:53,backgroundColor:C.white,borderRadius:17,borderWidth:1,borderColor:'#D0DFDE',paddingHorizontal:15,flexDirection:'row',alignItems:'center',marginBottom:14},
-marketSearchInput:{fontSize:16,color:C.ink,flex:1,minHeight:50},
-marketFilters:{flexDirection:'row',alignItems:'flex-start',gap:10,marginBottom:14},
-marketFilterToggle:{minHeight:47,borderRadius:14,borderWidth:1,borderColor:'#D0DFDE',backgroundColor:C.white,paddingHorizontal:10,justifyContent:'center',alignItems:'center'},
-marketFilterLabel:{fontSize:12.5,fontWeight:'800',color:C.accentDark},
-marketSortOptions:{backgroundColor:C.white,borderColor:C.line,borderWidth:1,borderRadius:14,marginTop:5},
-marketGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:13},
-marketTile:{width:'48.3%',borderRadius:18,borderWidth:1,borderColor:C.line,backgroundColor:C.white,overflow:'hidden',minHeight:246,shadowColor:'#986D52',shadowOpacity:0.07,shadowRadius:8,shadowOffset:{width:0,height:2},elevation:1},
-marketTileImage:{width:'100%',height:154,backgroundColor:'#F1F3EF',position:'relative'},
-marketTilePhoto:{width:'100%',height:'100%'},
-marketImagePlaceholder:{backgroundColor:'#F4F1EB',alignItems:'center',justifyContent:'center',gap:5},
-marketPricePill:{position:'absolute',top:8,left:7,right:50,backgroundColor:'#FFFFFFF2',borderRadius:11,paddingVertical:6,paddingHorizontal:9,alignSelf:'flex-start'},
-marketPricePillText:{fontSize:14,fontWeight:'900',color:C.ink},
-marketTileBody:{padding:11,paddingBottom:14,gap:4},
-marketTileTitle:{fontSize:15,fontWeight:'800',color:C.ink,lineHeight:19,minHeight:38},
-marketDetailCard:{padding:17,marginBottom:18},
-marketDetailImage:{height:285,backgroundColor:'#F4F1EB',borderRadius:18,overflow:'hidden'},
-marketFullImage:{width:'100%',height:'100%'},
-marketPrice:{fontWeight:'900',color:C.accentDark},
-
-regionDropdown:{marginTop:8,padding:10,backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:17},
-regionOption:{minHeight:48,paddingHorizontal:12,paddingVertical:10,borderBottomWidth:1,borderBottomColor:C.line,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
-progressTrack:{height:8,backgroundColor:C.pale,borderRadius:10,overflow:'hidden'},
-progressFill:{height:'100%',backgroundColor:C.coral,borderRadius:10},
-filterPanel:{borderRadius:20,backgroundColor:C.white,borderColor:C.line,borderWidth:1,padding:15,marginBottom:14},
-
-screen:{flex:1,backgroundColor:C.bg},center:{flex:1,alignItems:'center',justifyContent:'center',gap:15,backgroundColor:C.bg},
-scroll:{flex:1},content:{padding:19,paddingBottom:40},
-brand:{fontSize:33,fontWeight:'900',color:C.ink,letterSpacing:-1.15,textAlign:'center'},
-smallBrand:{fontSize:19,fontWeight:'900',color:C.ink,letterSpacing:-.7},tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:9},
-loginPage:{flexGrow:1,alignItems:'center',justifyContent:'center',padding:20,backgroundColor:C.bg},
-loginMark:{width:95,height:95,borderRadius:31,backgroundColor:C.sun,alignItems:'center',justifyContent:'center',marginBottom:22,transform:[{rotate:'-7deg'}]},
-topBar:{minHeight:64,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:12,flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:6,paddingVertical:8},
-headerMenuButton:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:13,backgroundColor:C.mint},headerBackSymbol:{fontSize:31,lineHeight:35,color:C.ink,fontWeight:'700'},
-inboxBell:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:14,backgroundColor:C.sunPale},
-inboxBadge:{position:'absolute',top:0,right:0,backgroundColor:C.accentDark,minWidth:20,borderRadius:12,paddingHorizontal:4,paddingVertical:2},
-inboxBadgeText:{fontSize:12,fontWeight:'900',color:C.white,textAlign:'center'},
-headerIdentity:{flex:1,minWidth:125,flexDirection:'row',alignItems:'center',gap:6},
-headerHeartBadge:{width:37,height:37,borderRadius:13,backgroundColor:C.sun,alignItems:'center',justifyContent:'center'},
-headerHeart:{fontSize:21,fontWeight:'900',color:'#9A4A43'},
-topHint:{fontSize:12,color:C.muted,marginTop:1,fontWeight:'600'},
-card:{backgroundColor:C.white,borderRadius:22,padding:18,borderColor:C.line,borderWidth:1,shadowColor:'#C28368',shadowOpacity:0.07,shadowRadius:11,shadowOffset:{width:0,height:3},elevation:2},
-hero:{backgroundColor:C.sun,borderRadius:25,paddingHorizontal:23,paddingVertical:27,marginBottom:25,overflow:'hidden',minHeight:238},
-heroDecorationOne:{position:'absolute',width:165,height:165,borderRadius:83,backgroundColor:'#FFE9A3',top:-64,right:-64},
-heroDecorationTwo:{position:'absolute',width:88,height:88,borderRadius:44,backgroundColor:C.peach,opacity:0.65,bottom:-37,right:22},
-heroPill:{alignSelf:'flex-start',backgroundColor:C.white,borderRadius:40,paddingHorizontal:13,paddingVertical:7,marginBottom:12},
-heroPillText:{fontSize:10.5,fontWeight:'900',letterSpacing:1.1,color:'#624315'},
-eyebrow:{fontSize:11,fontWeight:'900',letterSpacing:1.5,color:C.coralDeep},
-heroTitle:{fontSize:28,fontWeight:'900',color:C.ink,letterSpacing:-.8,lineHeight:35,maxWidth:295},
-heroText:{color:'#66512F',fontSize:14,lineHeight:21,marginTop:10,maxWidth:285},
-heroTagline:{alignSelf:'flex-start',backgroundColor:'#FFFDF3',borderRadius:12,paddingVertical:8,paddingHorizontal:10,marginTop:18},
-heroTaglineText:{color:C.ink,fontSize:11.5,fontWeight:'700'},
-headingWrap:{flexDirection:'row',alignItems:'flex-start',gap:12,marginBottom:17},
-headingBar:{width:5,height:37,borderRadius:4,backgroundColor:C.sun,marginTop:3},
-h:{fontSize:25,fontWeight:'900',color:C.ink,letterSpacing:-.6},
-sub:{fontSize:15,lineHeight:23,color:C.muted,marginTop:6},
-body:{fontSize:16,lineHeight:24,color:C.ink},
-micro:{fontSize:13,color:C.muted,lineHeight:19},
-sectionTitle:{fontSize:18,color:C.ink,fontWeight:'900',marginBottom:13},
-cardTitle:{fontSize:17,fontWeight:'900',color:C.ink},
-label:{fontSize:15,color:C.ink,fontWeight:'700',marginBottom:8},
-input:{backgroundColor:C.white,borderColor:'#D9DED6',borderWidth:1,borderRadius:15,paddingHorizontal:15,paddingVertical:13,fontSize:15,color:C.ink,minHeight:48},
-button:{minHeight:50,paddingHorizontal:18,paddingVertical:12,borderRadius:15,justifyContent:'center',alignItems:'center',flexDirection:'row'},
-button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#AEDBDD',borderWidth:1.5},
-button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:44,paddingVertical:9,paddingHorizontal:13},
-buttonText:{color:C.white,fontSize:16,fontWeight:'700',textAlign:'center',flexShrink:1},buttonTextDark:{color:C.accentDark},
-chip:{borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:13,paddingVertical:8},
-chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{color:C.accentDark,fontSize:12,fontWeight:'800'},
-chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},
-info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertical:14,marginHorizontal:0,marginTop:7,marginBottom:12},
-warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:C.accentDark},
-avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
-match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
-tabBar:{minHeight:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
-tab:{flex:1,minWidth:0,alignItems:'center',justifyContent:'center',minHeight:54,paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{fontSize:24,color:'#708186',fontWeight:'500'},tabLabel:{fontSize:12,color:C.muted,marginTop:3,fontWeight:'700',textAlign:'center',flexShrink:1},
-profileSections:{flexDirection:'row',flexWrap:'wrap',gap:8,marginVertical:14},
-profileSectionButton:{minHeight:48,minWidth:48,borderWidth:1,borderColor:C.line,borderRadius:14,backgroundColor:C.paper,paddingHorizontal:14,paddingVertical:10,justifyContent:'center',maxWidth:'100%'},
-profileSectionActive:{backgroundColor:C.accentDark,borderColor:C.accentDark},
-profileSectionLabel:{fontSize:15,lineHeight:21,color:C.ink,fontWeight:'700'},
-profileSectionLabelActive:{color:C.white},
-chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
-chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
-bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},
-theirs:{backgroundColor:'#FFF0E8',alignSelf:'flex-start',borderBottomLeftRadius:5},bubbleText:{color:C.ink,fontSize:14.5,lineHeight:21},
-photoGrid:{flexDirection:'row',flexWrap:'wrap',gap:10},photoCard:{width:'47%',padding:10},photoImage:{width:'100%',height:110,borderRadius:14,marginBottom:8},
-photoDraftPreview:{width:'100%',height:230,backgroundColor:C.pale,borderRadius:18,marginBottom:14},
-modalShade:{...StyleSheet.absoluteFillObject,backgroundColor:'rgba(15,44,52,.52)',justifyContent:'center',zIndex:100},
-});
-

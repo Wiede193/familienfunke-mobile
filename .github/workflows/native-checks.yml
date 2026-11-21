@@ -27,6 +27,8 @@ jobs:
         run: npx expo install --check
       - name: KI-Startseite Navigation und Datenschutz prüfen
         run: npm run check:home
+      - name: Datenschutz und Fallback der optionalen Spracheingabe prüfen
+        run: npm run check:voice
       - name: Persönliche Startseite und Menüleiste prüfen
         run: npm run check:layout
       - name: Gemeinsame Bearbeitungs- und Löschaktionen prüfen

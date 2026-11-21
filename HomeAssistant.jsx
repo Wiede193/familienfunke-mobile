@@ -2,6 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {AccessibilityInfo, ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
 import {confirmRemoval} from './FamilyActions';
+import FamilyVoiceSearch from './FamilyVoiceSearch';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
 
@@ -78,6 +79,7 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
   const requestSeq=useRef(0),alive=useRef(true),pending=useRef(false);
   const [searchResult,setSearchResult]=useState(null);
   const [searchBusy,setSearchBusy]=useState(false);
+  const [voiceBusy,setVoiceBusy]=useState(false);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;requestSeq.current++;};},[]);
   function updateQuestion(value){
     requestSeq.current++;pending.current=false;
@@ -92,7 +94,7 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
   const moreRoutes=HOME_ROUTES;
   async function askAssistant(){
     const prompt=needle.slice(0,600);
-    if(prompt.length<3||pending.current)return;
+    if(prompt.length<3||pending.current||voiceBusy)return;
     const request=++requestSeq.current;pending.current=true;Keyboard.dismiss();
     setBusy(true);setError('');
     try{
@@ -148,7 +150,7 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
   }
   async function searchApp(){
     const query=needle;
-    if(query.length<2||pending.current)return;
+    if(query.length<2||pending.current||voiceBusy)return;
     Keyboard.dismiss();setError('');
     const request=++requestSeq.current;pending.current=true;setSearchBusy(true);
     try{
@@ -185,7 +187,7 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
       <View style={s.inputShell}>
         <Text accessibilityElementsHidden importantForAccessibility="no" style={s.searchGlyph}>⌕</Text>
         <TextInput accessibilityLabel="Familienfunke durchsuchen oder eine KI-Frage eingeben"
-          style={s.input} value={question} onChangeText={updateQuestion} editable={!busy&&!searchBusy}
+          style={s.input} value={question} onChangeText={updateQuestion} editable={!busy&&!searchBusy&&!voiceBusy}
           placeholder="Was möchtest du finden?"
           placeholderTextColor={C.muted} maxLength={600}
           autoCapitalize="sentences" returnKeyType="search" onSubmitEditing={searchApp}/>
@@ -195,18 +197,19 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
       <View style={[s.searchActions,singleColumn&&{flexDirection:'column',alignItems:'stretch'}]}>
         <Pressable accessibilityRole="button" accessibilityLabel="In Familienfunke suchen"
           accessibilityState={{disabled:busy||searchBusy||needle.length<2,busy:searchBusy}}
-          disabled={busy||searchBusy||needle.length<2} onPress={searchApp}
+          disabled={busy||searchBusy||voiceBusy||needle.length<2} onPress={searchApp}
           style={[s.directButton,(busy||searchBusy||needle.length<2)&&s.disabled]}>
           <Text style={s.directLabel}>{searchBusy?'Suche läuft …':'Suchen'}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="KI um Hilfe fragen"
           accessibilityState={{disabled:busy||searchBusy||needle.length<3,busy}}
-          disabled={busy||searchBusy||needle.length<3} onPress={askAssistant}
+          disabled={busy||searchBusy||voiceBusy||needle.length<3} onPress={askAssistant}
           style={[s.askButton,(busy||searchBusy||needle.length<3)&&s.disabled]}>
           {busy?<ActivityIndicator color={C.white} style={{marginRight:8}}/>:null}
           <Text style={s.askButtonLabel}>{busy?'KI antwortet …':'KI fragen'}</Text>
         </Pressable>
       </View>
+      <FamilyVoiceSearch disabled={busy||searchBusy} onText={updateQuestion} onBusyChange={setVoiceBusy}/>
       <Text style={s.searchHint}>App-Funktionen, Angebote, Orte und Veranstaltungen finden oder Fragen stellen. Du kannst auch über das Mikrofon deiner Tastatur diktieren, sofern dein Gerät dies unterstützt.</Text>
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
     </View>

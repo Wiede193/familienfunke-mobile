@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
-const app=read('App.jsx');
+const app=read('App.jsx')+'\n'+read('FamilyUI.jsx')+'\n'+read('FamilyAppStyles.js')+'\n'+read('FamilyContactsScreen.jsx');
 const home=read('HomeAssistant.jsx');
 const map=read('FamilyMap.jsx');
 const guide=read('FamilyGuide.jsx');

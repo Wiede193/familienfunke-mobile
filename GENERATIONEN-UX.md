@@ -23,6 +23,9 @@ Startseiten-Kacheln und untere Menüleiste sind individuell sortierbar, ergänzb
 ## Einheitliche Aktionen – erste Stufe
 Gemeinsame Löschbestätigung für Profilfotos, private Termine, Suchaufträge und lokalen KI-Verlauf. Kalender, Suchaufträge und Profilbilder nutzen beschriftete, gut erreichbare Aktionsbuttons; keine Änderung von Datenbankrechten oder bestehender Benachrichtigungs-Löschlogik. Weitere Formulare, Kontakte und Marktplatz folgen mit separaten Tests. Bei hoher Schriftvergrößerung oder geringer Breite verteilt sich die untere Navigation auf mehrere Zeilen.
 
+## Weiterer P2-/P1-Fortschritt
+Gemeinsame UI-Grundbausteine, App-Styles und Kontaktübersicht sind eigene Module. Kontaktanfragen (Ablehnen, Zurückziehen), Blockieren und Anzeige-Abschluss verwenden einheitliche explizite Bestätigungen. Keine Kontakt- oder Inseratdaten werden ohne vorhandene serverseitige Rechte gelöscht. Optionale lokale Spracheingabe ist im Code vorbereitet; Paketinstallation, Lockfile, native Builds und Gerätetests stehen noch aus (SPRACHSUCHE.md).
+
 ## Backend-Entwurf – noch nicht implementiert
 Separate Entitäten für Familienkreise, Mitgliedschaften, Sorgeberechtigungsnachweise, zeitlich/versionierte Freigaben, Einladungen und Aktivitätsvorschläge. Kindreferenzen nur falls nötig, ohne öffentlichen Namen/Geburtsdatum. Einmal-Token mit Ablauf, Hash, serverseitiger Transaktion; kein Vertrauen in vom Client gesetzte Rollen. Standard: deny. RLS, Storage und RPCs prüfen identisch, Rechteentzug auch bei bestehenden Sessions, kurze signierte URL-Laufzeiten und Cache-Löschung; keine Kinderdaten in Push, KI, Suche, Telemetrie. Streitfall: sensible Freigaben pausieren, Support-Verfahren; keine Entscheidung über Sorgerecht durch App. Datenschutz-Folgenabschätzung und rechtliche Prüfung vor Launch.
  
