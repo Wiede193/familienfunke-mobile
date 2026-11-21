@@ -97,7 +97,7 @@ export default function HomeAssistant({onNavigate}){
           :'Die KI ist vorübergehend nicht erreichbar. Du kannst die App-Bereiche weiterhin direkt öffnen.');
       }
       const route=HOME_ROUTES.find(x=>x.id===data.page_id);
-      const searchQuery=route?.id==='market'&&typeof data.search_query==='string'
+      const searchQuery=route?.id==='market'&&typeof data?.search_query==='string'
         ?data.search_query.trim().slice(0,160):'';
       // Product previews are fetched separately from the secured database.
       // The assistant cannot claim that an offer exists.
