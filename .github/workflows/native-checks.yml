@@ -31,6 +31,8 @@ jobs:
         run: npm run check:design
       - name: Barrierefreiheit für Navigation, Formulare und Screenreader prüfen
         run: npm run check:accessibility
+      - name: Barrierefreie Artikelbeschreibungen und lokale Ortssuche prüfen
+        run: npm run check:map-photo-a11y
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen
