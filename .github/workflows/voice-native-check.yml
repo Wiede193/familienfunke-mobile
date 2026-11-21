@@ -22,9 +22,8 @@ jobs:
           node-version: '22.13.1'
           cache: npm
       - run: npm ci
-      - run: npx expo install --fix
-      - name: Gepinntes Sprachpaket isoliert installieren
-        run: npm install --save-exact expo-speech-recognition@58.0.1
+      - name: Festgeschriebene Expo-Paketversionen prüfen
+        run: npx expo install --check
       - name: Aufgelöste Paketversion und Integrität prüfen
         run: |
           node -e "const p=require('./package-lock.json').packages['node_modules/expo-speech-recognition']; if(p.version!=='58.0.1'||!p.integrity?.startsWith('sha512-')||!p.resolved.startsWith('https://registry.npmjs.org/'))process.exit(1)"

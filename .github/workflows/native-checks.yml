@@ -21,8 +21,6 @@ jobs:
           cache: npm
       - name: Abhängigkeiten installieren
         run: npm ci
-      - name: Expo-Paketversionen für den CI-Build abgleichen
-        run: npx expo install --fix
       - name: Expo-Paketversionen prüfen
         run: npx expo install --check
       - name: KI-Startseite Navigation und Datenschutz prüfen

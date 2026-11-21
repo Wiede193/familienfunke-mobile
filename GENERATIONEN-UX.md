@@ -54,3 +54,5 @@ Separate Entitäten für Familienkreise, Mitgliedschaften, Sorgeberechtigungsnac
 GitHub-Lauf 144 hat sämtliche damaligen Quellprüfungen sowie beide JS-Bundles erfolgreich abgeschlossen. Neu: SQL-Integrationstest mit realem PostgreSQL und zwei simulierten Konten, strikte Revisionsfolge und keine doppelten Layout-IDs. Konfliktauflösung erlaubt Kontoversion oder lokale Version. Sprachpaket wird in isoliertem CI getestet. Keine produktiven Datenbankänderungen.
 
 Prüflauf 145: alle bestehenden Checks und beide JS-Bundles erfolgreich. Die zusätzlichen isolierten Workflows fanden einen SQL-Trennzeichenfehler und eine Android-Berechtigungskollision. Beides im Quellcode korrigiert. Keine produktive Datenbankänderung.
+
+CI-Lauf 146, isolierter Layout-Datenbanklauf 2 und Sprachlauf 2 bestanden. Die geprüften Sprachpaket-Abhängigkeiten und Expo-Kompatibilitätskorrekturen sind übernommen. Erneute Abnahme mit unverändertem Lockfile erforderlich. Datenbank-Rollout nach LAYOUT-FREIGABE.md; kein produktiver Eingriff.
