@@ -825,9 +825,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
   };
   const minimum=parsePrice(minPrice), maximum=parsePrice(maxPrice);
   // Active buyer filters are executed against the full database, not the 160-item initial feed.
-  const serverSearchActive=!onlyMine&&(
-    !!query.trim()||filter!=='Alle'||tradeFilter!=='all'||minimum!==null||maximum!==null||onlyFavorites
-  );
+  const serverSearchActive=!onlyMine; // The complete buyer catalog is always paginated on the server.
   const favoriteVersion=favorites.map(f=>f.listing_id).join(',');
   useEffect(()=>{setSearchPage(0);},[query,filter,tradeFilter,minPrice,maxPrice,onlyMine,onlyFavorites,sortBy,favoriteVersion]);
   useEffect(()=>{
@@ -1647,7 +1645,7 @@ function MarketScreen({entryIntent,listings,marketPhotos,favorites,me,active,bus
       {remoteBusy?<View style={{paddingVertical:12,flexDirection:'row',alignItems:'center'}}><ActivityIndicator color={C.accent}/><Text style={[styles.micro,{marginLeft:9}]}>Suche im gesamten Familienbasar …</Text></View>:null}
       {remoteError?<Info warning>{remoteError}</Info>:null}
       {serverSearchActive&&query.trim()&&!remoteBusy&&!remoteError?<Text style={[styles.micro,{marginBottom:12}]}>Auch einzelne Teile innerhalb eines Pakets werden gefunden. Größen und Farben sind Angaben, die Verkäufer prüfen müssen.</Text>:null}
-      {shown.length===0?<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>:
+      {shown.length===0?(remoteBusy||remoteError?null:<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>):
         <View style={styles.marketGrid}>
         {shown.map(x=>{
           const seller=sellerInformation(x);
