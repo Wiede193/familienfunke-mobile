@@ -190,6 +190,7 @@ const [menuOpen,setMenuOpen]=useState(false);
 const [marketIntent,setMarketIntent]=useState(null);
 const [outingDraft,setOutingDraft]=useState(null);
 const [mapIntent,setMapIntent]=useState(null);
+const [eventIntent,setEventIntent]=useState(null);
 const [extraReturnTab,setExtraReturnTab]=useState('more');
 const [inboxReturnTab,setInboxReturnTab]=useState('home');
 const [focusContactId,setFocusContactId]=useState(null);
@@ -290,7 +291,7 @@ useEffect(()=>{
   setShowInfo(false);
   setShowLoginHelp(false);
   setShowEventForm(false);
-  setMarketIntent(null);setOutingDraft(null);setMapIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
+  setMarketIntent(null);setOutingDraft(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
   setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
   setPhotosUrls({});setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
 },[me]);
@@ -420,6 +421,7 @@ function navigateFromHome(id,marketQuery='',placeId=null){
   if(!routes.includes(id))return;
   if(id==='inbox'){openInbox();return;}
   setMapIntent(id==='map'&&typeof placeId==='string'?{id:placeId,returnTab:'home'}:null);
+  setEventIntent(['events','partners'].includes(id)&&typeof placeId==='string'?{id:placeId,tab:id,owner:me}:null);
   setMarketIntent(id==='box'||id==='sell'?id:(id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null));
   setExtraReturnTab('home');
   setTab(id==='box'||id==='sell'?'market':id);
@@ -433,7 +435,7 @@ function selectMenuItem(id){
   if(!MORE_ITEMS.some(item=>item[0]===id)&&id!=='more')return;
   if(tab===id&&!detailFamily&&!selectedContact&&!showInfo)return;
   const previous=TABS.some(t=>t[0]===tab)||tab==='more'?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:'home');
-  setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);setMapIntent(null);setFocusContactId(null);setShowEventForm(false);
+  setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setShowEventForm(false);
   setExtraReturnTab(previous===id?'home':previous);setTab(id);
 }
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
@@ -551,7 +553,7 @@ retryReview={(id)=>execute(async()=>{
  await reviewMarketListing(id);
 })}
 onContact={sendRequest} onChat={(cid)=>{setChatReturnTab('market');setSelectedContact(cid);setTab('chat');}} nameOf={findName} blocked={blocked}/>:
-tab==='partners'?<PartnersScreen organizations={db.organizations} partnerEvents={db.partnerEvents}
+tab==='partners'?<PartnersScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='partners'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} organizations={db.organizations} partnerEvents={db.partnerEvents}
 me={me} active={active} busy={busy}
 applyOrg={(v)=>execute(async()=>{
  await moderateTextOrThrow([v.name,v.description,v.region_label]);
@@ -576,7 +578,7 @@ respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onU
 onChat={(id)=>{setChatReturnTab('contacts');setSelectedContact(id);setTab('chat');}}/>:
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
 onChat={(id)=>{setChatReturnTab('chat');setSelectedContact(id);}} messages={db.messages}/>:
-tab==='events'?<EventsScreen events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
+tab==='events'?<EventsScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='events'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
 profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
 createEvent={(event)=>execute(async()=>{
   await moderateTextOrThrow([event.title,event.description,event.region_label]);
@@ -597,7 +599,7 @@ blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
+{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
 accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id)&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 <TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
@@ -1830,7 +1832,8 @@ function MarketSortSelect({value,onChange}){
   </View>;
 }
 
-function PartnersScreen({organizations,partnerEvents,me,active,busy,applyOrg,createPartnerEvent,openInclusion}){
+function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,active,busy,applyOrg,createPartnerEvent,openInclusion}){
+  const focus=useFocusedEvent('ff_partner_events',focusId,me);
   const [applying,setApplying]=useState(false);
   const [kind,setKind]=useState('kita');
   const [name,setName]=useState('');
@@ -1847,7 +1850,7 @@ function PartnersScreen({organizations,partnerEvents,me,active,busy,applyOrg,cre
   const mine=organizations.filter(o=>o.owner_id===me);
   const approvedMine=mine.filter(o=>o.status==='approved');
   const shown=organizations.filter(o=>o.status==='approved'||o.owner_id===me);
-  const events=partnerEvents.filter(e=>new Date(e.starts_at)>new Date());
+  const events=focusId?(focus.row?[focus.row]:[]):partnerEvents.filter(e=>new Date(e.starts_at)>new Date());
   async function apply(){
     if(!active||name.trim().length<3)return Alert.alert('Einrichtung','Bitte den Namen der Einrichtung angeben.');
     const ok=await applyOrg({kind,name:safeString(name,100),region_label:safeString(region,80),
@@ -1917,7 +1920,8 @@ function PartnersScreen({organizations,partnerEvents,me,active,busy,applyOrg,cre
         </View>:null}
     </Card>:null}
     <Text style={[styles.sectionTitle,{marginTop:15}]}>Flohmärkte & Veranstaltungen</Text>
-    {events.length===0?<Blank title="Noch keine Partnerveranstaltungen" body="Bestätigte Einrichtungen können hier ihre Flohmärkte und Termine bewerben."/>:
+    {focusId?<FocusedEventStatus focus={focus} clearFocus={clearFocus}/>:null}
+    {events.length===0?(focusId?null:<Blank title="Noch keine Partnerveranstaltungen" body="Bestätigte Einrichtungen können hier ihre Flohmärkte und Termine bewerben."/>):
        events.map(e=><Card key={e.id} style={{marginBottom:12}}>
           <Text style={[styles.eyebrow,{marginBottom:7}]}>{formatDate(e.starts_at)}</Text>
           <Text style={styles.cardTitle}>{e.title}</Text>
@@ -2090,7 +2094,34 @@ return <View style={{flex:1}}>
 placeholderTextColor={C.muted} style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]}/><Button title="Senden" small disabled={disabled||!text.trim()} onPress={submit}/></Row>}
 </View>;
 }
-function EventsScreen({events,eventRequests,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
+// Resolve the exact clicked result again under the current account, never trust a cached search card.
+function useFocusedEvent(table,id,owner){
+ const [state,setState]=useState({id:null,owner:null,row:null,status:'idle'});
+ const [retry,setRetry]=useState(0);
+ useEffect(()=>{
+  let live=true;
+  if(!id||!owner)return;
+  setState({id,owner,row:null,status:'loading'});
+  (async()=>{
+   const {data,error}=await supabase.from(table).select('*').eq('id',id).eq('moderation_status','approved').gt('starts_at',new Date().toISOString()).maybeSingle();
+   if(!live)return;
+   setState({id,owner,row:error?null:data,status:error?'error':data?'ready':'missing'});
+  })().catch(()=>{if(live)setState({id,owner,row:null,status:'error'});});
+  return()=>{live=false;};
+ },[table,id,owner,retry]);
+ const visible=state.id===id&&state.owner===owner?state:{row:null,status:'loading'};
+ return {...visible,retry:()=>setRetry(n=>n+1)};
+}
+function FocusedEventStatus({focus,clearFocus}){
+ return <View style={{gap:8,marginVertical:10}}>
+  <Button title="Alle Veranstaltungen anzeigen" mode="outline" onPress={clearFocus}/>
+  {focus.status==='loading'?<Text accessibilityLiveRegion="polite" style={styles.sub}>Veranstaltung wird geprüft …</Text>:null}
+  {focus.status==='missing'?<Info>Diese Veranstaltung ist nicht mehr verfügbar.</Info>:null}
+  {focus.status==='error'?<><Info warning>Veranstaltung konnte nicht geladen werden.</Info><Button title="Erneut versuchen" mode="outline" onPress={focus.retry}/></>:null}
+ </View>;
+}
+function EventsScreen({focusId,clearFocus,events,eventRequests,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
+const focus=useFocusedEvent('events',focusId,me);
 const [title,setTitle]=useState('');const [description,setDescription]=useState('');const [region,setRegion]=useState('');
 const [date,setDate]=useState('');const [time,setTime]=useState('15:00');const [count,setCount]=useState('10');const [visibility,setVisibility]=useState('community');
 const names=(uid)=>profiles.find(p=>p.user_id===uid)?.display_name||'Familie';
@@ -2101,7 +2132,7 @@ if(!start||start<=new Date()||title.trim().length<4||max<2||max>50)return Alert.
 const ok=await createEvent({title:safeString(title,100),description:safeString(description,1000),region_label:safeString(region,80),starts_at:start.toISOString(),ends_at:new Date(start.getTime()+2*60*60*1000).toISOString(),max_participants:max,visibility});
 if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');}
 }
-const upcoming=events.filter(e=>new Date(e.ends_at)>new Date());
+const upcoming=focusId?(focus.row?[focus.row]:[]):events.filter(e=>new Date(e.ends_at)>new Date());
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 <Info>{SECTION_MESSAGES.events}</Info><H sub="Gemeinsame Aktivitäten statt öffentlicher Diskussionen.">Familienkalender</H>
 <Button title={showForm?'Formular schließen':'＋ Aktivität erstellen'} disabled={!active} onPress={()=>setShowForm(!showForm)}/>
@@ -2117,7 +2148,8 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Button title="Zur Freigabe einreichen" disabled={busy} onPress={submit}/>
 </Card>:null}
 <Text style={[styles.sectionTitle,{marginTop:22}]}>Anstehende Treffen</Text>
-{upcoming.length===0?<Blank title="Noch keine Treffen" body="Neue Aktivitäten erscheinen hier nach Freigabe."/>:upcoming.map(e=>{
+{focusId?<FocusedEventStatus focus={focus} clearFocus={clearFocus}/>:null}
+{upcoming.length===0?(focusId?null:<Blank title="Noch keine Treffen" body="Neue Aktivitäten erscheinen hier nach Freigabe."/>):upcoming.map(e=>{
 const self=e.organizer_id===me;const request=eventRequests.find(x=>x.event_id===e.id&&x.requester_id===me);
 const pending=eventRequests.filter(x=>x.event_id===e.id&&x.status==='requested');
 return <Card key={e.id} style={{marginBottom:12}}>
