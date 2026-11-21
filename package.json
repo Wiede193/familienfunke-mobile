@@ -28,7 +28,9 @@
     "check:saved-searches": "node tests/check-saved-market-searches.mjs",
     "check:price-alerts": "node tests/check-market-price-alerts.mjs",
     "check:calendar": "node tests/check-family-calendar.mjs",
-    "check:play": "node tests/check-family-play.mjs"
+    "check:play": "node tests/check-family-play.mjs",
+    "check:layout": "node tests/check-family-layout.mjs",
+    "check:actions": "node tests/check-family-actions.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

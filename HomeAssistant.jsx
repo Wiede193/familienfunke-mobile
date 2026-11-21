@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {AccessibilityInfo, ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
+import {confirmRemoval} from './FamilyActions';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
 
@@ -239,7 +240,7 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
       <View style={s.replyHeader}>
         <Text style={s.sectionTitle}>Deine KI-Hilfe</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="KI-Verlauf in dieser Ansicht löschen"
-          onPress={()=>{requestSeq.current++;pending.current=false;setBusy(false);setSearchBusy(false);setConversation([]);}} style={s.clearHistory}>
+          onPress={()=>confirmRemoval({title:'KI-Verlauf leeren?',description:'Die Fragen und Antworten in dieser Ansicht werden entfernt.',confirmLabel:'Verlauf leeren',onConfirm:()=>{requestSeq.current++;pending.current=false;setBusy(false);setSearchBusy(false);setConversation([]);}})} style={s.clearHistory}>
           <Text style={s.clearHistoryLabel}>Verlauf leeren</Text>
         </Pressable>
       </View>

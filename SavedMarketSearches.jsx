@@ -2,6 +2,8 @@ import React,{useEffect,useRef,useState} from 'react';
 import {Alert,Pressable,ScrollView,StyleSheet,Switch,Text,View} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import {confirmRemoval} from './FamilyActions';
+import FamilyActionButton from './FamilyActionButton';
 
 const money=c=>(c/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
 export function savedSearchLabel(x){
@@ -66,10 +68,11 @@ export default function SavedMarketSearches({userId,onSearch,onBrowse}){
   {rows?.length===0?<Text style={s.text}>Noch keine Suchaufträge gespeichert.</Text>:null}
   {rows?.map(row=><View key={row.id} style={s.card}>
    <View style={s.row}><Text accessibilityRole="header" style={[s.heading,{flex:1}]}>{row.query||row.category}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel={'Suchauftrag '+(row.query||row.category)+' löschen'} disabled={busy} onPress={()=>Alert.alert('Suchauftrag löschen?','Du erhältst keine neuen Hinweise zu dieser Suche. Vorhandene Anzeigen bleiben erhalten.',[{text:'Abbrechen',style:'cancel'},{text:'Löschen',style:'destructive',onPress:()=>mutate('ff_saved_market_search_delete',{p_id:row.id})}])} style={s.close}><Text style={s.x}>×</Text></Pressable></View>
+    </View>
    <Text style={s.text}>{savedSearchLabel(row)}</Text>
    <View style={s.row}><Text style={[s.text,{flex:1}]}>Mitteilungen {row.enabled?'aktiv':'stumm'}</Text><Switch accessibilityLabel={'Mitteilungen für '+(row.query||row.category)} disabled={busy} value={row.enabled} onValueChange={v=>mutate('ff_saved_market_search_toggle',{p_id:row.id,p_enabled:v})}/></View>
    <Action onPress={()=>onSearch(row)}>Suche öffnen</Action>
+   <FamilyActionButton title="Löschen" accessibilityLabel={'Suchauftrag '+(row.query||row.category)+' löschen'} disabled={busy} destructive onPress={()=>confirmRemoval({title:'Suchauftrag löschen?',description:'Du erhältst keine neuen Hinweise zu dieser Suche. Vorhandene Anzeigen bleiben erhalten.',onConfirm:()=>mutate('ff_saved_market_search_delete',{p_id:row.id})})}/>
   </View>)}
   <Action onPress={onBrowse}>Neue Suche im Basar starten</Action>
  </ScrollView>;

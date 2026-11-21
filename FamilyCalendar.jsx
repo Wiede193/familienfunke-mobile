@@ -2,6 +2,8 @@ import React,{useEffect,useRef,useState} from 'react';
 import {Alert,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View,useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import {confirmRemoval} from './FamilyActions';
+import FamilyActionButton from './FamilyActionButton';
 import {dayKey,monthDays,moveMonth,entryDay,entryTime,compareEntries,calendarFields} from './CalendarDates';
 
 async function verifyAccount(userId){
@@ -71,8 +73,7 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
   finally{lock.current=false;if(alive.current)setBusy(false);}
  }
  function remove(row){
-  Alert.alert('Kalendereintrag löschen?','Nur dein Kalendereintrag wird entfernt. Eine Veranstaltung oder Teilnahme bleibt unverändert.',[
-   {text:'Abbrechen',style:'cancel'},{text:'Löschen',style:'destructive',onPress:async()=>{
+  confirmRemoval({title:'Kalendereintrag löschen?',description:'Nur dein Kalendereintrag wird entfernt. Eine Veranstaltung oder Teilnahme bleibt unverändert.',onConfirm:async()=>{
     if(lock.current)return;lock.current=true;setBusy(true);
     try{
      await verifyAccount(userId);
@@ -81,8 +82,7 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
      if(alive.current){if(form?.id===row.id)setForm(null);await refresh();}
     }catch{if(alive.current)Alert.alert('Kalender','Eintrag konnte nicht gelöscht werden.');}
     finally{lock.current=false;if(alive.current)setBusy(false);}
-   }}
-  ]);
+   }});
  }
  const monthRows=rows.filter(r=>entryDay(r)?.startsWith(month)).sort(compareEntries);
  const unavailable=rows.filter(r=>!r.available);
@@ -93,9 +93,12 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
    <View style={s.line}><View style={{flex:1}}><Text style={s.sub}>{LABELS[row.kind]}</Text>
    <Text style={s.heading}>{row.available?row.title:'Veranstaltung nicht verfügbar'}</Text>
    {row.available?<Text style={s.text}>{entryDay(row)}{entryTime(row)?' · '+entryTime(row)+' Uhr':' · Ganztägig'}{row.region_label?' · '+row.region_label:''}</Text>:<Text style={s.text}>Der Termin ist nicht mehr sichtbar oder wurde nicht freigegeben.</Text>}</View>
-   <Pressable accessibilityRole="button" accessibilityLabel={(row.title||'Kalendereintrag')+' löschen'} disabled={busy} onPress={()=>remove(row)} style={s.close}><Text style={s.x}>×</Text></Pressable></View>
+   </View>
    {row.note?<Text style={s.text}>{row.note}</Text>:null}
-   {!linked?<Action secondary disabled={busy} onPress={()=>openForm({id:row.id,title:row.title,note:row.note,day:row.day,time:entryTime(row),kind:row.kind,place_id:row.place_id})}>Bearbeiten</Action>:null}
+   <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+   {!linked?<FamilyActionButton title="Bearbeiten" accessibilityLabel={(row.title||'Kalendereintrag')+' bearbeiten'} disabled={busy} onPress={()=>openForm({id:row.id,title:row.title,note:row.note,day:row.day,time:entryTime(row),kind:row.kind,place_id:row.place_id})}/>:null}
+   <FamilyActionButton title="Löschen" accessibilityLabel={(row.title||'Kalendereintrag')+' löschen'} destructive disabled={busy} onPress={()=>remove(row)}/>
+   </View>
    {linked&&row.available&&new Date(row.starts_at)>new Date()?<Action secondary onPress={()=>onOpenEvent(row.kind,row.source_id)}>Veranstaltung öffnen</Action>:null}
    {row.kind==='outing'&&row.place_id?<Action secondary onPress={()=>onOpenPlace(row.place_id)}>Ausflugsziel öffnen</Action>:null}
   </View>;

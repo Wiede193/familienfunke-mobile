@@ -16,6 +16,8 @@ import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
 import FamilyLayoutEditor from './FamilyLayoutEditor';
+import {confirmRemoval} from './FamilyActions';
+import FamilyActionButton from './FamilyActionButton';
 import {useFamilyLayout} from './FamilyLayoutPreferences';
 import {BOTTOM_ITEMS} from './FamilyLayoutModel';
 import FamilyCalendar,{CalendarEventButton} from './FamilyCalendar';
@@ -227,6 +229,8 @@ const me=session?.user?.id;
 const accountRef=useRef(me);accountRef.current=me;
 const inbox=useNotificationCenter(me);
 const layoutPrefs=useFamilyLayout(me);
+const {width:layoutWidth,fontScale:layoutFontScale}=useWindowDimensions();
+const wrapTabs=layoutWidth<360||layoutFontScale>=1.5;
 const customTabs=layoutPrefs.layout.bottom.map(id=>BOTTOM_ITEMS.find(x=>x[0]===id)).filter(Boolean);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
@@ -624,11 +628,11 @@ reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,
 blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
 </KeyboardAvoidingView>
-{!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
+{!selectedContact&&!detailFamily&&!showInfo?<View style={[styles.tabBar,wrapTabs&&{flexWrap:'wrap',justifyContent:'center'}]}>
 {customTabs.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setFocusContactId(null);setExtraReturnTab('home');setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id)&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,wrapTabs&&{flexBasis:'30%',flexGrow:0},(tab===id)&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id)&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
-{layoutEditor?.owner===me?<FamilyLayoutEditor key={me} initial={layoutPrefs.layout} ready={layoutPrefs.ready} error={layoutPrefs.error} initialSection={layoutEditor.section} onSave={layoutPrefs.save} onClose={()=>{if(accountRef.current===me)setLayoutEditor(null);}}/>:null}
+{layoutEditor?.owner===me?<FamilyLayoutEditor key={me+':'+layoutPrefs.ready} initial={layoutPrefs.layout} ready={layoutPrefs.ready} error={layoutPrefs.error} initialSection={layoutEditor.section} onSave={layoutPrefs.save} onClose={()=>{if(accountRef.current===me)setLayoutEditor(null);}}/>:null}
 <TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget&&!layoutEditor} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
@@ -686,14 +690,11 @@ try {
 async function deleteProfilePhoto(id,me,photos,execute){
 const photo=photos.find(p=>p.id===id&&p.owner_id===me);
 if(!photo)return;
-Alert.alert('Foto löschen?','Das Foto wird aus deinem Profil entfernt.',[
-{text:'Abbrechen',style:'cancel'},
-{text:'Löschen',style:'destructive',onPress:()=>execute(async()=>{
+confirmRemoval({title:'Foto löschen?',description:'Das Foto wird aus deinem Profil entfernt.',onConfirm:()=>execute(async()=>{
 assertResult(await supabase.from('profile_photos').delete().eq('id',id).eq('owner_id',me));
 // Storage separat entfernen; fehlender Speicherzugriff führt nicht dazu, dass das Profilbild sichtbar bleibt.
 await supabase.storage.from('familienfunke-photos').remove([photo.storage_path]);
-},'Foto entfernt.')},
-]);
+},'Foto entfernt.')});
 }
 
 /** Der Markt wird erst nach Betreiberfreigabe anderen Mitgliedern gezeigt.
@@ -2331,7 +2332,7 @@ style={[styles.profileSectionButton,profileSection===id&&styles.profileSectionAc
 <View style={[styles.photoGrid,{marginTop:15}]}>{photos.map(p=><Card key={p.id} style={styles.photoCard}>
 {photosUrls[p.id]?<Image accessibilityLabel={p.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
 <Text style={styles.micro} numberOfLines={2}>{p.caption||'Profilbild'}</Text><Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'Freigegeben':p.moderation_status==='pending'?'In Prüfung':'Abgelehnt'}</Text>
-<Button title="Löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
+<FamilyActionButton title="Löschen" accessibilityLabel={(p.caption||'Profilfoto')+' löschen'} destructive disabled={busy} onPress={()=>deletePhoto(p.id)}/>
 </Card>)}</View>
 {photos.length===0?<Text style={[styles.micro,{marginTop:10}]}>Noch keine Bilder hochgeladen.</Text>:null}
 </Card>

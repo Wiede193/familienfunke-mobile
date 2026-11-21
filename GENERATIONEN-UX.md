@@ -20,6 +20,9 @@ Kinderfotos: bestehende Beta-Regel (keine Kinderfotos) beibehalten; erst nach Ei
 ## Individualisierung der Oberfläche (Entwicklungsbranch)
 Startseiten-Kacheln und untere Menüleiste sind individuell sortierbar, ergänzbar und ausblendbar. Start ist stets vorhanden, höchstens fünf untere Einträge. Speicherung zunächst lokal je Konto und Gerät, keine geräteübergreifende Synchronisierung. Alle Bereiche bleiben per Suche oder vollständiger Liste erreichbar. Keine Drag-Gesten erforderlich. Ein Diktierhinweis beschreibt die vorhandene Systemtastatur; eigenständige Spracherkennung ist noch nicht implementiert.
 
+## Einheitliche Aktionen – erste Stufe
+Gemeinsame Löschbestätigung für Profilfotos, private Termine, Suchaufträge und lokalen KI-Verlauf. Kalender, Suchaufträge und Profilbilder nutzen beschriftete, gut erreichbare Aktionsbuttons; keine Änderung von Datenbankrechten oder bestehender Benachrichtigungs-Löschlogik. Weitere Formulare, Kontakte und Marktplatz folgen mit separaten Tests. Bei hoher Schriftvergrößerung oder geringer Breite verteilt sich die untere Navigation auf mehrere Zeilen.
+
 ## Backend-Entwurf – noch nicht implementiert
 Separate Entitäten für Familienkreise, Mitgliedschaften, Sorgeberechtigungsnachweise, zeitlich/versionierte Freigaben, Einladungen und Aktivitätsvorschläge. Kindreferenzen nur falls nötig, ohne öffentlichen Namen/Geburtsdatum. Einmal-Token mit Ablauf, Hash, serverseitiger Transaktion; kein Vertrauen in vom Client gesetzte Rollen. Standard: deny. RLS, Storage und RPCs prüfen identisch, Rechteentzug auch bei bestehenden Sessions, kurze signierte URL-Laufzeiten und Cache-Löschung; keine Kinderdaten in Push, KI, Suche, Telemetrie. Streitfall: sensible Freigaben pausieren, Support-Verfahren; keine Entscheidung über Sorgerecht durch App. Datenschutz-Folgenabschätzung und rechtliche Prüfung vor Launch.
  
