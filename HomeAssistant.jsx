@@ -43,6 +43,7 @@ export default function HomeAssistant({onNavigate}){
      // authenticated database search after its route suggestion, independently of AI.
      let offers=null,offersError=false;
      if(searchQuery){
+       try{
        const {data:results,error:searchError}=await supabase.rpc('ff_market_search',{
          p_query:searchQuery,p_category:'Alle',p_trade_type:'all',
          p_sort:'relevance',p_limit:3,p_offset:0
@@ -55,6 +56,7 @@ export default function HomeAssistant({onNavigate}){
          price:row.listing.trade_type==='gift'?'Zu verschenken':row.listing.trade_type==='swap'?'Tausch':
            (Number(row.listing.price_cents||0)/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'})
        }));
+       }catch{offersError=true;}
      }
      setConversation(old=>[...old,{
        question:prompt,answer:data.answer.slice(0,1400),pageId:route?.id||'',searchQuery,
