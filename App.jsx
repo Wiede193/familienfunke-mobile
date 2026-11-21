@@ -370,11 +370,11 @@ async function replyRequest(id,status){
   if(error||data?.length!==1)throw Error('Die Anfrage ist nicht mehr offen. Bitte aktualisiere deine Kontakte.');
  },status==='accepted'?'Kontakt bestätigt.':status==='declined'?'Anfrage abgelehnt.':'Anfrage zurückgezogen.');};
  if(status==='accepted')return submit();
- confirmRemoval({title:status==='declined'?'Anfrage ablehnen?':'Anfrage zurückziehen?',description:'Die offene Anfrage wird beendet. Es wird kein bestätigter Kontakt gelöscht.',confirmLabel:status==='declined'?'Ablehnen':'Zurückziehen',onConfirm:submit});
+ confirmRemoval({translate:t,title:status==='declined'?'Anfrage ablehnen?':'Anfrage zurückziehen?',description:'Die offene Anfrage wird beendet. Es wird kein bestätigter Kontakt gelöscht.',confirmLabel:status==='declined'?'Ablehnen':'Zurückziehen',onConfirm:submit});
 }
 async function blockUser(uid){
  if(busy||!uid)return;
- confirmRemoval({title:'Kontakt blockieren?',description:'Die Person kann dir keine neuen Nachrichten schicken. Du kannst die Blockierung später im Profil aufheben.',confirmLabel:'Blockieren',onConfirm:()=>{if(accountRef.current!==me)return;return execute(async()=>assertResult(await supabase.from('blocks').insert({blocker_id:me,blocked_id:uid})),'Kontakt blockiert.');}});
+ confirmRemoval({translate:t,title:'Kontakt blockieren?',description:'Die Person kann dir keine neuen Nachrichten schicken. Du kannst die Blockierung später im Profil aufheben.',confirmLabel:'Blockieren',onConfirm:()=>{if(accountRef.current!==me)return;return execute(async()=>assertResult(await supabase.from('blocks').insert({blocker_id:me,blocked_id:uid})),'Kontakt blockiert.');}});
 }
 async function unblockUser(uid){await execute(async()=>assertResult(await supabase.from('blocks').delete().eq('blocker_id',me).eq('blocked_id',uid)),'Blockierung aufgehoben.');}
 async function changePassword(password){
@@ -620,7 +620,7 @@ save={(value)=>execute(async()=>{
   assertResult(await supabase.from('profiles').update(value).eq('user_id',me));
 },'Profil gespeichert. Textänderungen benötigen eine neue Freigabe.')}
 uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,execute)}
-reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,execute)}
+reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,execute,t)}
 blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert(t('Abmeldung nicht bestätigt'),t('Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.')))}/>}
 </KeyboardAvoidingView>
@@ -632,9 +632,9 @@ accessibilityLabel={t(title)} accessibilityState={{selected:tab===id}} style={[s
 <TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget&&!layoutEditor} onClose={()=>setMenuOpen(false)} onSelect={id=>{if(['refresh','layout','welcome','language'].includes(id)||id===tab){selectMenuItem(id);return;}setMenuOpen(false);guardLeave(()=>selectMenuItem(id));}} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
-<Text accessibilityRole="header" style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
-<Input label="Was ist passiert?" multiline value={reportDetails} onChangeText={setReportDetails} maxLength={2000}/>
-<Row><Button title="Abbrechen" mode="outline" style={{flex:1}} onPress={()=>setReportTarget(null)}/><Button title="Melden" disabled={busy||reportDetails.trim().length<10} style={{flex:1}} onPress={sendReport}/></Row>
+<Text accessibilityRole="header" style={styles.h}>{t("Inhalt melden")}</Text><Text style={styles.sub}>{t("Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.")}</Text>
+<Input label={t("Was ist passiert?")} multiline value={reportDetails} onChangeText={setReportDetails} maxLength={2000}/>
+<Row><Button title={t("Abbrechen")} mode="outline" style={{flex:1}} onPress={()=>setReportTarget(null)}/><Button title="Melden" disabled={busy||reportDetails.trim().length<10} style={{flex:1}} onPress={sendReport}/></Row>
 </Card></View></Modal>:null}
 <WelcomeIntro visible={!!me&&showWelcome} onClose={dismissWelcome}/>
 </SafeAreaView>;
@@ -683,10 +683,10 @@ try {
 }
 },'Foto hochgeladen. Der aktuelle Freigabestatus wird im Profil angezeigt.');
 }
-async function deleteProfilePhoto(id,me,photos,execute){
+async function deleteProfilePhoto(id,me,photos,execute,translate){
 const photo=photos.find(p=>p.id===id&&p.owner_id===me);
 if(!photo)return;
-confirmRemoval({title:'Foto löschen?',description:'Das Foto wird aus deinem Profil entfernt.',onConfirm:()=>execute(async()=>{
+confirmRemoval({translate,title:'Foto löschen?',description:'Das Foto wird aus deinem Profil entfernt.',onConfirm:()=>execute(async()=>{
 assertResult(await supabase.from('profile_photos').delete().eq('id',id).eq('owner_id',me));
 // Storage separat entfernen; fehlender Speicherzugriff führt nicht dazu, dass das Profilbild sichtbar bleibt.
 await supabase.storage.from('familienfunke-photos').remove([photo.storage_path]);

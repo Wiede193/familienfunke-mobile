@@ -5,3 +5,4 @@ Noch offen: alle Fachansichten (Basar, Registrierung, Sicherheit, Kalender, Spie
 
 ## Ausbaustufe 2
 Anmeldung, Regionsauswahl, Profil einschließlich Fotos und Sicherheitsoptionen sowie Kontaktliste und Chat-Bedienung wurden erweitert. Hobbys werden nur bei der Anzeige übersetzt; interne Werte bleiben unverändert. Private Nachrichten, Foto-Beschreibungen und Anzeigeinhalte werden nicht automatisch übersetzt. Backend-Fehler und Hilfeseiten können weiterhin deutsch sein. Eigenes Sprachsymbol und aktualisierte Regressionstests. Es gibt gegenwärtig nur Einladung/Login, keine frei zugängliche Registrierung.
+Bestätigungen für Kontaktanfragen, Blockieren und Profilfoto-Löschung sowie Meldedialoge verwenden die aktive Sprache; keine Änderung der Prüf- oder Schreiboperationen. Der gemeinsame Bestätigungs-Helper behält die deutsche Standardvariante, bis die weiteren Aufrufer übersetzt sind.

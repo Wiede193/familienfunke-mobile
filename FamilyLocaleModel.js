@@ -381,7 +381,32 @@ export const EN=Object.freeze({
  "rejected": "Rejected",
  "expired": "Expired",
  "cancelled": "Cancelled",
- "suspended": "Suspended"
+ "suspended": "Suspended",
+ "Anfrage ablehnen?": "Decline request?",
+ "Anfrage zurückziehen?": "Withdraw request?",
+ "Die offene Anfrage wird beendet. Es wird kein bestätigter Kontakt gelöscht.": "The pending request will be closed. No confirmed contact will be removed.",
+ "Zurückziehen": "Withdraw",
+ "Kontakt blockieren?": "Block contact?",
+ "Die Person kann dir keine neuen Nachrichten schicken. Du kannst die Blockierung später im Profil aufheben.": "This person cannot send you new messages. You can unblock them later in your profile.",
+ "Kontakt blockiert.": "Contact blocked.",
+ "Blockierung aufgehoben.": "Contact unblocked.",
+ "Die Anfrage ist nicht mehr offen. Bitte aktualisiere deine Kontakte.": "This request is no longer pending. Refresh your contacts.",
+ "Kontakt bestätigt.": "Contact confirmed.",
+ "Anfrage abgelehnt.": "Request declined.",
+ "Anfrage zurückgezogen.": "Request withdrawn.",
+ "Kontaktanfrage verschickt.": "Contact request sent.",
+ "Passwort geändert.": "Password changed.",
+ "Das Passwort braucht mindestens 12 Zeichen.": "The password must contain at least 12 characters.",
+ "Foto löschen?": "Delete photo?",
+ "Das Foto wird aus deinem Profil entfernt.": "The photo will be removed from your profile.",
+ "Inhalt melden": "Report content",
+ "Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.": "Describe what happened factually. Your report goes to the moderation team.",
+ "Was ist passiert?": "What happened?",
+ "Bitte den Vorfall mit mindestens 10 Zeichen beschreiben.": "Describe what happened using at least 10 characters.",
+ "Danke. Deine Meldung wurde gespeichert.": "Thank you. Your report has been saved.",
+ "Meldung senden": "Submit report",
+ "Meldung abschicken": "Submit report",
+ "Konto": "Account"
 });
 export function normalizeLanguage(value){return LANGUAGE_OPTIONS.includes(value)?value:'auto';}
 export function resolveLanguage(preference,deviceLocale){return preference==='de'||preference==='en'?preference:/^en(?:[-_]|$)/i.test(String(deviceLocale||''))?'en':'de';}

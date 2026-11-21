@@ -12,3 +12,5 @@ assert.match(read('FamilyActionButton.jsx'),/minHeight:48,minWidth:48/);
 assert.match(read('FamilyCalendar.jsx'),/eq\('id',row\.id\)\.eq\('user_id',userId\)/);
 assert.match(read('App.jsx'),/eq\('id',id\)\.eq\('owner_id',me\)/);
 console.log('Shared action button and explicit removal confirmation checked');
+
+confirm({title:'Foto löschen?',description:'Nur dieses Bild',translate:s=>s==='Abbrechen'?'Cancel':s==='Löschen'?'Delete':s,onConfirm:()=>count++});assert.equal(calls[1][2][0].text,'Cancel');assert.equal(calls[1][2][1].text,'Delete');assert.equal(count,1);

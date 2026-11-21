@@ -247,7 +247,7 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
       <View style={s.replyHeader}>
         <Text style={s.sectionTitle}>{t("Deine KI-Hilfe")}</Text>
         <Pressable accessibilityRole="button" accessibilityLabel={t("KI-Verlauf in dieser Ansicht löschen")}
-          onPress={()=>confirmRemoval({title:t("KI-Verlauf leeren?"),description:t("Die Fragen und Antworten in dieser Ansicht werden entfernt."),confirmLabel:t("Verlauf leeren"),onConfirm:()=>{requestSeq.current++;pending.current=false;setBusy(false);setSearchBusy(false);setConversation([]);}})} style={s.clearHistory}>
+          onPress={()=>confirmRemoval({translate:t,title:t("KI-Verlauf leeren?"),description:t("Die Fragen und Antworten in dieser Ansicht werden entfernt."),confirmLabel:t("Verlauf leeren"),onConfirm:()=>{requestSeq.current++;pending.current=false;setBusy(false);setSearchBusy(false);setConversation([]);}})} style={s.clearHistory}>
           <Text style={s.clearHistoryLabel}>{t("Verlauf leeren")}</Text>
         </Pressable>
       </View>
