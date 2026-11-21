@@ -156,7 +156,7 @@ setBusy(false);
 }
 return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
 <ScrollView contentContainerStyle={styles.loginPage} keyboardShouldPersistTaps="handled">
-<View style={styles.loginMark}><Text style={{fontSize:52,color:C.white}}>♥</Text></View>
+<View style={styles.loginMark}><Text style={{fontSize:52,color:"#9A4A43"}}>♥</Text></View>
 <Text style={styles.brand}>Familienfunke<Text style={{color:C.coral}}>.</Text></Text>
 <Text style={styles.tagline}>Aus Nachbarschaft wird Freundschaft.</Text>
 <View style={{height:28}}/>
