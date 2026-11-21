@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {ActivityIndicator,Alert,Linking,Pressable,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
+import {AccessibilityInfo,ActivityIndicator,Alert,Linking,Pressable,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
 import {WebView} from 'react-native-webview';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
@@ -245,6 +245,9 @@ export default function FamilyMapScreen({userId,active,addPlace}){
   }
   function selectSearchedLocation(match){
     setPlaceQuery('');
+    AccessibilityInfo.announceForAccessibility(match.source==='city'
+      ?'Stadt '+match.title+' ausgewählt. Hier nach Orten suchen ist unter der Karte verfügbar.'
+      :match.title+' ausgewählt. Die Ortsdetails stehen weiter unten.');
     if(match.source==='city')visit({
       name:match.title,latitude:match.latitude,longitude:match.longitude
     });
@@ -286,8 +289,8 @@ export default function FamilyMapScreen({userId,active,addPlace}){
         placeholderTextColor={C.muted} maxLength={80}
         autoCorrect={false} returnKeyType="search"/>
       {placeQuery.trim().length>=2?
-        <View accessibilityLiveRegion="polite" style={{marginTop:9}}>
-          <Text style={[styles.micro,{marginBottom:6}]}>
+        <View style={{marginTop:9}}>
+          <Text accessibilityLiveRegion="polite" style={[styles.micro,{marginBottom:6}]}>
             {locationMatches.length} {locationMatches.length===1?'passender Ort':'passende Orte'} im Familienfunke-Katalog
           </Text>
           {locationMatches.map(match=><Pressable key={match.id}
