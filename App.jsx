@@ -39,6 +39,30 @@ const sameRegion = (a,b) => {
 };
 const TABS = [['market','Basar','♧'],['discover','Familien','♡'],['map','Karte','⌖'],['guide','Wegweiser','☀'],['more','Mehr','◉']];
 const MARKET_CATEGORIES=['Kleidung','Spielzeug','Bücher','Babyausstattung','Möbel','Sonstiges'];
+const MARKET_PAGE_SIZE=80;
+
+async function marketPhotoRowsFor(listings){
+  if(!listings.length)return [];
+  const {data,error}=await supabase.from('ff_market_photos').select('*')
+    .in('listing_id',listings.map(x=>x.id)).order('slot',{ascending:true});
+  if(error)throw error;
+  return data||[];
+}
+async function marketSignedPhotos(listings,extraPhotos){
+  const [primary,additional]=await Promise.all([
+    Promise.all(listings.filter(x=>x.photo_path).map(async x=>{
+      try{const {data,error}=await supabase.storage.from('ff-market-photos').createSignedUrl(x.photo_path,600);
+        return [x.id,error?null:data?.signedUrl||null];}
+      catch{return [x.id,null];}
+    })),
+    Promise.all(extraPhotos.map(async p=>{
+      try{const {data,error}=await supabase.storage.from('ff-market-photos').createSignedUrl(p.photo_path,600);
+        return [p.photo_path,error?null:data?.signedUrl||null];}
+      catch{return [p.photo_path,null];}
+    }))
+  ]);
+  return {primary:Object.fromEntries(primary),additional:Object.fromEntries(additional)};
+}
 const ORG_KINDS=[['kita','Kita / Kindergarten'],['foerderverein','Förderverein'],['familienzentrum','Familienzentrum'],['verein','Familienverein']];
 const SECTION_MESSAGES={market:'Von Familien für Familien: kostenlos einstellen, verschenken und tauschen. Unsere Gebühren sind offen – aktuell gibt es keine Onlinezahlungen. Wir verkaufen keine persönlichen Daten.',partners:'Kitas und Fördervereine stellen sich vor, zeigen freie Plätze und laden zu Flohmärkten ein. Ein Stern erscheint nur bei bestätigter Einrichtung.',discover:'Neue Familien kennenlernen – freiwillig, respektvoll und ohne genaue Standortfreigabe.',events:'Gemeinsam etwas unternehmen statt endlose Diskussionen. Veranstaltungen werden vor der Veröffentlichung geprüft.',inclusion:'Für Familien mit und ohne Behinderung: willkommen, respektiert und ohne Pflicht zur Offenlegung persönlicher Diagnosen.'};
 const blankProfile = {display_name:'',region_label:'',about:'',interests:[],is_discoverable:false};
@@ -195,9 +219,16 @@ const [membership,setMembership]=useState(null);
 const [photosUrls,setPhotosUrls]=useState({});
 const [marketPhotoUrls,setMarketPhotoUrls]=useState({});
 const [marketExtraPhotoUrls,setMarketExtraPhotoUrls]=useState({});
+const [marketHasMore,setMarketHasMore]=useState(false);
+const [marketNextOffset,setMarketNextOffset]=useState(0);
+const [marketLoadingMore,setMarketLoadingMore]=useState(false);
+const [marketMoreError,setMarketMoreError]=useState('');
+const marketMoreLock=useRef(false);
+const marketLoadGeneration=useRef(0);
 const me=session?.user?.id;
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
+const generation=++marketLoadGeneration.current;
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
@@ -210,19 +241,25 @@ supabase.from('profile_photos').select('*').order('created_at',{ascending:false}
 supabase.from('blocks').select('*').limit(200),
 supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('ff_market_listings').select('*').order('created_at',{ascending:false}).limit(160),
-supabase.from('ff_market_photos').select('*').order('slot',{ascending:true}).limit(800),
+supabase.from('ff_market_listings').select('*').order('created_at',{ascending:false}).order('id',{ascending:false}).range(0,MARKET_PAGE_SIZE),
 supabase.from('ff_market_favorites').select('*').eq('user_id',me).limit(800),
 supabase.from('ff_organizations').select('*').order('created_at',{ascending:false}).limit(100),
 supabase.from('ff_partner_events').select('*').order('starts_at',{ascending:true}).limit(100),
 ]);
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketPhotos,marketFavorites,organizations,partnerEvents]=queries;
+const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
+const rawListings=listings.data||[];
+const listingRows=rawListings.slice(0,MARKET_PAGE_SIZE);
+const marketPhotoRows=await marketPhotoRowsFor(listingRows);
+if(generation!==marketLoadGeneration.current)return;
+setMarketHasMore(rawListings.length>MARKET_PAGE_SIZE);
+setMarketNextOffset(listingRows.length);
+setMarketMoreError('');
 const profileRow=profiles.data.find(p=>p.user_id===me)||null;
 setDb({profiles:profiles.data||[],contacts:contacts.data||[],messages:messages.data||[],
 events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],
-listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
+listings:listingRows,marketPhotos:marketPhotoRows,marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');
 const images=await Promise.all((photos.data||[]).map(async(p)=>{
@@ -230,21 +267,46 @@ try {const {data,error:e}=await supabase.storage.from('familienfunke-photos').cr
 return [p.id,e?null:data?.signedUrl||null];} catch {return [p.id,null];}
 }));
 setPhotosUrls(Object.fromEntries(images));
-const marketImages=await Promise.all((listings.data||[]).filter(x=>x.photo_path).map(async(x)=>{
- try {const {data,error:e}=await supabase.storage.from('ff-market-photos').createSignedUrl(x.photo_path,600);return [x.id,e?null:data?.signedUrl||null];}
- catch{return [x.id,null];}
-}));
-setMarketPhotoUrls(Object.fromEntries(marketImages));
-const extraImages=await Promise.all((marketPhotos.data||[]).map(async(p)=>{
- try{
-   const {data,error:e}=await supabase.storage.from('ff-market-photos').createSignedUrl(p.photo_path,600);
-   return [p.photo_path,e?null:data?.signedUrl||null];
- }catch{return [p.photo_path,null];}
-}));
-setMarketExtraPhotoUrls(Object.fromEntries(extraImages));
+const marketUrls=await marketSignedPhotos(listingRows,marketPhotoRows);
+if(generation!==marketLoadGeneration.current)return;
+setMarketPhotoUrls(marketUrls.primary);
+setMarketExtraPhotoUrls(marketUrls.additional);
 } catch(e){setError(humanError(e));}
 finally{setLoading(false);}
 },[me]);
+const loadMoreMarket=useCallback(async()=>{
+  if(!supabase||!me||marketMoreLock.current||!marketHasMore||loading)return;
+  const generation=marketLoadGeneration.current;
+  const offset=marketNextOffset;
+  marketMoreLock.current=true;
+  setMarketLoadingMore(true);setMarketMoreError('');
+  try{
+    const {data,error}=await supabase.from('ff_market_listings').select('*')
+      .order('created_at',{ascending:false}).order('id',{ascending:false})
+      .range(offset,offset+MARKET_PAGE_SIZE);
+    if(error)throw error;
+    const raw=data||[],newRows=raw.slice(0,MARKET_PAGE_SIZE);
+    const photoRows=await marketPhotoRowsFor(newRows);
+    const signed=await marketSignedPhotos(newRows,photoRows);
+    if(generation!==marketLoadGeneration.current)return;
+    setDb(prev=>{
+      const listingIds=new Set(prev.listings.map(x=>x.id));
+      const photoIds=new Set(prev.marketPhotos.map(x=>x.id));
+      return {...prev,
+        listings:[...prev.listings,...newRows.filter(x=>!listingIds.has(x.id))],
+        marketPhotos:[...prev.marketPhotos,...photoRows.filter(x=>!photoIds.has(x.id))]};
+    });
+    setMarketPhotoUrls(prev=>({...prev,...signed.primary}));
+    setMarketExtraPhotoUrls(prev=>({...prev,...signed.additional}));
+    setMarketNextOffset(offset+newRows.length);
+    setMarketHasMore(raw.length>MARKET_PAGE_SIZE);
+  }catch(e){
+    if(generation===marketLoadGeneration.current)setMarketMoreError(humanError(e));
+  }finally{
+    marketMoreLock.current=false;
+    if(generation===marketLoadGeneration.current)setMarketLoadingMore(false);
+  }
+},[me,marketHasMore,marketNextOffset,loading]);
 useEffect(()=>{
 if(!supabase){setSession(null);return;}
 let alive=true;
@@ -265,7 +327,14 @@ useEffect(()=>{
   setShowLoginHelp(false);
   setShowEventForm(false);
 },[me]);
-useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
+useEffect(()=>{
+  if(me)load();
+  else{
+    marketLoadGeneration.current++;
+    setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
+    setMarketHasMore(false);setMarketNextOffset(0);setMarketLoadingMore(false);setMarketMoreError('');
+  }
+},[me,load]);
 // Einmalige Begrüßung je Konto auf diesem Gerät. Ein erneuter Aufruf unter „Mehr“ ist jederzeit möglich.
 useEffect(()=>{
   let valid=true;
@@ -390,6 +459,7 @@ tab==='map'?<FamilyMapScreen userId={me} active={active} addPlace={(v)=>execute(
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
 tab==='market'?<MarketScreen key={me} listings={db.listings} me={me} active={active} busy={busy}
+ hasMoreListings={marketHasMore} loadingMoreListings={marketLoadingMore} moreListingsError={marketMoreError} loadMoreListings={loadMoreMarket}
 organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} favorites={db.marketFavorites} contacts={db.contacts}
 createListing={(v,assets,stableId)=>execute(async()=>{
  // Basar-Texte nicht wegen einzelner Wörter vorab blockieren.
@@ -643,7 +713,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false,al
     </View>:null}
   </View>;
 }
-function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,onContact,onChat,nameOf,blocked}){
+function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,onContact,onChat,nameOf,blocked,hasMoreListings,loadingMoreListings,moreListingsError,loadMoreListings}){
   const [open,setOpen]=useState(false);
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('Alle');
@@ -1582,7 +1652,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
         <Text style={styles.micro}>Neu und gebraucht</Text>
       </Row>
-      {listings.length>=160?<Text style={[styles.micro,{marginBottom:9}]}>Die Suche berücksichtigt derzeit nur die geladenen Anzeigen. Weitere Angebote können fehlen.</Text>:null}
+      {hasMoreListings?<Text style={[styles.micro,{marginBottom:9}]}>Suche, Filter und Sortierung beziehen sich bisher nur auf geladene Anzeigen. Lade weitere Angebote, um mehr Treffer zu sehen.</Text>:null}
       {shown.length===0?<View>
         <Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>
         {(query||activeFilterCount>0)?<Button title="Suche und Filter zurücksetzen" mode="outline" small onPress={resetMarketFilters}/>:null}
@@ -1617,6 +1687,11 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           </Pressable>;
         })}
         </View>}
+      {(hasMoreListings||loadingMoreListings||moreListingsError)?<View style={{marginTop:16,marginBottom:13}}>
+        {moreListingsError?<Info warning>Weitere Anzeigen konnten nicht geladen werden: {moreListingsError}</Info>:null}
+        {hasMoreListings?<Button title={loadingMoreListings?'Weitere Anzeigen werden geladen …':'Weitere Anzeigen laden'}
+          mode="outline" disabled={loadingMoreListings||busy} onPress={loadMoreListings}/>:null}
+      </View>:null}
     </>:null}
   </ScrollView>;
 }
