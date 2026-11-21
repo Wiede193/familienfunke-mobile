@@ -18,6 +18,7 @@ import {FACT_KEYS,EMPTY_FACTS,DEFECTS,encodeArticleFacts,decodeArticleFacts,arti
 import {compactBoxDetail,summarizeBox,packageNote,packagePersonalLimit,parsePackageNote,labelSource,BOX_MAX_ITEMS,BOX_MAX_BATCHES,BOX_MAX_PACKAGE,sizeGroups,matchingBatchPhotos,sameBoxSelection,listingDraftId} from './MarketBoxPackage';
 import {keepBoxPhoto,availableBoxPhoto,loadBoxSnapshot,saveBoxSnapshot,deleteBoxStorage,makeBoxCrop} from './MarketBoxStorage';
 import { cropBounds,suggestedCrop,changeCrop,pixelCrop,photoIssues,PHOTO_ISSUES } from './MarketBoxCrop';
+import {suggestBoxPackages,packageCheck} from './MarketBoxSuggestions';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
@@ -687,6 +688,12 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [boxCurrentBatch,setBoxCurrentBatch]=useState(null);
   const [boxSelected,setBoxSelected]=useState(null);
   const [boxFilter,setBoxFilter]=useState('all');
+  const [boxStep,setBoxStep]=useState('photo');
+  const [boxAdvanced,setBoxAdvanced]=useState(false);
+  const [boxShowAll,setBoxShowAll]=useState(false);
+  const [boxFormExtras,setBoxFormExtras]=useState(false);
+  const marketScrollRef=useRef(null);
+  useEffect(()=>{if(boxOpen||boxEditor)marketScrollRef.current?.scrollTo({y:0,animated:false});},[boxStep,boxOpen,boxEditor]);
   const [boxStorage,setBoxStorage]=useState('loading');
   const [boxSaveError,setBoxSaveError]=useState(false);
   const [boxPending,setBoxPending]=useState(null);
@@ -702,6 +709,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const selectedBoxDrafts=boxDrafts.filter(d=>selectedBoxIds.includes(d.id));
   const boxSummary=useMemo(()=>summarizeBox(boxDrafts),[boxDrafts]);
   const boxSizeGroups=useMemo(()=>sizeGroups(boxDrafts),[boxDrafts]);
+  const boxSuggestions=useMemo(()=>suggestBoxPackages(boxDrafts),[boxDrafts]);
+  const boxChecks=useMemo(()=>packageCheck(boxDrafts),[boxDrafts]);
   const visibleBoxDrafts=boxDrafts.filter(d=>boxFilter==='unknown'?d.category==='Kleidung'&&!d.facts.size:boxFilter==='review'?!!d.uncertainty||!d.title.trim():boxFilter==='selected'?selectedBoxIds.includes(d.id):true);
   function boxSnapshot(pending=boxPending){
     let drafts=boxDrafts,bundle=boxPackageDraft;
@@ -805,14 +814,15 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     setBoxOpen(false);resetForm();setQuick(true);setCondition('');setOpen(true);setSelectedListing(null);
   }
   function showBox(){
-    setOpen(false);setSelectedListing(null);setBoxOpen(true);
+    setOpen(false);setSelectedListing(null);setBoxAdvanced(false);setBoxShowAll(false);
+    setBoxStep(boxDrafts.length?'review':'photo');setBoxOpen(true);
   }
   async function clearBox(){
     setChoosing(true);
     try{
       await deleteBoxStorage(me);
       setBoxPhoto(null);setBoxDrafts([]);setBoxNotice('');setBoxScanned(false);
-      setBoxOverflow(false);setBoxEditor(null);setBoxPackageDraft(null);setBoxBatches([]);setBoxCurrentBatch(null);setBoxSelected(null);setBoxFilter('all');
+      setBoxOverflow(false);setBoxEditor(null);setBoxPackageDraft(null);setBoxBatches([]);setBoxCurrentBatch(null);setBoxSelected(null);setBoxFilter('all');setBoxStep('photo');setBoxAdvanced(false);
       setBoxRegion('');setBoxInspect(null);setBoxBulkSize('');setBoxQuality([]);setBoxCrop(null);setBoxStorage('ready');setBoxSaveError(false);setBoxPending(null);
     }catch(e){setBoxNotice('Kiste konnte nicht vollständig gelöscht werden: '+humanError(e));}
     finally{setChoosing(false);}
@@ -847,7 +857,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(!asset?.uri||!canCaptureBox)return;
     if(asset.assetId&&boxBatches.some(b=>b.photo?.sourceAssetId===asset.assetId)){setBoxNotice('Dieses Galeriefoto wurde bereits als Fotogruppe erfasst. Wähle ein anderes Bild, damit die Teile nicht doppelt gezählt werden.');return;}
     const kept=await keepBoxPhoto(me,asset);
-    setBoxCrop(null);setBoxQuality([]);setBoxPhoto(kept);setBoxCurrentBatch(null);setBoxNotice('');setBoxScanned(false);setBoxOverflow(false);
+    setBoxCrop(null);setBoxQuality([]);setBoxPhoto(kept);setBoxCurrentBatch(null);setBoxNotice('');setBoxScanned(false);setBoxOverflow(false);setBoxStep('photo');
   }
   function viewBatch(batch){
     if(!batch.photo)return;
@@ -862,7 +872,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         setBoxDrafts(old=>old.filter(d=>!batch.ids.includes(d.id)));
         setBoxBatches(old=>old.filter(b=>b.id!==batch.id));setBoxSelected(null);setBoxPackageDraft(null);
         setBoxCrop(null);setBoxInspect(null);setBoxPhoto(null);setBoxCurrentBatch(null);setBoxScanned(false);setBoxQuality([]);setBoxOverflow(false);
-        setBoxNotice('Fotogruppe verworfen. Fotografiere die noch verfügbaren Teile erneut, diesmal einzeln nebeneinander.');
+        setBoxNotice('Fotogruppe verworfen. Fotografiere die noch verfügbaren Teile erneut, diesmal einzeln nebeneinander.');setBoxStep('photo');
       }}
     ]);
   }
@@ -898,7 +908,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       const incomplete=!!result.overflow||drafts.length!==result.items.length||quality.includes("cutoff");
       setBoxDrafts(old=>[...old,...drafts]);setBoxSeq(n=>n+1);setBoxScanned(true);setBoxOverflow(incomplete);
       setBoxBatches(old=>[...old,{id:batchId,photo:boxPhoto,ids:drafts.map(d=>d.id),reusable:!incomplete,quality}]);
-      setBoxCurrentBatch(batchId);setBoxPackageDraft(null);
+      setBoxCurrentBatch(batchId);setBoxPackageDraft(null);setBoxStep('review');setBoxAdvanced(false);setBoxShowAll(false);
       setBoxNotice(incomplete?'Nicht alle Teile dieser Aufnahme wurden erfasst. Bitte prüfe die Liste und verwende ein passendes Paketfoto.':'Neue Fotogruppe hinzugefügt. Bitte gleiche Artikel ab und fotografiere in der nächsten Gruppe nur andere Teile.');
     }catch(e){setBoxNotice(humanError(e));}finally{setScanBusy(false);}
   }
@@ -990,7 +1000,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     setBoxDrafts(old=>old.filter(d=>d.id!==id));setBoxPackageDraft(null);
   }
   function openBoxEditor(d,packageIds=null){
-    setBoxCrop(null);resetForm();setBoxOpen(false);setOpen(true);setQuick(true);setBoxEditor({id:d.id,packageIds,listingId:d.listingId||listingDraftId()});
+    setBoxCrop(null);resetForm();setBoxFormExtras(false);setBoxOpen(false);setOpen(true);setQuick(true);setBoxEditor({id:d.id,packageIds,listingId:d.listingId||listingDraftId()});
     setTitle(d.title||'');setCategory(d.category||'Kleidung');setFacts({...EMPTY_FACTS,...d.facts});
     setCondition(d.condition||'');setTrade(d.trade||'sell');setPrice(d.price||'');
     setPhoto(d.photos||[]);setDescription(d.description||'');setRegion(d.region||boxRegion);
@@ -1001,18 +1011,20 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(next.length>BOX_MAX_PACKAGE)return Alert.alert('Paket voll','Eine Anzeige enthält bis zu zehn Teile. Die übrigen Teile bleiben für weitere Pakete in der Kiste.');
     setBoxSelected(next);
   }
-  function openBoxPackage(){
-    const items=selectedBoxDrafts,ids=items.map(d=>d.id);
+  function openBoxPackage(preferredIds=null){
+    const ids=Array.isArray(preferredIds)?preferredIds:selectedBoxIds;
+    const items=boxDrafts.filter(d=>ids.includes(d.id));
     if(items.length<2||items.length>BOX_MAX_PACKAGE)return;
+    setBoxSelected(ids);
     if(boxPackageDraft&&sameBoxSelection(boxPackageDraft.packageIds,ids)){openBoxEditor(boxPackageDraft,ids);return;}
     if(items.some(d=>d.title.trim().length<4))return Alert.alert('Artikel benennen','Bitte gib allen ausgewählten Artikeln einen kurzen Namen.');
     const summary=summarizeBox(items);
     const launch=()=>openBoxEditor({id:'package',listingId:listingDraftId(),title:summary.title,category:summary.category,
       facts:{...EMPTY_FACTS,size:summary.commonSize,detail:summary.detail},description:packageNote(summary.rows),
       photos:matchingBatchPhotos(items,boxBatches),region:boxRegion},ids);
-    if(summary.sized<summary.total&&summary.allClothing){
-      Alert.alert('Noch '+(summary.total-summary.sized)+' Größen offen','Du kannst unbekannte Größen offen lassen oder die Etiketten zuerst lesen. Es wird keine Größe erfunden.',[{text:'Größen ergänzen',style:'cancel'},{text:'Paket weiter erstellen',onPress:launch}]);
-    }else launch();
+    // Unbekannte Größen bleiben ausdrücklich offen – kein unnötiges Bestätigungsfenster.
+    // Die überprüfbare Paketliste ist im nächsten Schritt weiterhin vollständig sichtbar.
+    launch();
   }
   function saveBoxEditor(){
     if(!boxEditor)return;
@@ -1020,7 +1032,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(boxEditor.packageIds)setBoxPackageDraft(draft);
     else {setBoxDrafts(old=>old.map(d=>d.id===draft.id?{...d,...draft,sizeEvidence:draft.facts.size!==d.facts.size?'seller':d.sizeEvidence}:d));setBoxPackageDraft(null);}
     if(region.trim())setBoxRegion(region.trim());
-    resetForm();setOpen(false);setBoxOpen(true);
+    resetForm();setOpen(false);setBoxOpen(true);setBoxStep('package');
   }
   function changeFact(key,value){setFacts(prev=>({...prev,[key]:value,...(key==='defect'&&value!=='Vorhanden'?{defectText:''}:{})}));setConfirmed(false);}
   async function takeArticlePhoto(){
@@ -1090,7 +1102,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         setBoxDrafts(saved.drafts);
         setBoxSelected(null);setBoxPackageDraft(null);setBoxPending(null);
         if(region.trim())setBoxRegion(region.trim());
-        setBoxNotice('Zur Prüfung eingereicht. Weitere Entwürfe kannst du jetzt bearbeiten.');
+        setBoxNotice('Zur Prüfung eingereicht. Weitere Entwürfe kannst du jetzt bearbeiten.');setBoxStep('package');
       }
       resetForm();setOpen(false);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);
       if(submitted)setBoxOpen(true);
@@ -1118,7 +1130,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const selectedPackage=selectedFacts?parsePackageNote(selectedFacts.note):null;
   const gallery=selected?galleryOf(selected):[];
   const shownImage=gallery[Math.min(galleryIndex,Math.max(0,gallery.length-1))]?.uri;
-  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+  return <ScrollView ref={marketScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <H sub="Kinderkleidung, Spielzeug und vieles mehr – direkt von Familien in deiner Nähe.">Familienbasar</H>
     <Info>{SECTION_MESSAGES.market}</Info>
     <View style={styles.marketTopActions}>
@@ -1152,8 +1164,11 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <Button title="Kiste schließen" mode="outline" small disabled={scanBusy||busy||choosing} onPress={closeBox}/>
     </Card>:null}
     {boxOpen&&!boxPending?<Card style={{marginBottom:18}}>
-      <Text style={styles.sectionTitle}>Deine Verkaufskiste</Text>
-      <Text style={[styles.sub,{marginBottom:12}]}>Pro Fotogruppe bis zu zehn Teile flach nebeneinander auslegen. Nächste Gruppe: nur andere Kleidungsstücke. Insgesamt bis zu 30 Teile in einer Kiste; bis zu zehn pro Verkaufsanzeige.</Text>
+      <Text style={styles.sectionTitle}>{boxStep==='photo'?'1 · Kleidung fotografieren':boxStep==='review'?'2 · Kleidung prüfen':'3 · Paket auswählen'}</Text>
+      <Text style={[styles.micro,{marginBottom:12}]}>Foto › Prüfen › Paket · {boxDrafts.length} Teile erfasst</Text>
+      {boxNotice?<Info>{boxNotice}</Info>:null}
+      {boxStep==='photo'?<>
+      <Text style={[styles.sub,{marginBottom:12}]}>Lege bis zu zehn unterschiedliche Kleidungsstücke nebeneinander und fotografiere sie von oben. Weitere Gruppen kannst du später ergänzen.</Text>
       {boxPhoto?<View onLayout={e=>setBoxImageFrame(e.nativeEvent.layout)} style={{width:'100%',height:300,borderRadius:14,marginBottom:10,overflow:'hidden',backgroundColor:C.bg}}>
         <Image source={{uri:boxPhoto.uri}} style={{width:'100%',height:'100%'}} resizeMode="contain"/>
         {boxImageFrame.width>0&&boxImageFrame.height>0&&boxPhoto.width>0&&boxPhoto.height>0&&boxCurrentBatch?boxDrafts.map((d,i)=>{
@@ -1178,7 +1193,6 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <Button title="＋ Neue Fotogruppe fotografieren" disabled={busy||choosing||scanBusy||!canCaptureBox} mode="ghost" small onPress={takeBoxPhoto}/>
       <Text style={[styles.micro,{marginVertical:8}]}>Die freiwillige Analyse sendet ein verkleinertes Foto an OpenAI. Keine Personen oder Dokumente fotografieren. Entwürfe und Artikelfotos bleiben lokal im Gerätespeicher, bis du die Kiste löschst. Kein geräteübergreifender Abgleich.</Text>
       <Button title={scanBusy?'Artikel werden erkannt …':'✦ Fotogruppe analysieren'} disabled={!boxPhoto||scanBusy||choosing||busy||boxScanned||!canCaptureBox} onPress={recognizeBox}/>
-      {boxNotice?<Info>{boxNotice}</Info>:null}
       {boxQuality.length?<View style={{backgroundColor:C.warning,borderRadius:12,padding:12,marginVertical:8}}>
         <Text style={[styles.label,{color:C.warningText}]}>Hinweise zur Fotoqualität</Text>
         {boxQuality.map(issue=><Text key={issue} style={[styles.micro,{color:C.warningText,marginBottom:5}]}>• {PHOTO_ISSUES[issue]}</Text>)}
@@ -1186,19 +1200,27 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       </View>:null}
       {boxOverflow?<Text style={[styles.micro,{marginVertical:8,color:C.warningText}]}>Diese Fotogruppe ist nicht vollständig erfasst. Für Teilpakete passende neue Verkaufsfotos verwenden.</Text>:null}
       {boxCurrentBatch&&(boxQuality.length>0||boxOverflow)?<Button title="Diese Fotogruppe neu erfassen" mode="outline" small disabled={cropBusy} onPress={discardCurrentBatch}/>:null}
-      <Input label="Ort / Region für alle weiteren Entwürfe (optional)" value={boxRegion} onChangeText={setBoxRegion} maxLength={80} placeholder="z. B. Fürstenwalde"/>
+      {boxDrafts.length>0?<Button title={'Weiter: '+boxDrafts.length+' Artikel prüfen'} disabled={cropBusy} onPress={()=>{setBoxStep('review');setBoxAdvanced(false);}}/>:null}
+      </>:null}
+      {boxStep==='review'?<>
+      <Text style={[styles.sub,{marginBottom:11}]}>Prüfe kurz die erkannten Kleidungsstücke. Fehlende Größen dürfen offen bleiben.</Text>
+      {boxQuality.length?<View style={{marginBottom:10,padding:11,borderRadius:11,backgroundColor:C.warning}}>
+        <Text style={[styles.micro,{color:C.warningText}]}>{PHOTO_ISSUES[boxQuality[0]]}</Text>
+        <Pressable accessibilityRole="button" onPress={()=>setBoxStep('photo')} style={{paddingTop:7}}><Text style={[styles.micro,{color:C.accentDark,fontWeight:'900'}]}>Foto ansehen ›</Text></Pressable>
+      </View>:null}
       {boxDrafts.length>0?<View style={{backgroundColor:'#FFF4DA',borderRadius:14,padding:12,marginVertical:10}}>
         <Text style={styles.sectionTitle}>{boxSummary.total} Teile · {boxSummary.sized} Größen erfasst</Text>
         <Text style={styles.micro}>{boxSummary.detail||'Artikel noch prüfen'}</Text>
         {boxSummary.sizes.length?<Text style={[styles.micro,{marginTop:5}]}>Erfasste Größen: {boxSummary.sizes.join(', ')}</Text>:null}
+        {boxChecks.unknownSizes>0?<Text style={[styles.micro,{marginTop:5,color:C.warningText}]}>{boxChecks.unknownSizes} Größen noch unbekannt – bei Bedarf ergänzen, nicht schätzen.</Text>:null}
       </View>:null}
-      {boxDrafts.some(d=>d.category==='Kleidung'&&!d.facts.size)?<View style={{borderWidth:1,borderColor:C.line,borderRadius:14,padding:12,marginBottom:13}}>
+      {boxAdvanced&&boxDrafts.some(d=>d.category==='Kleidung'&&!d.facts.size)?<View style={{borderWidth:1,borderColor:C.line,borderRadius:14,padding:12,marginBottom:13}}>
         <Text style={styles.label}>Alles dieselbe Größe?</Text>
         <Text style={[styles.micro,{marginBottom:7}]}>Nur wenn du alle fehlenden Größen tatsächlich geprüft hast. Bereits erfasste Größen bleiben unverändert.</Text>
         <Input label="Gemeinsame Größe" value={boxBulkSize} onChangeText={setBoxBulkSize} maxLength={40} placeholder="z. B. 98/104"/>
         <Button title="Auf fehlende Größen anwenden" small mode="outline" disabled={!boxBulkSize.trim()||busy||scanBusy||choosing} onPress={applyBoxSize}/>
       </View>:null}
-      {boxDrafts.length>=2?<View style={{borderWidth:1,borderColor:C.line,borderRadius:14,padding:12,marginVertical:10}}>
+      {boxStep==='package'&&boxAdvanced&&boxDrafts.length>=2?<View style={{borderWidth:1,borderColor:C.line,borderRadius:14,padding:12,marginVertical:10}}>
         <Text style={styles.sectionTitle}>Paket zusammenstellen</Text>
         <Text style={styles.micro}>{selectedBoxIds.length} von {boxDrafts.length} Teilen ausgewählt · maximal zehn pro Angebot. Wähle passende Teile oder eine bekannte Größe.</Text>
         <Row style={{flexWrap:'wrap',marginTop:9}}>
@@ -1209,30 +1231,51 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         {selectedBoxIds.length>=2?<Button title={selectedBoxIds.length+' Teile als Paket anbieten'} disabled={busy||scanBusy||choosing||boxStorage!=='ready'} onPress={openBoxPackage}/>:null}
         <Text style={[styles.micro,{marginTop:7}]}>Größen-Gruppen verwenden nur erfasste Größen. Unbekannte Größen werden nicht automatisch zugeordnet.</Text>
       </View>:null}
-      <Text style={styles.sectionTitle}>{boxDrafts.length} offene Entwürfe</Text>
-      {boxDrafts.length?<Row style={{flexWrap:'wrap',marginBottom:10}}>
+      {boxDrafts.length>=2?<Button title="Weiter: Paketvorschläge ansehen" disabled={cropBusy||boxStorage!=='ready'} onPress={()=>{setBoxStep('package');setBoxAdvanced(false);setBoxCrop(null);}}/>:null}
+      <Button title="＋ Weitere Kleidung fotografieren" mode="outline" small disabled={cropBusy||!canCaptureBox} onPress={()=>{setBoxStep('photo');setBoxCrop(null);}}/>
+      </>:null}
+      {boxStep==='package'?<View style={{marginVertical:8}}>
+        <Text style={[styles.sub,{marginBottom:10}]}>Wähle einen Vorschlag. Anschließend fehlen nur noch Preis, Zustand und Verkaufsfoto.</Text>
+        {boxSuggestions.length?boxSuggestions.map((idea,index)=><Pressable key={idea.id}
+          accessibilityRole="button" accessibilityLabel={idea.title+', '+idea.ids.length+' Artikel als Paket auswählen'}
+          disabled={cropBusy||boxStorage!=='ready'} onPress={()=>openBoxPackage(idea.ids)}
+          style={{padding:14,marginBottom:10,borderRadius:16,borderWidth:1,borderColor:index===0?C.accent:C.line,backgroundColor:index===0?C.pale:C.white}}>
+          <Row style={{justifyContent:'space-between',alignItems:'center'}}>
+            <View style={{flex:1}}>
+              <Text style={[styles.body,{fontWeight:'900'}]}>{idea.title}</Text>
+              <Text style={[styles.micro,{marginTop:4}]}>{idea.description}</Text>
+            </View>
+            <Text style={{fontSize:18,fontWeight:'900',color:C.accentDark}}>›</Text>
+          </Row>
+        </Pressable>):<Text style={styles.micro}>Noch nicht genügend Artikel für einen Paketvorschlag vorhanden.</Text>}
+        <Text style={[styles.micro,{marginTop:2,marginBottom:8}]}>Vorschläge beruhen nur auf erfassten Größen und Kleidungsarten. Bitte selbst prüfen.</Text>
+        <Button title={boxAdvanced?'Individuelle Auswahl schließen':'Auswahl selbst zusammenstellen'} mode="outline" small onPress={()=>setBoxAdvanced(v=>!v)}/>
+      </View>:null}
+      {(boxStep==='review'||(boxStep==='package'&&boxAdvanced))?<>
+            <Text style={styles.sectionTitle}>{boxDrafts.length} offene Entwürfe</Text>
+      {boxAdvanced&&boxDrafts.length?<Row style={{flexWrap:'wrap',marginBottom:10}}>
         <Chip text={'Alle · '+boxDrafts.length} selected={boxFilter==='all'} onPress={()=>setBoxFilter('all')}/>
         <Chip text={'Größen offen · '+boxDrafts.filter(d=>d.category==='Kleidung'&&!d.facts.size).length} selected={boxFilter==='unknown'} onPress={()=>setBoxFilter('unknown')}/>
         <Chip text={'KI-Hinweise · '+boxDrafts.filter(d=>!!d.uncertainty||!d.title.trim()).length} selected={boxFilter==='review'} onPress={()=>setBoxFilter('review')}/>
         <Chip text={'Im Paket · '+selectedBoxIds.length} selected={boxFilter==='selected'} onPress={()=>setBoxFilter('selected')}/>
       </Row>:null}
       {boxDrafts.length&&!visibleBoxDrafts.length?<Text style={[styles.micro,{marginBottom:10}]}>Für diesen Filter sind keine Teile vorhanden. Bitte wähle bei Bedarf „Alle“.</Text>:null}
-      {visibleBoxDrafts.map(d=><View key={d.id} style={{borderWidth:1,borderColor:C.line,borderRadius:13,padding:12,marginBottom:9}}>
+      {(boxShowAll?visibleBoxDrafts:visibleBoxDrafts.slice(0,10)).map(d=><View key={d.id} style={{borderWidth:1,borderColor:C.line,borderRadius:13,padding:12,marginBottom:9}}>
         <Row style={{justifyContent:'space-between',alignItems:'center'}}>
           <Text style={[styles.micro,{color:C.accentDark,fontWeight:'800',flex:1}]}>ARTIKEL {boxDrafts.findIndex(x=>x.id===d.id)+1} · {d.batchId?'Gruppe '+(boxBatches.findIndex(b=>b.id===d.batchId)+1)+' · ':''}{d.position||'Position prüfen'}</Text>
-          <Pressable accessibilityRole="checkbox" accessibilityState={{checked:selectedBoxIds.includes(d.id)}} disabled={busy||scanBusy||choosing} onPress={()=>toggleBoxSelection(d.id)} style={{padding:8,backgroundColor:selectedBoxIds.includes(d.id)?C.pale:C.bg,borderRadius:8}}>
+          {boxStep==='package'?<Pressable accessibilityRole="checkbox" accessibilityState={{checked:selectedBoxIds.includes(d.id)}} disabled={busy||scanBusy||choosing} onPress={()=>toggleBoxSelection(d.id)} style={{padding:8,backgroundColor:selectedBoxIds.includes(d.id)?C.pale:C.bg,borderRadius:8}}>
             <Text style={{color:C.accentDark,fontWeight:'800',fontSize:12}}>{selectedBoxIds.includes(d.id)?'☑ Paket':'☐ Paket'}</Text>
-          </Pressable>
+          </Pressable>:null}
         </Row>
         <Text style={[styles.body,{fontWeight:'800',marginTop:4}]}>{d.title||'Neuer Artikel'}</Text>
-        <Text style={styles.micro}>{[d.category,d.facts.color,d.pattern].filter(Boolean).join(' · ')}</Text>
-        {d.facts.detail?<Text style={[styles.micro,{marginTop:4}]}>{d.facts.detail}</Text>:null}
-        {d.facts.brand?<Text style={styles.micro}>Marke: {d.facts.brand}</Text>:null}
-        {d.material?<Text style={styles.micro}>Etikettmaterial: {d.material}</Text>:null}
+        <Text style={styles.micro}>{[d.facts.color,d.facts.size?'Gr. '+d.facts.size:'Größe offen'].filter(Boolean).join(' · ')}</Text>
+        {boxInspect===d.id&&d.facts.detail?<Text style={[styles.micro,{marginTop:4}]}>{d.facts.detail}</Text>:null}
+        {boxInspect===d.id&&d.facts.brand?<Text style={styles.micro}>Marke: {d.facts.brand}</Text>:null}
+        {boxInspect===d.id&&d.material?<Text style={styles.micro}>Etikettmaterial: {d.material}</Text>:null}
         <Text style={[styles.micro,{marginTop:6,color:d.facts.size?C.accentDark:C.warningText}]}>{d.facts.size?'Gr. '+d.facts.size+' · ':''}{labelSource(d)}</Text>
-        {!d.facts.size&&d.relativeSize?<Text style={[styles.micro,{marginTop:5}]}>Nur Größenvergleich: {d.relativeSize}</Text>:null}
+        {boxInspect===d.id&&!d.facts.size&&d.relativeSize?<Text style={[styles.micro,{marginTop:5}]}>Nur Größenvergleich: {d.relativeSize}</Text>:null}
         {d.uncertainty?<Text style={[styles.micro,{marginTop:5,color:C.warningText}]}>Bitte prüfen: {d.uncertainty}</Text>:null}
-        <Pressable accessibilityRole="button" accessibilityState={{expanded:boxInspect===d.id}} disabled={busy||scanBusy||choosing} onPress={()=>setBoxInspect(boxInspect===d.id?null:d.id)} style={{paddingVertical:10}}><Text style={{color:C.accentDark,fontWeight:'800',fontSize:13}}>{boxInspect===d.id?'Details schließen ↑':'Merkmale schnell korrigieren ↓'}</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityState={{expanded:boxInspect===d.id}} disabled={busy||scanBusy||choosing} onPress={()=>setBoxInspect(boxInspect===d.id?null:d.id)} style={{paddingVertical:10}}><Text style={{color:C.accentDark,fontWeight:'800',fontSize:13}}>{boxInspect===d.id?'Fertig ↑':'Angaben ändern ›'}</Text></Pressable>
         {boxInspect===d.id?<View>
           <Input label="Artikelbezeichnung" value={d.title} onChangeText={v=>updateBoxDraft(d.id,{title:v,garmentType:v})} maxLength={100} placeholder="z. B. Langarmbody"/>
           <Input label="Größe (Etikett / geprüft)" value={d.facts.size} onChangeText={v=>updateBoxDraft(d.id,{sizeEvidence:v?'seller':'unknown'},{size:v})} maxLength={40} placeholder="Unbekannt darf leer bleiben"/>
@@ -1242,9 +1285,9 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           <Button title="Etikett fotografieren & lesen" small mode="outline" disabled={busy||scanBusy||choosing} onPress={()=>photographBoxLabel(d)}/>
           <Button title="Etikettfoto auswählen & lesen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>pick(assets=>readBoxLabel(d,assets[0]),1)}/>
         </View>:null}
-        {!d.facts.size&&boxInspect!==d.id&&d.category==='Kleidung'?<Button title="Größenetikett lesen" small mode="outline" disabled={busy||scanBusy||choosing} onPress={()=>{setBoxInspect(d.id);photographBoxLabel(d);}}/>:null}
+        {!d.facts.size&&boxInspect!==d.id&&d.category==='Kleidung'?<Pressable accessibilityRole="button" disabled={busy||scanBusy||choosing} onPress={()=>setBoxInspect(d.id)} style={{paddingVertical:6}}><Text style={[styles.micro,{color:C.accentDark,fontWeight:'800'}]}>Größe ergänzen ›</Text></Pressable>:null}
         {d.photos?.length?<Image source={{uri:d.photos[0].uri}} resizeMode="contain" style={{width:95,height:95,borderRadius:10,backgroundColor:C.bg,marginTop:8}}/>:null}
-        {!d.photos?.length&&suggestedCrop(d)&&boxBatches.some(b=>b.id===d.batchId&&b.photo)?<Button title="Einzelbild aus Gruppenfoto erstellen" small mode="outline" disabled={cropBusy} onPress={()=>openBoxCrop(d)}/>:null}
+        {boxInspect===d.id&&!d.photos?.length&&suggestedCrop(d)&&boxBatches.some(b=>b.id===d.batchId&&b.photo)?<Button title="Einzelbild aus Gruppenfoto erstellen" small mode="outline" disabled={cropBusy} onPress={()=>openBoxCrop(d)}/>:null}
       {boxCrop?.id===d.id&&cropDraft&&cropSource?<View style={{backgroundColor:C.pale,borderRadius:15,padding:13,marginVertical:12}}>
         <Text style={styles.sectionTitle}>Einzelbild für {cropDraft.title}</Text>
         <Text style={[styles.micro,{marginBottom:9}]}>Der Rahmen ist ein KI-Vorschlag. Das gesamte Kleidungsstück muss darin liegen, ohne fremde Artikel oder private Details.</Text>
@@ -1271,17 +1314,24 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Button title="Abbrechen" mode="ghost" small disabled={cropBusy} onPress={()=>setBoxCrop(null)}/>
       </View>:null}
         {!d.photos?.length&&['overlapping','cutoff'].includes(d.visibility)?<Text style={[styles.micro,{color:C.warningText,marginTop:6}]}>Für ein vollständiges Einzelbild bitte separat fotografieren.</Text>:null}
-        <Text style={[styles.micro,{marginVertical:5}]}>{d.photos.length?'Artikelfoto vorhanden':'Einzelfoto nur beim Einzelverkauf nötig'} · {d.condition||'Zustand noch offen'}</Text>
-        <Button title="Einzeln verkaufen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>openBoxEditor(d)}/>
-        <Button title="Entfernen" mode="ghost" small disabled={busy||scanBusy||choosing} onPress={()=>Alert.alert('Entwurf entfernen?','Dieser Artikel bleibt unveröffentlicht.',[{text:'Abbrechen',style:'cancel'},{text:'Entfernen',style:'destructive',onPress:()=>removeBoxDraft(d.id)}])}/>
+        {boxInspect===d.id?<Text style={[styles.micro,{marginVertical:5}]}>{d.photos.length?'Artikelfoto vorhanden':'Einzelfoto nur beim Einzelverkauf nötig'} · {d.condition||'Zustand noch offen'}</Text>:null}
+        {boxInspect===d.id?<Button title="Einzeln verkaufen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>openBoxEditor(d)}/>:null}
+        {boxInspect===d.id?<Button title="Artikel entfernen" mode="ghost" small disabled={busy||scanBusy||choosing} onPress={()=>Alert.alert('Entwurf entfernen?','Dieser Artikel bleibt unveröffentlicht.',[{text:'Abbrechen',style:'cancel'},{text:'Entfernen',style:'destructive',onPress:()=>removeBoxDraft(d.id)}])}/>:null}
       </View>)}
-      <Button title="＋ Weiteren Artikel manuell ergänzen" mode="outline" disabled={boxDrafts.length>=BOX_MAX_ITEMS||busy||scanBusy||choosing||boxStorage!=='ready'} onPress={addBoxDraft}/>
-      {selectedBoxIds.length>=2?<View style={{marginTop:13}}>
+      {visibleBoxDrafts.length>10?<Button title={boxShowAll?'Weniger anzeigen':'Weitere '+(visibleBoxDrafts.length-10)+' Artikel anzeigen'} mode="outline" small onPress={()=>setBoxShowAll(v=>!v)}/>:null}
+      {boxStep==='review'?<Button title={boxAdvanced?'Weitere Möglichkeiten schließen':'Weitere Möglichkeiten'} mode="ghost" small onPress={()=>setBoxAdvanced(v=>!v)}/>:null}
+      {boxAdvanced?<View>
+        <Input label="Ort / Region für weitere Entwürfe (optional)" value={boxRegion} onChangeText={setBoxRegion} maxLength={80} placeholder="z. B. Fürstenwalde"/>
+        <Button title="＋ Artikel manuell ergänzen" mode="outline" disabled={boxDrafts.length>=BOX_MAX_ITEMS||busy||scanBusy||choosing||boxStorage!=='ready'} onPress={addBoxDraft}/>
+      </View>:null}
+      {boxStep==='package'&&boxAdvanced&&selectedBoxIds.length>=2?<View style={{marginTop:13}}>
         <Button title={selectedBoxIds.length+' ausgewählte Teile als Paket anbieten'} disabled={busy||scanBusy||choosing||boxStorage!=='ready'} onPress={openBoxPackage}/>
         <Text style={[styles.micro,{marginTop:6}]}>Verkaufsfotos werden nur übernommen, wenn vollständige Fotogruppen genau zum Paket passen. Andernfalls bitte ein aktuelles Paketfoto auswählen.</Text>
       </View>:null}
+      </>:null}
+      <Button title="‹ Zurück" mode="ghost" small disabled={busy||scanBusy||choosing} onPress={()=>setBoxStep(boxStep==='package'?'review':'photo')}/>
       <Button title="Kiste schließen & später fortsetzen" mode="outline" small disabled={busy||scanBusy||choosing} onPress={closeBox}/>
-      <Button title="Gespeicherte Kiste löschen" mode="ghost" small disabled={busy||scanBusy||choosing||boxStorage==='loading'} onPress={confirmClearBox}/>
+      {boxAdvanced?<Button title="Gespeicherte Kiste löschen" mode="ghost" small disabled={busy||scanBusy||choosing||boxStorage==='loading'} onPress={confirmClearBox}/>:null}
     </Card>:null}
     {open?<Card style={{marginBottom:18}}>
       <Text style={styles.sectionTitle}>{boxEditor?(boxEditor.packageIds?'Kistenpaket bearbeiten':'Kistenartikel bearbeiten'):editingId?'Anzeige bearbeiten':'Schnellverkauf'}</Text>
@@ -1294,7 +1344,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Text style={[styles.label,{color:C.accentDark}]}>Fotografieren. Fakten prüfen. Fertig.</Text>
         <Text style={styles.micro}>Zeige einen Artikel und nach Möglichkeit sein Etikett. Die KI schlägt sichtbare Merkmale vor, ohne einen Werbetext zu schreiben. Du entscheidest, welche Angaben richtig sind.</Text>
       </View>:null}
-      <Text style={[styles.sub,{marginBottom:17}]}>{editingId?
+      <Text style={[styles.sub,{marginBottom:17}]}>{packageForm?'Ein letzter Blick auf dein Paket – danach wird es wie gewohnt geprüft.':editingId?
         'Beim Speichern wird deine Anzeige erneut vollständig geprüft und bis zur Freigabe ausgeblendet. Bereits hochgeladene Fotos bleiben erhalten.':
         'Kostenlos einstellen. Titel, Beschreibung und alle Fotos werden vor Veröffentlichung geprüft.'}</Text>
       <View style={{marginBottom:15}}>
@@ -1312,7 +1362,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
             </Pressable>
           </View>)}
         </ScrollView>:null}
-        <Text style={[styles.micro,{marginTop:8}]}>Bis zu fünf Bilder pro Angebot. Bei Änderungen werden alle Bilder erneut geprüft.</Text>
+        <Text style={[styles.micro,{marginTop:8}]}>{packageForm?'Nur die tatsächlich enthaltenen Artikel zeigen.':'Bis zu fünf Bilder pro Angebot. Bei Änderungen werden alle Bilder erneut geprüft.'}</Text>
       </View>
       {quick&&!editingId&&!boxEditor?<View style={{marginBottom:16}}>
         <Button title={scanBusy?'Fotos werden analysiert …':'✦ Artikel aus Fotos erkennen'} disabled={scanBusy||choosing||busy||!photo.length||!active} onPress={recognize}/>
@@ -1326,8 +1376,10 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           <Button title="Verwerfen" small mode="ghost" onPress={()=>setProposal(null)}/>
         </View>:null}
       </View>:null}
-      <Input label="Anzeigentitel" value={title} onChangeText={v=>{setTitle(v);setConfirmed(false);}} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
-      <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={v=>{setCategory(v);setConfirmed(false);}} options={MARKET_CATEGORIES}/>
+      {packageForm&&!boxFormExtras?<Text style={[styles.body,{fontWeight:'900',marginBottom:12}]}>{title}</Text>:<>
+        <Input label="Anzeigentitel" value={title} onChangeText={v=>{setTitle(v);setConfirmed(false);}} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
+        <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={v=>{setCategory(v);setConfirmed(false);}} options={MARKET_CATEGORIES}/>
+      </>}
       {packageForm?<View style={{marginBottom:14,padding:13,borderRadius:15,backgroundColor:'#FFF4DA'}}>
         <Text style={styles.sectionTitle}>Dein Paket · {packageForm.rows.length} Teile</Text>
         {packageForm.rows.map((line,i)=><Text key={i} style={[styles.body,{paddingVertical:5,borderBottomWidth:1,borderBottomColor:C.line}]}>{line}</Text>)}
@@ -1351,12 +1403,15 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           {scanned?<Button title="Merkmale einklappen" mode="ghost" small onPress={()=>setExpandFacts(false)}/>:null}
         </>:['Kleidung','Babyausstattung'].includes(category)&&askSize?<Input label="Welche Größe hat der Artikel? (optional)" value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder="Größe vom Etikett"/>:null}
       </View>:null}
-      <Text style={styles.label}>Ich möchte</Text>
+      {packageForm?<Text style={[styles.micro,{marginBottom:4}]}>Angebot: {trade==='sell'?'Verkaufen':trade==='gift'?'Verschenken':'Tauschen'}</Text>:null}
+      {packageForm?<Button title={boxFormExtras?'Optionen wieder ausblenden':'Weitere Optionen (freiwillig)'} mode="ghost" small onPress={()=>setBoxFormExtras(v=>!v)}/>:null}
+      {(!packageForm||boxFormExtras)?<><Text style={styles.label}>Ich möchte</Text>
       <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
         <Chip text="Verkaufen" selected={trade==='sell'} onPress={()=>{setTrade('sell');setConfirmed(false);}}/>
         <Chip text="Verschenken" selected={trade==='gift'} onPress={()=>{setTrade('gift');setConfirmed(false);}}/>
         <Chip text="Tauschen" selected={trade==='swap'} onPress={()=>{setTrade('swap');setConfirmed(false);}}/>
       </View>
+      </>:null}
       {trade==='sell'?<Input label={packageForm?"Gesamtpreis des Pakets in €":"Preis in €"} value={price} onChangeText={v=>{setPrice(v);setConfirmed(false);}} keyboardType="decimal-pad" placeholder="z. B. 12,50"/>:null}
       {packageForm&&trade==='sell'&&parsePrice(price)!==null&&parsePrice(price)>=0?<Text style={[styles.micro,{color:C.accentDark,marginBottom:12}]}>Rechnerisch {((parsePrice(price)/100)/packageForm.rows.length).toLocaleString('de-DE',{style:'currency',currency:'EUR'})} pro Teil – keine KI-Preisempfehlung.</Text>:null}
       <Text style={styles.label}>{packageForm?'Zustand des gesamten Pakets':'Zustand'}</Text>
@@ -1370,19 +1425,19 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           {DEFECTS.map(x=><Chip key={x} text={x} selected={facts.defect===x} onPress={()=>changeFact('defect',x)}/>)}
         </View>
         {facts.defect==='Vorhanden'?<Input label="Welche Mängel?" value={facts.defectText} onChangeText={v=>changeFact('defectText',v)} maxLength={180} multiline placeholder="z. B. kleiner Fleck am Ärmel"/>:null}
-        {packageForm?<Input label="Deine persönliche Notiz (optional)" multiline value={packageForm.personal} onChangeText={v=>{setDescription(packageNote(packageForm.rows,v));setConfirmed(false);}} maxLength={packagePersonalLimit(packageForm.rows)} placeholder="z. B. alles zusammen abzugeben"/>:<Input label="Deine persönliche Notiz (optional)" multiline value={description} onChangeText={v=>{setDescription(v);setConfirmed(false);}} maxLength={900} placeholder="Was möchtest du persönlich ergänzen?"/>}
+        {packageForm?(boxFormExtras?<Input label="Persönliche Notiz (optional)" multiline value={packageForm.personal} onChangeText={v=>{setDescription(packageNote(packageForm.rows,v));setConfirmed(false);}} maxLength={packagePersonalLimit(packageForm.rows)} placeholder="z. B. alles zusammen abzugeben"/>:null):<Input label="Deine persönliche Notiz (optional)" multiline value={description} onChangeText={v=>{setDescription(v);setConfirmed(false);}} maxLength={900} placeholder="Was möchtest du persönlich ergänzen?"/>}
       </View>:<Input label="Beschreibung" multiline value={description} onChangeText={setDescription} maxLength={1500} placeholder="Größe, Farbe, Zustand, Abholung …"/>}
       <Input label="Ort / Region – keine Privatadresse" value={region} onChangeText={v=>{setRegion(v);setConfirmed(false);}} maxLength={80} placeholder="z. B. Fürstenwalde/Spree"/>
-      {myOrgs.length>0&&!editingId?<><Text style={styles.label}>Anbieten als</Text><View style={[styles.chipsRow,{marginTop:0,marginBottom:15}]}>
+      {myOrgs.length>0&&!editingId&&(!packageForm||boxFormExtras)?<><Text style={styles.label}>Anbieten als</Text><View style={[styles.chipsRow,{marginTop:0,marginBottom:15}]}>
         <Chip text="Privat" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
       </View></>:null}
-      <Info>Erlaubt sind auch Kuscheltiere, Tierfiguren und eindeutig harmloses Kinderspielzeug. Echte Tiere sind bei uns ausnahmslos verboten – ebenso Waffen, Drogen, Medikamente, 18+-Waren und andere gefährliche oder illegale Artikel. Die Anzeige erscheint erst nach Prüfung.</Info>
+      {packageForm?<Text style={[styles.micro,{marginBottom:11}]}>Deine Anzeige wird vor Veröffentlichung geprüft.</Text>:<Info>Erlaubt sind auch Kuscheltiere, Tierfiguren und eindeutig harmloses Kinderspielzeug. Echte Tiere sind bei uns ausnahmslos verboten – ebenso Waffen, Drogen, Medikamente, 18+-Waren und andere gefährliche oder illegale Artikel. Die Anzeige erscheint erst nach Prüfung.</Info>}
       {quick?<Pressable accessibilityRole="checkbox" accessibilityState={{checked:confirmed}} onPress={()=>setConfirmed(v=>!v)} style={{flexDirection:'row',gap:10,padding:12,marginBottom:12,borderRadius:12,borderWidth:1,borderColor:C.line}}>
         <Text style={{fontSize:19,color:C.accentDark}}>{confirmed?'☑':'☐'}</Text>
-        <Text style={[styles.body,{flex:1}]}>Ich habe die Angaben geprüft. Der Steckbrief beschreibt mein Angebot korrekt.</Text>
+        <Text style={[styles.body,{flex:1}]}>{packageForm?'Ich habe Paketinhalt und Zustand geprüft.':'Ich habe die Angaben geprüft. Der Steckbrief beschreibt mein Angebot korrekt.'}</Text>
       </Pressable>:null}
-      <Button title={busy?'Wird gespeichert …':editingId?'Änderungen zur Prüfung einreichen':'Anzeige kostenlos einreichen'} disabled={busy||choosing||scanBusy||!active||(quick&&!confirmed)} onPress={submit}/>
+      <Button title={busy?'Wird gespeichert …':editingId?'Änderungen zur Prüfung einreichen':packageForm?'Paket zur Prüfung einreichen':'Anzeige kostenlos einreichen'} disabled={busy||choosing||scanBusy||!active||(quick&&!confirmed)} onPress={submit}/>
       {boxEditor?<Button title="Entwurf behalten und zurück zur Kiste" mode="outline" disabled={busy||choosing||scanBusy} onPress={saveBoxEditor}/>:null}
       {!editingId&&!boxEditor?<Button title="Viele Artikel? Zum Kistenmodus" mode="ghost" disabled={busy||choosing||scanBusy} onPress={()=>Alert.alert('Zum Kistenmodus wechseln?','Die Angaben dieser einzelnen Anzeige werden verworfen.',[{text:'Abbrechen',style:'cancel'},{text:'Wechseln',onPress:()=>{resetForm();showBox();}}])}/>:null}
     </Card>:null}
