@@ -853,6 +853,19 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(!batch.photo)return;
     setBoxCrop(null);setBoxQuality(photoIssues(batch.quality));setBoxPhoto(batch.photo);setBoxCurrentBatch(batch.id);setBoxScanned(true);setBoxOverflow(!batch.reusable);
   }
+  function discardCurrentBatch(){
+    const batch=boxBatches.find(b=>b.id===boxCurrentBatch);
+    if(!batch||!batch.ids.every(id=>boxDrafts.some(d=>d.id===id)))return Alert.alert('Fotogruppe nicht erneut erfassen','Mindestens ein Teil ist nicht mehr in der Kiste. Fotografiere nur die noch verfügbaren Artikel separat, um Doppelanzeigen zu vermeiden.');
+    Alert.alert('Diese Fotogruppe neu erfassen?','Nur die '+batch.ids.length+' Entwürfe dieser Gruppe und ihre Bearbeitungsstände werden verworfen. Andere Fotogruppen bleiben erhalten.',[
+      {text:'Abbrechen',style:'cancel'},
+      {text:'Gruppe verwerfen',style:'destructive',onPress:()=>{
+        setBoxDrafts(old=>old.filter(d=>!batch.ids.includes(d.id)));
+        setBoxBatches(old=>old.filter(b=>b.id!==batch.id));setBoxSelected(null);setBoxPackageDraft(null);
+        setBoxCrop(null);setBoxInspect(null);setBoxPhoto(null);setBoxCurrentBatch(null);setBoxScanned(false);setBoxQuality([]);setBoxOverflow(false);
+        setBoxNotice('Fotogruppe verworfen. Fotografiere die noch verfügbaren Teile erneut, diesmal einzeln nebeneinander.');
+      }}
+    ]);
+  }
   async function takeBoxPhoto(){
     if(choosing||scanBusy||busy||!canCaptureBox)return;
     setChoosing(true);
@@ -882,7 +895,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         confirmed:false,photos:[],condition:'',trade:'sell',price:'',description:'',region:boxRegion,organizationId:''
       }));
       if(!drafts.length){setBoxNotice('Keine weiteren Artikel erkannt.');return;}
-      const incomplete=!!result.overflow||drafts.length!==result.items.length;
+      const incomplete=!!result.overflow||drafts.length!==result.items.length||quality.includes("cutoff");
       setBoxDrafts(old=>[...old,...drafts]);setBoxSeq(n=>n+1);setBoxScanned(true);setBoxOverflow(incomplete);
       setBoxBatches(old=>[...old,{id:batchId,photo:boxPhoto,ids:drafts.map(d=>d.id),reusable:!incomplete,quality}]);
       setBoxCurrentBatch(batchId);setBoxPackageDraft(null);
@@ -1172,6 +1185,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Text style={styles.micro}>KI-Hinweise sind nicht verbindlich. Prüfe das Foto und die erkannten Artikel selbst.</Text>
       </View>:null}
       {boxOverflow?<Text style={[styles.micro,{marginVertical:8,color:C.warningText}]}>Diese Fotogruppe ist nicht vollständig erfasst. Für Teilpakete passende neue Verkaufsfotos verwenden.</Text>:null}
+      {boxCurrentBatch&&(boxQuality.length>0||boxOverflow)?<Button title="Diese Fotogruppe neu erfassen" mode="outline" small disabled={cropBusy} onPress={discardCurrentBatch}/>:null}
       <Input label="Ort / Region für alle weiteren Entwürfe (optional)" value={boxRegion} onChangeText={setBoxRegion} maxLength={80} placeholder="z. B. Fürstenwalde"/>
       {boxDrafts.length>0?<View style={{backgroundColor:'#FFF4DA',borderRadius:14,padding:12,marginVertical:10}}>
         <Text style={styles.sectionTitle}>{boxSummary.total} Teile · {boxSummary.sized} Größen erfasst</Text>
@@ -1194,31 +1208,6 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         </Row>
         {selectedBoxIds.length>=2?<Button title={selectedBoxIds.length+' Teile als Paket anbieten'} disabled={busy||scanBusy||choosing||boxStorage!=='ready'} onPress={openBoxPackage}/>:null}
         <Text style={[styles.micro,{marginTop:7}]}>Größen-Gruppen verwenden nur erfasste Größen. Unbekannte Größen werden nicht automatisch zugeordnet.</Text>
-      </View>:null}
-      {boxCrop&&cropDraft&&cropSource?<View style={{backgroundColor:C.pale,borderRadius:15,padding:13,marginVertical:12}}>
-        <Text style={styles.sectionTitle}>Einzelbild für {cropDraft.title}</Text>
-        <Text style={[styles.micro,{marginBottom:9}]}>Der Rahmen ist ein KI-Vorschlag. Das gesamte Kleidungsstück muss darin liegen, ohne fremde Artikel oder private Details.</Text>
-        <View onLayout={e=>setBoxCropFrame(e.nativeEvent.layout)} style={{width:'100%',height:300,backgroundColor:C.bg,borderRadius:10,overflow:'hidden'}}>
-          <Image source={{uri:cropSource.uri}} resizeMode="contain" style={{width:'100%',height:'100%'}}/>
-          {boxCropFrame.width>0&&cropSource.width>0&&cropSource.height>0?(()=>{
-            const scale=Math.min(boxCropFrame.width/cropSource.width,boxCropFrame.height/cropSource.height);
-            const w=cropSource.width*scale,h=cropSource.height*scale,b=boxCrop.bounds;
-            return <View pointerEvents="none" style={{position:'absolute',left:(boxCropFrame.width-w)/2+b.left*w/100,top:(boxCropFrame.height-h)/2+b.top*h/100,width:(b.right-b.left)*w/100,height:(b.bottom-b.top)*h/100,borderWidth:3,borderColor:C.accent,backgroundColor:'#087F8715'}}/>;
-          })():null}
-        </View>
-        <Text style={[styles.label,{marginTop:10}]}>Rahmen korrigieren</Text>
-        {[['left','Linker Rand'],['right','Rechter Rand'],['top','Oberer Rand'],['bottom','Unterer Rand']].map(([edge,label])=><Row key={edge} style={{alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
-          <Text style={[styles.micro,{flex:1}]}>{label}</Text>
-          <Button title="−" mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,-2)}/>
-          <Button title="＋" mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,2)}/>
-        </Row>)}
-        <Button title={scanBusy?'Bild wird verarbeitet …':'Ausschnitt als Vorschau ansehen'} disabled={cropBusy} onPress={previewBoxCrop}/>
-        {boxCrop.preview?<View style={{marginTop:12}}>
-          <Image source={{uri:boxCrop.preview.uri}} resizeMode="contain" style={{width:'100%',height:245,backgroundColor:C.white,borderRadius:10}}/>
-          <Text style={[styles.micro,{marginVertical:8}]}>Bestätige nur, wenn wirklich das richtige, vollständige Kleidungsstück sichtbar ist. Das Bild wird erst bei der späteren Anzeige hochgeladen.</Text>
-          <Button title="Richtiges Einzelbild übernehmen" disabled={cropBusy} onPress={acceptBoxCrop}/>
-        </View>:null}
-        <Button title="Abbrechen" mode="ghost" small disabled={cropBusy} onPress={()=>setBoxCrop(null)}/>
       </View>:null}
       <Text style={styles.sectionTitle}>{boxDrafts.length} offene Entwürfe</Text>
       {boxDrafts.length?<Row style={{flexWrap:'wrap',marginBottom:10}}>
@@ -1256,6 +1245,31 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         {!d.facts.size&&boxInspect!==d.id&&d.category==='Kleidung'?<Button title="Größenetikett lesen" small mode="outline" disabled={busy||scanBusy||choosing} onPress={()=>{setBoxInspect(d.id);photographBoxLabel(d);}}/>:null}
         {d.photos?.length?<Image source={{uri:d.photos[0].uri}} resizeMode="contain" style={{width:95,height:95,borderRadius:10,backgroundColor:C.bg,marginTop:8}}/>:null}
         {!d.photos?.length&&suggestedCrop(d)&&boxBatches.some(b=>b.id===d.batchId&&b.photo)?<Button title="Einzelbild aus Gruppenfoto erstellen" small mode="outline" disabled={cropBusy} onPress={()=>openBoxCrop(d)}/>:null}
+      {boxCrop?.id===d.id&&cropDraft&&cropSource?<View style={{backgroundColor:C.pale,borderRadius:15,padding:13,marginVertical:12}}>
+        <Text style={styles.sectionTitle}>Einzelbild für {cropDraft.title}</Text>
+        <Text style={[styles.micro,{marginBottom:9}]}>Der Rahmen ist ein KI-Vorschlag. Das gesamte Kleidungsstück muss darin liegen, ohne fremde Artikel oder private Details.</Text>
+        <View onLayout={e=>setBoxCropFrame(e.nativeEvent.layout)} style={{width:'100%',height:300,backgroundColor:C.bg,borderRadius:10,overflow:'hidden'}}>
+          <Image source={{uri:cropSource.uri}} resizeMode="contain" style={{width:'100%',height:'100%'}}/>
+          {boxCropFrame.width>0&&cropSource.width>0&&cropSource.height>0?(()=>{
+            const scale=Math.min(boxCropFrame.width/cropSource.width,boxCropFrame.height/cropSource.height);
+            const w=cropSource.width*scale,h=cropSource.height*scale,b=boxCrop.bounds;
+            return <View pointerEvents="none" style={{position:'absolute',left:(boxCropFrame.width-w)/2+b.left*w/100,top:(boxCropFrame.height-h)/2+b.top*h/100,width:(b.right-b.left)*w/100,height:(b.bottom-b.top)*h/100,borderWidth:3,borderColor:C.accent,backgroundColor:'#087F8715'}}/>;
+          })():null}
+        </View>
+        <Text style={[styles.label,{marginTop:10}]}>Rahmen korrigieren</Text>
+        {[['left','Linker Rand'],['right','Rechter Rand'],['top','Oberer Rand'],['bottom','Unterer Rand']].map(([edge,label])=><Row key={edge} style={{alignItems:'center',justifyContent:'space-between',marginBottom:5}}>
+          <Text style={[styles.micro,{flex:1}]}>{label}</Text>
+          <Button title="−" mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,-2)}/>
+          <Button title="＋" mode="outline" small disabled={cropBusy} onPress={()=>adjustBoxCrop(edge,2)}/>
+        </Row>)}
+        <Button title={scanBusy?'Bild wird verarbeitet …':'Ausschnitt als Vorschau ansehen'} disabled={cropBusy} onPress={previewBoxCrop}/>
+        {boxCrop.preview?<View style={{marginTop:12}}>
+          <Image source={{uri:boxCrop.preview.uri}} resizeMode="contain" style={{width:'100%',height:245,backgroundColor:C.white,borderRadius:10}}/>
+          <Text style={[styles.micro,{marginVertical:8}]}>Bestätige nur, wenn wirklich das richtige, vollständige Kleidungsstück sichtbar ist. Das Bild wird erst bei der späteren Anzeige hochgeladen.</Text>
+          <Button title="Richtiges Einzelbild übernehmen" disabled={cropBusy} onPress={acceptBoxCrop}/>
+        </View>:null}
+        <Button title="Abbrechen" mode="ghost" small disabled={cropBusy} onPress={()=>setBoxCrop(null)}/>
+      </View>:null}
         {!d.photos?.length&&['overlapping','cutoff'].includes(d.visibility)?<Text style={[styles.micro,{color:C.warningText,marginTop:6}]}>Für ein vollständiges Einzelbild bitte separat fotografieren.</Text>:null}
         <Text style={[styles.micro,{marginVertical:5}]}>{d.photos.length?'Artikelfoto vorhanden':'Einzelfoto nur beim Einzelverkauf nötig'} · {d.condition||'Zustand noch offen'}</Text>
         <Button title="Einzeln verkaufen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>openBoxEditor(d)}/>
