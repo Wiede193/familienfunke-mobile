@@ -20,3 +20,9 @@ assert.match(read('HomeAssistant.jsx'),/body:\{question:prompt,history,language\
 assert.match(read('FamilyVoiceSearch.jsx'),/lang:locale,requiresOnDeviceRecognition:true/);
 assert.match(read('supabase/functions/ff-app-assistant/index.ts'),/\.language==="en"\?"en":"de"/);
 console.log('Locale defaults, translations, stable routes, English discovery, EUR and language allowlist checked');
+
+assert.equal(m.translate('en','Anmelden'),'Sign in');
+assert.equal(m.translate('en','Privatsphäre & Sichtbarkeit'),'Privacy & visibility');
+assert.equal(m.translate('en','Senden'),'Send');
+assert.ok(read('App.jsx').includes('text={t(i)} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}'));
+assert.ok(read('App.jsx').includes('{m.body}'));

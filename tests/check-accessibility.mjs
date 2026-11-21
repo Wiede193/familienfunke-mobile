@@ -22,19 +22,19 @@ assert.match(app,/accessibilityLabel=\{accessibilityLabel\|\|title\}/,
   'Buttons including symbol buttons need a meaningful name');
 assert.match(app,/function Chip\([\s\S]{0,200}if\(!onPress\)return <View/,
   'Static chips must not be announced as disabled buttons');
-assert.match(app,/accessibilityLabel="Stadt oder Landkreis suchen"/,
+assert.match(app,/accessibilityLabel=\{t\("Stadt oder Landkreis suchen"\)\}/,
   'Region picker input needs an accessible name');
 assert.match(app,/accessibilityState=\{\{expanded:open\}\}/,
   'Region picker must announce expanded state');
-assert.match(app,/accessibilityLabel="Private Nachricht schreiben"/,
+assert.match(app,/accessibilityLabel=\{t\("Private Nachricht schreiben"\)\}/,
   'Chat composer must have a label');
-assert.match(app,/accessibilityLabel=\{'Gespräch mit '/,
+assert.match(app,/accessibilityLabel=\{language==='en'\?'Open conversation with /,
   'Contacts should announce the action');
 assert.match(app,/accessibilityLabel="Nur Familien aus meiner Region anzeigen"/,
   'Region filter switch needs an explicit label');
 assert.match(app,/accessibilityLabel="Nur Familien mit gemeinsamen Hobbys anzeigen"/,
   'Interest filter switch needs an explicit label');
-assert.match(app,/accessibilityLabel="Familienprofil für andere Familien sichtbar"/,
+assert.match(app,/accessibilityLabel=\{t\("Familienprofil für andere Familien sichtbar"\)\}/,
   'Privacy switch needs an explicit label');
 assert.match(read('FamilyStatus.jsx'),/accessibilityLiveRegion=\{error\?'assertive':'polite'\}/,
   'Errors should be announced when they appear');

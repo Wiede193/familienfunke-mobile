@@ -121,29 +121,31 @@ async function moderateTextOrThrow(parts) {
 }
 
 function RegionPicker({value,onChange}) {
+const {t,language}=useFamilyLocale();
 const [open,setOpen]=useState(false);
 const [search,setSearch]=useState('');
 const options=REGIONS.filter(r=>normalizeLabel(r).includes(normalizeLabel(search)));
 function choose(value){onChange(value);setSearch('');setOpen(false);}
 return <View style={{marginBottom:15}}>
-<Text style={styles.label}>Wo wohnt ihr? (Stadt oder Landkreis)</Text>
-<Pressable accessibilityRole="button" accessibilityLabel={'Region auswählen, derzeit: '+(value||'keine Region')} accessibilityState={{expanded:open}} onPress={()=>{setOpen(v=>!v);setSearch('');}} style={[styles.input,{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}]}>
-<Text style={{color:value?C.ink:C.muted,flex:1}} numberOfLines={1}>{value||'Region auswählen oder selbst eingeben'}</Text>
+<Text style={styles.label}>{t("Wo wohnt ihr? (Stadt oder Landkreis)")}</Text>
+<Pressable accessibilityRole="button" accessibilityLabel={t('Region auswählen, derzeit: ')+(value||t('keine Region'))} accessibilityState={{expanded:open}} onPress={()=>{setOpen(v=>!v);setSearch('');}} style={[styles.input,{flexDirection:'row',alignItems:'center',justifyContent:'space-between'}]}>
+<Text style={{color:value?C.ink:C.muted,flex:1}} numberOfLines={1}>{value||t('Region auswählen oder selbst eingeben')}</Text>
 <Text style={{color:C.accent,fontWeight:'900'}}>{open?'⌃':'⌄'}</Text>
 </Pressable>
 {open?<View style={styles.regionDropdown}>
-<TextInput accessibilityLabel="Stadt oder Landkreis suchen" style={[styles.input,{marginBottom:8}]} placeholder="Stadt oder Landkreis suchen" placeholderTextColor={C.muted} value={search} onChangeText={setSearch} maxLength={80} autoCorrect={false}/>
+<TextInput accessibilityLabel={t("Stadt oder Landkreis suchen")} style={[styles.input,{marginBottom:8}]} placeholder={t("Stadt oder Landkreis suchen")} placeholderTextColor={C.muted} value={search} onChangeText={setSearch} maxLength={80} autoCorrect={false}/>
 <ScrollView style={{maxHeight:210}} keyboardShouldPersistTaps="always" nestedScrollEnabled>
 {options.map(r=><Pressable accessibilityRole="button" accessibilityLabel={'Region '+r} accessibilityState={{selected:normalizeLabel(r)===normalizeLabel(value)}} key={r} onPress={()=>choose(r)} style={styles.regionOption}><Text style={styles.body}>{r}</Text>{normalizeLabel(r)===normalizeLabel(value)?<Text style={{color:C.accent}}>✓</Text>:null}</Pressable>)}
 {search.trim().length>=2&&!REGIONS.some(r=>normalizeLabel(r)===normalizeLabel(search))?
-<Pressable accessibilityRole="button" onPress={()=>choose(search.trim())} style={styles.regionOption}><Text style={[styles.body,{color:C.accentDark}]}>„{search.trim()}“ übernehmen</Text></Pressable>:null}
-{options.length===0&&search.trim().length<2?<Text style={styles.micro}>Bitte mindestens zwei Zeichen eingeben.</Text>:null}
+<Pressable accessibilityRole="button" onPress={()=>choose(search.trim())} style={styles.regionOption}><Text style={[styles.body,{color:C.accentDark}]}>{language==='en'?'Use “'+search.trim()+'”':'„'+search.trim()+'“ übernehmen'}</Text></Pressable>:null}
+{options.length===0&&search.trim().length<2?<Text style={styles.micro}>{t("Bitte mindestens zwei Zeichen eingeben.")}</Text>:null}
 </ScrollView>
 </View>:null}
-<Text style={[styles.micro,{marginTop:6}]}>Gib bitte keine Straße oder Hausnummer an. Deine Region ist freiwillig.</Text>
+<Text style={[styles.micro,{marginTop:6}]}>{t("Gib bitte keine Straße oder Hausnummer an. Deine Region ist freiwillig.")}</Text>
 </View>;
 }
 function Login({error,setError,onHelp}) {
+const {t}=useFamilyLocale();
 const [email,setEmail]=useState('');
 const [password,setPassword]=useState('');
 const [busy,setBusy]=useState(false);
@@ -158,16 +160,16 @@ return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'pad
 <ScrollView contentContainerStyle={styles.loginPage} keyboardShouldPersistTaps="handled">
 <View style={styles.loginMark}><Text style={{fontSize:52,color:"#9A4A43"}}>♥</Text></View>
 <Text style={styles.brand}>Familienfunke<Text style={{color:C.coral}}>.</Text></Text>
-<Text style={styles.tagline}>Aus Nachbarschaft wird Freundschaft.</Text>
+<Text style={styles.tagline}>{t("Aus Nachbarschaft wird Freundschaft.")}</Text>
 <View style={{height:28}}/>
 <Card style={{width:'100%',padding:23}}>
-<Text style={styles.h}>Willkommen zurück!</Text>
-<Text style={[styles.sub,{marginBottom:21}]}>Deine private Familien-Community. Nur eingeladene Erwachsene können sich anmelden.</Text>
-<Input label="E-Mail-Adresse" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email"/>
-<Input label="Passwort" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoComplete="current-password"/>
-{error?<Info warning>{error}</Info>:null}
-<Button title={busy?'Anmeldung läuft …':'Anmelden'} disabled={busy} onPress={submit}/>
-<View style={{marginTop:12}}><Button title="Hilfe bei der Anmeldung" mode="ghost" onPress={onHelp}/></View>
+<Text style={styles.h}>{t("Willkommen zurück!")}</Text>
+<Text style={[styles.sub,{marginBottom:21}]}>{t("Deine private Familien-Community. Nur eingeladene Erwachsene können sich anmelden.")}</Text>
+<Input label={t("E-Mail-Adresse")} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email"/>
+<Input label={t("Passwort")} value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoComplete="current-password"/>
+{error?<Info warning>{t(error)}</Info>:null}
+<Button title={busy?t('Anmeldung läuft …'):t('Anmelden')} disabled={busy} onPress={submit}/>
+<View style={{marginTop:12}}><Button title={t("Hilfe bei der Anmeldung")} mode="ghost" onPress={onHelp}/></View>
 </Card>
 </ScrollView>
 </KeyboardAvoidingView>;
@@ -453,11 +455,11 @@ function selectMenuItem(id){
   setExtraReturnTab(previous===id?'home':previous);setTab(id);
 }
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
-if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
+if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>{t("Familienfunke wird gestartet …")}</Text></View>;
 if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 {showLoginHelp?<><View style={styles.topBar}>
-  <View style={{flex:1}}><Text style={styles.smallBrand}>Familienfunke.</Text><Text style={styles.topHint}>Hilfe zur Anmeldung</Text></View>
-  <Button title="← Zur Anmeldung" small mode="ghost" onPress={()=>setShowLoginHelp(false)}/>
+  <View style={{flex:1}}><Text style={styles.smallBrand}>Familienfunke.</Text><Text style={styles.topHint}>{t("Hilfe zur Anmeldung")}</Text></View>
+  <Button title={t("← Zur Anmeldung")} small mode="ghost" onPress={()=>setShowLoginHelp(false)}/>
 </View><TechnicalHelpScreen initialCategory="Anmeldung & Konto"/></>:
 <><Button title={t("Sprache & Region")} mode="outline" onPress={openLanguage}/><Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/></>}
 </SafeAreaView>;
@@ -468,7 +470,7 @@ function guardLeave(next){
  const retained=['profile','calendar'].includes(tab)&&drafts.has(tab);
  const lost=(tab==='market'&&drafts.has('market-form'))||(tab==='profile'&&drafts.has('profile-transient'));
  if(!retained&&!lost){next();return;}
- Alert.alert('Ungespeicherte Änderungen',lost?'Nicht gespeicherte Fotos, Passwörter und Änderungen an bestehenden Anzeigen können verloren gehen. Textentwürfe neuer Anzeigen bleiben während dieser Sitzung erhalten.':'Dein Entwurf bleibt bis zur Abmeldung oder zum Schließen der App in dieser Sitzung erhalten.',[{text:'Weiter bearbeiten',style:'cancel'},{text:'Verlassen',onPress:()=>{if(accountRef.current===me){drafts.clear('market-form');drafts.clear('profile-transient');next();}}}]);
+ Alert.alert(t('Ungespeicherte Änderungen'),lost?t('Nicht gespeicherte Fotos, Passwörter und Änderungen an bestehenden Anzeigen können verloren gehen. Textentwürfe neuer Anzeigen bleiben während dieser Sitzung erhalten.'):t('Dein Entwurf bleibt bis zur Abmeldung oder zum Schließen der App in dieser Sitzung erhalten.'),[{text:t('Weiter bearbeiten'),style:'cancel'},{text:t('Verlassen'),onPress:()=>{if(accountRef.current===me){drafts.clear('market-form');drafts.clear('profile-transient');next();}}}]);
 }
 function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='calendar'){setMapIntent(null);setTab('calendar');}else if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else{setMapIntent(null);setTab('outing');}}else if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);}else if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches'].includes(tab))setTab(extraReturnTab);}
 return <SafeAreaView style={styles.screen}>
@@ -485,8 +487,8 @@ return <SafeAreaView style={styles.screen}>
 {detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel={t("Zurück")} onPress={()=>guardLeave(back)} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
 <Pressable accessibilityRole="button" accessibilityLabel={t("Menü öffnen")} accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
-{error?<FamilyStatus kind="error" message={error} onDismiss={()=>setError('')}/>:null}
-{notice?<FamilyStatus kind="notice" message={notice} onDismiss={()=>setNotice('')}/>:null}
+{error?<FamilyStatus kind="error" message={t(error)} onDismiss={()=>setError('')}/>:null}
+{notice?<FamilyStatus kind="notice" message={t(notice)} onDismiss={()=>setNotice('')}/>:null}
 {loading?<FamilyStatus message={t("Daten werden geladen …")}/>:null}
 <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined} keyboardVerticalOffset={0}>
 {detailFamily?<FamilyDetail p={db.profiles.find(p=>p.user_id===detailFamily)}
@@ -620,7 +622,7 @@ save={(value)=>execute(async()=>{
 uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,execute)}
 reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,execute)}
 blocks={db.blocks} onUnblock={unblockUser}
-changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
+changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert(t('Abmeldung nicht bestätigt'),t('Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.')))}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={[styles.tabBar,wrapTabs&&{flexWrap:'wrap',justifyContent:'center'}]}>
 {customTabs.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{if(id===tab)return;guardLeave(()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setFocusContactId(null);setExtraReturnTab('home');setTab(id);setShowEventForm(false);});}}
@@ -2122,31 +2124,34 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 </ScrollView>;
 }
 function ChatList({contacts,me,nameOf,messages,onChat,blocked}){
+const {t,language}=useFamilyLocale();
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-<H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
-{contacts.length===0?<Blank title="Noch keine Gespräche" body="Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben."/>:
-contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;const last=messages.filter(m=>m.contact_id===c.id)[0];return <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={'Gespräch mit '+nameOf(uid)+' öffnen'} onPress={()=>onChat(c.id)}>
-<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':last?.body||'Noch keine Nachrichten'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
+<H sub={t("Persönlich und privat – nur mit bestätigten Familien.")}>{t("Nachrichten")}</H>
+{contacts.length===0?<Blank title={t("Noch keine Gespräche")} body={t("Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben.")}/>:
+contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;const last=messages.filter(m=>m.contact_id===c.id)[0];return <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={language==='en'?'Open conversation with '+nameOf(uid):'Gespräch mit '+nameOf(uid)+' öffnen'} onPress={()=>onChat(c.id)}>
+<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?t("Kontakt blockiert"):last?.body||t("Noch keine Nachrichten")}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
 </Pressable>;})}
 </ScrollView>;
 }
 function ChatScreen({contact,me,nameOf,messages,disabled,blocked,send,onReport,onBlock}) {
+const {t,language,locale}=useFamilyLocale();
+const chatDate=value=>{const d=new Date(value);return value&&!isNaN(d)?d.toLocaleString(locale,{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'–';};
 const [text,setText]=useState('');
-if(!contact)return <Blank title="Gespräch nicht verfügbar" body="Kontakt ist nicht mehr bestätigt oder wurde verborgen."/>;
+if(!contact)return <Blank title={t("Gespräch nicht verfügbar")} body={t("Kontakt ist nicht mehr bestätigt oder wurde verborgen.")}/>;
 const other=contact.sender_id===me?contact.recipient_id:contact.sender_id;
 const sorted=[...messages].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
 async function submit(){const body=text.trim();if(!body)return; const ok=await send(body);if(ok)setText('');}
 return <View style={{flex:1}}>
-<Row style={styles.chatHeader}><Avatar name={nameOf(other)} size={38}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other)}</Text><Text style={styles.micro}>Privates Gespräch</Text></View><Button title="Blockieren" small mode="ghost" onPress={()=>onBlock(other)}/></Row>
+<Row style={styles.chatHeader}><Avatar name={nameOf(other)} size={38}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other)}</Text><Text style={styles.micro}>{t("Privates Gespräch")}</Text></View><Button title={t("Blockieren")} small mode="ghost" onPress={()=>onBlock(other)}/></Row>
 <ScrollView style={{flex:1}} contentContainerStyle={{padding:16}} keyboardShouldPersistTaps="handled">
-{sorted.length===0?<Blank title="Sag Hallo!" body="Hier beginnt euer privates Gespräch."/>:sorted.map(m=><View key={m.id} style={[styles.bubble,m.sender_id===me?styles.mine:styles.theirs]}>
+{sorted.length===0?<Blank title={t("Sag Hallo!")} body={t("Hier beginnt euer privates Gespräch.")}/>:sorted.map(m=><View key={m.id} style={[styles.bubble,m.sender_id===me?styles.mine:styles.theirs]}>
 <Text style={[styles.bubbleText,m.sender_id===me&&{color:C.white}]}>{m.body}</Text>
-<Row style={{justifyContent:'space-between',marginTop:7}}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>{formatDate(m.created_at)}</Text><Pressable accessibilityRole="button" accessibilityLabel={'Nachricht vom '+formatDate(m.created_at)+' melden'} hitSlop={10} onPress={()=>onReport(m.id)}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>Melden</Text></Pressable></Row>
+<Row style={{justifyContent:'space-between',marginTop:7}}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>{chatDate(m.created_at)}</Text><Pressable accessibilityRole="button" accessibilityLabel={language==='en'?'Report message from '+chatDate(m.created_at):'Nachricht vom '+chatDate(m.created_at)+' melden'} hitSlop={10} onPress={()=>onReport(m.id)}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>{t("Melden")}</Text></Pressable></Row>
 </View>)}
 </ScrollView>
-{blocked(other)?<Info warning>Du hast diese Person blockiert. Neue Nachrichten sind nicht erlaubt.</Info>:
-<Row style={styles.chatComposer}><TextInput accessibilityLabel="Private Nachricht schreiben" placeholder="Nachricht schreiben …" value={text} onChangeText={setText} maxLength={2000} multiline
-placeholderTextColor={C.muted} style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]}/><Button title="Senden" small disabled={disabled||!text.trim()} onPress={submit}/></Row>}
+{blocked(other)?<Info warning>{t("Du hast diese Person blockiert. Neue Nachrichten sind nicht erlaubt.")}</Info>:
+<Row style={styles.chatComposer}><TextInput accessibilityLabel={t("Private Nachricht schreiben")} placeholder={t("Nachricht schreiben …")} value={text} onChangeText={setText} maxLength={2000} multiline
+placeholderTextColor={C.muted} style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]}/><Button title={t("Senden")} small disabled={disabled||!text.trim()} onPress={submit}/></Row>}
 </View>;
 }
 // Resolve the exact clicked result again under the current account, never trust a cached search card.
@@ -2231,11 +2236,11 @@ const [newPassword,setNewPassword]=useState('');
 const [profileSection,setProfileSection]=useState('about');
 useEffect(()=>{if(profile&&!drafts.has('profile'))resetForm({display_name:profile.display_name||'',region_label:profile.region_label||'',about:profile.about||'',interests:Array.isArray(profile.interests)?profile.interests:[],is_discoverable:!!profile.is_discoverable});},[profile?.updated_at,profile?.user_id,drafts]);
 useEffect(()=>{drafts.set('profile-transient',selectedPhoto||newPassword?true:null);return()=>drafts.clear('profile-transient');},[drafts,selectedPhoto,newPassword]);
-async function submit(){if((form.display_name||'').trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
+async function submit(){if((form.display_name||'').trim().length<2)return Alert.alert(t("Anzeigename fehlt"),t("Bitte mindestens zwei Zeichen angeben."));
 const values={display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable};
 if(await save(values))resetForm(values);}
 function toggle(i){setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):f.interests.length>=12?f.interests:[...f.interests,i]}));}
-async function updatePassword(){if(newPassword.length<12)return Alert.alert('Passwort','Bitte mindestens 12 Zeichen verwenden.');const ok=await changePassword(newPassword);if(ok)setNewPassword('');}
+async function updatePassword(){if(newPassword.length<12)return Alert.alert(t("Passwort"),t("Bitte mindestens 12 Zeichen verwenden."));const ok=await changePassword(newPassword);if(ok)setNewPassword('');}
 async function selectDraftPhoto(){
   if(busy||photoPickerBusy)return;
   setPhotoPickerBusy(true);
@@ -2247,7 +2252,7 @@ async function selectDraftPhoto(){
       setSelectedPhoto(result.assets[0]);
     }
   } catch(e){
-    Alert.alert('Fotoauswahl fehlgeschlagen',humanError(e));
+    Alert.alert(t("Fotoauswahl fehlgeschlagen"),t(humanError(e)));
   } finally {
     setPhotoPickerBusy(false);
   }
@@ -2262,82 +2267,81 @@ async function submitDraftPhoto(){
 }
 const completed=[form.display_name?.trim().length>=2,!!form.region_label?.trim(),!!form.about?.trim(),(form.interests||[]).length>0].filter(Boolean).length;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-<H sub="Du entscheidest, was andere Familien von euch erfahren.">Mein Familienprofil</H>
-{drafts.has('profile')?<Info>Nicht gespeicherter Entwurf. Deine Änderungen bleiben bis zum Beenden der App in dieser Sitzung erhalten.</Info>:null}
+<H sub={t("Du entscheidest, was andere Familien von euch erfahren.")}>{t("Mein Familienprofil")}</H>
+{drafts.has('profile')?<Info>{t("Nicht gespeicherter Entwurf. Deine Änderungen bleiben bis zum Beenden der App in dieser Sitzung erhalten.")}</Info>:null}
 <Card style={{backgroundColor:C.sunPale}}>
-<Row><Avatar size={65} name={profile?.display_name}/><View style={{flex:1}}><Text style={styles.cardTitle}>{profile?.display_name||'Deine Familie'}</Text><Text style={styles.micro}>{active?'✓ Erwachsener geprüft, Profil freigegeben':'⌛ Prüfung oder Freigabe ausstehend'}</Text><Text style={styles.micro}>Mitgliedschaft: {membership?.status||'–'}</Text></View></Row>
+<Row><Avatar size={65} name={profile?.display_name}/><View style={{flex:1}}><Text style={styles.cardTitle}>{profile?.display_name||t("Deine Familie")}</Text><Text style={styles.micro}>{active?t("✓ Erwachsener geprüft, Profil freigegeben"):t("⌛ Prüfung oder Freigabe ausstehend")}</Text><Text style={styles.micro}>{t('Mitgliedschaft: ')}{t(membership?.status||'–')}</Text></View></Row>
 <View style={{marginTop:15}}>
-<Row style={{justifyContent:'space-between',marginBottom:6}}><Text style={styles.label}>Profil gestalten</Text><Text style={styles.micro}>{completed} von 4 freiwilligen Angaben</Text></Row>
+<Row style={{justifyContent:'space-between',marginBottom:6}}><Text style={styles.label}>{t("Profil gestalten")}</Text><Text style={styles.micro}>{completed} {t('von 4 freiwilligen Angaben')}</Text></Row>
 <View style={styles.progressTrack}><View style={[styles.progressFill,{width:(completed*25)+'%'}]}/></View>
 </View>
-{!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
+{!active?<Info warning>{t("Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.")}</Info>:null}
 </Card>
 <Button title={t("Sprache & Region")} mode="outline" onPress={openLanguage}/>
 <View style={styles.profileSections}>
 {[['about','Über uns'],['hobbies','Hobbys'],['privacy','Sichtbarkeit'],['photos','Fotos'],['security','Konto & Sicherheit']].map(([id,title])=>
-<Pressable key={id} accessibilityRole="button" accessibilityState={{selected:profileSection===id}} accessibilityLabel={title} onPress={()=>setProfileSection(id)}
+<Pressable key={id} accessibilityRole="button" accessibilityState={{selected:profileSection===id}} accessibilityLabel={t(title)} onPress={()=>setProfileSection(id)}
 style={[styles.profileSectionButton,profileSection===id&&styles.profileSectionActive]}>
-<Text style={[styles.profileSectionLabel,profileSection===id&&styles.profileSectionLabelActive]}>{title}</Text>
+<Text style={[styles.profileSectionLabel,profileSection===id&&styles.profileSectionLabelActive]}>{t(title)}</Text>
 </Pressable>)}
 </View>
 {profileSection==='about'?<Card>
-<Text style={styles.sectionTitle}>Über eure Familie</Text>
-<Text style={[styles.sub,{marginBottom:14}]}>Ein paar freiwillige Angaben helfen beim Kennenlernen.</Text>
-<Input label="Anzeigename" value={form.display_name} onChangeText={x=>setForm(p=>({...p,display_name:x}))} maxLength={60}/>
+<Text style={styles.sectionTitle}>{t("Über eure Familie")}</Text>
+<Text style={[styles.sub,{marginBottom:14}]}>{t("Ein paar freiwillige Angaben helfen beim Kennenlernen.")}</Text>
+<Input label={t("Anzeigename")} value={form.display_name} onChangeText={x=>setForm(p=>({...p,display_name:x}))} maxLength={60}/>
 <RegionPicker value={form.region_label} onChange={x=>setForm(p=>({...p,region_label:x}))}/>
-<Input label="Über uns" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Was macht ihr gern? Was möchtet ihr gemeinsam erleben?"/>
-<Button title={busy?'Bitte warten …':'Angaben speichern'} disabled={busy} onPress={submit}/>
+<Input label={t("Über uns")} multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder={t("Was macht ihr gern? Was möchtet ihr gemeinsam erleben?")}/>
+<Button title={busy?t("Bitte warten …"):t("Angaben speichern")} disabled={busy} onPress={submit}/>
 </Card>:null}
 {profileSection==='hobbies'?<Card>
-<Text style={styles.sectionTitle}>Hobbys & Interessen</Text>
-<Text style={[styles.sub,{marginBottom:14}]}>Wähle bis zu zwölf Themen. Danach findest du leichter Familien mit ähnlichen Interessen.</Text>
-<Text style={styles.label}>Ausgewählt: {(form.interests||[]).length} von 12</Text>
-<View style={[styles.chipsRow,{marginBottom:18}]}>{INTERESTS.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
-<Button title={busy?'Bitte warten …':'Interessen speichern'} disabled={busy} onPress={submit}/>
+<Text style={styles.sectionTitle}>{t("Hobbys & Interessen")}</Text>
+<Text style={[styles.sub,{marginBottom:14}]}>{t("Wähle bis zu zwölf Themen. Danach findest du leichter Familien mit ähnlichen Interessen.")}</Text>
+<Text style={styles.label}>{t('Ausgewählt: ')}{(form.interests||[]).length} {t('von 12')}</Text>
+<View style={[styles.chipsRow,{marginBottom:18}]}>{INTERESTS.map(i=><Chip key={i} text={t(i)} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
+<Button title={busy?t("Bitte warten …"):t("Interessen speichern")} disabled={busy} onPress={submit}/>
 </Card>:null}
 {profileSection==='privacy'?<Card>
-<Text style={styles.sectionTitle}>Privatsphäre & Sichtbarkeit</Text>
-<Text style={[styles.sub,{marginBottom:15}]}>Du bestimmst, ob andere freigegebene Familien euch entdecken können.</Text>
-<Row style={{marginBottom:18,justifyContent:'space-between'}}><View style={{flex:1}}><Text style={styles.label}>Für andere Familien sichtbar</Text><Text style={styles.micro}>Erst nach Profilfreigabe und nur mit grober Regionsangabe</Text></View><Switch accessibilityLabel="Familienprofil für andere Familien sichtbar" value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/></Row>
-<Info>Deine genaue Adresse oder dein Live-Standort werden bei der Familiensuche nicht abgefragt. Kontaktanfragen musst du selbst annehmen.</Info>
-<Button title={busy?'Bitte warten …':'Sichtbarkeit speichern'} disabled={busy} onPress={submit}/>
+<Text style={styles.sectionTitle}>{t("Privatsphäre & Sichtbarkeit")}</Text>
+<Text style={[styles.sub,{marginBottom:15}]}>{t("Du bestimmst, ob andere freigegebene Familien euch entdecken können.")}</Text>
+<Row style={{marginBottom:18,justifyContent:'space-between'}}><View style={{flex:1}}><Text style={styles.label}>{t("Für andere Familien sichtbar")}</Text><Text style={styles.micro}>{t("Erst nach Profilfreigabe und nur mit grober Regionsangabe")}</Text></View><Switch accessibilityLabel={t("Familienprofil für andere Familien sichtbar")} value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/></Row>
+<Info>{t("Deine genaue Adresse oder dein Live-Standort werden bei der Familiensuche nicht abgefragt. Kontaktanfragen musst du selbst annehmen.")}</Info>
+<Button title={busy?t("Bitte warten …"):t("Sichtbarkeit speichern")} disabled={busy} onPress={submit}/>
 </Card>:null}
-{profileSection==='photos'?<><Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Profilfotos</Text><Text style={[styles.sub,{marginBottom:13}]}>Nur bestätigte Kontakte sehen freigegebene Bilder. Bitte während der Beta keine Kinderfotos hochladen.</Text>
-<Text style={styles.label}>1. Foto auswählen</Text>
-<Button title={selectedPhoto?'Anderes Foto auswählen':'＋ Foto auswählen'}
+{profileSection==='photos'?<><Card style={{marginTop:13}}><Text style={styles.sectionTitle}>{t("Profilfotos")}</Text><Text style={[styles.sub,{marginBottom:13}]}>{t("Nur bestätigte Kontakte sehen freigegebene Bilder. Bitte während der Beta keine Kinderfotos hochladen.")}</Text>
+<Text style={styles.label}>{t("1. Foto auswählen")}</Text>
+<Button title={selectedPhoto?t("Anderes Foto auswählen"):t("＋ Foto auswählen")}
   disabled={busy||photoPickerBusy} mode="outline" onPress={selectDraftPhoto}/>
 {selectedPhoto?<View style={{marginTop:14}}>
-  <Image accessibilityLabel="Ausgewähltes Familienfoto. Bitte eine kurze Bildbeschreibung hinzufügen." source={{uri:selectedPhoto.uri}} style={styles.photoDraftPreview} resizeMode="contain"/>
-  <Input label="2. Bildbeschreibung für Screenreader (empfohlen)" value={photoCaption}
+  <Image accessibilityLabel={t("Ausgewähltes Familienfoto. Bitte eine kurze Bildbeschreibung hinzufügen.")} source={{uri:selectedPhoto.uri}} style={styles.photoDraftPreview} resizeMode="contain"/>
+  <Input label={t("2. Bildbeschreibung für Screenreader (empfohlen)")} value={photoCaption}
     onChangeText={setPhotoCaption} maxLength={200}
-    placeholder="Was möchtest du zu diesem Foto erzählen?"/>
+    placeholder={t("Was möchtest du zu diesem Foto erzählen?")}/>
   <Text style={[styles.micro,{marginBottom:12}]}>
-    Dein Foto und die Beschreibung werden erst nach dem Einreichen geprüft.
-    Bis zur Freigabe bleibt das Foto für andere Familien verborgen.
+    {t('Dein Foto und die Beschreibung werden erst nach dem Einreichen geprüft. Bis zur Freigabe bleibt das Foto für andere Familien verborgen.')}
   </Text>
   <Row style={{alignItems:'stretch'}}>
-    <Button title="Verwerfen" mode="outline" small disabled={busy||photoPickerBusy}
+    <Button title={t("Verwerfen")} mode="outline" small disabled={busy||photoPickerBusy}
       style={{flex:1}} onPress={()=>{setSelectedPhoto(null);setPhotoCaption('');}}/>
-    <Button title={busy?'Wird eingereicht …':'Foto einreichen'}
+    <Button title={busy?t("Wird eingereicht …"):t("Foto einreichen")}
       disabled={busy||photoPickerBusy} style={{flex:1}} onPress={submitDraftPhoto}/>
   </Row>
 </View>:<Text style={[styles.micro,{marginTop:10}]}>
-  Nach der Fotoauswahl kannst du eine Beschreibung ergänzen und beides zusammen einreichen.
+  {t('Nach der Fotoauswahl kannst du eine Beschreibung ergänzen und beides zusammen einreichen.')}
 </Text>}
 <View style={[styles.photoGrid,{marginTop:15}]}>{photos.map(p=><Card key={p.id} style={styles.photoCard}>
-{photosUrls[p.id]?<Image accessibilityLabel={p.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
-<Text style={styles.micro} numberOfLines={2}>{p.caption||'Profilbild'}</Text><Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'Freigegeben':p.moderation_status==='pending'?'In Prüfung':'Abgelehnt'}</Text>
-<FamilyActionButton title="Löschen" accessibilityLabel={(p.caption||'Profilfoto')+' löschen'} destructive disabled={busy} onPress={()=>deletePhoto(p.id)}/>
+{photosUrls[p.id]?<Image accessibilityLabel={p.caption||t("Familienfoto ohne Bildbeschreibung")} source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
+<Text style={styles.micro} numberOfLines={2}>{p.caption||t("Profilbild")}</Text><Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?t("Freigegeben"):p.moderation_status==='pending'?t("In Prüfung"):t("Abgelehnt")}</Text>
+<FamilyActionButton title={t("Löschen")} accessibilityLabel={t('Löschen')+': '+(p.caption||t('Profilfoto'))} destructive disabled={busy} onPress={()=>deletePhoto(p.id)}/>
 </Card>)}</View>
-{photos.length===0?<Text style={[styles.micro,{marginTop:10}]}>Noch keine Bilder hochgeladen.</Text>:null}
+{photos.length===0?<Text style={[styles.micro,{marginTop:10}]}>{t("Noch keine Bilder hochgeladen.")}</Text>:null}
 </Card>
 </>:null}
-{profileSection==='security'?<><Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Sicherheit und Einstellungen</Text>
-<Button title="Elternwissen öffnen" mode="outline" onPress={openInfo}/>
-<Text style={[styles.label,{marginTop:18}]}>Passwort ändern</Text><Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none"/>
-<Button title="Passwort ändern" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
-{blocks.length>0?<View style={{marginTop:18}}><Text style={styles.label}>Blockierte Konten</Text>{blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}><Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text><Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/></Row>)}</View>:null}
-<View style={{height:16}}/><Button title="Abmelden" mode="ghost" onPress={signOut}/>
+{profileSection==='security'?<><Card style={{marginTop:13}}><Text style={styles.sectionTitle}>{t("Sicherheit und Einstellungen")}</Text>
+<Button title={t("Elternwissen öffnen")} mode="outline" onPress={openInfo}/>
+<Text style={[styles.label,{marginTop:18}]}>{t("Passwort ändern")}</Text><Input label={t("Neues Passwort (mindestens 12 Zeichen)")} value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none"/>
+<Button title={t("Passwort ändern")} small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
+{blocks.length>0?<View style={{marginTop:18}}><Text style={styles.label}>{t("Blockierte Konten")}</Text>{blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}><Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text><Button title={t("Entsperren")} small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/></Row>)}</View>:null}
+<View style={{height:16}}/><Button title={t("Abmelden")} mode="ghost" onPress={signOut}/>
 </Card>
 </>:null}
 </ScrollView>;
