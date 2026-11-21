@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {ScrollView,View,Text,Switch,Pressable,StyleSheet,Linking} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import PriceAlertPreference from './PriceAlertPreference';
 import {pushStatus,enablePush,disablePush,changePushCategories} from './PushDevice';
 const TYPES=[['messages','Nachrichten'],['requests','Kontaktanfragen'],['matches','Neue bestätigte Kontakte'],['market','Status meiner Basar-Anzeigen']];
 const initial={messages:true,requests:true,matches:true,market:true};
@@ -38,6 +39,7 @@ export default function PushSettings({userId,active}){
    {TYPES.map(([k,label])=><View key={k} style={s.row}><Text style={[s.text,{flex:1}]}>{label}</Text><Switch accessibilityLabel={label} disabled={busy||!status} value={!!choices[k]} onValueChange={v=>setChoices(prev=>({...prev,[k]:v}))}/></View>)}
    <Action disabled={busy||!status} onPress={()=>act(()=>changePushCategories(userId,choices),'Auswahl gespeichert.')}>Auswahl speichern</Action>
   </View>
+  <PriceAlertPreference key={userId} userId={userId} active={active}/>
   <Text accessibilityLiveRegion="polite" style={s.text}>{notice}</Text>
  </ScrollView>;
 }
