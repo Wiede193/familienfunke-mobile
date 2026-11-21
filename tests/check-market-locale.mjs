@@ -25,3 +25,9 @@ assert.ok(app.includes('text={t(x)} selected={facts.defect===x}'));
 assert.ok(app.includes('text={t(label)} selected={tradeFilter===id}'));
 assert.ok(app.includes('encodeArticleFacts(facts,description)'));
 assert.ok(read('SavedMarketSearches.jsx').includes("p_category:p.category,p_trade_type:p.trade_type"));
+
+const {translate}=await import('data:text/javascript;base64,'+Buffer.from(read('FamilyLocaleModel.js')).toString('base64'));
+const {marketPhotoAlt}=await import('data:text/javascript;base64,'+Buffer.from(read('MarketAccessibleDescription.js')).toString('base64'));
+const spoken=marketPhotoAlt({title:'Kinderjeans',category:'Kleidung',item_condition:'Gut'},{facts:{size:'110',color:'blau'}},null,1,3,k=>translate('en',k));
+assert.match(spoken,/Listing photo 2 of 3/);assert.match(spoken,/Size: 110/);assert.match(spoken,/Colour: blau/);assert.match(spoken,/no verified description/);
+assert.ok(home.includes("englishMatches[0]?.id!=='sell'"));

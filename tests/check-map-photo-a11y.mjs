@@ -50,7 +50,7 @@ assert.match(map,/onPress=\{\(\)=>selectSearchedLocation\(match\)\}/,
   'Every map result needs an accessible selection action');
 assert.match(map,/if\(match.source==='city'\)visit/,'City selection must recenter map');
 assert.match(map,/else showPlace\(match.place\)/,'Place selection must open details');
-assert.match(app,/marketPhotoAlt\(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length\)/);
+assert.match(app,/marketPhotoAlt\(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length,t\)/);
 assert.match(app,/Bildbeschreibung aus Artikelangaben/);
 assert.match(app,/Einzelne Fotos wurden nicht gesondert beschrieben/);
 console.log('Barrierefreie Artikeldaten und lokale Ortssuche: Verhalten und Datenschutz geprüft.');

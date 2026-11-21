@@ -1418,7 +1418,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
   const selectedPackage=selectedFacts?parsePackageNote(selectedFacts.note):null;
   const gallery=selected?galleryOf(selected):[];
   const shownImage=gallery[Math.min(galleryIndex,Math.max(0,gallery.length-1))]?.uri;
-  const imageDescription=selected?marketPhotoAlt(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length):'';
+  const imageDescription=selected?marketPhotoAlt(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length,t):'';
   return <ScrollView ref={marketScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <H sub={t("Kinderkleidung, Spielzeug und vieles mehr – direkt von Familien in deiner Nähe.")}>{t("Familienbasar")}</H>
     <Info>{t(SECTION_MESSAGES.market)}</Info>
@@ -1703,7 +1703,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
       </View>
       </>:null}
       {trade==='sell'?<Input label={packageForm?t("Gesamtpreis des Pakets in €"):t("Preis in €")} value={price} onChangeText={v=>{setPrice(v);setConfirmed(false);}} keyboardType="decimal-pad" placeholder={t("z. B. 12,50")}/>:null}
-      {packageForm&&trade==='sell'&&parsePrice(price)!==null&&parsePrice(price)>=0?<Text style={[styles.micro,{color:C.accentDark,marginBottom:12}]}>Rechnerisch {((parsePrice(price)/100)/packageForm.rows.length).toLocaleString('de-DE',{style:'currency',currency:'EUR'})} pro Teil – keine KI-Preisempfehlung.</Text>:null}
+      {packageForm&&trade==='sell'&&parsePrice(price)!==null&&parsePrice(price)>=0?<Text style={[styles.micro,{color:C.accentDark,marginBottom:12}]}>{t('Rechnerisch')} {formatServiceMoney(parsePrice(price)/packageForm.rows.length,language)} {t('pro Teil – keine KI-Preisempfehlung.')}</Text>:null}
       <Text style={styles.label}>{packageForm?t("Zustand des gesamten Pakets"):t('Zustand')}</Text>
       {packageForm?<Text style={[styles.micro,{marginBottom:7}]}>{t("Bei unterschiedlichem Zustand bitte die schwächste zutreffende Zustandsnote wählen und Abweichungen unten angeben.")}</Text>:null}
       <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
@@ -1743,12 +1743,12 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
         {gallery.length>1?<View style={{marginTop:12}}>
           <Row style={{justifyContent:'space-between',marginBottom:10}}>
             <Button title={t("‹ Zurück")} small mode="outline" onPress={()=>setGalleryIndex(i=>(i+gallery.length-1)%gallery.length)}/>
-            <Text style={[styles.micro,{fontWeight:'800'}]}>{(galleryIndex%gallery.length)+1} von {gallery.length} Bildern</Text>
+            <Text style={[styles.micro,{fontWeight:'800'}]}>{(galleryIndex%gallery.length)+1} {t('von')} {gallery.length} {language==='en'?'images':'Bildern'}</Text>
             <Button title={t("Weiter ›")} small mode="outline" onPress={()=>setGalleryIndex(i=>(i+1)%gallery.length)}/>
           </Row>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:9}}>
             {gallery.map((image,index)=><Pressable key={image.id} accessibilityRole="button"
-              accessibilityLabel={marketPhotoAlt(selected,selectedFacts,selectedPackage,index,gallery.length)} accessibilityState={{selected:galleryIndex===index}}
+              accessibilityLabel={marketPhotoAlt(selected,selectedFacts,selectedPackage,index,gallery.length,t)} accessibilityState={{selected:galleryIndex===index}}
               onPress={()=>setGalleryIndex(index)}>
               <Image accessible={false} source={{uri:image.uri}} style={{width:66,height:66,borderRadius:12,borderWidth:galleryIndex===index?3:1,borderColor:galleryIndex===index?C.accent:C.line}} resizeMode="cover"/>
             </Pressable>)}
@@ -1756,7 +1756,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
         </View>:null}
         {gallery.length>0?<View style={{marginTop:12}}>
           <Text accessibilityRole="header" style={[styles.label,{marginBottom:5}]}>{t("Bildbeschreibung aus Artikelangaben")}</Text>
-          <Text style={styles.micro}>{marketPhotoFacts(selected,selectedFacts,selectedPackage)}</Text>
+          <Text style={styles.micro}>{marketPhotoFacts(selected,selectedFacts,selectedPackage,t)}</Text>
           <Text style={[styles.micro,{marginTop:5}]}>
             {t('Diese Angaben stammen aus dem Inserat und können ursprünglich aus KI-Vorschlägen stammen, die der Anbieter bestätigt hat. Einzelne Fotos wurden nicht gesondert beschrieben.')}
           </Text>
@@ -1853,7 +1853,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
         {shown.map(x=>{
           const seller=sellerInformation(x);
           return <Pressable key={x.id} accessibilityRole="button"
-            accessibilityLabel={marketPhotoFacts(x,decodeArticleFacts(x.description),parsePackageNote(decodeArticleFacts(x.description)?.note||''))+' Preis: '+priceLabel(x)+'. Region: '+(x.region_label||'nicht angegeben')}
+            accessibilityLabel={marketPhotoFacts(x,decodeArticleFacts(x.description),parsePackageNote(decodeArticleFacts(x.description)?.note||''),t)+' '+t('Preis: ')+priceLabel(x)+'. '+t('Region: ')+(x.region_label||t('nicht angegeben'))}
             onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={[styles.marketTile,singleColumn&&{width:'100%'}]}>
             <View style={styles.marketTileImage}>
               {(remotePhotoUrls[x.id]||photoUrls[x.id])?<Image accessible={false} source={{uri:remotePhotoUrls[x.id]||photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
@@ -1870,7 +1870,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
             <View style={styles.marketTileBody}>
               <Text style={styles.marketTileTitle} numberOfLines={2}>{x.title}</Text>
               {x.match_item?<Text style={[styles.micro,{color:C.accentDark,marginTop:3}]} numberOfLines={2}>{t('Passender Artikel: ')}{x.match_item}</Text>:null}
-              {galleryOf(x).length>1?<Text style={[styles.micro,{fontWeight:'800',color:C.accentDark}]}>{galleryOf(x).length} Bilder</Text>:null}
+              {galleryOf(x).length>1?<Text style={[styles.micro,{fontWeight:'800',color:C.accentDark}]}>{galleryOf(x).length} {t('Bilder')}</Text>:null}
               <Text style={styles.micro} numberOfLines={1}>{t(x.item_condition)} · {t(x.category)}</Text>
               <Text style={[styles.micro,{marginTop:3}]} numberOfLines={1}>⌖ {x.region_label||t("Region auf Anfrage")}</Text>
               {seller.org?<Text style={[styles.micro,{marginTop:3,color:C.accentDark}]} numberOfLines={1}>{seller.org.name} ✦</Text>:null}

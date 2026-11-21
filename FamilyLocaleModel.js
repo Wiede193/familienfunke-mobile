@@ -646,7 +646,21 @@ export const EN=Object.freeze({
  "Entferne die Preisfilter für Tausch- oder Geschenkangebote.": "Remove price filters for swap or gift offers.",
  "Wähle zuerst einen Suchbegriff oder Filter.": "Choose a search term or filter first.",
  "Suchfilter prüfen. Maximal zehn Suchaufträge sind möglich.": "Check filters. At most ten saved searches are allowed.",
- "Suchauftrag konnte nicht gespeichert werden.": "Could not save search."
+ "Suchauftrag konnte nicht gespeichert werden.": "Could not save search.",
+ "Unbenanntes Angebot": "Untitled listing",
+ "Angebot laut Anzeige: ": "Listing states: ",
+ "Paketinhalt laut Anbieter: ": "Bundle contents according to seller: ",
+ "Weitere Merkmale": "Other features",
+ "Angegebener Zustand: ": "Stated condition: ",
+ "Anzeigenfoto": "Listing photo",
+ "von": "of",
+ "Für dieses einzelne Foto liegt keine geprüfte Bildbeschreibung vor.": "There is no verified description of this individual photo.",
+ "Preis: ": "Price: ",
+ "Region: ": "Region: ",
+ "nicht angegeben": "not stated",
+ "Bilder": "images",
+ "Rechnerisch": "Calculated",
+ "pro Teil – keine KI-Preisempfehlung.": "per item – not an AI price recommendation."
 });
 export function normalizeLanguage(value){return LANGUAGE_OPTIONS.includes(value)?value:'auto';}
 export function resolveLanguage(preference,deviceLocale){return preference==='de'||preference==='en'?preference:/^en(?:[-_]|$)/i.test(String(deviceLocale||''))?'en':'de';}

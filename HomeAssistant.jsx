@@ -26,7 +26,7 @@ function SunMark(){
 }
 function AreaCard({route,onNavigate,query,compact=false}){
   const {language}=useFamilyLocale();
-  const productSearch=route.id==='market'&&(looksLikeMarketProductQuery(query)||(language==='en'&&englishRouteMatches(query,HOME_ROUTES)[0]?.id==='market'));
+  const productSearch=route.id==='market'&&(looksLikeMarketProductQuery(query)||(language==='en'&&(englishRouteMatches(query,HOME_ROUTES)[0]?.id==='market'||looksLikeMarketProductQuery(marketSearchQuery(query,language)))));
   return <Pressable accessibilityRole="button"
     accessibilityLabel={language==='en'?'Open '+route.title:route.title+' öffnen'}
     onPress={()=>onNavigate(route.id,productSearch?query.trim():'')}
@@ -93,9 +93,11 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
     setQuestion(value);setSearchResult(null);setSearchBusy(false);setBusy(false);setError('');
   }
   const needle=question.trim();
-  const matches=localizedRoutes(language==='en'&&needle?[...englishRouteMatches(needle,HOME_ROUTES),...findHomeRoutes(needle)].filter((r,i,a)=>a.findIndex(x=>x.id===r.id)===i).slice(0,6):findHomeRoutes(needle),language);
+  const englishMatches=language==='en'&&needle?englishRouteMatches(needle,HOME_ROUTES):[];
+  const aliasMarket=language==='en'&&englishMatches[0]?.id!=='sell'&&looksLikeMarketProductQuery(marketSearchQuery(needle,language));
+  const matches=localizedRoutes(language==='en'&&needle?[...(aliasMarket?HOME_ROUTES.filter(r=>r.id==='market'):[]),...englishMatches,...findHomeRoutes(needle)].filter((r,i,a)=>a.findIndex(x=>x.id===r.id)===i).slice(0,6):findHomeRoutes(needle),language);
   const places=needle.length>=2?findFamilyMapLocations(needle,{curated:CURATED_FAMILY_PLACES,national:NATIONAL_FAMILY_PLACES},4):[];
-  const marketIntent=looksLikeMarketProductQuery(needle)||matches[0]?.id==='market';
+  const marketIntent=(language!=='en'||englishMatches[0]?.id!=='sell')&&(looksLikeMarketProductQuery(needle)||matches[0]?.id==='market');
   const visibleSearch=searchResult?.query===needle?searchResult:null;
   const featured=localizedRoutes(tileIds.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean),language);
   const moreRoutes=localizedRoutes(HOME_ROUTES,language);
