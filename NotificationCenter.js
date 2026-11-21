@@ -61,6 +61,25 @@ export function useNotificationCenter(userId){
    return false;
   }
  },[userId,publish,refresh]);
+ const remove=useCallback(async(id=null,through=null)=>{
+  if(!userId||owner.current!==userId)return false;
+  const before=snapshot.current;
+  if(before.owner!==userId||(!id&&!through))return false;
+  try{
+   const {data,error}=await supabase.rpc('ff_inbox_delete',{p_id:id,p_through:id?null:through});
+   if(error||!Number.isFinite(Number(data)))throw Error();
+   if(owner.current!==userId)return false;
+   seq.current++;running.current=false;
+   const current=snapshot.current;
+   const rows=current.rows.filter(r=>id?r.id!==id:new Date(r.created_at)>new Date(through));
+   publish({...current,owner:userId,rows,loading:false,unread:null,error:''});
+   await refresh();
+   return true;
+  }catch{
+   if(owner.current===userId)publish({...snapshot.current,owner:userId,error:'Neuigkeiten konnten nicht gelöscht werden.'});
+   return false;
+  }
+ },[userId,publish,refresh]);
  const visible=state.owner===userId?state:empty();
- return {...visible,refresh,markRead};
+ return {...visible,refresh,markRead,remove};
 }
