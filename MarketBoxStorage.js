@@ -22,7 +22,7 @@ export async function keepBoxPhoto(uid,asset){
  const saved=await rendered.saveAsync({format:ImageManipulator.SaveFormat.JPEG,compress:.8});
  const target=new File(dir,Date.now()+'-'+Math.random().toString(36).slice(2,12)+'.jpg');
  new File(saved.uri).copy(target);
- return {uri:target.uri,width:saved.width,height:saved.height};
+ return {uri:target.uri,width:saved.width,height:saved.height,sourceAssetId:asset.assetId||null};
 }
 export function availableBoxPhoto(uid,asset){
  try{
