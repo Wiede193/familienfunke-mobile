@@ -89,9 +89,6 @@ export default function HomeAssistant({onNavigate}){
   const visibleSearch=searchResult?.query===needle?searchResult:null;
   const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
   const moreRoutes=HOME_ROUTES.filter(route=>!FEATURED.includes(route.id));
-  function openRoute(route){
-    if(route)onNavigate(route.id,route.id==='market'&&looksLikeMarketProductQuery(needle)?needle.slice(0,160):'');
-  }
   async function askAssistant(){
     const prompt=needle.slice(0,600);
     if(prompt.length<3||pending.current)return;
@@ -117,6 +114,7 @@ export default function HomeAssistant({onNavigate}){
       // Product previews are fetched separately from the secured database.
       // The assistant cannot claim that an offer exists.
       let offers=null,offersError=false;
+      if(!alive.current||request!==requestSeq.current)return;
       if(searchQuery){
         try{
           const {data:rows,error:queryError}=await supabase.rpc('ff_market_search',{
@@ -271,12 +269,6 @@ const s=StyleSheet.create({
   searchCenterIdle:{paddingTop:56,paddingBottom:24},
   wordmark:{fontSize:34,fontWeight:'900',letterSpacing:-1.3,color:C.ink,textAlign:'center',marginTop:7},
   tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:6,marginBottom:24},
-  hero:{minHeight:198,backgroundColor:C.sun,borderRadius:25,paddingTop:23,
-    paddingBottom:24,paddingHorizontal:22,overflow:'hidden',justifyContent:'center',marginBottom:15},
-  heroCircleLarge:{position:'absolute',right:-54,top:-75,width:250,height:250,
-    borderRadius:125,backgroundColor:'#FFE9A3'},
-  heroCircleSmall:{position:'absolute',right:16,bottom:-45,width:120,height:120,
-    borderRadius:60,backgroundColor:'#F3C764',opacity:.38},
   sunWrap:{width:70,height:70,alignItems:'center',justifyContent:'center'},
   sunCore:{position:'absolute',width:35,height:35,borderRadius:18,backgroundColor:'#F5B644'},
   ray:{position:'absolute',height:11,width:3,borderRadius:2,backgroundColor:'#E8A942'},
@@ -307,7 +299,7 @@ const s=StyleSheet.create({
   sectionTitle:{color:C.ink,fontWeight:'900',fontSize:19,marginBottom:4},
   sectionSubtitle:{color:C.muted,fontSize:13,lineHeight:19,marginBottom:12},
   featuredGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:10},
-  areaGrid:{width:'48.4%',minHeight:104,backgroundColor:C.paper,borderColor:C.line,
+  areaGrid:{width:'48.4%',minHeight:96,backgroundColor:C.paper,borderColor:C.line,
     borderWidth:1,borderRadius:19,padding:14,justifyContent:'space-between'},
   areaGridAccent:{width:29,height:5,borderRadius:5,backgroundColor:C.sun,marginBottom:10},
   areaRow:{backgroundColor:C.paper,borderRadius:16,borderWidth:1,borderColor:C.line,
@@ -338,7 +330,7 @@ const s=StyleSheet.create({
   offerPrice:{fontSize:13,color:C.tealDark,fontWeight:'800',marginTop:4},
   mutedSmall:{fontSize:12.5,lineHeight:18,color:C.muted,marginTop:3},
   answerAction:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',
-    backgroundColor:C.mint,borderRadius:12,paddingHorizontal:14,minHeight:43,marginTop:14},
+    backgroundColor:C.mint,borderRadius:12,paddingHorizontal:14,minHeight:44,marginTop:14},
   answerActionLabel:{color:C.tealDark,fontSize:13.5,fontWeight:'900'},
   empty:{fontSize:13.5,lineHeight:21,color:C.muted,padding:12},
   suggestionList:{gap:8,marginTop:9},
