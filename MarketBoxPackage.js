@@ -1,7 +1,6 @@
 // Package listing material is generated deterministically, not as promotional prose.
 // Keep the existing 1500-character listing storage and moderation format.
 const brief=(v,n)=>String(v||'').replace(/[\r\n\t\x00-\x1f\x7f]+/g,' ').trim().slice(0,n);
-const visibleKeys=['pattern','shape','features','material'];
 export function compactBoxDetail(p){
  return [...new Set([p.pattern,p.shape,p.features,p.material,p.detail].map(x=>brief(x,80)).filter(Boolean))].join(' · ').slice(0,100);
 }
@@ -13,7 +12,7 @@ export function summarizeBox(drafts){
  const commonSize=sized===drafts.length&&sizes.length===1?sizes[0]:'';
  const groups=new Map();
  for(const d of drafts){
-   const name=brief(d.garmentType||d.title||'Artikel',36);
+   const name=brief(d.garmentType||d.title||'Artikel',26);
    groups.set(name,(groups.get(name)||0)+1);
  }
  const typeLine=[...groups].map(([type,count])=>count+'× '+type).join(' · ');
@@ -23,17 +22,21 @@ export function summarizeBox(drafts){
    const size=brief(d.facts?.size,18);
    const color=brief(d.facts?.color,16);
    const pattern=brief(d.pattern,12);
-   return [String(i+1)+'. '+title,size?'Gr. '+size:'Gr. offen',color,pattern].filter(Boolean).join(' · ').slice(0,85);
+   const core=[String(i+1)+'. '+title,size?'Gr. '+size:d.category==='Kleidung'?'Gr. offen':'',color].filter(Boolean).join(' · ');
+   const tail=[brief(d.facts?.brand,16),pattern].filter(Boolean).join(' · ');
+   return core+(tail&&core.length+3+tail.length<=85?' · '+tail:'');
  });
  const title=String(drafts.length)+'-teiliges '+(allClothing?'Kleidungspaket':'Familienpaket')+(allClothing&&commonSize?' · Gr. '+commonSize:'');
  const detail=brief(typeLine,100);
  return {title:title.slice(0,100),category:allSame?drafts[0].category:'Sonstiges',
   commonSize,sizes,sized,total:drafts.length,rows,detail,allClothing};
 }
-export function packageNote(rows){
+export function packageNote(rows,personal=''){
  // Marker separates the package inventory from the seller's optional prose.
- return 'Paketinhalt:\n'+rows.join('\n')+'\n\nPersönliche Ergänzung:\n';
+ const head='Paketinhalt:\n'+rows.join('\n')+'\n\nPersönliche Ergänzung:\n';
+ return head+String(personal||'').slice(0,Math.max(0,900-head.length));
 }
+export function packagePersonalLimit(rows){return Math.max(0,900-packageNote(rows).length);}
 export function parsePackageNote(note){
  const text=String(note||'');
  if(!text.startsWith('Paketinhalt:\n'))return null;
