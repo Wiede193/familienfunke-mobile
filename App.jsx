@@ -16,6 +16,8 @@ import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
 import {FamilyLocaleProvider,useFamilyLocale} from './FamilyLocale';
+import {marketSearchQuery} from './MarketLocaleSearch';
+import {formatServiceMoney} from './FamilyLocaleModel';
 import FamilyLayoutEditor from './FamilyLayoutEditor';
 import {confirmRemoval} from './FamilyActions';
 import FamilyActionButton from './FamilyActionButton';
@@ -790,10 +792,12 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
   </View>;
 }
 function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked}){
+  const {t,language}=useFamilyLocale();
   const [open,setOpen]=useState(false);
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<375||fontScale>=1.5;
   const [query,setQuery]=useState('');
+  const canonicalQuery=marketSearchQuery(query,language);
   const [filter,setFilter]=useState('Alle');
   const [tradeFilter,setTradeFilter]=useState('all');
   const [sortBy,setSortBy]=useState('relevance');
@@ -907,7 +911,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
     if(savingSearch||!active||onlyMine||onlyFavorites)return;
     setSavingSearch(true);
     try{
-      await saveMarketSearch({query,category:filter,trade:tradeFilter,minPrice,maxPrice});
+      await saveMarketSearch({query:canonicalQuery,category:filter,trade:tradeFilter,minPrice,maxPrice});
       Alert.alert('Suche gespeichert','Du findest den Suchauftrag unter Meine Suchaufträge. Dort kannst du Mitteilungen jederzeit ein- oder ausschalten.');
     }catch(e){Alert.alert('Suchauftrag',e.message||'Speichern nicht möglich.');}
     finally{setSavingSearch(false);}
@@ -997,8 +1001,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
     setPrice(x.trade_type==='sell'?String((x.price_cents/100).toFixed(2)).replace('.',','):'');
     setOrganizationId(x.organization_id||'');setOpen(true);setSelectedListing(null);
   }
-  const priceLabel=x=>x.trade_type==='gift'?'Zu verschenken':x.trade_type==='swap'?'Tausch':
-    (x.price_cents/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
+  const priceLabel=x=>x.trade_type==='gift'?t('Zu verschenken'):x.trade_type==='swap'?t('Tausch'):formatServiceMoney(x.price_cents,language);
   const parsePrice=value=>{
     const raw=String(value).trim().replace(',','.');
     return raw!==''&&Number.isFinite(Number(raw))?Math.round(Number(raw)*100):null;
@@ -1007,7 +1010,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
   // Active buyer filters are executed against the full database, not the 160-item initial feed.
   const serverSearchActive=!onlyMine; // The complete buyer catalog is always paginated on the server.
   const favoriteVersion=favorites.map(f=>f.listing_id).join(',');
-  useEffect(()=>{setSearchPage(0);},[query,filter,tradeFilter,minPrice,maxPrice,onlyMine,onlyFavorites,sortBy,favoriteVersion]);
+  useEffect(()=>{setSearchPage(0);},[canonicalQuery,filter,tradeFilter,minPrice,maxPrice,onlyMine,onlyFavorites,sortBy,favoriteVersion]);
   useEffect(()=>{
     const seq=++searchSeq.current;
     if(!serverSearchActive){
@@ -1021,7 +1024,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
     const timer=setTimeout(async()=>{
       try{
         const {data,error:e}=buyerFocus?await supabase.from('ff_market_listings').select('*').eq('id',buyerFocus).eq('moderation_status','approved'):await supabase.rpc('ff_market_search',{
-          p_query:query.trim().slice(0,160),p_category:filter,p_trade_type:tradeFilter,
+          p_query:canonicalQuery,p_category:filter,p_trade_type:tradeFilter,
           p_min_cents:minimum,p_max_cents:maximum,p_favorites_only:onlyFavorites,
           p_sort:sortBy,p_limit:40,p_offset:searchPage*40
         });
@@ -1063,7 +1066,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
       }
     },searchPage===0?320:0);
     return ()=>{live=false;clearTimeout(timer);};
-  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteVersion,me,buyerFocus]);
+  },[serverSearchActive,canonicalQuery,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteVersion,me,buyerFocus]);
   const filtered=serverSearchActive?remoteListings.filter(x=>!blocked(x.seller_id)):
     listings.filter(x=>
       ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
@@ -1072,7 +1075,7 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
       && (tradeFilter==='all'||x.trade_type===tradeFilter)
       && (minimum===null||(x.trade_type==='sell'&&x.price_cents>=minimum))
       && (maximum===null||(x.trade_type==='sell'&&x.price_cents<=maximum))
-      && normalizeLabel([x.title,x.description,x.region_label,x.category].join(' ')).includes(normalizeLabel(query))
+      && (normalizeLabel([x.title,x.description,x.region_label,x.category].join(' ')).includes(normalizeLabel(query))||(language==='en'&&canonicalQuery.split(/\s+/).every(term=>normalizeLabel([x.title,x.description,x.region_label,x.category].join(' ')).includes(normalizeLabel(term)))))
     );
   const shown=serverSearchActive?filtered:[...filtered].sort((a,b)=>{
     if(sortBy==='low')return (a.price_cents-b.price_cents)||new Date(b.created_at)-new Date(a.created_at);
@@ -1807,11 +1810,12 @@ function MarketScreen({entryIntent,drafts,onSavedSearches,listings,marketPhotos,
       <View style={styles.marketSearchBox}>
         <Text style={{fontSize:19,color:C.accentDark,marginRight:10}}>⌕</Text>
         <TextInput accessibilityLabel="Angebote durchsuchen" style={styles.marketSearchInput}
-          placeholder="z. B. Kinderjeans Größe 110 blau" placeholderTextColor="#647D82" value={query} onChangeText={setQuery} returnKeyType="search"/>
+          placeholder={t("z. B. Kinderjeans Größe 110 blau")} maxLength={160} placeholderTextColor="#647D82" value={query} onChangeText={setQuery} returnKeyType="search"/>
         {query.length>0?<Pressable accessibilityRole="button" accessibilityLabel="Suche löschen" hitSlop={12} onPress={()=>setQuery('')}>
           <Text style={{fontSize:20,color:C.muted}}>×</Text>
         </Pressable>:null}
       </View>
+      {language==='en'&&query.trim()!==canonicalQuery?<Text style={styles.micro}>German catalogue terms: {canonicalQuery}. Saved searches use these terms. Prices remain in EUR.</Text>:null}
       <MarketCategoryDropdown label="Kategorie" value={filter} onChange={setFilter} options={MARKET_CATEGORIES} allOption/>
       <View style={styles.marketFilters}>
         <Pressable accessibilityRole="button" accessibilityState={{expanded:filterOpen}} onPress={()=>setFilterOpen(v=>!v)}

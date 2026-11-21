@@ -3,6 +3,7 @@ import {AccessibilityInfo, ActivityIndicator, Keyboard, Pressable, ScrollView, S
 import {supabase} from './supabase';
 import {useFamilyLocale} from './FamilyLocale';
 import {localizedRoutes,englishRouteMatches,formatServiceMoney} from './FamilyLocaleModel';
+import {marketSearchQuery} from './MarketLocaleSearch';
 import {confirmRemoval} from './FamilyActions';
 import FamilyVoiceSearch from './FamilyVoiceSearch';
 import {FAMILY_COLORS} from './FamilyTheme';
@@ -127,7 +128,7 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
       if(searchQuery){
         try{
           const {data:rows,error:queryError}=await supabase.rpc('ff_market_search',{
-            p_query:searchQuery,p_category:'Alle',p_trade_type:'all',
+            p_query:marketSearchQuery(searchQuery,language),p_category:'Alle',p_trade_type:'all',
             p_sort:'relevance',p_limit:3,p_offset:0
           });
           if(queryError||!Array.isArray(rows))offersError=true;
@@ -162,7 +163,7 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
       const [eventResponse,marketResponse]=await Promise.allSettled([
         supabase.rpc('ff_search_events',{p_query:query.slice(0,160)}),
         marketIntent?supabase.rpc('ff_market_search',{
-          p_query:query.slice(0,160),p_category:'Alle',p_trade_type:'all',
+          p_query:marketSearchQuery(query,language),p_category:'Alle',p_trade_type:'all',
           p_sort:'relevance',p_limit:5,p_offset:0
         }):Promise.resolve(null)
       ]);

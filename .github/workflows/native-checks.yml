@@ -24,7 +24,9 @@ jobs:
       - name: Expo-Paketversionen prüfen
         run: npx expo install --check
       - name: Mehrsprachigkeit und unveränderte Funktions-IDs prüfen
-        run: node tests/check-locale.mjs
+        run: |
+          node tests/check-locale.mjs
+          node tests/check-market-locale.mjs
       - name: KI-Startseite Navigation und Datenschutz prüfen
         run: npm run check:home
       - name: Kontobezogene Layout-Synchronisierung und RLS-Verträge prüfen
