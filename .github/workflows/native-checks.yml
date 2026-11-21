@@ -55,6 +55,8 @@ jobs:
         run: npm run check:price-alerts
       - name: Privaten Familienkalender prüfen
         run: npm run check:calendar
+      - name: Familienquiz und Spielideen prüfen
+        run: npm run check:play
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen
