@@ -662,6 +662,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [confirmed,setConfirmed]=useState(false);
   const [expandFacts,setExpandFacts]=useState(false);
   const [scanned,setScanned]=useState(false);
+  const [askSize,setAskSize]=useState(false);
   const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
   const favoriteIds=new Set(favorites.map(x=>x.listing_id));
   const editingListing=editingId?listings.find(x=>x.id===editingId&&x.seller_id===me):null;
@@ -678,7 +679,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   function resetForm(){
     setEditingId(null);setTitle('');setDescription('');setRegion('');setCategory('Kleidung');
     setCondition('Gut');setTrade('sell');setPrice('');setOrganizationId('');setPhoto([]);
-    setQuick(false);setFacts({...EMPTY_FACTS});setProposal(null);setScanNotice('');setConfirmed(false);setExpandFacts(false);setScanned(false);
+    setQuick(false);setFacts({...EMPTY_FACTS});setProposal(null);setScanNotice('');setConfirmed(false);setExpandFacts(false);setScanned(false);setAskSize(false);
   }
   function beginEdit(x){
     resetForm();setEditingId(x.id);setOnlyMine(true);setOnlyFavorites(false);
@@ -752,7 +753,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     if(!proposal)return;
     setTitle(proposal.title);setCategory(proposal.category);
     setFacts(prev=>({...prev,...Object.fromEntries(FACT_KEYS.map(([key])=>[key,proposal[key]||prev[key]||'']))}));
-    setProposal(null);setScanned(true);setExpandFacts(false);setScanNotice('Vorschläge übernommen. Bitte prüfe alle Angaben und ergänze, was fehlt.');setConfirmed(false);
+    setAskSize(!proposal.size&&!facts.size);setProposal(null);setScanned(true);setExpandFacts(false);setScanNotice('Vorschläge übernommen. Bitte prüfe alle Angaben und ergänze, was fehlt.');setConfirmed(false);
   }
   async function submit(){
     if(!active||scanBusy)return;
@@ -869,7 +870,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           <Input label="Farbe (optional)" value={facts.color} onChangeText={v=>changeFact('color',v)} maxLength={40} placeholder="z. B. dunkelblau"/>
           <Input label={({Bücher:'Autor / Reihe (optional)',Spielzeug:'Set / Modell (optional)',Möbel:'Maße / Modell (optional)',Babyausstattung:'Modell / Ausführung (optional)'})[category]||'Weitere Angabe (optional)'} value={facts.detail} onChangeText={v=>changeFact('detail',v)} maxLength={100} placeholder="Kurzes, wichtiges Merkmal"/>
           {scanned?<Button title="Merkmale einklappen" mode="ghost" small onPress={()=>setExpandFacts(false)}/>:null}
-        </>:['Kleidung','Babyausstattung'].includes(category)&&!facts.size?<Input label="Welche Größe hat der Artikel? (optional)" value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder="Größe vom Etikett"/>:null}
+        </>:['Kleidung','Babyausstattung'].includes(category)&&askSize?<Input label="Welche Größe hat der Artikel? (optional)" value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder="Größe vom Etikett"/>:null}
       </View>:null}
       <Text style={styles.label}>Ich möchte</Text>
       <View style={[styles.chipsRow,{marginTop:0,marginBottom:16}]}>
