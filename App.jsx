@@ -693,7 +693,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [boxShowAll,setBoxShowAll]=useState(false);
   const [boxFormExtras,setBoxFormExtras]=useState(false);
   const marketScrollRef=useRef(null);
-  useEffect(()=>{if(boxOpen||boxEditor)marketScrollRef.current?.scrollTo({y:0,animated:false});},[boxStep,boxOpen,boxEditor]);
+  useEffect(()=>{if(open||boxOpen||boxEditor||selectedListing)marketScrollRef.current?.scrollTo({y:0,animated:false});},[open,boxStep,boxOpen,boxEditor,selectedListing]);
   const [boxStorage,setBoxStorage]=useState('loading');
   const [boxSaveError,setBoxSaveError]=useState(false);
   const [boxPending,setBoxPending]=useState(null);
@@ -1137,12 +1137,12 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <Text style={[styles.micro,{marginBottom:11}]}>Zwei gleichwertige Wege: einzeln einstellen oder viele Kleidungsstücke auf einmal erfassen.</Text>
       <View style={styles.marketEntryCard}>
         <Text style={styles.marketEntryTitle}>Einzelartikel verkaufen</Text>
-        <Text style={[styles.body,{marginTop:5,marginBottom:13}]}>Ein Foto, ein Artikel: zum Beispiel ein Kinderfahrrad, Spielzeug oder eine Jacke. Auf Wunsch hilft die KI beim Steckbrief.</Text>
+        <Text style={[styles.body,{marginTop:5,marginBottom:13}]}>Einen Artikel fotografieren, Angaben und Preis eintragen, Anzeige einreichen. Die KI-Hilfe ist freiwillig.</Text>
         <Button title="＋ Einzelartikel einstellen" disabled={!active||busy||choosing||scanBusy} onPress={startQuick}/>
       </View>
       <View style={styles.marketEntryCard}>
         <Text style={styles.marketEntryTitle}>Kleiderkiste & Pakete verkaufen</Text>
-        <Text style={[styles.body,{marginTop:5,marginBottom:13}]}>Bis zu zehn Kleidungsstücke auf einem Übersichtsbild erfassen. Die KI erstellt überprüfbare Entwürfe. Du entscheidest, was einzeln oder als Paket angeboten wird.</Text>
+        <Text style={[styles.body,{marginTop:5,marginBottom:13}]}>Bis zu zehn Kleidungsstücke auf einem Foto: Die KI erkennt mögliche Teile und bereitet Entwürfe vor. Du prüfst die Angaben und wählst Einzelangebote oder Pakete.</Text>
         <Button title={boxDrafts.length?'Kleiderkiste fortsetzen ('+boxDrafts.length+' Teile)':'＋ Kleiderkiste fotografieren'} disabled={!active||busy||choosing||scanBusy||boxStorage!=='ready'} onPress={showBox}/>
       </View>
       <Text style={[styles.micro,{marginTop:9}]}>KI-Ergebnisse sind Vorschläge und müssen geprüft werden. Je nach Foto sind weitere Verkaufsbilder nötig.</Text>
@@ -1150,13 +1150,13 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     <Info>{SECTION_MESSAGES.market}</Info>
     <View style={styles.marketTopActions}>
       <View style={{flex:1}}>
-        <Text style={styles.marketTopTitle}>Angebote entdecken</Text>
-        <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
+        <Text style={styles.marketTopTitle}>{boxEditor?'Aus der Kleiderkiste einstellen':boxOpen?'Kleiderkiste bearbeiten':open?editingId?'Anzeige bearbeiten':'Einzelartikel einstellen':selectedListing?'Angebot ansehen':'Angebote entdecken'}</Text>
+        <Text style={styles.micro}>{open||boxOpen?'Du entscheidest, was veröffentlicht wird.':'Faire Angebote von geprüften Erwachsenen'}</Text>
       </View>
-      {boxEditor||boxOpen||open?<Button title={boxEditor?'‹ Zur Kiste':'Schließen'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else{resetForm();setOpen(false);}}}/>:null}
+      {boxEditor||boxOpen||open?<Button title={boxEditor?'‹ Zur Kiste':'Schließen'} small disabled={scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else{resetForm();setOpen(false);}}}/>:null}
     </View>
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
-    <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
+    {!open&&!boxOpen&&!selectedListing?<View style={{flexDirection:'row',gap:7,marginBottom:16}}>
       <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
         onPress={()=>{setOnlyMine(false);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
       <View style={{flex:1}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+')'}
@@ -1165,7 +1165,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <View style={{flex:1}}><Button title={'♡ Merkliste ('+favorites.filter(f=>listings.some(x=>x.id===f.listing_id&&x.moderation_status==='approved')).length+')'}
         mode={onlyFavorites?'primary':'outline'} small
         onPress={()=>{setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
-    </View>
+    </View>:null}
     {boxOpen&&boxPending?<Card style={{marginBottom:18,backgroundColor:'#FFF4DA'}}>
       <Text style={styles.sectionTitle}>Unterbrochene Einreichung</Text>
       <Text style={[styles.body,{marginBottom:12}]}>Wir prüfen zuerst, ob deine Anzeige bereits beim Server angekommen ist. So werden dieselben Artikel nicht versehentlich zweimal eingestellt.</Text>
@@ -1174,11 +1174,11 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <Button title="Kiste schließen" mode="outline" small disabled={scanBusy||busy||choosing} onPress={closeBox}/>
     </Card>:null}
     {boxOpen&&!boxPending?<Card style={{marginBottom:18}}>
-      <Text style={styles.sectionTitle}>{boxStep==='photo'?'1 · Kleidung fotografieren':boxStep==='review'?'2 · Kleidung prüfen':'3 · Paket auswählen'}</Text>
-      <Text style={[styles.micro,{marginBottom:12}]}>Foto › Prüfen › Paket · {boxDrafts.length} Teile erfasst</Text>
+      <Text style={styles.sectionTitle}>{boxStep==='photo'?'1 · Kleiderkiste fotografieren':boxStep==='review'?'2 · KI-Vorschläge prüfen':'3 · Angebote zusammenstellen'}</Text>
+      <Text style={[styles.micro,{marginBottom:12}]}>Foto › Artikel prüfen › einzeln oder als Paket anbieten · {boxDrafts.length} Teile erfasst</Text>
       {boxNotice?<Info>{boxNotice}</Info>:null}
       {boxStep==='photo'?<>
-      <Text style={[styles.sub,{marginBottom:12}]}>Lege bis zu zehn unterschiedliche Kleidungsstücke nebeneinander und fotografiere sie von oben. Weitere Gruppen kannst du später ergänzen.</Text>
+      <Text style={[styles.sub,{marginBottom:12}]}>Lege bis zu zehn Kleidungsstücke nebeneinander, möglichst ohne Überlappungen, und fotografiere von oben. Die KI schlägt einzelne Artikel vor. Weitere Fotogruppen kannst du danach hinzufügen.</Text>
       {boxPhoto?<View onLayout={e=>setBoxImageFrame(e.nativeEvent.layout)} style={{width:'100%',height:300,borderRadius:14,marginBottom:10,overflow:'hidden',backgroundColor:C.bg}}>
         <Image source={{uri:boxPhoto.uri}} style={{width:'100%',height:'100%'}} resizeMode="contain"/>
         {boxImageFrame.width>0&&boxImageFrame.height>0&&boxPhoto.width>0&&boxPhoto.height>0&&boxCurrentBatch?boxDrafts.map((d,i)=>{
@@ -1213,7 +1213,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       {boxDrafts.length>0?<Button title={'Weiter: '+boxDrafts.length+' Artikel prüfen'} disabled={cropBusy} onPress={()=>{setBoxStep('review');setBoxAdvanced(false);}}/>:null}
       </>:null}
       {boxStep==='review'?<>
-      <Text style={[styles.sub,{marginBottom:11}]}>Prüfe kurz die erkannten Kleidungsstücke. Fehlende Größen dürfen offen bleiben.</Text>
+      <Text style={[styles.sub,{marginBottom:11}]}>Prüfe die erkannten Teile und korrigiere Titel, Größe oder Ausschnitt. Unbekannte Größen dürfen offen bleiben. Danach kannst du passende Pakete auswählen oder Einzelteile anbieten.</Text>
       {boxQuality.length?<View style={{marginBottom:10,padding:11,borderRadius:11,backgroundColor:C.warning}}>
         <Text style={[styles.micro,{color:C.warningText}]}>{PHOTO_ISSUES[boxQuality[0]]}</Text>
         <Pressable accessibilityRole="button" onPress={()=>setBoxStep('photo')} style={{paddingTop:7}}><Text style={[styles.micro,{color:C.accentDark,fontWeight:'900'}]}>Foto ansehen ›</Text></Pressable>
@@ -1245,7 +1245,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <Button title="＋ Weitere Kleidung fotografieren" mode="outline" small disabled={cropBusy||!canCaptureBox} onPress={()=>{setBoxStep('photo');setBoxCrop(null);}}/>
       </>:null}
       {boxStep==='package'?<View style={{marginVertical:8}}>
-        <Text style={[styles.sub,{marginBottom:10}]}>Wähle einen Vorschlag. Anschließend fehlen nur noch Preis, Zustand und Verkaufsfoto.</Text>
+        <Text style={[styles.sub,{marginBottom:10}]}>Wähle ein vorgeschlagenes Paket oder stelle selbst eines zusammen. Einzelne Teile kannst du weiterhin separat anbieten. Danach fehlen noch Preis, Zustand und gegebenenfalls Verkaufsfoto.</Text>
         {boxSuggestions.length?boxSuggestions.map((idea,index)=><Pressable key={idea.id}
           accessibilityRole="button" accessibilityLabel={idea.title+', '+idea.ids.length+' Artikel als Paket auswählen'}
           disabled={cropBusy||boxStorage!=='ready'} onPress={()=>openBoxPackage(idea.ids)}
@@ -1344,20 +1344,21 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       {boxAdvanced?<Button title="Gespeicherte Kiste löschen" mode="ghost" small disabled={busy||scanBusy||choosing||boxStorage==='loading'} onPress={confirmClearBox}/>:null}
     </Card>:null}
     {open?<Card style={{marginBottom:18}}>
-      <Text style={styles.sectionTitle}>{boxEditor?(boxEditor.packageIds?'Kistenpaket bearbeiten':'Kistenartikel bearbeiten'):editingId?'Anzeige bearbeiten':'Schnellverkauf'}</Text>
+      <Text style={styles.sectionTitle}>{boxEditor?(boxEditor.packageIds?'Kistenpaket bearbeiten':'Kistenartikel bearbeiten'):editingId?'Anzeige bearbeiten':'Einzelartikel verkaufen'}</Text>
       {boxEditor?<Info>{boxEditor.packageIds?'Prüfe, ob alle Artikel in der Paketliste und auf den Fotos enthalten sind.':'Bitte zeige auf den Verkaufsfotos nur diesen einzelnen Artikel. Du kannst jederzeit zur Kiste zurückkehren.'}</Info>:null}
       {!editingId&&!boxEditor?<View style={{flexDirection:'row',gap:8,marginVertical:10,flexWrap:'wrap'}}>
-        <Chip text="Foto & Steckbrief" selected={quick} onPress={scanBusy?undefined:()=>{setQuick(true);setCondition('');setConfirmed(false);}}/>
-        <Chip text="Manuell schreiben" selected={!quick} onPress={scanBusy?undefined:()=>{setQuick(false);setCondition(condition||'Gut');setProposal(null);setConfirmed(false);}}/>
+        <Chip text="Mit optionaler KI-Hilfe" selected={quick} onPress={scanBusy?undefined:()=>{setQuick(true);setConfirmed(false);}}/>
+        <Chip text="Ohne KI-Hilfe" selected={!quick} onPress={scanBusy?undefined:()=>{setQuick(false);setProposal(null);setConfirmed(false);}}/>
       </View>:null}
       {quick&&!editingId&&!boxEditor?<View style={{backgroundColor:'#FFF4DA',borderRadius:15,padding:13,marginBottom:13}}>
-        <Text style={[styles.label,{color:C.accentDark}]}>Fotografieren. Fakten prüfen. Fertig.</Text>
-        <Text style={styles.micro}>Zeige einen Artikel und nach Möglichkeit sein Etikett. Die KI schlägt sichtbare Merkmale vor, ohne einen Werbetext zu schreiben. Du entscheidest, welche Angaben richtig sind.</Text>
+        <Text style={[styles.label,{color:C.accentDark}]}>Ein Artikel in drei Schritten</Text>
+        <Text style={styles.micro}>1 · Fotos hinzufügen. 2 · Angaben und Preis prüfen. 3 · Anzeige einreichen. Wenn du möchtest, schlägt die KI Merkmale aus dem Foto vor – erst nach deinem ausdrücklichen Klick.</Text>
       </View>:null}
       <Text style={[styles.sub,{marginBottom:17}]}>{packageForm?'Ein letzter Blick auf dein Paket – danach wird es wie gewohnt geprüft.':editingId?
         'Beim Speichern wird deine Anzeige erneut vollständig geprüft und bis zur Freigabe ausgeblendet. Bereits hochgeladene Fotos bleiben erhalten.':
         'Kostenlos einstellen. Titel, Beschreibung und alle Fotos werden vor Veröffentlichung geprüft.'}</Text>
       <View style={{marginBottom:15}}>
+        <Text style={[styles.label,{marginBottom:8}]}>1 · Bilder vom Artikel</Text>
         <Button title={'＋ Fotos auswählen ('+(existingPhotoCount+photo.length)+'/5)'} mode="outline"
           disabled={choosing||busy||scanBusy||existingPhotoCount+photo.length>=5}
           onPress={()=>pick(async assets=>{const kept=boxEditor?await Promise.all(assets.map(a=>keepBoxPhoto(me,a))):assets;setPhoto(old=>[...old,...kept].slice(0,5-existingPhotoCount));setProposal(null);setConfirmed(false);},
@@ -1386,6 +1387,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           <Button title="Verwerfen" small mode="ghost" onPress={()=>setProposal(null)}/>
         </View>:null}
       </View>:null}
+      <Text style={[styles.label,{marginBottom:9}]}>2 · Angaben zum Angebot</Text>
       {packageForm&&!boxFormExtras?<Text style={[styles.body,{fontWeight:'900',marginBottom:12}]}>{title}</Text>:<>
         <Input label="Anzeigentitel" value={title} onChangeText={v=>{setTitle(v);setConfirmed(false);}} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
         <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={v=>{setCategory(v);setConfirmed(false);}} options={MARKET_CATEGORIES}/>
@@ -1443,13 +1445,14 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
       </View></>:null}
       {packageForm?<Text style={[styles.micro,{marginBottom:11}]}>Deine Anzeige wird vor Veröffentlichung geprüft.</Text>:<Info>Erlaubt sind auch Kuscheltiere, Tierfiguren und eindeutig harmloses Kinderspielzeug. Echte Tiere sind bei uns ausnahmslos verboten – ebenso Waffen, Drogen, Medikamente, 18+-Waren und andere gefährliche oder illegale Artikel. Die Anzeige erscheint erst nach Prüfung.</Info>}
+      <Text style={[styles.label,{marginBottom:9}]}>3 · Prüfen und einreichen</Text>
       {quick?<Pressable accessibilityRole="checkbox" accessibilityState={{checked:confirmed}} onPress={()=>setConfirmed(v=>!v)} style={{flexDirection:'row',gap:10,padding:12,marginBottom:12,borderRadius:12,borderWidth:1,borderColor:C.line}}>
         <Text style={{fontSize:19,color:C.accentDark}}>{confirmed?'☑':'☐'}</Text>
-        <Text style={[styles.body,{flex:1}]}>{packageForm?'Ich habe Paketinhalt und Zustand geprüft.':'Ich habe die Angaben geprüft. Der Steckbrief beschreibt mein Angebot korrekt.'}</Text>
+        <Text style={[styles.body,{flex:1}]}>{packageForm?'Ich habe Paketinhalt und Zustand geprüft.':'Ich habe Fotos, Zustand und Angaben geprüft. Der Steckbrief beschreibt mein Angebot korrekt.'}</Text>
       </Pressable>:null}
       <Button title={busy?'Wird gespeichert …':editingId?'Änderungen zur Prüfung einreichen':packageForm?'Paket zur Prüfung einreichen':'Anzeige kostenlos einreichen'} disabled={busy||choosing||scanBusy||!active||(quick&&!confirmed)} onPress={submit}/>
       {boxEditor?<Button title="Entwurf behalten und zurück zur Kiste" mode="outline" disabled={busy||choosing||scanBusy} onPress={saveBoxEditor}/>:null}
-      {!editingId&&!boxEditor?<Button title="Viele Artikel? Zum Kistenmodus" mode="ghost" disabled={busy||choosing||scanBusy} onPress={()=>Alert.alert('Zum Kistenmodus wechseln?','Die Angaben dieser einzelnen Anzeige werden verworfen.',[{text:'Abbrechen',style:'cancel'},{text:'Wechseln',onPress:()=>{resetForm();showBox();}}])}/>:null}
+      {!editingId&&!boxEditor?<Button title="Stattdessen mehrere Kleidungsstücke erfassen" mode="ghost" disabled={busy||choosing||scanBusy} onPress={()=>Alert.alert('Zum Kistenmodus wechseln?','Die Angaben dieser einzelnen Anzeige werden verworfen.',[{text:'Abbrechen',style:'cancel'},{text:'Wechseln',onPress:()=>{resetForm();showBox();}}])}/>:null}
     </Card>:null}
     {!boxOpen&&!boxEditor&&selected?<View>
       <Pressable accessibilityRole="button" onPress={()=>setSelectedListing(null)} style={{marginBottom:14,paddingVertical:8}}>
