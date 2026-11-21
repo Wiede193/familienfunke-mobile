@@ -172,6 +172,17 @@ export default function HomeAssistant({onNavigate}){
       </View>
       {error?<Text accessibilityRole="alert" style={s.error}>{error}</Text>:null}
     </View>
+    {conversation.length?<View style={s.section}>
+      <View style={s.replyHeader}>
+        <Text style={s.sectionTitle}>Deine KI-Hilfe</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="KI-Verlauf in dieser Ansicht löschen"
+          onPress={()=>setConversation([])} style={s.clearHistory}>
+          <Text style={s.clearHistoryLabel}>Verlauf leeren</Text>
+        </Pressable>
+      </View>
+      {conversation.map((entry,i)=><AssistantReply key={i+'-'+entry.question}
+        entry={entry} onNavigate={onNavigate}/>)}
+    </View>:null}
     {needle?
       <View style={s.section}>
         <Text style={s.sectionTitle}>Passende Bereiche</Text>
@@ -182,7 +193,7 @@ export default function HomeAssistant({onNavigate}){
       </View>:
       <View style={s.section}>
         <Text style={s.sectionTitle}>Einfach loslegen</Text>
-        <Text style={s.sectionSubtitle}>Die meistgenutzten Bereiche auf einen Blick.</Text>
+        <Text style={s.sectionSubtitle}>Wichtige Bereiche auf einen Blick.</Text>
         <View style={s.featuredGrid}>
           {featured.map(route=><AreaCard key={route.id} route={route}
             onNavigate={onNavigate} query="" compact/>)}
@@ -195,17 +206,6 @@ export default function HomeAssistant({onNavigate}){
         {showAll?moreRoutes.map(route=><AreaCard key={route.id} route={route}
           onNavigate={onNavigate} query=""/>):null}
       </View>}
-    {conversation.length?<View style={s.section}>
-      <View style={s.replyHeader}>
-        <Text style={s.sectionTitle}>Deine KI-Hilfe</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="KI-Verlauf in dieser Ansicht löschen"
-          onPress={()=>setConversation([])} style={s.clearHistory}>
-          <Text style={s.clearHistoryLabel}>Verlauf leeren</Text>
-        </Pressable>
-      </View>
-      {conversation.map((entry,i)=><AssistantReply key={i+'-'+entry.question}
-        entry={entry} onNavigate={onNavigate}/>)}
-    </View>:null}
     {!needle?<View style={s.section}>
       <Text style={s.sectionTitle}>Du könntest fragen</Text>
       <View style={s.suggestionList}>
