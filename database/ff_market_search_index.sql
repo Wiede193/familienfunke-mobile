@@ -29,6 +29,17 @@ declare s text;
 begin
   s:=lower(left(coalesce(p_value,''),160));
   s:=replace(s,'kinderjeans','jeans');
+  s:=replace(s,'jeansgröße','jeans größe');
+  s:=replace(s,'jeansgroesse','jeans groesse');
+  s:=replace(s,'einhundertzehn','110');
+  s:=replace(s,'hundertzehn','110');
+  s:=replace(s,'hundertsechzehn','116');
+  s:=replace(s,'hundertvier','104');
+  s:=replace(s,'hundertachtundzwanzig','128');
+  s:=replace(s,'hundertzweiundzwanzig','122');
+  s:=replace(s,'sechsundachtzig','86');
+  s:=replace(s,'zweiundneunzig','92');
+  s:=replace(s,'achtundneunzig','98');
   s:=replace(s,'babyjeans','jeans');
   s:=replace(s,'kinderhosen','hosen');
   s:=replace(s,'kinderhose','hose');
@@ -178,7 +189,7 @@ begin
   order by
     case when p_sort='low' then l.price_cents end asc nulls last,
     case when p_sort='high' then l.price_cents end desc nulls last,
-    case when p_sort in ('relevance','newest') and words is not null then i.score end desc nulls last,
+    case when p_sort='relevance' and words is not null then i.score end desc nulls last,
     l.created_at desc,l.id desc
   limit p_limit offset p_offset;
 end;
