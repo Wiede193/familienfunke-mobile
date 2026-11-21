@@ -87,6 +87,8 @@ export default function FamilyMapScreen({userId,active,addPlace}){
   const [nationalArea,setNationalArea]=useState('all');
   const [openForm,setOpenForm]=useState(false);
   const [draftPoint,setDraftPoint]=useState(null);
+  const [latitudeInput,setLatitudeInput]=useState('');
+  const [longitudeInput,setLongitudeInput]=useState('');
   const [name,setName]=useState('');
   const [description,setDescription]=useState('');
   const [category,setCategory]=useState('playground');
@@ -179,12 +181,37 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     else if(value.type==='move'&&valid(value.latitude)&&valid(value.longitude)&&valid(value.zoom)){
       setCenter({latitude:value.latitude,longitude:value.longitude,zoom:value.zoom});
     }else if(value.type==='tap'&&inGermany(value.latitude,value.longitude)){
-      if(openForm){setDraftPoint({latitude:Math.round(value.latitude*100000)/100000,longitude:Math.round(value.longitude*100000)/100000});setSelectedId(null);}
+      if(openForm){
+        const latitude=Math.round(value.latitude*100000)/100000;
+        const longitude=Math.round(value.longitude*100000)/100000;
+        setDraftPoint({latitude,longitude});
+        setLatitudeInput(String(latitude));
+        setLongitudeInput(String(longitude));
+        setSelectedId(null);
+      }
     }else if(value.type==='pin')setSelectedId(value.id);
+  }
+  function markCoordinates(){
+    const latitude=Number(latitudeInput.trim().replace(',', '.'));
+    const longitude=Number(longitudeInput.trim().replace(',', '.'));
+    if(!latitudeInput.trim()||!longitudeInput.trim()||
+       !inGermany(latitude,longitude)){
+      setSearchError('Bitte gültige Koordinaten in Deutschland eingeben, zum Beispiel 52,36 und 14,06.');
+      return;
+    }
+    const point={
+      latitude:Math.round(latitude*100000)/100000,
+      longitude:Math.round(longitude*100000)/100000
+    };
+    setDraftPoint(point);
+    setSelectedId(null);
+    setSearchError('');
+    setNotice('Öffentlicher Ort mit Koordinaten markiert. Prüfe den Punkt vor dem Einreichen.');
+    if(ready)map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo('+point.latitude+','+point.longitude+',15);true;');
   }
   async function submitPlace(){
     if(!active)return;
-    if(!draftPoint)return setSearchError('Markiere zuerst den öffentlichen Ort durch Tippen auf die Karte.');
+    if(!draftPoint)return setSearchError('Markiere den öffentlichen Ort auf der Karte oder gib seine Koordinaten ein.');
     if(name.trim().length<4)return setSearchError('Bitte einen aussagekräftigen Ortsnamen mit mindestens vier Zeichen angeben.');
     setSearchError('');
     const ok=await addPlace({
@@ -195,7 +222,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     });
     if(ok){
       setName('');setDescription('');setRegion('');setChanging(false);setOpenForm(false);
-      setDraftPoint(null);setNotice('Danke! Dein Ort ist eingereicht und für andere erst nach Prüfung sichtbar.');
+      setDraftPoint(null);setLatitudeInput('');setLongitudeInput('');setNotice('Danke! Dein Ort ist eingereicht und für andere erst nach Prüfung sichtbar.');
       await fetchCommunity();
     }
   }
@@ -236,14 +263,15 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     </View>
     <View style={styles.mapFrame}>
       <WebView ref={map} originWhitelist={['*']} source={{html:MAP_HTML}}
+       accessible={false} importantForAccessibility="no-hide-descendants"
        javaScriptEnabled domStorageEnabled scrollEnabled={false}
        style={styles.map} onMessage={onMapMessage} onError={()=>setMapError('Die Vektorkarte konnte nicht geladen werden.')}
        setSupportMultipleWindows={false} allowsInlineMediaPlayback/>
       {!ready?<View pointerEvents="none" style={styles.mapLoading}><ActivityIndicator color={C.teal}/><Text style={styles.micro}>Vektorkarte laden …</Text></View>:null}
       <View pointerEvents="none" style={styles.mapTag}><Text style={styles.mapTagText}>Vektorkarte · Deutschland</Text></View>
     </View>
-    {mapError?<View style={styles.warn}><Text style={styles.micro}>{mapError} Die Ortsliste kann weiterhin genutzt werden.</Text></View>:null}
-    <Text style={[styles.micro,{marginTop:7}]}>Kartengrundlage: OpenFreeMap / OpenStreetMap. Zum Navigieren die Karte verschieben und zoomen. Standortzugriff ist nicht nötig.</Text>
+    {mapError?<View accessibilityLiveRegion="polite" style={styles.warn}><Text style={styles.micro}>{mapError} Die Ortsliste kann weiterhin genutzt werden.</Text></View>:null}
+    <Text style={[styles.micro,{marginTop:7}]}>Kartengrundlage: OpenFreeMap / OpenStreetMap. Zum Navigieren die Karte verschieben und zoomen. Standortzugriff ist nicht nötig. Alle verfügbaren Orte sind zusätzlich als bedienbare Liste unter der Karte erreichbar.</Text>
     <View style={styles.curatedBox}>
       <View style={[styles.row,{justifyContent:'space-between',alignItems:'center',gap:10}]}>
         <View style={{flex:1}}>
@@ -337,8 +365,8 @@ export default function FamilyMapScreen({userId,active,addPlace}){
        style={styles.outlineBtn}><Text style={styles.outlineText}>DE</Text></Pressable>
     </View>
     {loading?<ActivityIndicator color={C.teal} style={{marginTop:9}}/>:null}
-    {searchError?<View style={styles.warn}><Text style={styles.warnText}>{searchError}</Text></View>:null}
-    {notice?<View style={styles.tip}><Text style={styles.tipText}>{notice}</Text></View>:null}
+    {searchError?<View accessibilityLiveRegion="assertive" style={styles.warn}><Text style={styles.warnText}>{searchError}</Text></View>:null}
+    {notice?<View accessibilityLiveRegion="polite" style={styles.tip}><Text style={styles.tipText}>{notice}</Text></View>:null}
     <Text style={styles.section}>Was sucht ihr?</Text>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:15}}>
       {TYPES.map(([id,label,icon])=><Chip key={id} label={icon+' '+label} selected={types===id} onPress={()=>{setTypes(id);setSelectedId(null);}}/>)}
@@ -381,12 +409,24 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     <View style={styles.suggestCard}>
       <Text style={styles.sectionNoMargin}>Kennt ihr noch einen tollen Ort?</Text>
       <Text style={[styles.micro,{marginTop:7}]}>Ihr könnt öffentlich zugängliche Spielplätze, Wickelmöglichkeiten und Ausflugsorte vorschlagen. Jeder neue Eintrag wird vor Veröffentlichung geprüft.</Text>
-      <Pressable accessibilityRole="button" disabled={!active} onPress={()=>{setOpenForm(v=>!v);setSearchError('');}}
+      <Pressable accessibilityRole="button" accessibilityState={{expanded:openForm,disabled:!active}} disabled={!active} onPress={()=>{setOpenForm(v=>!v);setSearchError('');}}
        style={[styles.mainBtn,{marginTop:13,opacity:active?1:0.45}]}><Text style={styles.mainBtnText}>{openForm?'Vorschlag schließen':'+ Familienort vorschlagen'}</Text></Pressable>
       {!active?<Text style={[styles.micro,{marginTop:6}]}>Vorschläge sind nur mit freigegebenem Familienkonto möglich.</Text>:null}
       {openForm?<View style={styles.form}>
         <Text style={styles.formTitle}>Öffentlichen Ort markieren</Text>
-        <Text style={styles.micro}>Tippe oben auf der Karte an die richtige Stelle. Bitte keine privaten Wohnadressen oder Kinderstandorte eintragen.</Text>
+        <Text style={styles.micro}>Wähle den öffentlichen Ort auf der Karte oder trage seine Koordinaten unten per Tastatur ein. Bitte keine privaten Wohnadressen oder Kinderstandorte eintragen.</Text>
+        <Text style={[styles.label,{marginTop:13}]}>Ort ohne Kartenberührung markieren</Text>
+        <Text style={styles.micro}>Breiten- und Längengrad kannst du zum Beispiel aus einem Kartendienst kopieren. Komma und Punkt werden akzeptiert.</Text>
+        <View style={[styles.row,{gap:9,alignItems:'flex-start'}]}>
+          <View style={{flex:1}}><Field label="Breitengrad" value={latitudeInput}
+            onChange={setLatitudeInput} maxLength={16} placeholder="z. B. 52,36"/></View>
+          <View style={{flex:1}}><Field label="Längengrad" value={longitudeInput}
+            onChange={setLongitudeInput} maxLength={16} placeholder="z. B. 14,06"/></View>
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Ort anhand der Koordinaten markieren"
+          onPress={markCoordinates} style={[styles.mainBtn,{marginTop:2}]}>
+          <Text style={styles.mainBtnText}>Koordinaten übernehmen</Text>
+        </Pressable>
         <Text style={[styles.coordinate,{marginTop:10}]}>{draftPoint?'✓ Ort auf Karte markiert':'Noch kein Punkt ausgewählt'}</Text>
         <Field label="Name des Ortes" value={name} onChange={setName} maxLength={100} placeholder="z. B. Spielplatz am Stadtpark"/>
         <Text style={[styles.label,{marginTop:13}]}>Art des Ortes</Text>
@@ -397,7 +437,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
         <Field label="Was sollten Familien wissen?" value={description} onChange={setDescription} maxLength={600} multi placeholder="z. B. Schattenplätze, Zugang, Öffnungszeiten – nur wenn bekannt"/>
         <View style={[styles.row,{justifyContent:'space-between',marginTop:16}]}>
           <View style={{flex:1}}><Text style={styles.label}>Wickeltisch vorhanden?</Text><Text style={styles.micro}>Nur einschalten, wenn ihr euch sicher seid.</Text></View>
-          <Switch value={changing} onValueChange={setChanging} trackColor={{true:C.teal}}/>
+          <Switch accessibilityLabel="Wickeltisch vorhanden" accessibilityRole="switch" value={changing} onValueChange={setChanging} trackColor={{true:C.teal}}/>
         </View>
         <Pressable accessibilityRole="button" onPress={submitPlace} style={[styles.mainBtn,{marginTop:17}]}>
           <Text style={styles.mainBtnText}>Ort zur Prüfung einreichen</Text>
