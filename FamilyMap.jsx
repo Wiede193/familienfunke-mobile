@@ -1,5 +1,5 @@
 import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {AccessibilityInfo,ActivityIndicator,Alert,Linking,Pressable,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
+import {AccessibilityInfo,ActivityIndicator,Alert,Keyboard,Linking,Pressable,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
 import {WebView} from 'react-native-webview';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
@@ -115,6 +115,8 @@ function inGermany(lat,lon){
 }
 export default function FamilyMapScreen({userId,active,addPlace}){
   const map=useRef(null);
+  const scroll=useRef(null);
+  const mapOffset=useRef(0);
   const [ready,setReady]=useState(false);
   const [mapError,setMapError]=useState('');
   const [center,setCenter]=useState({latitude:51.2,longitude:10.45,zoom:5.3});
@@ -137,6 +139,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
   const [selectedId,setSelectedId]=useState(null);
   const [notice,setNotice]=useState('');
   const [placeQuery,setPlaceQuery]=useState('');
+  const [selectedSearchId,setSelectedSearchId]=useState(null);
 
   const fetchCommunity=useCallback(async()=>{
     if(!supabase||!userId)return;
@@ -163,8 +166,24 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     centers:CENTERS,curated:CURATED_FAMILY_PLACES,national:NATIONAL_FAMILY_PLACES,
     community,osm
   }),[placeQuery,community,osm]);
+  const selectedSearchMatch=locationMatches.find(match=>match.id===selectedSearchId)||null;
   const selected=all.find(p=>p.id===selectedId)||null;
   useEffect(()=>{if(ready)map.current?.injectJavaScript(pinSetScript(all));},[all,ready]);
+  useEffect(()=>{
+    if(!ready)return;
+    const active=placeQuery.trim().length>=2;
+    map.current?.injectJavaScript(mapScript('setSearchResults',{
+      active,selectedId:selectedSearchId,
+      items:locationMatches.map(({id,title,latitude,longitude})=>({id,title,latitude,longitude}))
+    }));
+    if(!active||!locationMatches.length)return;
+    // Debounce fitting: the pins update immediately, but typing does not cause a jump every keystroke.
+    const timer=setTimeout(()=>map.current?.injectJavaScript(mapScript('fitSearchResults')),320);
+    return ()=>clearTimeout(timer);
+  },[ready,placeQuery,locationMatches]);
+  useEffect(()=>{
+    if(ready)map.current?.injectJavaScript(mapScript('setSearchSelection',selectedSearchId));
+  },[ready,selectedSearchId]);
   useEffect(()=>{
     if(ready)map.current?.injectJavaScript(mapScript('setDraft',draftPoint));
   },[draftPoint,ready]);
@@ -230,7 +249,13 @@ export default function FamilyMapScreen({userId,active,addPlace}){
         setLongitudeInput(String(longitude));
         setSelectedId(null);
       }
-    }else if(value.type==='pin')setSelectedId(value.id);
+    }else if(value.type==='searchPin'&&typeof value.id==='string'){
+      const match=locationMatches.find(x=>x.id===value.id);
+      if(match)selectSearchedLocation(match);
+    }else if(value.type==='pin'&&all.some(p=>p.id===value.id)){
+      setSelectedId(value.id);
+      scroll.current?.scrollTo({y:Math.max(0,mapOffset.current-12),animated:false});
+    }
   }
   function markCoordinates(){
     const latitude=Number(latitudeInput.trim().replace(',', '.'));
@@ -279,7 +304,9 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     );
   }
   function selectSearchedLocation(match){
-    setPlaceQuery('');
+    setSelectedSearchId(match.id);
+    Keyboard.dismiss();
+    scroll.current?.scrollTo({y:Math.max(0,mapOffset.current-12),animated:false});
     AccessibilityInfo.announceForAccessibility(match.source==='city'
       ?'Stadt '+match.title+' ausgewählt. Hier nach Orten suchen ist unter der Karte verfügbar.'
       :match.title+' ausgewählt. Die Ortsdetails stehen weiter unten.');
@@ -307,7 +334,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
     try{await Linking.openURL(url);}
     catch{Alert.alert('Karten-App nicht erreichbar','Der Kartendienst konnte nicht geöffnet werden. Bitte versuche es erneut.');}
   }
-  return <ScrollView style={styles.page} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+  return <ScrollView ref={scroll} style={styles.page} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
     <View style={styles.hero}><Text style={styles.eyebrow}>FAMILIENFUNKE ENTDECKT DEUTSCHLAND</Text>
       <Text style={styles.title}>Familienkarte ♡</Text>
       <Text style={styles.sub}>Spielplätze, Wickelmöglichkeiten in Restaurants und Cafés sowie Ausflugsziele – direkt auf der Karte entdecken.</Text>
@@ -319,7 +346,7 @@ export default function FamilyMapScreen({userId,active,addPlace}){
         Die Suche läuft auf deinem Gerät; Straßenadressen werden hier nicht nachgeschlagen.
       </Text>
       <TextInput accessibilityLabel="Stadt oder Ausflugsziel suchen"
-        value={placeQuery} onChangeText={setPlaceQuery}
+        value={placeQuery} onChangeText={value=>{setPlaceQuery(value);setSelectedSearchId(null);setSelectedId(null);}}
         style={styles.field} placeholder="z. B. Berlin, Storkow, Europa-Park"
         placeholderTextColor={C.muted} maxLength={80}
         autoCorrect={false} returnKeyType="search"/>
