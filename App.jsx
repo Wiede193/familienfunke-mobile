@@ -1132,23 +1132,28 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const shownImage=gallery[Math.min(galleryIndex,Math.max(0,gallery.length-1))]?.uri;
   return <ScrollView ref={marketScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <H sub="Kinderkleidung, Spielzeug und vieles mehr – direkt von Familien in deiner Nähe.">Familienbasar</H>
-    {!open&&!boxOpen&&!selectedListing?<View style={styles.marketBoxHero}>
-      <Text style={styles.marketBoxEyebrow}>DAS BESONDERE AN FAMILIENFUNKE</Text>
-      <Text style={styles.marketBoxHeroTitle}>Eine Kleiderkiste. Ein Foto. Viele Artikel.</Text>
-      <Text style={[styles.body,{marginTop:8,marginBottom:14}]}>Lege bis zu zehn Kleidungsstücke nebeneinander. Unsere freiwillige KI-Erkennung erstellt daraus einzelne Entwürfe und hilft dir, passende Pakete zusammenzustellen.</Text>
-      <Row style={{flexWrap:'wrap',gap:7,marginBottom:15}}>
-        {['1 · Fotografieren','2 · Angaben prüfen','3 · Paket anbieten'].map(step=><View key={step} style={styles.marketBoxStep}><Text style={[styles.micro,{fontWeight:'800',color:C.accentDark}]}>{step}</Text></View>)}
-      </Row>
-      <Button title={boxDrafts.length?'Kleiderkiste fortsetzen ('+boxDrafts.length+' Teile)':'＋ Kleiderkiste fotografieren'} disabled={!active||busy||choosing||scanBusy||boxStorage!=='ready'} onPress={showBox}/>
-      <Text style={[styles.micro,{marginTop:10}]}>KI-Vorschläge bitte kontrollieren: Größen, Marken und Zustand werden nicht geraten. Je nach Foto sind weitere Verkaufsbilder erforderlich.</Text>
+    {!open&&!boxOpen&&!selectedListing?<View style={{marginBottom:16}}>
+      <Text style={styles.sectionTitle}>Was möchtest du anbieten?</Text>
+      <Text style={[styles.micro,{marginBottom:11}]}>Zwei gleichwertige Wege: einzeln einstellen oder viele Kleidungsstücke auf einmal erfassen.</Text>
+      <View style={styles.marketEntryCard}>
+        <Text style={styles.marketEntryTitle}>Einzelartikel verkaufen</Text>
+        <Text style={[styles.body,{marginTop:5,marginBottom:13}]}>Ein Foto, ein Artikel: zum Beispiel ein Kinderfahrrad, Spielzeug oder eine Jacke. Auf Wunsch hilft die KI beim Steckbrief.</Text>
+        <Button title="＋ Einzelartikel einstellen" disabled={!active||busy||choosing||scanBusy} onPress={startQuick}/>
+      </View>
+      <View style={styles.marketEntryCard}>
+        <Text style={styles.marketEntryTitle}>Kleiderkiste & Pakete verkaufen</Text>
+        <Text style={[styles.body,{marginTop:5,marginBottom:13}]}>Bis zu zehn Kleidungsstücke auf einem Übersichtsbild erfassen. Die KI erstellt überprüfbare Entwürfe. Du entscheidest, was einzeln oder als Paket angeboten wird.</Text>
+        <Button title={boxDrafts.length?'Kleiderkiste fortsetzen ('+boxDrafts.length+' Teile)':'＋ Kleiderkiste fotografieren'} disabled={!active||busy||choosing||scanBusy||boxStorage!=='ready'} onPress={showBox}/>
+      </View>
+      <Text style={[styles.micro,{marginTop:9}]}>KI-Ergebnisse sind Vorschläge und müssen geprüft werden. Je nach Foto sind weitere Verkaufsbilder nötig.</Text>
     </View>:null}
     <Info>{SECTION_MESSAGES.market}</Info>
     <View style={styles.marketTopActions}>
       <View style={{flex:1}}>
-        <Text style={styles.marketTopTitle}>Stöbern oder einzeln einstellen</Text>
+        <Text style={styles.marketTopTitle}>Angebote entdecken</Text>
         <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
       </View>
-      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':'＋ Einzelteil'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){resetForm();setOpen(false);}else{startQuick();}}}/>
+      {boxEditor||boxOpen||open?<Button title={boxEditor?'‹ Zur Kiste':'Schließen'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else{resetForm();setOpen(false);}}}/>:null}
     </View>
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
     <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
@@ -2037,10 +2042,8 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 }
 const styles=StyleSheet.create({
 
-marketBoxHero:{backgroundColor:'#FFF0C7',borderRadius:22,padding:18,borderWidth:1,borderColor:'#F2D999',marginBottom:15},
-marketBoxEyebrow:{fontSize:11,fontWeight:'900',color:C.accentDark,letterSpacing:1},
-marketBoxHeroTitle:{fontSize:24,lineHeight:29,fontWeight:'900',color:C.ink,marginTop:6},
-marketBoxStep:{backgroundColor:C.white,borderRadius:999,paddingHorizontal:10,paddingVertical:7,borderWidth:1,borderColor:'#E7D7AA'},
+marketEntryCard:{backgroundColor:'#FFF0C7',borderRadius:19,padding:16,borderWidth:1,borderColor:'#F2D999',marginBottom:11},
+marketEntryTitle:{fontSize:19,lineHeight:24,fontWeight:'900',color:C.ink},
 marketTopActions:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:C.white,padding:15,borderRadius:20,borderWidth:1,borderColor:C.line,marginBottom:17},
 marketTopTitle:{fontSize:17,fontWeight:'900',color:C.ink,marginBottom:3},
 marketDropdown:{minHeight:50,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:15,paddingVertical:10,backgroundColor:C.white,borderRadius:14,borderWidth:1,borderColor:'#D0DFDE'},
