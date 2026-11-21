@@ -1132,13 +1132,23 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const shownImage=gallery[Math.min(galleryIndex,Math.max(0,gallery.length-1))]?.uri;
   return <ScrollView ref={marketScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <H sub="Kinderkleidung, Spielzeug und vieles mehr – direkt von Familien in deiner Nähe.">Familienbasar</H>
+    {!open&&!boxOpen&&!selectedListing?<View style={styles.marketBoxHero}>
+      <Text style={styles.marketBoxEyebrow}>DAS BESONDERE AN FAMILIENFUNKE</Text>
+      <Text style={styles.marketBoxHeroTitle}>Eine Kleiderkiste. Ein Foto. Viele Artikel.</Text>
+      <Text style={[styles.body,{marginTop:8,marginBottom:14}]}>Lege bis zu zehn Kleidungsstücke nebeneinander. Unsere freiwillige KI-Erkennung erstellt daraus einzelne Entwürfe und hilft dir, passende Pakete zusammenzustellen.</Text>
+      <Row style={{flexWrap:'wrap',gap:7,marginBottom:15}}>
+        {['1 · Fotografieren','2 · Angaben prüfen','3 · Paket anbieten'].map(step=><View key={step} style={styles.marketBoxStep}><Text style={[styles.micro,{fontWeight:'800',color:C.accentDark}]}>{step}</Text></View>)}
+      </Row>
+      <Button title={boxDrafts.length?'Kleiderkiste fortsetzen ('+boxDrafts.length+' Teile)':'＋ Kleiderkiste fotografieren'} disabled={!active||busy||choosing||scanBusy||boxStorage!=='ready'} onPress={showBox}/>
+      <Text style={[styles.micro,{marginTop:10}]}>KI-Vorschläge bitte kontrollieren: Größen, Marken und Zustand werden nicht geraten. Je nach Foto sind weitere Verkaufsbilder erforderlich.</Text>
+    </View>:null}
     <Info>{SECTION_MESSAGES.market}</Info>
     <View style={styles.marketTopActions}>
       <View style={{flex:1}}>
-        <Text style={styles.marketTopTitle}>Entdecken & weitergeben</Text>
+        <Text style={styles.marketTopTitle}>Stöbern oder einzeln einstellen</Text>
         <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
       </View>
-      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){resetForm();setOpen(false);}else{startQuick();}}}/>
+      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':'＋ Einzelteil'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){resetForm();setOpen(false);}else{startQuick();}}}/>
     </View>
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
     <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
@@ -1151,11 +1161,6 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         mode={onlyFavorites?'primary':'outline'} small
         onPress={()=>{setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
-    {!open&&!boxOpen&&active?<Card style={{marginBottom:15,backgroundColor:'#FFF4DA'}}>
-      <Text style={styles.sectionTitle}>Kistenmodus</Text>
-      <Text style={[styles.micro,{marginBottom:10}]}>Viele Sachen auf einmal erfassen. Ein Foto, mehrere Entwürfe – einzeln oder im Paket.</Text>
-      <Button title={boxDrafts.length?'Kiste weiterbearbeiten ('+boxDrafts.length+')':'✦ Kiste erfassen'} disabled={busy||choosing||scanBusy||boxStorage==='loading'} onPress={showBox}/>
-    </Card>:null}
     {boxOpen&&boxPending?<Card style={{marginBottom:18,backgroundColor:'#FFF4DA'}}>
       <Text style={styles.sectionTitle}>Unterbrochene Einreichung</Text>
       <Text style={[styles.body,{marginBottom:12}]}>Wir prüfen zuerst, ob deine Anzeige bereits beim Server angekommen ist. So werden dieselben Artikel nicht versehentlich zweimal eingestellt.</Text>
@@ -2032,6 +2037,10 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 }
 const styles=StyleSheet.create({
 
+marketBoxHero:{backgroundColor:'#FFF0C7',borderRadius:22,padding:18,borderWidth:1,borderColor:'#F2D999',marginBottom:15},
+marketBoxEyebrow:{fontSize:11,fontWeight:'900',color:C.accentDark,letterSpacing:1},
+marketBoxHeroTitle:{fontSize:24,lineHeight:29,fontWeight:'900',color:C.ink,marginTop:6},
+marketBoxStep:{backgroundColor:C.white,borderRadius:999,paddingHorizontal:10,paddingVertical:7,borderWidth:1,borderColor:'#E7D7AA'},
 marketTopActions:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:C.white,padding:15,borderRadius:20,borderWidth:1,borderColor:C.line,marginBottom:17},
 marketTopTitle:{fontSize:17,fontWeight:'900',color:C.ink,marginBottom:3},
 marketDropdown:{minHeight:50,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:15,paddingVertical:10,backgroundColor:C.white,borderRadius:14,borderWidth:1,borderColor:'#D0DFDE'},
