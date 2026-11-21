@@ -19,6 +19,7 @@ import {compactBoxDetail,summarizeBox,packageNote,packagePersonalLimit,parsePack
 import {keepBoxPhoto,availableBoxPhoto,loadBoxSnapshot,saveBoxSnapshot,deleteBoxStorage,makeBoxCrop} from './MarketBoxStorage';
 import { cropBounds,suggestedCrop,changeCrop,pixelCrop,photoIssues,PHOTO_ISSUES } from './MarketBoxCrop';
 import {suggestBoxPackages,packageCheck} from './MarketBoxSuggestions';
+import {marketListingSizes,marketMatchesSize,marketMatchesRegion} from './MarketListingFilters';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = {
 bg:'#FFF9F3',white:'#FFFFFF',ink:'#193C48',muted:'#647D82',
@@ -620,10 +621,10 @@ async function selectMarketPhotos(max=5){
  return result.canceled?[]:(result.assets||[]).slice(0,Math.max(1,Math.min(5,max)));
 }
 
-function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
+function MarketCategoryDropdown({label,value,onChange,options,allOption=false,allLabel='Alle Kategorien'}){
   const [expanded,setExpanded]=useState(false);
-  const items=allOption?['Alle Kategorien',...options]:options;
-  const selected=value==='Alle'?'Alle Kategorien':value;
+  const items=allOption?[allLabel,...options]:options;
+  const selected=value==='Alle'?allLabel:value;
   return <View style={{marginBottom:13}}>
     <Text style={styles.label}>{label}</Text>
     <Pressable accessibilityRole="button" accessibilityLabel={label+': '+selected}
@@ -635,7 +636,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
     {expanded?<View style={styles.marketDropdownOptions}>
       {items.map(option=><Pressable accessibilityRole="button" key={option}
         accessibilityState={{selected:option===selected}} style={styles.marketDropdownOption}
-        onPress={()=>{onChange(option==='Alle Kategorien'?'Alle':option);setExpanded(false);}}>
+        onPress={()=>{onChange(allOption&&option===allLabel?'Alle':option);setExpanded(false);}}>
         <Text style={[styles.body,option===selected&&{color:C.accentDark,fontWeight:'900'}]}>{option}</Text>
         {option===selected?<Text style={{color:C.accentDark,fontWeight:'900'}}>✓</Text>:null}
       </Pressable>)}
@@ -646,6 +647,8 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
   const [open,setOpen]=useState(false);
   const [query,setQuery]=useState('');
   const [filter,setFilter]=useState('Alle');
+  const [sizeFilter,setSizeFilter]=useState('Alle');
+  const [placeFilter,setPlaceFilter]=useState('Alle');
   const [tradeFilter,setTradeFilter]=useState('all');
   const [sortBy,setSortBy]=useState('newest');
   const [minPrice,setMinPrice]=useState('');
@@ -787,10 +790,22 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     return raw!==''&&Number.isFinite(Number(raw))?Math.round(Number(raw)*100):null;
   };
   const minimum=parsePrice(minPrice), maximum=parsePrice(maxPrice);
+  const availableListings=listings.filter(x=>x.moderation_status==='approved'||x.seller_id===me);
+  const sizeOptions=[...new Set(availableListings.flatMap(marketListingSizes))].sort((a,b)=>a.localeCompare(b,'de',{numeric:true}));
+  const placeOptions=[...new Set(availableListings.map(x=>String(x.region_label||'').trim()).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,'de',{numeric:true}));
+  const activeFilterCount=Number(filter!=='Alle')+Number(sizeFilter!=='Alle')+Number(placeFilter!=='Alle')
+    +Number(tradeFilter!=='all')+Number(!!minPrice.trim())+Number(!!maxPrice.trim());
+  function resetMarketFilters(){
+    setFilter('Alle');setSizeFilter('Alle');setPlaceFilter('Alle');setTradeFilter('all');
+    setMinPrice('');setMaxPrice('');setSortBy('newest');setQuery('');
+  }
   const filtered=listings.filter(x=>
     ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
     && !blocked(x.seller_id)
     && (filter==='Alle'||x.category===filter)
+    && marketMatchesSize(x,sizeFilter)
+    && marketMatchesRegion(x,placeFilter)
     && (tradeFilter==='all'||x.trade_type===tradeFilter)
     && (minimum===null||(x.trade_type==='sell'&&x.price_cents>=minimum))
     && (maximum===null||(x.trade_type==='sell'&&x.price_cents<=maximum))
@@ -1158,13 +1173,13 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
     {!open&&!boxOpen&&!selectedListing?<View style={{flexDirection:'row',gap:7,marginBottom:16}}>
       <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
-        onPress={()=>{setOnlyMine(false);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
+        onPress={()=>{setOnlyMine(false);setOnlyFavorites(false);setSelectedListing(null);resetMarketFilters();}}/></View>
       <View style={{flex:1}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+')'}
         mode={onlyMine?'primary':'outline'} small
-        onPress={()=>{setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
+        onPress={()=>{setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);resetMarketFilters();}}/></View>
       <View style={{flex:1}}><Button title={'♡ Merkliste ('+favorites.filter(f=>listings.some(x=>x.id===f.listing_id&&x.moderation_status==='approved')).length+')'}
         mode={onlyFavorites?'primary':'outline'} small
-        onPress={()=>{setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
+        onPress={()=>{setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);resetMarketFilters();}}/></View>
     </View>:null}
     {boxOpen&&boxPending?<Card style={{marginBottom:18,backgroundColor:'#FFF4DA'}}>
       <Text style={styles.sectionTitle}>Unterbrochene Einreichung</Text>
@@ -1540,13 +1555,18 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       <View style={styles.marketFilters}>
         <Pressable accessibilityRole="button" accessibilityState={{expanded:filterOpen}} onPress={()=>setFilterOpen(v=>!v)}
           style={[styles.marketFilterToggle,filterOpen&&{borderColor:C.accent}]}>
-          <Text style={styles.marketFilterLabel}>⚙  Filter {filterOpen?'ausblenden':'anzeigen'}</Text>
+          <Text style={styles.marketFilterLabel}>⚙  Filter{activeFilterCount?' ('+activeFilterCount+')':''} {filterOpen?'ausblenden':'anzeigen'}</Text>
         </Pressable>
         <View style={{flex:1}}>
           <MarketSortSelect value={sortBy} onChange={setSortBy}/>
         </View>
       </View>
       {filterOpen?<Card style={{marginBottom:15,padding:15}}>
+        <MarketCategoryDropdown label="Kindergröße (laut Anzeige)" value={sizeFilter}
+          onChange={setSizeFilter} options={sizeOptions} allOption allLabel="Alle Größen"/>
+        <MarketCategoryDropdown label="Ort / Region" value={placeFilter}
+          onChange={setPlaceFilter} options={placeOptions} allOption allLabel="Alle Orte"/>
+        <Text style={[styles.micro,{marginBottom:13}]}>Nur ausdrücklich genannte Größen und Anbieterorte. Der Ortsfilter misst keine Kilometer oder Entfernungen.</Text>
         <Text style={styles.label}>Art des Angebots</Text>
         <View style={[styles.chipsRow,{marginTop:0,marginBottom:14}]}>
           {[['all','Alle'],['sell','Verkaufen'],['gift','Verschenken'],['swap','Tauschen']].map(([id,label])=>
@@ -1556,14 +1576,17 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           <View style={{flex:1}}><Input label="Preis ab (€)" value={minPrice} onChangeText={setMinPrice} keyboardType="decimal-pad" placeholder="0"/></View>
           <View style={{flex:1}}><Input label="Preis bis (€)" value={maxPrice} onChangeText={setMaxPrice} keyboardType="decimal-pad" placeholder="100"/></View>
         </Row>
-        <Button mode="ghost" title="Filter zurücksetzen" small
-          onPress={()=>{setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');setSortBy('newest');}}/>
+        <Button mode="ghost" title="Suche und Filter zurücksetzen" small onPress={resetMarketFilters}/>
       </Card>:null}
       <Row style={{justifyContent:'space-between',marginBottom:12}}>
         <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
         <Text style={styles.micro}>Neu und gebraucht</Text>
       </Row>
-      {shown.length===0?<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>:
+      {listings.length>=160?<Text style={[styles.micro,{marginBottom:9}]}>Die Suche berücksichtigt derzeit nur die geladenen Anzeigen. Weitere Angebote können fehlen.</Text>:null}
+      {shown.length===0?<View>
+        <Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>
+        {(query||activeFilterCount>0)?<Button title="Suche und Filter zurücksetzen" mode="outline" small onPress={resetMarketFilters}/>:null}
+      </View>:
         <View style={styles.marketGrid}>
         {shown.map(x=>{
           const seller=sellerInformation(x);
@@ -1586,6 +1609,7 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
               <Text style={styles.marketTileTitle} numberOfLines={2}>{x.title}</Text>
               {galleryOf(x).length>1?<Text style={[styles.micro,{fontWeight:'800',color:C.accentDark}]}>{galleryOf(x).length} Bilder</Text>:null}
               <Text style={styles.micro} numberOfLines={1}>{x.item_condition} · {x.category}</Text>
+              {marketListingSizes(x).length?<Text style={[styles.micro,{color:C.accentDark}]} numberOfLines={1}>Gr. {marketListingSizes(x).slice(0,3).join(', ')}{marketListingSizes(x).length>3?' …':''}</Text>:null}
               <Text style={[styles.micro,{marginTop:3}]} numberOfLines={1}>⌖ {x.region_label||'Region auf Anfrage'}</Text>
               {seller.org?<Text style={[styles.micro,{marginTop:3,color:C.accentDark}]} numberOfLines={1}>{seller.org.name} ✦</Text>:null}
               {seller.own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{color:x.moderation_status==='sold'?C.accentDark:C.warningText,marginTop:4}]}>{x.moderation_status==='sold'?'Vergeben · nur für dich sichtbar':x.moderation_status==='pending'?'In Prüfung · nur für dich sichtbar':'Nicht veröffentlicht'}</Text>:null}
