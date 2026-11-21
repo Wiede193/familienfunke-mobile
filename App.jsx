@@ -156,7 +156,7 @@ setBusy(false);
 }
 return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
 <ScrollView contentContainerStyle={styles.loginPage} keyboardShouldPersistTaps="handled">
-<View style={styles.loginMark}><Text style={{fontSize:52,color:C.white}}>♥</Text></View>
+<View style={styles.loginMark}><Text style={{fontSize:52,color:"#9A4A43"}}>♥</Text></View>
 <Text style={styles.brand}>Familienfunke<Text style={{color:C.coral}}>.</Text></Text>
 <Text style={styles.tagline}>Aus Nachbarschaft wird Freundschaft.</Text>
 <View style={{height:28}}/>
@@ -258,9 +258,9 @@ setSession(data?.session||null);
 const {data:listener}=supabase.auth.onAuthStateChange((_event,next)=>{if(alive)setSession(next);});
 return ()=>{alive=false;listener.subscription.unsubscribe();};
 },[]);
-// Nach jeder Anmeldung startet Familienfunke im Basar – auch nach einem Kontowechsel.
+// Nach jeder Anmeldung startet Familienfunke auf der KI-Startseite – auch nach Kontowechsel.
 useEffect(()=>{
-  setTab('market');
+  setTab('home');
   setSelectedContact(null);
   setDetailFamily(null);
   setShowInfo(false);
@@ -2195,11 +2195,11 @@ scroll:{flex:1},content:{padding:19,paddingBottom:40},
 brand:{fontSize:33,fontWeight:'900',color:C.ink,letterSpacing:-1.15,textAlign:'center'},
 smallBrand:{fontSize:19,fontWeight:'900',color:C.ink,letterSpacing:-.7},tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:9},
 loginPage:{flexGrow:1,alignItems:'center',justifyContent:'center',padding:20,backgroundColor:C.bg},
-loginMark:{width:95,height:95,borderRadius:31,backgroundColor:C.coral,alignItems:'center',justifyContent:'center',marginBottom:22,transform:[{rotate:'-7deg'}]},
+loginMark:{width:95,height:95,borderRadius:31,backgroundColor:'#F7C65B',alignItems:'center',justifyContent:'center',marginBottom:22,transform:[{rotate:'-7deg'}]},
 topBar:{minHeight:74,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:19,flexDirection:'row',alignItems:'center',gap:10,paddingVertical:8},
 headerIdentity:{flex:1,flexDirection:'row',alignItems:'center',gap:10},
-headerHeartBadge:{width:37,height:37,borderRadius:13,backgroundColor:C.coral,alignItems:'center',justifyContent:'center'},
-headerHeart:{fontSize:21,fontWeight:'900',color:C.white},
+headerHeartBadge:{width:37,height:37,borderRadius:13,backgroundColor:'#F7CB66',alignItems:'center',justifyContent:'center'},
+headerHeart:{fontSize:21,fontWeight:'900',color:'#9A4A43'},
 topHint:{fontSize:12,color:C.muted,marginTop:1,fontWeight:'600'},
 card:{backgroundColor:C.white,borderRadius:25,padding:18,borderColor:C.line,borderWidth:1,shadowColor:'#C28368',shadowOpacity:0.07,shadowRadius:11,shadowOffset:{width:0,height:3},elevation:2},
 hero:{backgroundColor:C.accentDark,borderRadius:29,paddingHorizontal:23,paddingVertical:27,marginBottom:25,overflow:'hidden',minHeight:238},
@@ -2232,7 +2232,7 @@ warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
 tabBar:{height:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
-tab:{flex:1,alignItems:'center',paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.pale},tabIcon:{fontSize:25,color:'#8E9FA4',fontWeight:'500'},tabLabel:{fontSize:10,color:'#8E9FA4',marginTop:3,fontWeight:'600'},
+tab:{flex:1,alignItems:'center',paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:'#FFF0C9'},tabIcon:{fontSize:25,color:'#8E9FA4',fontWeight:'500'},tabLabel:{fontSize:10,color:'#8E9FA4',marginTop:3,fontWeight:'600'},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},

@@ -1,16 +1,16 @@
 // Only real, currently navigable areas are advertised. A match opens the actual screen.
 export const HOME_ROUTES = [
-  {id:'box',title:'Kiste mit KI erfassen',subtitle:'Mehrere Kleidungsstücke fotografieren und Pakete anbieten',words:'kiste kistenmodus paket kleidungspaket mehrere teile gruppenfoto foto erkennen scannen paketverkauf'},
-  {id:'sell',title:'Artikel verkaufen',subtitle:'Einzelne Anzeige mit Foto und Beschreibung erstellen',words:'verkaufen inserieren anzeige artikel hochladen einstellen schnellverkauf'},
-  {id:'market',title:'Familienbasar durchsuchen',subtitle:'Kaufen, tauschen, verschenken und Angebote finden',words:'flohmarkt basar kaufen secondhand suchen artikel finden angebot preis verschenken tauschen merkliste'},
-  {id:'discover',title:'Familien in der Nähe',subtitle:'Andere Familien nach Region und Interessen kennenlernen',words:'familie familien menschen eltern finden kennenlernen kontakte tinder entdecken in der naehe'},
-  {id:'map',title:'Familienkarte',subtitle:'Spielplätze und Ausflugsziele auf der Karte entdecken',words:'karte spielplatz spielplaetze ausflug ausflugsziele ort in der naehe'},
+  {id:'box',title:'Kiste mit KI erfassen',subtitle:'Mehrere Kleidungsstücke fotografieren und Pakete anbieten',words:'kiste kistenmodus paket kleidungspaket mehrere teile gruppenfoto foto erkennen scannen paketverkauf kleidung sortieren mehrere sachen flohmarktkiste'},
+  {id:'sell',title:'Artikel verkaufen',subtitle:'Einzelne Anzeige mit Foto und Beschreibung erstellen',words:'verkaufen inserieren anzeige artikel hochladen einstellen schnellverkauf verkaufsanzeige annoncen neu erstellen'},
+  {id:'market',title:'Familienbasar durchsuchen',subtitle:'Kaufen, tauschen, verschenken und Angebote finden',words:'flohmarkt basar kaufen secondhand suchen artikel finden angebot preis verschenken tauschen merkliste kinderwagen kinderkleidung schuhe bücher spielzeug möbel'},
+  {id:'discover',title:'Familien in der Nähe',subtitle:'Andere Familien nach Region und Interessen kennenlernen',words:'familie familien menschen eltern finden kennenlernen kontakte tinder entdecken in der naehe umkreis kennenlernen vernetzen neue freunde person personen umgebung naehe nahe'},
+  {id:'map',title:'Familienkarte',subtitle:'Spielplätze und Ausflugsziele auf der Karte entdecken',words:'karte spielplatz spielplaetze ausflug ausflugsziele ort in der naehe parks spielorte spielmoeglichkeiten'},
   {id:'guide',title:'Familienwegweiser',subtitle:'Dauerhafte Tipps und Ziele für Familien',words:'wegweiser ratgeber ausflug freizeit elternwissen region unternehmungen'},
   {id:'events',title:'Treffen & Veranstaltungen',subtitle:'Gemeinsame Aktivitäten finden und planen',words:'veranstaltung termin treffen event kindergeburtstag ausmachen'},
   {id:'contacts',title:'Kontakte & Nachrichten',subtitle:'Anfragen und private Gespräche verwalten',words:'chat nachricht anschreiben kontakt freundschaft einladung'},
-  {id:'profile',title:'Mein Familienprofil',subtitle:'Hobbys, Fotos, Region und Sichtbarkeit anpassen',words:'profil bearbeiten hobby hobbies interessen datenschutz privatsphaere einstellen'},
-  {id:'partners',title:'Kitas & Partnerwelt',subtitle:'Kindergärten, Vereine und Kita-Flohmärkte',words:'kita kindergarten einrichtung partner foerderverein verein'},
-  {id:'help',title:'Hilfe & FAQ',subtitle:'Anleitungen zur Bedienung von Familienfunke',words:'hilfe fragen faq problem anleitung app funktioniert'},
+  {id:'profile',title:'Mein Familienprofil',subtitle:'Hobbys, Fotos, Region und Sichtbarkeit anpassen',words:'profil bearbeiten hobby hobbies interessen datenschutz privatsphaere einstellen passwort konto account sichtbarkeit foto einstellungen'},
+  {id:'partners',title:'Kitas & Partnerwelt',subtitle:'Kindergärten, Vereine und Kita-Flohmärkte',words:'kita kindergarten einrichtung partner foerderverein verein kitaflohmarkt betreuung'},
+  {id:'help',title:'Hilfe & FAQ',subtitle:'Anleitungen zur Bedienung von Familienfunke',words:'hilfe fragen faq problem anleitung app funktioniert fehler support zugang loeschen konto kuendigen'},
   {id:'inclusion',title:'Familien & Inklusion',subtitle:'Informationen zur Teilhabe und zu geplanten Angeboten',words:'inklusion teilhabe barrierefreiheit unterstuetzung'}
 ];
 export const HOME_PAGE_IDS = HOME_ROUTES.map(x=>x.id);
@@ -19,6 +19,8 @@ const STOP=new Set(['ich','du','die','der','das','und','oder','ein','eine','mit'
 // Product descriptions should open the marketplace, not the general app FAQ.
 export function looksLikeMarketProductQuery(value){
  const n=normalize(value);
+ // A selling intent must open the create-ad workflow, not a buyer search.
+ if(/\b(verkaufen|inserieren|einstellen|anbieten|verschenken)\b/.test(n))return false;
  const product=/(jeans|hose|jacke|pullover|body|strampler|schuh|kleid|t shirt|shirt|leggings|spielzeug|kinderwagen|kindersitz|buggy|fahrrad|buch|bücher|moebel|möbel)/.test(n);
  const attribute=/(blau|rot|grun|gruen|gelb|schwarz|weiß|weiss|rosa|größe|groesse|gross|grosse|kaufen|suche|suchen|finden|preis|grosse|hundert|\b\d{2,3}\b)/.test(n);
  return product&&attribute;
