@@ -154,7 +154,7 @@ declare correct text;
 begin
   if p_timestamp is null or p_signature is null
     or length(p_signature)<>64
-    or abs(pg_catalog.extract(epoch from clock_timestamp())-p_timestamp)>90
+    or abs(extract(epoch from clock_timestamp())-p_timestamp)>90
     then return false; end if;
   select private.ff_market_review_sign(p_timestamp) into correct;
   if correct is null or correct<>p_signature then return false; end if;
