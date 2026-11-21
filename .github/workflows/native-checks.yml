@@ -31,6 +31,8 @@ jobs:
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen
         run: npm run check:market-search
+      - name: KI-Freigabe und Fehlerbehandlung prüfen
+        run: npm run check:market-auto-review
       - name: iOS-Bundle erstellen
         run: npx expo export --platform ios --output-dir dist/ios
       - name: Android-Bundle erstellen
