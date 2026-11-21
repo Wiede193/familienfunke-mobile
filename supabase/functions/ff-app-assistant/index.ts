@@ -1,5 +1,18 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import {withSupabase} from "npm:@supabase/server@^1";
+// Record only token counts. Never log content or identities.
+async function trackAI(db:any,day:string,service:string,model:string,stage:"attempt"|"measured",usage?:any){
+ try{
+  const {data,error}=await db.rpc("ff_ai_usage_record",{
+   p_day:day,p_service:service,p_model:model,p_stage:stage,
+   p_input:stage==="measured"?usage?.prompt_tokens??null:0,
+   p_output:stage==="measured"?usage?.completion_tokens??null:0,
+   p_cached:stage==="measured"?usage?.prompt_tokens_details?.cached_tokens??0:0
+  });
+  if(error||data!==true)console.warn("AI usage counter unavailable",service,stage);
+ }catch{console.warn("AI usage counter unavailable",service,stage);}
+}
+
 
 // Familienfunke KI-Hilfe: private questions are not saved in our database.
 // The model only knows static public app features; it cannot read or mutate user data.
@@ -61,6 +74,9 @@ export default {
    if(quota==="forbidden")return response({error:"Konto nicht berechtigt."},403);
    if(quota!=="ok")return response({error:"Tageskontingent erreicht."},429);
    try{
+    const usageDay=new Date().toISOString().slice(0,10);
+    const usageModel="gpt-4o-mini";
+    await trackAI(ctx.supabaseAdmin,usageDay,"assistant",usageModel,"attempt");
      const call=await fetch("https://api.openai.com/v1/chat/completions",{
        method:"POST",signal:AbortSignal.timeout(25000),
        headers:{"Authorization":"Bearer "+key,"Content-Type":"application/json"},
@@ -71,7 +87,9 @@ export default {
        })
      });
      if(!call.ok)return response({error:"Die KI-Hilfe ist vorübergehend nicht erreichbar."},503);
-     const json=await call.json(),choice=json.choices?.[0];
+     const json=await call.json();
+     await trackAI(ctx.supabaseAdmin,usageDay,"assistant",usageModel,"measured",json.usage);
+     const choice=json.choices?.[0];
      if(choice?.finish_reason!=="stop"||choice?.message?.refusal||typeof choice?.message?.content!=="string")
        return response({error:"Keine sichere Antwort verfügbar."},422);
      const parsed=JSON.parse(choice.message.content);
