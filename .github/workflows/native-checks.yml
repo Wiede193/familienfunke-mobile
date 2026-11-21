@@ -45,6 +45,8 @@ jobs:
         run: npm run check:ai-usage
       - name: Freiwillige private Push-Benachrichtigungen prüfen
         run: npm run check:push
+      - name: Benachrichtigungszentrale und Löschrechte prüfen
+        run: npm run check:inbox
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen
