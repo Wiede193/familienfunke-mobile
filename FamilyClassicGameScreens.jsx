@@ -67,18 +67,18 @@ export function SudokuGame({level}){
  </View>;
 }
 export function WordGame({level}){
- const [game,update]=useGame(()=>newWord(level)),seen=useRef([]);const answer=wordText(game),won=wordWon(game),full=game.selected.length===game.tiles.length;
- function next(){seen.current.push(game.id);update(()=>newWord(level,Math.random,seen.current));}
+ const [game,update]=useGame(()=>newWord(level)),seen=useRef(new Set()),[revealed,setRevealed]=useState(false);const answer=wordText(game),won=wordWon(game),full=game.selected.length===game.tiles.length,finished=won||revealed;
+ function next(){seen.current.add(game.id);if(seen.current.size>=12)seen.current.clear();update(()=>newWord(level,Math.random,[...seen.current]));setRevealed(false);}
  return <View style={s.card}>
   <Text accessibilityRole="header" style={s.title}>Wörterrätsel</Text>
   <Text style={s.text}>Sortiere die Buchstaben zu einem passenden Wort. Die Umschreibung hilft dir dabei.</Text>
   <View style={s.note}><Text style={s.heading}>{game.hint}</Text></View>
   <Text accessibilityLiveRegion="polite" style={s.word}>{answer||'Noch keine Buchstaben'}</Text>
-  <View style={s.wrap}>{game.tiles.map(t=><Pressable key={t.id} accessibilityRole="button" accessibilityLabel={'Buchstabe '+t.letter+', Position '+(t.id+1)} accessibilityState={{disabled:game.selected.includes(t.id)||won}} disabled={game.selected.includes(t.id)||won} style={[s.letter,game.selected.includes(t.id)&&{opacity:.25}]} onPress={()=>{const n=update(g=>wordPick(g,t.id));if(wordWon(n))say('Richtig! '+n.word);}}><Text style={s.number}>{t.letter}</Text></Pressable>)}</View>
-  {won?<Text style={s.heading}>Richtig! {game.word}</Text>:full?<Text style={s.text}>Noch nicht richtig. Versuche eine andere Reihenfolge.</Text>:null}
-  <View style={s.wrap}><Action disabled={!game.selected.length||won} onPress={()=>update(wordUndo)}>Zurück</Action><Action disabled={won} onPress={()=>update(g=>({...g,selected:[]}))}>Neu sortieren</Action></View>
-  <Action onPress={()=>{seen.current.push(game.id);if(!won)update(g=>({...g,selected:[...g.word].map((letter,i)=>g.tiles.filter(t=>t.letter===letter)[[...g.word].slice(0,i).filter(x=>x===letter).length].id)}));else next();}}>{won?'Nächstes Wort':'Lösung zeigen'}</Action>
-  {!won?<Action onPress={next}>Überspringen</Action>:null}
+  <View style={s.wrap}>{game.tiles.map(t=><Pressable key={t.id} accessibilityRole="button" accessibilityLabel={'Buchstabe '+t.letter+', Position '+(t.id+1)} accessibilityState={{disabled:game.selected.includes(t.id)||finished}} disabled={game.selected.includes(t.id)||finished} style={[s.letter,game.selected.includes(t.id)&&{opacity:.25}]} onPress={()=>{const n=update(g=>wordPick(g,t.id));if(wordWon(n))say('Richtig! '+n.word);}}><Text style={s.number}>{t.letter}</Text></Pressable>)}</View>
+  {revealed?<Text style={s.heading}>Die Lösung lautet: {game.word}</Text>:won?<Text style={s.heading}>Richtig! {game.word}</Text>:full?<Text style={s.text}>Noch nicht richtig. Versuche eine andere Reihenfolge.</Text>:null}
+  <View style={s.wrap}><Action disabled={!game.selected.length||finished} onPress={()=>update(wordUndo)}>Zurück</Action><Action disabled={finished} onPress={()=>update(g=>({...g,selected:[]}))}>Neu sortieren</Action></View>
+  <Action onPress={()=>{if(finished)next();else {setRevealed(true);say('Die Lösung lautet '+game.word);}}}>{finished?'Nächstes Wort':'Lösung zeigen'}</Action>
+  {!finished?<Action onPress={next}>Überspringen</Action>:null}
  </View>;
 }
 const same=(a,b)=>a&&b&&a.type===b.type&&a.col===b.col&&a.index===b.index;
@@ -102,7 +102,7 @@ export function SolitaireGame(){
  function fresh(){history.current=[];update(newSolitaire);choose(null);setNotice('');}
  return <View style={s.card}>
   <Text accessibilityRole="header" style={s.title}>Solitär – Klondike</Text>
-  <Text style={s.text}>Lege alle Karten auf die vier Zielstapel: Ass bis König, jeweils dieselbe Farbe. In den sieben Spielstapeln folgen die Karten absteigend und abwechselnd rot und schwarz. Leere Spielstapel beginnen mit einem König. Tippe zuerst auf die Karte oder Folge, dann auf den Zielstapel.</Text>
+  <Text style={s.text}>Lege alle Karten auf die vier Zielstapel: Ass bis König, jeweils dasselbe Kartensymbol (Pik, Kreuz, Herz oder Karo). In den sieben Spielstapeln folgen die Karten absteigend und abwechselnd rot und schwarz. Leere Spielstapel beginnen mit einem König. Tippe zuerst auf die Karte oder Folge, dann auf den Zielstapel.</Text>
   <Text style={s.muted}>Eine Karte pro Aufdecken, Nachziehstapel beliebig oft erneut nutzen. Nicht jede zufällige Austeilung ist lösbar. Die Tabelle ist seitlich scrollbar.</Text>
   <Text accessibilityLiveRegion="polite" style={s.heading}>{solitaireWon(game)?'Geschafft – alle Karten abgelegt!':game.foundations.reduce((n,p)=>n+p.length,0)+' von 52 Karten abgelegt · '+game.moves+' Züge'}</Text>
   <View style={s.wrap}><Action disabled={!game.stock.length&&!game.waste.length||solitaireWon(game)} onPress={()=>apply(drawSolitaire(ref.current))}>{game.stock.length?'Aufdecken ('+game.stock.length+')':'Nachziehstapel wenden'}</Action>
