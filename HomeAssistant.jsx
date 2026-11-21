@@ -1,12 +1,16 @@
-import React, {useRef, useState} from 'react';
-import {AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
+import React, {useEffect, useRef, useState} from 'react';
+import {AccessibilityInfo, ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
 
+import {findFamilyMapLocations} from './FamilyMapSearch';
+import {CURATED_FAMILY_PLACES} from './FamilyMapCurated';
+import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
+
 const C=FAMILY_COLORS;
 const FEATURED=['discover','map','market','box'];
-const SUGGESTIONS=['Spielplätze finden','Familien kennenlernen','Profil bearbeiten'];
+const SUGGESTIONS=['Spielplätze finden','Kinderjeans Größe 110','Profil bearbeiten','Wie beschäftige ich Kinder bei Regen?'];
 function SunMark(){
   return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.sunWrap}>
     {Array.from({length:8},(_,i)=><View key={i} style={[s.ray,{
@@ -56,8 +60,8 @@ function AssistantReply({entry,onNavigate}){
       accessibilityLabel="Vorgeschlagenen App-Bereich öffnen"
       onPress={()=>onNavigate(entry.pageId,entry.pageId==='market'?entry.searchQuery||entry.question:'')}
       style={({pressed})=>[s.answerAction,pressed&&s.pressed]}>
-      <Text style={s.answerActionLabel}>Passenden Bereich öffnen</Text>
-      <Text style={s.answerActionLabel}>›</Text>
+      <Text style={s.answerActionLabel}>{HOME_ROUTES.find(x=>x.id===entry.pageId)?.title||'Passenden Bereich öffnen'} ›</Text>
+      
     </Pressable>:null}
   </View>;
 }
@@ -70,8 +74,19 @@ export default function HomeAssistant({onNavigate}){
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
   const scrollRef=useRef(null);
+  const requestSeq=useRef(0),alive=useRef(true),pending=useRef(false);
+  const [searchResult,setSearchResult]=useState(null);
+  const [searchBusy,setSearchBusy]=useState(false);
+  useEffect(()=>{alive.current=true;return()=>{alive.current=false;requestSeq.current++;};},[]);
+  function updateQuestion(value){
+    requestSeq.current++;pending.current=false;
+    setQuestion(value);setSearchResult(null);setSearchBusy(false);setBusy(false);setError('');
+  }
   const needle=question.trim();
   const matches=findHomeRoutes(needle);
+  const places=needle.length>=2?findFamilyMapLocations(needle,{curated:CURATED_FAMILY_PLACES,national:NATIONAL_FAMILY_PLACES},4):[];
+  const marketIntent=looksLikeMarketProductQuery(needle)||matches[0]?.id==='market';
+  const visibleSearch=searchResult?.query===needle?searchResult:null;
   const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
   const moreRoutes=HOME_ROUTES.filter(route=>!FEATURED.includes(route.id));
   function openRoute(route){
@@ -79,7 +94,8 @@ export default function HomeAssistant({onNavigate}){
   }
   async function askAssistant(){
     const prompt=needle.slice(0,600);
-    if(prompt.length<3||busy)return;
+    if(prompt.length<3||pending.current)return;
+    const request=++requestSeq.current;pending.current=true;Keyboard.dismiss();
     setBusy(true);setError('');
     try{
       const history=conversation.slice(0,3).reverse().flatMap(x=>[
@@ -121,106 +137,121 @@ export default function HomeAssistant({onNavigate}){
             }));
         }catch{offersError=true;}
       }
+      if(!alive.current||request!==requestSeq.current)return;
       setConversation(old=>[{
         question:prompt,answer:data.answer.slice(0,1400),
         pageId:route?.id||'',searchQuery,offers,offersError
       },...old].slice(0,6));
-      setQuestion('');
+      scrollRef.current?.scrollTo({y:0,animated:false});
       AccessibilityInfo.announceForAccessibility('Die KI-Antwort ist jetzt verfügbar.');
-    }catch(e){setError(e?.message||'Die KI ist gerade nicht erreichbar.');}
-    finally{setBusy(false);}
+    }catch(e){if(alive.current&&request===requestSeq.current)setError(e?.message||'Die KI ist gerade nicht erreichbar.');}
+    finally{if(alive.current&&request===requestSeq.current){pending.current=false;setBusy(false);}}
+  }
+  async function searchApp(){
+    const query=needle;
+    if(query.length<2||pending.current)return;
+    Keyboard.dismiss();setError('');
+    if(!marketIntent){setSearchResult({query,offers:null});return;}
+    const request=++requestSeq.current;pending.current=true;setSearchBusy(true);
+    try{
+      const {data:rows,error:e}=await supabase.rpc('ff_market_search',{
+        p_query:query.slice(0,160),p_category:'Alle',p_trade_type:'all',
+        p_sort:'relevance',p_limit:5,p_offset:0
+      });
+      if(e||!Array.isArray(rows))throw Error();
+      if(!alive.current||request!==requestSeq.current)return;
+      const offers=rows.filter(row=>row?.listing?.moderation_status==='approved').map(row=>({
+        id:row.listing.id,title:String(row.listing.title||'').slice(0,100),
+        price:row.listing.trade_type==='gift'?'Zu verschenken':row.listing.trade_type==='swap'?'Tausch':
+          (Number(row.listing.price_cents||0)/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'})
+      }));
+      setSearchResult({query,offers});
+      AccessibilityInfo.announceForAccessibility(offers.length+' Basar-Treffer in der Vorschau.');
+    }catch{if(alive.current&&request===requestSeq.current)setError('Basar-Treffer konnten nicht geladen werden. Die direkte Basar-Suche bleibt verfügbar.');}
+    finally{if(alive.current&&request===requestSeq.current){pending.current=false;setSearchBusy(false);}}
   }
   return <ScrollView ref={scrollRef} style={s.page} contentContainerStyle={s.content}
     keyboardShouldPersistTaps="handled">
-    <View style={s.hero}>
-      <View style={s.heroCircleLarge} pointerEvents="none"/>
-      <View style={s.heroCircleSmall} pointerEvents="none"/>
+    <View style={[s.searchCenter,!needle&&!conversation.length&&s.searchCenterIdle]}>
       <SunMark/>
-      <Text style={s.eyebrow}>FAMILIENFUNKE</Text>
-      <Text accessibilityRole="header" style={s.heroTitle}>Zusammen findet sich mehr.</Text>
-      <Text style={s.heroSubtitle}>Menschen, Orte und Antworten für euren Familienalltag.</Text>
-    </View>
-    <View style={s.searchCard}>
-      <Text accessibilityRole="header" style={s.searchTitle}>Was suchst du heute?</Text>
-      <Text style={s.searchHint}>Finde eine Funktion direkt oder stell unserer KI eine Frage.</Text>
+      <Text accessibilityRole="header" style={s.wordmark}>Familienfunke<Text style={{color:C.coralDeep}}>.</Text></Text>
+      <Text style={s.tagline}>Finden. Fragen. Entdecken.</Text>
       <View style={s.inputShell}>
-        <Text style={s.searchGlyph}>⌕</Text>
-        <TextInput accessibilityLabel="App-Funktion suchen oder KI-Frage eingeben"
-          style={s.input} value={question} onChangeText={setQuestion} editable={!busy}
-          placeholder="z. B. Spielplatz, Profil, Kinderjeans ..."
+        <Text accessibilityElementsHidden importantForAccessibility="no" style={s.searchGlyph}>⌕</Text>
+        <TextInput accessibilityLabel="Familienfunke durchsuchen oder eine KI-Frage eingeben"
+          style={s.input} value={question} onChangeText={updateQuestion} editable={!busy&&!searchBusy}
+          placeholder="Was möchtest du finden?"
           placeholderTextColor={C.muted} maxLength={600}
-          autoCapitalize="sentences" returnKeyType="search"
-          onSubmitEditing={askAssistant}/>
+          autoCapitalize="sentences" returnKeyType="search" onSubmitEditing={searchApp}/>
         {needle?<Pressable accessibilityRole="button" accessibilityLabel="Eingabe löschen"
-          onPress={()=>{setQuestion('');setError('');}} style={s.clear}>
-          <Text style={s.clearText}>×</Text>
-        </Pressable>:null}
+          onPress={()=>updateQuestion('')} style={s.clear}><Text style={s.clearText}>×</Text></Pressable>:null}
       </View>
-      <View style={s.searchActions}>
+      <View style={[s.searchActions,singleColumn&&{flexDirection:'column',alignItems:'stretch'}]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="In Familienfunke suchen"
+          accessibilityState={{disabled:busy||searchBusy||needle.length<2,busy:searchBusy}}
+          disabled={busy||searchBusy||needle.length<2} onPress={searchApp}
+          style={[s.directButton,(busy||searchBusy||needle.length<2)&&s.disabled]}>
+          <Text style={s.directLabel}>{searchBusy?'Suche läuft …':'Suchen'}</Text>
+        </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="KI um Hilfe fragen"
-          accessibilityState={{disabled:busy||needle.length<3}}
-          disabled={busy||needle.length<3} onPress={askAssistant}
-          style={({pressed})=>[s.askButton,(busy||needle.length<3)&&s.disabled,pressed&&s.pressed]}>
-          {busy?<ActivityIndicator color="#FFFFFF" style={{marginRight:8}}/>:null}
+          accessibilityState={{disabled:busy||searchBusy||needle.length<3,busy}}
+          disabled={busy||searchBusy||needle.length<3} onPress={askAssistant}
+          style={[s.askButton,(busy||searchBusy||needle.length<3)&&s.disabled]}>
+          {busy?<ActivityIndicator color={C.white} style={{marginRight:8}}/>:null}
           <Text style={s.askButtonLabel}>{busy?'KI antwortet …':'KI fragen'}</Text>
         </Pressable>
-        {needle&&matches.length?
-          <Pressable accessibilityRole="button" accessibilityLabel="Ersten passenden Bereich direkt öffnen"
-            onPress={()=>openRoute(matches[0])} style={({pressed})=>[s.directButton,pressed&&s.pressed]}>
-            <Text style={s.directLabel}>Direkt öffnen ›</Text>
-          </Pressable>:
-          <Text style={s.directHint}>Bereiche findest du auch ohne KI.</Text>}
       </View>
+      <Text style={s.searchHint}>App-Funktionen, Angebote und Orte finden oder Fragen stellen.</Text>
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
     </View>
-    <Pressable accessibilityRole="button" accessibilityLabel="Persönlichen Familienausflug planen" onPress={()=>onNavigate('outing')}
-      style={({pressed})=>[s.outingCard,pressed&&s.pressed]}>
-      <View style={{flex:1}}>
-        <Text style={s.outingTitle}>Euer nächster Familienausflug</Text>
-        <Text style={s.outingSubtitle}>Nach Alter, Budget und Entfernung passende Ziele finden – mit oder ohne KI.</Text>
-        <Text style={s.outingLink}>Ausflug planen ›</Text>
-      </View>
-    </Pressable>
+    {needle?<View style={s.section}>
+      <Text accessibilityRole="header" style={s.sectionTitle}>Suchergebnisse</Text>
+      {matches.length?<><Text style={s.sectionSubtitle}>App-Bereiche</Text>
+      {matches.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query={needle}/>)}</>:null}
+      {places.length?<><Text style={s.sectionSubtitle}>Orte aus der Familienkarte</Text>
+      {places.map(hit=><Pressable key={hit.id} accessibilityRole="button" accessibilityLabel={hit.title+' auf der Familienkarte öffnen'} onPress={()=>onNavigate('map','',hit.place.id)} style={s.areaRow}>
+        <View style={s.areaAccent}/><View style={{flex:1}}><Text style={s.areaTitle}>{hit.title}</Text><Text style={s.areaSubtitle}>{hit.subtitle}</Text></View><Text style={s.areaArrow}>›</Text>
+      </Pressable>)}</>:null}
+      {visibleSearch?.offers?<View style={s.offerGroup}>
+        <Text style={s.offerHeading}>Freigegebene Basar-Angebote (Vorschau)</Text>
+        {visibleSearch.offers.length?visibleSearch.offers.map(offer=><Pressable key={offer.id} accessibilityRole="button" accessibilityLabel={offer.title+' im Basar suchen'} onPress={()=>onNavigate('market',needle)} style={s.offerItem}>
+          <Text style={s.offerTitle}>{offer.title}</Text><Text style={s.offerPrice}>{offer.price}</Text>
+        </Pressable>):<Text style={s.mutedSmall}>Keine passenden freigegebenen Angebote gefunden.</Text>}
+        <Pressable accessibilityRole="button" onPress={()=>onNavigate('market',needle)} style={s.answerAction}><Text style={s.answerActionLabel}>Alle Basar-Ergebnisse ansehen ›</Text></Pressable>
+      </View>:null}
+      {!matches.length&&!places.length&&!visibleSearch?.offers?<Text style={s.empty}>Keine direkten Treffer. Stelle deine Frage der KI oder ändere die Suche.</Text>:null}
+      {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>Tippe auf „Suchen“, um aktuelle Basar-Angebote abzurufen.</Text>:null}
+    </View>:null}
     {conversation.length?<View style={s.section}>
       <View style={s.replyHeader}>
         <Text style={s.sectionTitle}>Deine KI-Hilfe</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="KI-Verlauf in dieser Ansicht löschen"
-          onPress={()=>setConversation([])} style={s.clearHistory}>
+          onPress={()=>{requestSeq.current++;pending.current=false;setBusy(false);setSearchBusy(false);setConversation([]);}} style={s.clearHistory}>
           <Text style={s.clearHistoryLabel}>Verlauf leeren</Text>
         </Pressable>
       </View>
       {conversation.map((entry,i)=><AssistantReply key={i+'-'+entry.question}
         entry={entry} onNavigate={onNavigate}/>)}
     </View>:null}
-    {needle?
-      <View style={s.section}>
-        <Text style={s.sectionTitle}>Passende Bereiche</Text>
-        <Text style={s.sectionSubtitle}>Sofort öffnen – ohne auf eine KI-Antwort zu warten.</Text>
-        {matches.length?matches.map(route=><AreaCard key={route.id} route={route}
-          onNavigate={onNavigate} query={needle}/>):
-          <Text style={s.empty}>Kein direkter Treffer. Du kannst die KI fragen oder einen anderen Begriff versuchen.</Text>}
-      </View>:
-      <View style={s.section}>
-        <Text style={s.sectionTitle}>Einfach loslegen</Text>
-        <Text style={s.sectionSubtitle}>Wichtige Bereiche auf einen Blick.</Text>
-        <View style={[s.featuredGrid,singleColumn&&{flexDirection:"column"}]}>
-          {featured.map(route=><AreaCard key={route.id} route={route}
-            onNavigate={onNavigate} query="" compact={!singleColumn}/>)}
-        </View>
-        <Pressable accessibilityRole="button" accessibilityState={{expanded:showAll}}
-          onPress={()=>setShowAll(v=>!v)} style={s.allAction}>
-          <Text style={s.allActionLabel}>{showAll?'Weniger Bereiche anzeigen':'Alle Bereiche entdecken'}</Text>
-          <Text style={s.allActionLabel}>{showAll?'⌃':'⌄'}</Text>
-        </Pressable>
-        {showAll?moreRoutes.map(route=><AreaCard key={route.id} route={route}
-          onNavigate={onNavigate} query=""/>):null}
-      </View>}
+    {!needle?<View style={s.section}>
+      <Text accessibilityRole="header" style={s.sectionTitle}>Direkt zu</Text>
+      <View style={[s.featuredGrid,singleColumn&&{flexDirection:'column'}]}>
+        {featured.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query="" compact={!singleColumn}/>)}
+      </View>
+      <Pressable accessibilityRole="button" accessibilityState={{expanded:showAll}} onPress={()=>setShowAll(v=>!v)} style={s.allAction}>
+        <Text style={s.allActionLabel}>{showAll?'Weniger Bereiche anzeigen':'Alle Bereiche entdecken'}</Text><Text style={s.allActionLabel}>{showAll?'⌃':'⌄'}</Text>
+      </Pressable>
+      {showAll?moreRoutes.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query=""/>):null}
+      <Pressable accessibilityRole="button" accessibilityLabel="Persönlichen Familienausflug planen" onPress={()=>onNavigate('outing')} style={s.outingCard}>
+        <View style={{flex:1}}><Text style={s.outingTitle}>Familienausflug planen</Text><Text style={s.outingSubtitle}>Passende Ziele nach Alter, Budget und Entfernung.</Text><Text style={s.outingLink}>Ausflugsplaner öffnen ›</Text></View>
+      </Pressable>
+    </View>:null}
     {!needle?<View style={s.section}>
       <Text style={s.sectionTitle}>Du könntest fragen</Text>
       <View style={s.suggestionList}>
         {SUGGESTIONS.map(topic=><Pressable key={topic} accessibilityRole="button"
           accessibilityLabel={'Frage eingeben: '+topic}
-          onPress={()=>{setQuestion(topic);scrollRef.current?.scrollTo({y:0,animated:false});}} style={({pressed})=>[s.suggestion,pressed&&s.pressed]}>
+          onPress={()=>{updateQuestion(topic);scrollRef.current?.scrollTo({y:0,animated:false});}} style={({pressed})=>[s.suggestion,pressed&&s.pressed]}>
           <Text style={s.suggestionText}>{topic}</Text>
           <Text style={s.suggestionArrow}>›</Text>
         </Pressable>)}
@@ -236,13 +267,17 @@ export default function HomeAssistant({onNavigate}){
 const s=StyleSheet.create({
   page:{flex:1,backgroundColor:C.bg},
   content:{paddingHorizontal:18,paddingTop:14,paddingBottom:45},
+  searchCenter:{alignItems:'center',paddingVertical:18,marginBottom:18},
+  searchCenterIdle:{paddingTop:56,paddingBottom:24},
+  wordmark:{fontSize:34,fontWeight:'900',letterSpacing:-1.3,color:C.ink,textAlign:'center',marginTop:7},
+  tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:6,marginBottom:24},
   hero:{minHeight:198,backgroundColor:C.sun,borderRadius:25,paddingTop:23,
     paddingBottom:24,paddingHorizontal:22,overflow:'hidden',justifyContent:'center',marginBottom:15},
   heroCircleLarge:{position:'absolute',right:-54,top:-75,width:250,height:250,
     borderRadius:125,backgroundColor:'#FFE9A3'},
   heroCircleSmall:{position:'absolute',right:16,bottom:-45,width:120,height:120,
     borderRadius:60,backgroundColor:'#F3C764',opacity:.38},
-  sunWrap:{position:'absolute',right:24,top:24,width:70,height:70,alignItems:'center',justifyContent:'center'},
+  sunWrap:{width:70,height:70,alignItems:'center',justifyContent:'center'},
   sunCore:{position:'absolute',width:35,height:35,borderRadius:18,backgroundColor:'#F5B644'},
   ray:{position:'absolute',height:11,width:3,borderRadius:2,backgroundColor:'#E8A942'},
   eyebrow:{fontWeight:'900',fontSize:12,letterSpacing:1.8,color:'#845721',marginBottom:15},
@@ -251,20 +286,20 @@ const s=StyleSheet.create({
   searchCard:{borderRadius:22,backgroundColor:C.paper,borderWidth:1,borderColor:C.line,
     padding:16,marginBottom:24},
   searchTitle:{fontSize:19,fontWeight:'900',color:C.ink},
-  searchHint:{fontSize:13.5,lineHeight:19,color:C.muted,marginTop:5,marginBottom:14},
-  inputShell:{flexDirection:'row',alignItems:'center',minHeight:54,borderWidth:1.5,
-    borderColor:'#ADC6BE',borderRadius:14,backgroundColor:'#FFFDF7',paddingHorizontal:11},
+  searchHint:{fontSize:13.5,lineHeight:19,color:C.muted,marginTop:14,textAlign:'center'},
+  inputShell:{width:'100%',maxWidth:680,flexDirection:'row',alignItems:'center',minHeight:58,borderWidth:1.5,
+    borderColor:'#ADC6BE',borderRadius:30,backgroundColor:C.paper,paddingHorizontal:15},
   searchGlyph:{fontSize:29,color:C.tealDark,marginRight:7,marginTop:-5},
   input:{flex:1,minHeight:51,paddingVertical:10,fontSize:15,color:C.ink},
   clear:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',paddingHorizontal:9,paddingVertical:5},
   clearText:{color:C.muted,fontSize:24},
-  searchActions:{marginTop:12,flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:10},
+  searchActions:{width:'100%',maxWidth:680,marginTop:14,flexDirection:'row',alignItems:'center',justifyContent:'center',flexWrap:'wrap',gap:10},
   askButton:{backgroundColor:C.teal,alignItems:'center',justifyContent:'center',
-    minHeight:46,paddingHorizontal:17,borderRadius:14,flexDirection:'row'},
+    minHeight:48,paddingHorizontal:24,borderRadius:24,flexDirection:'row'},
   askButtonLabel:{color:'#FFFFFF',fontWeight:'900',fontSize:15},
   disabled:{opacity:.52},
-  directButton:{borderColor:'#D7E7E0',borderWidth:1,backgroundColor:C.mint,
-    borderRadius:14,minHeight:46,justifyContent:'center',paddingHorizontal:12,flex:1},
+  directButton:{borderColor:'#D7E7E0',borderWidth:1,backgroundColor:C.paper,
+    borderRadius:23,minHeight:48,justifyContent:'center',paddingHorizontal:24},
   directLabel:{color:C.tealDark,fontSize:13.5,fontWeight:'800',textAlign:'center'},
   directHint:{color:C.muted,fontSize:12.5,flex:1,lineHeight:17},
   error:{color:C.danger,fontSize:13,lineHeight:19,marginTop:12},
@@ -272,7 +307,7 @@ const s=StyleSheet.create({
   sectionTitle:{color:C.ink,fontWeight:'900',fontSize:19,marginBottom:4},
   sectionSubtitle:{color:C.muted,fontSize:13,lineHeight:19,marginBottom:12},
   featuredGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:10},
-  areaGrid:{width:'48.4%',minHeight:157,backgroundColor:C.paper,borderColor:C.line,
+  areaGrid:{width:'48.4%',minHeight:104,backgroundColor:C.paper,borderColor:C.line,
     borderWidth:1,borderRadius:19,padding:14,justifyContent:'space-between'},
   areaGridAccent:{width:29,height:5,borderRadius:5,backgroundColor:C.sun,marginBottom:10},
   areaRow:{backgroundColor:C.paper,borderRadius:16,borderWidth:1,borderColor:C.line,
@@ -312,7 +347,7 @@ const s=StyleSheet.create({
   suggestionText:{color:C.ink,fontSize:13.5,fontWeight:'700'},
   suggestionArrow:{fontSize:23,color:C.tealDark},
   disclaimer:{fontSize:11.5,lineHeight:18,color:C.muted,marginTop:1},
-  outingCard:{backgroundColor:C.mint,borderColor:C.line,borderWidth:1,borderRadius:22,padding:18,marginBottom:22,minHeight:48,flexDirection:'row',alignItems:'center'},
+  outingCard:{backgroundColor:C.mint,borderColor:C.line,borderWidth:1,borderRadius:22,padding:16,marginTop:12,minHeight:48,flexDirection:'row',alignItems:'center'},
   outingTitle:{fontSize:19,fontWeight:'900',color:C.ink},outingSubtitle:{fontSize:14,lineHeight:21,color:C.ink,marginTop:6},outingLink:{fontSize:14,fontWeight:'900',color:C.accentDark,marginTop:12},
   pressed:{opacity:.72}
 });
