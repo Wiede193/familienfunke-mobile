@@ -1246,29 +1246,29 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
       </View>:null}
       {(boxStep==='review'||(boxStep==='package'&&boxAdvanced))?<>
             <Text style={styles.sectionTitle}>{boxDrafts.length} offene Entwürfe</Text>
-      {boxDrafts.length?<Row style={{flexWrap:'wrap',marginBottom:10}}>
+      {boxAdvanced&&boxDrafts.length?<Row style={{flexWrap:'wrap',marginBottom:10}}>
         <Chip text={'Alle · '+boxDrafts.length} selected={boxFilter==='all'} onPress={()=>setBoxFilter('all')}/>
         <Chip text={'Größen offen · '+boxDrafts.filter(d=>d.category==='Kleidung'&&!d.facts.size).length} selected={boxFilter==='unknown'} onPress={()=>setBoxFilter('unknown')}/>
         <Chip text={'KI-Hinweise · '+boxDrafts.filter(d=>!!d.uncertainty||!d.title.trim()).length} selected={boxFilter==='review'} onPress={()=>setBoxFilter('review')}/>
         <Chip text={'Im Paket · '+selectedBoxIds.length} selected={boxFilter==='selected'} onPress={()=>setBoxFilter('selected')}/>
       </Row>:null}
       {boxDrafts.length&&!visibleBoxDrafts.length?<Text style={[styles.micro,{marginBottom:10}]}>Für diesen Filter sind keine Teile vorhanden. Bitte wähle bei Bedarf „Alle“.</Text>:null}
-      {visibleBoxDrafts.map(d=><View key={d.id} style={{borderWidth:1,borderColor:C.line,borderRadius:13,padding:12,marginBottom:9}}>
+      {(boxShowAll?visibleBoxDrafts:visibleBoxDrafts.slice(0,10)).map(d=><View key={d.id} style={{borderWidth:1,borderColor:C.line,borderRadius:13,padding:12,marginBottom:9}}>
         <Row style={{justifyContent:'space-between',alignItems:'center'}}>
           <Text style={[styles.micro,{color:C.accentDark,fontWeight:'800',flex:1}]}>ARTIKEL {boxDrafts.findIndex(x=>x.id===d.id)+1} · {d.batchId?'Gruppe '+(boxBatches.findIndex(b=>b.id===d.batchId)+1)+' · ':''}{d.position||'Position prüfen'}</Text>
-          <Pressable accessibilityRole="checkbox" accessibilityState={{checked:selectedBoxIds.includes(d.id)}} disabled={busy||scanBusy||choosing} onPress={()=>toggleBoxSelection(d.id)} style={{padding:8,backgroundColor:selectedBoxIds.includes(d.id)?C.pale:C.bg,borderRadius:8}}>
+          {boxStep==='package'?<Pressable accessibilityRole="checkbox" accessibilityState={{checked:selectedBoxIds.includes(d.id)}} disabled={busy||scanBusy||choosing} onPress={()=>toggleBoxSelection(d.id)} style={{padding:8,backgroundColor:selectedBoxIds.includes(d.id)?C.pale:C.bg,borderRadius:8}}>
             <Text style={{color:C.accentDark,fontWeight:'800',fontSize:12}}>{selectedBoxIds.includes(d.id)?'☑ Paket':'☐ Paket'}</Text>
-          </Pressable>
+          </Pressable>:null}
         </Row>
         <Text style={[styles.body,{fontWeight:'800',marginTop:4}]}>{d.title||'Neuer Artikel'}</Text>
-        <Text style={styles.micro}>{[d.category,d.facts.color,d.pattern].filter(Boolean).join(' · ')}</Text>
-        {d.facts.detail?<Text style={[styles.micro,{marginTop:4}]}>{d.facts.detail}</Text>:null}
-        {d.facts.brand?<Text style={styles.micro}>Marke: {d.facts.brand}</Text>:null}
-        {d.material?<Text style={styles.micro}>Etikettmaterial: {d.material}</Text>:null}
+        <Text style={styles.micro}>{[d.facts.color,d.facts.size?'Gr. '+d.facts.size:'Größe offen'].filter(Boolean).join(' · ')}</Text>
+        {boxInspect===d.id&&d.facts.detail?<Text style={[styles.micro,{marginTop:4}]}>{d.facts.detail}</Text>:null}
+        {boxInspect===d.id&&d.facts.brand?<Text style={styles.micro}>Marke: {d.facts.brand}</Text>:null}
+        {boxInspect===d.id&&d.material?<Text style={styles.micro}>Etikettmaterial: {d.material}</Text>:null}
         <Text style={[styles.micro,{marginTop:6,color:d.facts.size?C.accentDark:C.warningText}]}>{d.facts.size?'Gr. '+d.facts.size+' · ':''}{labelSource(d)}</Text>
-        {!d.facts.size&&d.relativeSize?<Text style={[styles.micro,{marginTop:5}]}>Nur Größenvergleich: {d.relativeSize}</Text>:null}
+        {boxInspect===d.id&&!d.facts.size&&d.relativeSize?<Text style={[styles.micro,{marginTop:5}]}>Nur Größenvergleich: {d.relativeSize}</Text>:null}
         {d.uncertainty?<Text style={[styles.micro,{marginTop:5,color:C.warningText}]}>Bitte prüfen: {d.uncertainty}</Text>:null}
-        <Pressable accessibilityRole="button" accessibilityState={{expanded:boxInspect===d.id}} disabled={busy||scanBusy||choosing} onPress={()=>setBoxInspect(boxInspect===d.id?null:d.id)} style={{paddingVertical:10}}><Text style={{color:C.accentDark,fontWeight:'800',fontSize:13}}>{boxInspect===d.id?'Details schließen ↑':'Merkmale schnell korrigieren ↓'}</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityState={{expanded:boxInspect===d.id}} disabled={busy||scanBusy||choosing} onPress={()=>setBoxInspect(boxInspect===d.id?null:d.id)} style={{paddingVertical:10}}><Text style={{color:C.accentDark,fontWeight:'800',fontSize:13}}>{boxInspect===d.id?'Fertig ↑':'Angaben ändern ›'}</Text></Pressable>
         {boxInspect===d.id?<View>
           <Input label="Artikelbezeichnung" value={d.title} onChangeText={v=>updateBoxDraft(d.id,{title:v,garmentType:v})} maxLength={100} placeholder="z. B. Langarmbody"/>
           <Input label="Größe (Etikett / geprüft)" value={d.facts.size} onChangeText={v=>updateBoxDraft(d.id,{sizeEvidence:v?'seller':'unknown'},{size:v})} maxLength={40} placeholder="Unbekannt darf leer bleiben"/>
@@ -1278,9 +1278,9 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
           <Button title="Etikett fotografieren & lesen" small mode="outline" disabled={busy||scanBusy||choosing} onPress={()=>photographBoxLabel(d)}/>
           <Button title="Etikettfoto auswählen & lesen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>pick(assets=>readBoxLabel(d,assets[0]),1)}/>
         </View>:null}
-        {!d.facts.size&&boxInspect!==d.id&&d.category==='Kleidung'?<Button title="Größenetikett lesen" small mode="outline" disabled={busy||scanBusy||choosing} onPress={()=>{setBoxInspect(d.id);photographBoxLabel(d);}}/>:null}
+        {!d.facts.size&&boxInspect!==d.id&&d.category==='Kleidung'?<Pressable accessibilityRole="button" disabled={busy||scanBusy||choosing} onPress={()=>setBoxInspect(d.id)} style={{paddingVertical:6}}><Text style={[styles.micro,{color:C.accentDark,fontWeight:'800'}]}>Größe ergänzen ›</Text></Pressable>:null}
         {d.photos?.length?<Image source={{uri:d.photos[0].uri}} resizeMode="contain" style={{width:95,height:95,borderRadius:10,backgroundColor:C.bg,marginTop:8}}/>:null}
-        {!d.photos?.length&&suggestedCrop(d)&&boxBatches.some(b=>b.id===d.batchId&&b.photo)?<Button title="Einzelbild aus Gruppenfoto erstellen" small mode="outline" disabled={cropBusy} onPress={()=>openBoxCrop(d)}/>:null}
+        {boxInspect===d.id&&!d.photos?.length&&suggestedCrop(d)&&boxBatches.some(b=>b.id===d.batchId&&b.photo)?<Button title="Einzelbild aus Gruppenfoto erstellen" small mode="outline" disabled={cropBusy} onPress={()=>openBoxCrop(d)}/>:null}
       {boxCrop?.id===d.id&&cropDraft&&cropSource?<View style={{backgroundColor:C.pale,borderRadius:15,padding:13,marginVertical:12}}>
         <Text style={styles.sectionTitle}>Einzelbild für {cropDraft.title}</Text>
         <Text style={[styles.micro,{marginBottom:9}]}>Der Rahmen ist ein KI-Vorschlag. Das gesamte Kleidungsstück muss darin liegen, ohne fremde Artikel oder private Details.</Text>
@@ -1307,17 +1307,24 @@ function MarketScreen({listings,marketPhotos,favorites,me,active,busy,organizati
         <Button title="Abbrechen" mode="ghost" small disabled={cropBusy} onPress={()=>setBoxCrop(null)}/>
       </View>:null}
         {!d.photos?.length&&['overlapping','cutoff'].includes(d.visibility)?<Text style={[styles.micro,{color:C.warningText,marginTop:6}]}>Für ein vollständiges Einzelbild bitte separat fotografieren.</Text>:null}
-        <Text style={[styles.micro,{marginVertical:5}]}>{d.photos.length?'Artikelfoto vorhanden':'Einzelfoto nur beim Einzelverkauf nötig'} · {d.condition||'Zustand noch offen'}</Text>
-        <Button title="Einzeln verkaufen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>openBoxEditor(d)}/>
-        <Button title="Entfernen" mode="ghost" small disabled={busy||scanBusy||choosing} onPress={()=>Alert.alert('Entwurf entfernen?','Dieser Artikel bleibt unveröffentlicht.',[{text:'Abbrechen',style:'cancel'},{text:'Entfernen',style:'destructive',onPress:()=>removeBoxDraft(d.id)}])}/>
+        {boxInspect===d.id?<Text style={[styles.micro,{marginVertical:5}]}>{d.photos.length?'Artikelfoto vorhanden':'Einzelfoto nur beim Einzelverkauf nötig'} · {d.condition||'Zustand noch offen'}</Text>:null}
+        {boxInspect===d.id?<Button title="Einzeln verkaufen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>openBoxEditor(d)}/>:null}
+        {boxInspect===d.id?<Button title="Artikel entfernen" mode="ghost" small disabled={busy||scanBusy||choosing} onPress={()=>Alert.alert('Entwurf entfernen?','Dieser Artikel bleibt unveröffentlicht.',[{text:'Abbrechen',style:'cancel'},{text:'Entfernen',style:'destructive',onPress:()=>removeBoxDraft(d.id)}])}/>:null}
       </View>)}
-      <Button title="＋ Weiteren Artikel manuell ergänzen" mode="outline" disabled={boxDrafts.length>=BOX_MAX_ITEMS||busy||scanBusy||choosing||boxStorage!=='ready'} onPress={addBoxDraft}/>
-      {selectedBoxIds.length>=2?<View style={{marginTop:13}}>
+      {visibleBoxDrafts.length>10?<Button title={boxShowAll?'Weniger anzeigen':'Weitere '+(visibleBoxDrafts.length-10)+' Artikel anzeigen'} mode="outline" small onPress={()=>setBoxShowAll(v=>!v)}/>:null}
+      <Button title="Weitere Möglichkeiten" mode="ghost" small onPress={()=>setBoxAdvanced(v=>!v)}/>
+      {boxAdvanced?<View>
+        <Input label="Ort / Region für weitere Entwürfe (optional)" value={boxRegion} onChangeText={setBoxRegion} maxLength={80} placeholder="z. B. Fürstenwalde"/>
+        <Button title="＋ Artikel manuell ergänzen" mode="outline" disabled={boxDrafts.length>=BOX_MAX_ITEMS||busy||scanBusy||choosing||boxStorage!=='ready'} onPress={addBoxDraft}/>
+      </View>:null}
+      {boxStep==='package'&&boxAdvanced&&selectedBoxIds.length>=2?<View style={{marginTop:13}}>
         <Button title={selectedBoxIds.length+' ausgewählte Teile als Paket anbieten'} disabled={busy||scanBusy||choosing||boxStorage!=='ready'} onPress={openBoxPackage}/>
         <Text style={[styles.micro,{marginTop:6}]}>Verkaufsfotos werden nur übernommen, wenn vollständige Fotogruppen genau zum Paket passen. Andernfalls bitte ein aktuelles Paketfoto auswählen.</Text>
       </View>:null}
+      </>:null}
+      <Button title="‹ Zurück" mode="ghost" small disabled={busy||scanBusy||choosing} onPress={()=>setBoxStep(boxStep==='package'?'review':'photo')}/>
       <Button title="Kiste schließen & später fortsetzen" mode="outline" small disabled={busy||scanBusy||choosing} onPress={closeBox}/>
-      <Button title="Gespeicherte Kiste löschen" mode="ghost" small disabled={busy||scanBusy||choosing||boxStorage==='loading'} onPress={confirmClearBox}/>
+      {boxAdvanced?<Button title="Gespeicherte Kiste löschen" mode="ghost" small disabled={busy||scanBusy||choosing||boxStorage==='loading'} onPress={confirmClearBox}/>:null}
     </Card>:null}
     {open?<Card style={{marginBottom:18}}>
       <Text style={styles.sectionTitle}>{boxEditor?(boxEditor.packageIds?'Kistenpaket bearbeiten':'Kistenartikel bearbeiten'):editingId?'Anzeige bearbeiten':'Schnellverkauf'}</Text>
