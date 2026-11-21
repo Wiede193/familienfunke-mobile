@@ -16,6 +16,7 @@
     "check:map-photo-a11y": "node tests/check-map-photo-a11y.mjs",
     "check:interactive-map": "node tests/check-interactive-map.mjs",
     "check:geocoding": "node tests/check-geocoding.mjs",
+    "check:security": "node tests/check-security-hardening.mjs",
     "check:market-search": "node tests/check-market-search.mjs",
     "check:market-auto-review": "node tests/check-market-auto-review.mjs",
     "check:market-review-queue": "node tests/check-market-review-queue.mjs"

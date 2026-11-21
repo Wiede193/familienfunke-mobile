@@ -37,6 +37,8 @@ jobs:
         run: npm run check:interactive-map
       - name: Deutschlandweite Orts- und Adresssuche prüfen
         run: npm run check:geocoding
+      - name: Server-Sicherheitsregeln auf Regressionen prüfen
+        run: npm run check:security
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen

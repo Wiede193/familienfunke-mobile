@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const sql=read('database/ff_security_hardening_20261121.sql');
+const legacy=read('supabase/functions/moderate-market-listing/index.ts');
+assert.match(legacy,/status:410/);
+assert.doesNotMatch(legacy,/supabaseAdmin|\.update\(|\.insert\(|fetch\(/);
+assert.match(sql,/private\.is_active_adult\(participants\.sender_id\)/);
+assert.match(sql,/private\.is_active_adult\(participants\.recipient_id\)/);
+assert.match(sql,/private\.not_blocked\(participants\.sender_id, participants\.recipient_id\)/);
+assert.match(sql,/FF_MSG_LIMIT_5/);
+assert.match(sql,/p_limit is null or p_offset is null/);
+assert.ok(sql.indexOf('length(p_query)>160')<sql.indexOf('terms:=private.ff_market_normalize_query(p_query)'));
+assert.match(sql,/l\.seller_id = ff_market_photos\.seller_id/);
+assert.doesNotMatch(sql,/l\.seller_id = l\.seller_id/);
+console.log('Sicherheits-Regressionstests: Altendpunkt, Chat-Sperren, Suchlimits, Fotozuordnung.');
