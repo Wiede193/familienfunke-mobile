@@ -412,10 +412,11 @@ async function openInboxEvent(event){
    return true;
   }catch(e){if(accountRef.current===me)setNotice('Neuigkeit konnte nicht geöffnet werden. Bitte erneut versuchen.');return false;}
 }
-function navigateFromHome(id,marketQuery=''){
-  const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing'];
+function navigateFromHome(id,marketQuery='',placeId=null){
+  const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp'];
   if(!routes.includes(id))return;
-  setMapIntent(null);
+  if(id==='inbox'){openInbox();return;}
+  setMapIntent(id==='map'&&typeof placeId==='string'?{id:placeId,returnTab:'home'}:null);
   setMarketIntent(id==='box'||id==='sell'?id:(id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null));
   setExtraReturnTab('home');
   setTab(id==='box'||id==='sell'?'market':id);
@@ -431,7 +432,7 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 </SafeAreaView>;
 const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'){setTab('home');}else if(tab==='map'&&mapIntent){setMapIntent(null);setTab('outing');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab))setTab(extraReturnTab);}
+function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'){setTab('home');}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else{setMapIntent(null);setTab('outing');}}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab))setTab(extraReturnTab);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>

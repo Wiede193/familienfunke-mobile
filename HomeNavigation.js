@@ -12,6 +12,10 @@ export const HOME_ROUTES = [
   {id:'profile',title:'Mein Familienprofil',subtitle:'Hobbys, Fotos, Region und Sichtbarkeit anpassen',words:'profil bearbeiten hobby hobbies interessen datenschutz privatsphaere einstellen passwort konto account sichtbarkeit foto einstellungen'},
   {id:'partners',title:'Kitas & Partnerwelt',subtitle:'Kindergärten, Vereine und Kita-Flohmärkte',words:'kita kindergarten einrichtung partner foerderverein verein kitaflohmarkt betreuung'},
   {id:'help',title:'Hilfe & FAQ',subtitle:'Anleitungen zur Bedienung von Familienfunke',words:'hilfe fragen faq problem anleitung app funktioniert fehler support zugang loeschen konto kuendigen'},
+  {id:'chat',title:'Private Nachrichten',subtitle:'Bestehende Unterhaltungen öffnen',words:'chat chats unterhaltung unterhaltungen gespräch gespräche postfach'},
+  {id:'inbox',title:'Neuigkeiten',subtitle:'Benachrichtigungen ansehen, lesen und löschen',words:'neuigkeiten benachrichtigungszentrale ungelesen hinweise benachrichtigungen löschen'},
+  {id:'push',title:'Benachrichtigungseinstellungen',subtitle:'Push-Hinweise für dieses Gerät einstellen',words:'push pushnachrichten benachrichtigungseinstellungen gerätebenachrichtigungen sperrbildschirm ton deaktivieren'},
+  {id:'aboutApp',title:'Über Familienfunke',subtitle:'Informationen zur App und ihrem Konzept',words:'über uns familienfunke app informationen konzept'},
   {id:'inclusion',title:'Familien & Inklusion',subtitle:'Informationen zur Teilhabe und zu geplanten Angeboten',words:'inklusion teilhabe barrierefreiheit unterstuetzung'}
 ];
 export const HOME_PAGE_IDS = HOME_ROUTES.map(x=>x.id);
@@ -24,9 +28,14 @@ export function looksLikeMarketProductQuery(value){
  if(/\b(verkaufen|inserieren|einstellen|anbieten|verschenken)\b/.test(n))return false;
  const product=/(jeans|hose|jacke|pullover|body|strampler|schuh|kleid|t shirt|shirt|leggings|spielzeug|kinderwagen|kindersitz|buggy|fahrrad|buch|bücher|moebel|möbel)/.test(n);
  const attribute=/(blau|rot|grun|gruen|gelb|schwarz|weiß|weiss|rosa|größe|groesse|gross|grosse|kaufen|suche|suchen|finden|preis|grosse|hundert|\b\d{2,3}\b)/.test(n);
- return product&&attribute;
+ const standalone=/^(?:kinder|baby)?(?:jeans|hosen?|jacken?|pullover|bodys?|strampler|schuhe?|kleider?|shirts?|leggings|spielzeug|kinderwagen|kindersitz|buggy|fahrrader?|bucher?|moebel|mobel)$/.test(n);
+ return product&&(attribute||standalone);
 }
 export function findHomeRoutes(value){
+ const intent=normalize(value);
+ if(/^(chat|chats|private nachrichten|unterhaltungen)$/.test(intent))return [HOME_ROUTES.find(x=>x.id==='chat')];
+ if(/\b(push|pushnachrichten|benachrichtigungseinstellungen|sperrbildschirm)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='push')];
+ if(/\b(neuigkeiten|benachrichtigungszentrale|benachrichtigungen|ungelesen)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='inbox')];
  if(looksLikeMarketProductQuery(value))return [HOME_ROUTES.find(x=>x.id==='market')];
  const terms=normalize(value).split(' ').filter(x=>x.length>=2&&!STOP.has(x));
  if(!terms.length)return HOME_ROUTES.slice(0,4);

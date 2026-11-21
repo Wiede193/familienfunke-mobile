@@ -5,7 +5,7 @@ const source=readFileSync(new URL('../HomeNavigation.js',import.meta.url),'utf8'
 const {HOME_ROUTES,HOME_PAGE_IDS,findHomeRoutes}=await import(
   'data:text/javascript;base64,'+Buffer.from(source).toString('base64')
 );
-assert.equal(HOME_ROUTES.length,13,'Expected 13 real, navigable functions');
+assert.equal(HOME_ROUTES.length,17,'Expected 17 real, navigable functions');
 assert.equal(new Set(HOME_PAGE_IDS).size,HOME_PAGE_IDS.length,'Page IDs must be unique');
 for(const [phrase,id] of [
   ['Kistenmodus','box'],
@@ -17,7 +17,11 @@ for(const [phrase,id] of [
   ['Profil bearbeiten','profile'],
   ['Nachrichten','contacts'],
   ['Kita','partners'],
-  ['Treffen','events']
+  ['Treffen','events'],
+  ['Kinderhose','market'],
+  ['Benachrichtigungen löschen','inbox'],
+  ['Push deaktivieren','push'],
+  ['Chat','chat']
 ]){
   assert.equal(findHomeRoutes(phrase)[0]?.id,id,'Wrong landing page for: '+phrase);
 }
@@ -35,16 +39,26 @@ assert.match(home,/function SunMark\(/,'Hero must use simple illustrated sun, no
 assert.match(home,/FEATURED=\['discover','map','market','box'\]/,'Four clear family activities');
 assert.match(home,/ref=\{scrollRef\}/,'Suggestions must return to the input');
 assert.match(home,/showAll\?moreRoutes\.map/,'The user must reach all real app areas');
-assert.match(home,/onSubmitEditing=\{askAssistant\}/,'Search keyboard must submit questions');
+assert.match(home,/onSubmitEditing=\{searchApp\}/,'Search keyboard must submit ordinary search, not charge AI');
 assert.match(home,/findHomeRoutes\(needle\)/,'Direct local function search must remain available');
 assert.match(home,/conversation\.slice\(0,3\)\.reverse\(\)/,'Assistant history must include recent replies in order');
 assert.match(home,/setConversation\(old=>\[\{/,'Chat history must update after a successful reply');
 assert.match(home,/rows\.filter\(row=>row\?\.listing\?\.moderation_status==='approved'\)/,
   'The assistant may preview only actual approved listings');
+assert.match(home,/onPress=\{askAssistant\}/,'AI calls require explicit action');
+assert.match(home,/borderRadius:30,backgroundColor:C\.paper/,'Search bar should be the rounded central control');
+assert.match(home,/findFamilyMapLocations\(needle/,'Real catalog places are searchable from home');
+assert.match(home,/onNavigate\('map','',hit\.place\.id\)/,'Map result opens exact real destination');
+assert.match(home,/request!==requestSeq\.current/,'Stale results cannot overwrite current search');
+const ordinary=home.slice(home.indexOf('async function searchApp()'),home.indexOf('return <ScrollView'));
+assert.match(ordinary,/ff_market_search/,'Ordinary search finds approved bazaar offers');
+assert.doesNotMatch(ordinary,/functions\.invoke|ff-app-assistant/,'Normal search never invokes priced AI service');
 const app=readFileSync(new URL('../App.jsx',import.meta.url),'utf8');
 assert.match(app,/useState\('home'\)/,'Home must be the initial signed-in tab');
 assert.match(app,/useEffect\(\(\)=>\{\s*setTab\('home'\)/,'After sign-in the homepage must not be overridden by bazaar');
 assert.match(app,/tab==='home'\?<HomeAssistant/,'Assistant screen must be routed');
+assert.match(app,/if\(id==='inbox'\)\{openInbox\(\);return;\}/,'Inbox search leads to real private inbox');
+assert.match(app,/setMapIntent\(id==='map'&&typeof placeId==='string'\?/,'Map selection is passed through navigation');
 assert.match(app,/entryIntent==='box'/,'Box shortcut must launch actual box workflow');
 assert.match(app,/entryIntent==='sell'/,'Sell shortcut must launch actual selling workflow');
 assert.ok(!app.includes('OPENAI_API_KEY'),'No secret AI key in native app');
