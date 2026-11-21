@@ -1,10 +1,10 @@
 // Offline, private search in already loaded and curated map places.
 // No GPS, address lookup service, or geocoding request is triggered by typing.
 const fold=value=>String(value||'').normalize('NFD')
-  .replace(/[\\u0300-\\u036f]/g,'')
+  .replace(/[\u0300-\u036f]/g,'')
   .replace(/ß/g,'ss')
   .replace(/[^a-zA-Z0-9 ]/g,' ')
-  .replace(/\\s+/g,' ').toLowerCase().trim();
+  .replace(/\s+/g,' ').toLowerCase().trim();
 
 const pickCoordinate=(value,first,second)=>{
   const v=Number(value?.[first]??value?.[second]);
