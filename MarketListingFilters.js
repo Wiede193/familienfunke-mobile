@@ -7,7 +7,8 @@ const validSize=v=>/^(?:[0-9]{1,3}(?:\.[05])?|3XL|XXS|XS|S|M|L|XL|XXL)$/.test(v)
 // Größen wie 98/104 werden als zwei gezielt suchbare Einträge gespeichert.
 export function collectMarketSizeLabels(rawValues){
   const items=(Array.isArray(rawValues)?rawValues:[rawValues]).flatMap(x=>
-    String(x||'').split(/[\/;,]/).map(normalizedSize).filter(validSize));
+    String(x||'').replace(/([0-9]{1,3}),([05])(?=$|[^0-9])/g,'$1.$2')
+      .split(/[\/;,]/).map(normalizedSize).filter(validSize));
   return [...new Set(items)].slice(0,40);
 }
 export function marketListingSizes(listing){
