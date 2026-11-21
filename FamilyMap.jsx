@@ -350,16 +350,63 @@ export default function FamilyMapScreen({userId,active,addPlace}){
         style={styles.field} placeholder="z. B. Berlin, Storkow, Europa-Park"
         placeholderTextColor={C.muted} maxLength={80}
         autoCorrect={false} returnKeyType="search"/>
+    </View>
+    <View style={styles.mapFrame} onLayout={event=>{mapOffset.current=event.nativeEvent.layout.y;}}>
+      <WebView ref={map} originWhitelist={['*']} source={{html:MAP_HTML}}
+       accessible={false} importantForAccessibility="no-hide-descendants"
+       javaScriptEnabled domStorageEnabled scrollEnabled={false}
+       style={styles.map} onMessage={onMapMessage} onError={()=>setMapError('Die Vektorkarte konnte nicht geladen werden.')}
+       setSupportMultipleWindows={false} allowsInlineMediaPlayback/>
+      {!ready?<View pointerEvents="none" style={styles.mapLoading}><ActivityIndicator color={C.teal}/><Text style={styles.micro}>Vektorkarte laden …</Text></View>:null}
+      <View pointerEvents="none" style={styles.mapTag}><Text style={styles.mapTagText}>
+        {placeQuery.trim().length>=2?'Suchtreffer auf der Karte: '+locationMatches.length:'Vektorkarte · Deutschland'}
+      </Text></View>
+    </View>
+    {selectedSearchMatch?<View accessibilityLiveRegion="polite" style={styles.mapSelectedInfo}>
+      <Text accessibilityRole="header" style={styles.selectedTitle}>{selectedSearchMatch.title}</Text>
+      <Text style={styles.micro}>{selectedSearchMatch.subtitle} · Auf der Karte hervorgehoben</Text>
+      {selectedSearchMatch.source==='city'?<Pressable accessibilityRole="button"
+         accessibilityLabel={'Familienorte in '+selectedSearchMatch.title+' laden'}
+         onPress={()=>loadAround(selectedSearchMatch.latitude,selectedSearchMatch.longitude,12.3)}
+         style={[styles.mainBtn,{marginTop:11}]}>
+         <Text style={styles.mainBtnText}>Familienorte in dieser Stadt suchen</Text>
+       </Pressable>:null}
+    </View>:null}
+    {selected?<View style={styles.selectedCard}>
+      <Text style={styles.cardEyebrow}>{typeLabel(selected.category)} · {selected.source==='osm'?'OpenStreetMap':selected.source==='curated'?'Redaktioneller Ausflugstipp':selected.source==='national'?'Deutschlandweiter Ausflugstipp':selected.moderation_status==='pending'?'Dein Vorschlag in Prüfung':'Familien-Tipp'}</Text>
+      <Text style={styles.selectedTitle}>{selected.title}</Text>
+      <Text style={styles.micro}>{selected.description||'Keine Beschreibung hinterlegt.'}</Text>
+      {selected.address?<Text style={[styles.micro,{marginTop:8}]}>⌖ {selected.address}</Text>:null}
+      {selected.source==='national'?<Text style={[styles.micro,{marginTop:7}]}>Kategorie: {selected.kind_label} · {selected.state}</Text>:null}
+      {['curated','national'].includes(selected.source)?<Text style={[styles.micro,{marginTop:8}]}>Recherchestand November 2026. Aktuelle Besuchsbedingungen beim Anbieter erfragen.</Text>:null}
+      {selected.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(selected.info_url).catch(()=>{})}
+        style={styles.minorBtn}><Text style={styles.minorBtnText}>Offizielle Informationen öffnen ↗</Text></Pressable>:null}
+      {selected.has_changing_table?<Text style={styles.tagGood}>Wickelmöglichkeit angegeben</Text>:null}
+      <Text style={[styles.micro,{fontWeight:'800',color:C.ink,marginTop:17,marginBottom:10}]}>Route zu diesem Ort planen</Text>
+      <View style={styles.navigationRow}>
+        <Pressable accessibilityRole="link" accessibilityLabel={'Route mit Google Maps zu '+selected.title}
+          onPress={()=>openDirections(selected,'google')} style={styles.navigationGoogle}>
+          <Text style={styles.navigationGoogleText}>⌖  Google Maps</Text>
+        </Pressable>
+        <Pressable accessibilityRole="link" accessibilityLabel={'Route mit Apple Karten zu '+selected.title}
+          onPress={()=>openDirections(selected,'apple')} style={styles.navigationApple}>
+          <Text style={styles.navigationAppleText}>⌖  Apple Karten</Text>
+        </Pressable>
+      </View>
+      <Text style={[styles.micro,{marginTop:8}]}>Der Kartendienst öffnet sich außerhalb von Familienfunke. Startpunkt und Verkehrsmittel wählst du dort.</Text>
+      <Pressable accessibilityRole="link" onPress={()=>openInOSM(selected)} style={styles.minorBtn}><Text style={styles.minorBtnText}>In OpenStreetMap ansehen ↗</Text></Pressable>
+    </View>:null}
+
       {placeQuery.trim().length>=2?
-        <View style={{marginTop:9}}>
+        <View style={styles.searchResultPanel}>
           <Text accessibilityLiveRegion="polite" style={[styles.micro,{marginBottom:6}]}>
             {locationMatches.length} {locationMatches.length===1?'passender Ort':'passende Orte'} im Familienfunke-Katalog
           </Text>
           {locationMatches.map(match=><Pressable key={match.id}
-            accessibilityRole="button"
+            accessibilityRole="button" accessibilityState={{selected:selectedSearchId===match.id}}
             accessibilityLabel={match.title+', '+match.subtitle+', auf der Karte anzeigen'}
             onPress={()=>selectSearchedLocation(match)}
-            style={styles.searchResult}>
+            style={[styles.searchResult,selectedSearchId===match.id&&styles.searchResultSelected]}>
             <View style={{flex:1}}>
               <Text style={styles.placeTitle}>{match.title}</Text>
               <Text style={styles.micro}>{match.subtitle}</Text>
@@ -371,16 +418,13 @@ export default function FamilyMapScreen({userId,active,addPlace}){
             Einreichung eines neuen Ortes die Koordinatenfelder.
           </Text>:null}
         </View>:null}
-    </View>
-    <View style={styles.mapFrame}>
-      <WebView ref={map} originWhitelist={['*']} source={{html:MAP_HTML}}
-       accessible={false} importantForAccessibility="no-hide-descendants"
-       javaScriptEnabled domStorageEnabled scrollEnabled={false}
-       style={styles.map} onMessage={onMapMessage} onError={()=>setMapError('Die Vektorkarte konnte nicht geladen werden.')}
-       setSupportMultipleWindows={false} allowsInlineMediaPlayback/>
-      {!ready?<View pointerEvents="none" style={styles.mapLoading}><ActivityIndicator color={C.teal}/><Text style={styles.micro}>Vektorkarte laden …</Text></View>:null}
-      <View pointerEvents="none" style={styles.mapTag}><Text style={styles.mapTagText}>Vektorkarte · Deutschland</Text></View>
-    </View>
+
+    {placeQuery.trim().length>=2&&locationMatches.length>0?<Pressable accessibilityRole="button"
+      accessibilityLabel="Alle Suchtreffer auf der Karte anzeigen"
+      onPress={()=>map.current?.injectJavaScript(mapScript('fitSearchResults'))}
+      style={[styles.outlineBtn,{marginTop:10,minHeight:46}]}>
+      <Text style={styles.outlineText}>Alle Suchtreffer auf der Karte anzeigen</Text>
+    </Pressable>:null}
     {mapError?<View accessibilityLiveRegion="polite" style={styles.warn}><Text style={styles.micro}>{mapError} Die Ortsliste kann weiterhin genutzt werden.</Text></View>:null}
     <Text style={[styles.micro,{marginTop:7}]}>Kartengrundlage: OpenFreeMap / OpenStreetMap. Zum Navigieren die Karte verschieben und zoomen. Standortzugriff ist nicht nötig. Alle verfügbaren Orte sind zusätzlich als bedienbare Liste unter der Karte erreichbar.</Text>
     <View style={styles.curatedBox}>
@@ -483,30 +527,6 @@ export default function FamilyMapScreen({userId,active,addPlace}){
       {TYPES.map(([id,label,icon])=><Chip key={id} label={icon+' '+label} selected={types===id} onPress={()=>{setTypes(id);setSelectedId(null);}}/>)}
     </ScrollView>
     <Text style={[styles.micro,{marginTop:12}]}>Orte aus OpenStreetMap sind nicht von Familienfunke überprüft. Ein Wickeltisch ist nur dann als vorhanden markiert, wenn die Quelle oder der Eintrag das ausdrücklich angibt.</Text>
-    {selected?<View style={styles.selectedCard}>
-      <Text style={styles.cardEyebrow}>{typeLabel(selected.category)} · {selected.source==='osm'?'OpenStreetMap':selected.source==='curated'?'Redaktioneller Ausflugstipp':selected.source==='national'?'Deutschlandweiter Ausflugstipp':selected.moderation_status==='pending'?'Dein Vorschlag in Prüfung':'Familien-Tipp'}</Text>
-      <Text style={styles.selectedTitle}>{selected.title}</Text>
-      <Text style={styles.micro}>{selected.description||'Keine Beschreibung hinterlegt.'}</Text>
-      {selected.address?<Text style={[styles.micro,{marginTop:8}]}>⌖ {selected.address}</Text>:null}
-      {selected.source==='national'?<Text style={[styles.micro,{marginTop:7}]}>Kategorie: {selected.kind_label} · {selected.state}</Text>:null}
-      {['curated','national'].includes(selected.source)?<Text style={[styles.micro,{marginTop:8}]}>Recherchestand November 2026. Aktuelle Besuchsbedingungen beim Anbieter erfragen.</Text>:null}
-      {selected.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(selected.info_url).catch(()=>{})}
-        style={styles.minorBtn}><Text style={styles.minorBtnText}>Offizielle Informationen öffnen ↗</Text></Pressable>:null}
-      {selected.has_changing_table?<Text style={styles.tagGood}>Wickelmöglichkeit angegeben</Text>:null}
-      <Text style={[styles.micro,{fontWeight:'800',color:C.ink,marginTop:17,marginBottom:10}]}>Route zu diesem Ort planen</Text>
-      <View style={styles.navigationRow}>
-        <Pressable accessibilityRole="link" accessibilityLabel={'Route mit Google Maps zu '+selected.title}
-          onPress={()=>openDirections(selected,'google')} style={styles.navigationGoogle}>
-          <Text style={styles.navigationGoogleText}>⌖  Google Maps</Text>
-        </Pressable>
-        <Pressable accessibilityRole="link" accessibilityLabel={'Route mit Apple Karten zu '+selected.title}
-          onPress={()=>openDirections(selected,'apple')} style={styles.navigationApple}>
-          <Text style={styles.navigationAppleText}>⌖  Apple Karten</Text>
-        </Pressable>
-      </View>
-      <Text style={[styles.micro,{marginTop:8}]}>Der Kartendienst öffnet sich außerhalb von Familienfunke. Startpunkt und Verkehrsmittel wählst du dort.</Text>
-      <Pressable accessibilityRole="link" onPress={()=>openInOSM(selected)} style={styles.minorBtn}><Text style={styles.minorBtnText}>In OpenStreetMap ansehen ↗</Text></Pressable>
-    </View>:null}
     <View style={[styles.row,{justifyContent:'space-between',marginTop:24}]}>
       <Text style={styles.sectionNoMargin}>Orte im Kartenausschnitt</Text>
       <Text style={styles.micro}>{list.length} angezeigt</Text>
@@ -582,6 +602,9 @@ const styles=StyleSheet.create({
  title:{fontSize:25,fontWeight:'900',color:C.ink},
  sub:{fontSize:13.5,color:C.ink,lineHeight:20,marginTop:7},
  locationSearch:{backgroundColor:C.paper,borderRadius:18,borderWidth:1,borderColor:C.line,padding:16,marginBottom:12},
+ searchResultPanel:{marginTop:12,padding:14,backgroundColor:C.paper,borderRadius:18,borderWidth:1,borderColor:C.line},
+ searchResultSelected:{backgroundColor:C.sunPale,borderColor:C.teal},
+ mapSelectedInfo:{marginTop:12,padding:15,backgroundColor:C.sunPale,borderRadius:17,borderWidth:1,borderColor:C.line},
  searchResult:{minHeight:48,flexDirection:'row',alignItems:'center',paddingVertical:10,paddingHorizontal:12,borderRadius:12,borderWidth:1,borderColor:C.line,backgroundColor:C.bg,marginTop:7},
  mapFrame:{height:350,backgroundColor:'#E7F0ED',borderRadius:20,overflow:'hidden',borderWidth:1,borderColor:C.line,position:'relative'},
  map:{flex:1,backgroundColor:'#E7F0ED'},mapLoading:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',gap:10,backgroundColor:'#E7F0ED'},
