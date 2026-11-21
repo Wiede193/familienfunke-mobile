@@ -147,3 +147,53 @@ assert.doesNotMatch(read('FamilyClassicGameScreens.jsx'),/\b(supabase|fetch|Asyn
 const nav=await load('HomeNavigation.js');
 for(const q of ['Sudoku','Sodoku','Solitär','4 gewinnt','Vier gewinnt','Wörterrätsel','Worträtsel'])assert.equal(nav.findHomeRoutes(q)[0]?.id,'play',q);
 console.log('Klassiker: 60 eindeutige Sudokus, Vier-gewinnt-Siege, 36 Worträtsel und 20 vollständige Solitär-Austeilungen geprüft.');
+
+const chess=await load('FamilyChess.js'),board=await load('FamilyBoardPuzzles.js');
+for(const [depth,count] of [[1,20],[2,400],[3,8902],[4,197281]])assert.equal(chess.chessPerft(chess.newChess(),depth),count);
+const kiwipete=chess.chessFromFen('r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1');
+for(const [depth,count] of [[1,48],[2,2039],[3,97862]])assert.equal(chess.chessPerft(kiwipete,depth),count);
+const sq=a=>(8-Number(a[1]))*8+a.charCodeAt(0)-97;
+const move=(s,a,b,p)=>chess.playChess(s,sq(a),sq(b),p);
+let c=chess.newChess();
+for(const [a,b] of [['f2','f3'],['e7','e5'],['g2','g4'],['d8','h4']]){const n=move(c,a,b);assert.notEqual(n,c);c=n;}
+assert.equal(c.result?.winner,'b');assert.equal(c.result.reason,'Schachmatt');
+c=chess.newChess();
+for(const [a,b] of [['e2','e4'],['a7','a6'],['e4','e5'],['d7','d5'],['e5','d6']])c=move(c,a,b);
+assert.equal(c.board[sq('d6')],'P');assert.equal(c.board[sq('d5')],null);
+c=chess.chessFromFen('r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1');
+c=move(c,'e1','g1');assert.equal(c.board[sq('g1')],'K');assert.equal(c.board[sq('f1')],'R');
+c=chess.chessFromFen('4kr2/8/8/8/8/8/8/4K2R w K - 0 1');
+assert.equal(move(c,'e1','g1'),c,'Cannot castle through attack');
+c=chess.chessFromFen('k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1');
+assert.equal(move(c,'e5','d6'),c,'Illegal pinned en passant');
+for(const promotion of ['q','r','b','n']){
+ c=chess.chessFromFen('7k/P7/8/8/8/8/8/7K w - - 0 1');
+ c=move(c,'a7','a8',promotion);assert.equal(c.board[0],promotion.toUpperCase());
+}
+c=chess.newChess();
+for(let i=0;i<2;i++)for(const [a,b] of [['g1','f3'],['g8','f6'],['f3','g1'],['f6','g8']])c=move(c,a,b);
+assert.equal(c.result?.reason,'Dreifache Stellungswiederholung');
+c=chess.chessFromFen('7k/5Q2/5K2/8/8/8/8/8 w - - 0 1');
+c=move(c,'f7','g6');assert.equal(c.result?.reason,'Patt');
+let dm=board.newDraughts();assert.equal(board.draughtsMoves(dm).length,7);
+const db=Array(64).fill(0);db[42]=1;db[35]=2;db[21]=2;db[3]=2;
+dm={...dm,board:db};assert.ok(board.draughtsMoves(dm).every(m=>m.capture!==undefined));
+dm=board.playDraughts(dm,42,28);assert.equal(dm.forced,28);assert.equal(dm.turn,1);
+dm=board.playDraughts(dm,28,14);assert.equal(dm.turn,2);assert.equal(dm.board[35],0);assert.equal(dm.board[21],0);
+for(const p of board.CROSSWORDS){
+ let s=board.buildCrossword(p);assert.equal(s.clues.length,4);
+ for(const clue of s.clues)assert.equal(clue.cells.map(i=>s.solution[i]).join(''),clue.word);
+ for(let i=0;i<s.solution.length;i++)if(s.solution[i])s=board.crosswordPut(s,i,s.solution[i]);
+ assert.ok(board.crosswordWon(s));
+}
+assert.equal(board.CROSSWORDS.length,9);
+for(const x of board.PICTURE_SCENES)for(const n of [2,3,4]){
+ let s=board.newPicture(n,x.id,()=>.5);assert.ok(!board.pictureWon(s));
+ for(let i=0;i<s.order.length;i++)if(s.order[i]!==i)s=board.swapPicture(s,i,s.order.indexOf(i));
+ assert.ok(board.pictureWon(s));
+}
+assert.equal(board.PICTURE_SCENES.length,4);
+for(const name of ['ChessGame','DraughtsGame','CrosswordGame','PictureGame'])assert.ok(ui.includes('<'+name));
+for(const q of ['Schach','Dame','Dame spielen','Kreuzworträtsel','Bilderpuzzle','Puzzle'])assert.equal(nav.findHomeRoutes(q)[0]?.id,'play',q);
+assert.doesNotMatch(read('FamilyBoardPuzzleScreens.jsx'),/\b(supabase|fetch|AsyncStorage|setInterval|setTimeout)\b/);
+console.log('Brettspiele: Schach-Referenzstellungen, Sonderzüge, Dame-Schlagketten, 9 Kreuzworträtsel und 12 Bildpuzzlevarianten geprüft.');
