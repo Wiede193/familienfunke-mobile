@@ -2,11 +2,11 @@ import React, {useState} from 'react';
 import {ActivityIndicator, Pressable, ScrollView, Text, TextInput, View} from 'react-native';
 import {supabase} from './supabase';
 
-import {HOME_ROUTES,findHomeRoutes} from './HomeNavigation';
+import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
 const colors={ink:'#193C48',muted:'#647D82',teal:'#087F87',dark:'#075D67',line:'#DFE9E6',paper:'#FFFFFF',warm:'#FFF4DA',pale:'#E4F5F1'};
 const card={backgroundColor:colors.paper,borderWidth:1,borderColor:colors.line,borderRadius:18,padding:15,marginBottom:10};
-function RouteCard({route,onNavigate}){
- return <Pressable accessibilityRole="button" accessibilityLabel={route.title+' öffnen'} onPress={()=>onNavigate(route.id)} style={card}>
+function RouteCard({route,onNavigate,query}){
+ return <Pressable accessibilityRole="button" accessibilityLabel={route.title+' öffnen'} onPress={()=>onNavigate(route.id,route.id==='market'&&looksLikeMarketProductQuery(query)?query.trim():'')} style={card}>
    <View style={{flexDirection:'row',alignItems:'center'}}>
      <View style={{flex:1}}>
        <Text style={{color:colors.ink,fontWeight:'800',fontSize:16}}>{route.title}</Text>
@@ -38,7 +38,7 @@ export default function HomeAssistant({onNavigate}){
          'Die KI-Hilfe ist gerade nicht erreichbar. Die Suche nach App-Funktionen funktioniert weiterhin.');
      }
      const route=HOME_ROUTES.find(x=>x.id===data.page_id);
-     setConversation(old=>[...old,{question:prompt,answer:data.answer.slice(0,1400),pageId:route?.id||''}].slice(-6));
+     setConversation(old=>[...old,{question:prompt,answer:data.answer.slice(0,1400),pageId:route?.id||'',searchQuery:typeof data?.search_query==='string'?data.search_query.slice(0,160):''}].slice(-6));
      setQuestion('');
    }catch(e){setError(e?.message||'Die KI-Hilfe ist gerade nicht erreichbar.');}
    finally{setBusy(false);}
@@ -71,13 +71,13 @@ export default function HomeAssistant({onNavigate}){
      {conversation.map((entry,i)=><View key={i} style={{...card,marginBottom:12}}>
        <Text style={{fontSize:13,color:colors.muted,fontWeight:'700',marginBottom:6}}>Du: {entry.question}</Text>
        <Text style={{color:colors.ink,fontSize:15,lineHeight:23}}>{entry.answer}</Text>
-       {entry.pageId?<Pressable accessibilityRole="button" onPress={()=>onNavigate(entry.pageId)} style={{marginTop:11,alignSelf:'flex-start',backgroundColor:colors.pale,borderRadius:10,paddingVertical:10,paddingHorizontal:13}}>
+       {entry.pageId?<Pressable accessibilityRole="button" onPress={()=>onNavigate(entry.pageId,entry.pageId==='market'?entry.searchQuery||entry.question:'')} style={{marginTop:11,alignSelf:'flex-start',backgroundColor:colors.pale,borderRadius:10,paddingVertical:10,paddingHorizontal:13}}>
          <Text style={{fontWeight:'800',color:colors.dark}}>Passenden Bereich öffnen ›</Text>
        </Pressable>:null}
      </View>)}
    </View>:null}
    <Text style={{fontWeight:'800',color:colors.ink,fontSize:17,marginBottom:11}}>{question.trim()?'Passende App-Bereiche':'Direkt loslegen'}</Text>
-   {matches.length?matches.map(route=><RouteCard key={route.id} route={route} onNavigate={onNavigate}/>):
+   {matches.length?matches.map(route=><RouteCard key={route.id} route={route} query={question} onNavigate={onNavigate}/>):
      <Text style={{color:colors.muted,marginBottom:12}}>Kein direkter Treffer. Frage die KI oder versuche andere Begriffe.</Text>}
    <Text style={{fontSize:12,color:colors.muted,lineHeight:18,marginTop:9}}>Die KI kann Funktionen erklären und allgemeine Fragen beantworten. Sie hat keinen Zugriff auf deine privaten Nachrichten, Kontakte oder Kontodaten und führt keine Käufe oder Änderungen selbst aus. Bitte keine sensiblen Informationen eingeben.</Text>
  </ScrollView>;
