@@ -47,6 +47,8 @@ jobs:
         run: npm run check:push
       - name: Benachrichtigungszentrale und Löschrechte prüfen
         run: npm run check:inbox
+      - name: Familienausflugsplaner prüfen
+        run: npm run check:outing
       - name: Kistenmodus-UX prüfen
         run: npm run check:box-ux
       - name: Indexierte Familienbasar-Suche prüfen
