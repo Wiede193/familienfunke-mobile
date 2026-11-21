@@ -15,6 +15,7 @@ import WelcomeIntro from './WelcomeIntro';
 import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
+import TopRightMenu,{MenuIcon,MORE_ITEMS} from './TopRightMenu';
 import FamilyOutingScreen from './FamilyOutingScreen';
 import PushSettings from './PushSettings';
 import NotificationCenterScreen from './NotificationCenterScreen';
@@ -39,7 +40,7 @@ const sameRegion = (a,b) => {
   const x=normalizeLabel(a), y=normalizeLabel(b);
   return !!x && (x===y || REGION_CLUSTERS.some(group=>group.includes(x)&&group.includes(y)));
 };
-const TABS = [['home','Start','⌕'],['market','Basar','♧'],['discover','Familien','♡'],['map','Karte','⌖'],['guide','Wegweiser','☀'],['more','Mehr','◉']];
+const TABS = [['home','Start','⌕'],['market','Basar','♧'],['discover','Familien','♡'],['map','Karte','⌖'],['guide','Wegweiser','☀']];
 const MARKET_CATEGORIES=['Kleidung','Spielzeug','Bücher','Babyausstattung','Möbel','Sonstiges'];
 const ORG_KINDS=[['kita','Kita / Kindergarten'],['foerderverein','Förderverein'],['familienzentrum','Familienzentrum'],['verein','Familienverein']];
 const SECTION_MESSAGES={market:'Von Familien für Familien: kostenlos einstellen, verschenken und tauschen. Unsere Gebühren sind offen – aktuell gibt es keine Onlinezahlungen. Wir verkaufen keine persönlichen Daten.',partners:'Kitas und Fördervereine stellen sich vor, zeigen freie Plätze und laden zu Flohmärkten ein. Ein Stern erscheint nur bei bestätigter Einrichtung.',discover:'Neue Familien kennenlernen – freiwillig, respektvoll und ohne genaue Standortfreigabe.',events:'Gemeinsam etwas unternehmen statt endlose Diskussionen. Veranstaltungen werden vor der Veröffentlichung geprüft.',inclusion:'Für Familien mit und ohne Behinderung: willkommen, respektiert und ohne Pflicht zur Offenlegung persönlicher Diagnosen.'};
@@ -185,6 +186,7 @@ return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'pad
 export default function App() {
 const [session,setSession]=useState(undefined);
 const [tab,setTab]=useState('home');
+const [menuOpen,setMenuOpen]=useState(false);
 const [marketIntent,setMarketIntent]=useState(null);
 const [outingDraft,setOutingDraft]=useState(null);
 const [mapIntent,setMapIntent]=useState(null);
@@ -282,6 +284,7 @@ return ()=>{alive=false;listener.subscription.unsubscribe();};
 // Nach jeder Anmeldung startet Familienfunke auf der KI-Startseite – auch nach Kontowechsel.
 useEffect(()=>{
   setTab('home');
+  setMenuOpen(false);
   setSelectedContact(null);
   setDetailFamily(null);
   setShowInfo(false);
@@ -421,6 +424,18 @@ function navigateFromHome(id,marketQuery='',placeId=null){
   setExtraReturnTab('home');
   setTab(id==='box'||id==='sell'?'market':id);
 }
+function selectMenuItem(id){
+  setMenuOpen(false);
+  if(id==='refresh'){load();return;}
+  if(id==='welcome'){setShowWelcome(true);return;}
+  if(id==='info'){setShowInfo(true);return;}
+  if(id==='inbox'){openInbox();return;}
+  if(!MORE_ITEMS.some(item=>item[0]===id)&&id!=='more')return;
+  if(tab===id&&!detailFamily&&!selectedContact&&!showInfo)return;
+  const previous=TABS.some(t=>t[0]===tab)||tab==='more'?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:'home');
+  setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);setMapIntent(null);setFocusContactId(null);setShowEventForm(false);
+  setExtraReturnTab(previous===id?'home':previous);setTab(id);
+}
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
 if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
 if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
@@ -430,9 +445,9 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 </View><TechnicalHelpScreen initialCategory="Anmeldung & Konto"/></>:
 <Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
 </SafeAreaView>;
-const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner'};
+const EXTRA_TITLES={contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',more:'Weitere Bereiche'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'){setTab('home');}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else{setMapIntent(null);setTab('outing');}}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab))setTab(extraReturnTab);}
+function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else{setMapIntent(null);setTab('outing');}}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab))setTab(extraReturnTab);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
@@ -444,7 +459,8 @@ return <SafeAreaView style={styles.screen}>
   </View>
 </View>
 {tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><Text accessibilityElementsHidden importantForAccessibility="no" style={{fontSize:22,color:C.ink}}>🔔︎</Text>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
-{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||(tab==='map'&&mapIntent)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)?<Button title="← Zurück" onPress={back} small mode="ghost"/>:<Button title="⟳" accessibilityLabel="Daten aktualisieren" onPress={()=>load()} small mode="ghost"/>}
+{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||(tab==='map'&&mapIntent)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
+<Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>setMenuOpen(true)} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
 {error?<Pressable accessibilityRole="button" accessibilityLabel={'Fehlermeldung schließen. '+error} accessibilityLiveRegion="assertive" onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
 {notice?<Pressable accessibilityRole="button" accessibilityLabel={'Hinweis schließen. '+notice} accessibilityLiveRegion="polite" onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
@@ -546,7 +562,7 @@ createPartnerEvent={(v)=>execute(async()=>{
  assertResult(await supabase.from('ff_partner_events').insert({...v,creator_id:me}));
 },'Veranstaltung eingereicht. Sie erscheint nach Freigabe.')}
 openInclusion={()=>setTab('inclusion')}/>:
-tab==='more'?<MoreScreen navigate={id=>id==='inbox'?openInbox():setTab(id)} openInfo={()=>setShowInfo(true)} openWelcome={()=>setShowWelcome(true)}/>:
+tab==='more'?<MoreScreen navigate={selectMenuItem} openInfo={()=>setShowInfo(true)} openWelcome={()=>setShowWelcome(true)}/>:
 tab==='inclusion'?<InclusionScreen/>:
 tab==='aboutApp'?<AboutFamilienfunkeScreen/>:
 tab==='help'?<TechnicalHelpScreen/>:
@@ -582,8 +598,9 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>si
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab))}} style={[styles.tab,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)))&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)))&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id||(id==='more'&&['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox'].includes(tab)))&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id)&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
+<TopRightMenu visible={menuOpen} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text accessibilityRole="header" style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -1912,16 +1929,8 @@ function PartnersScreen({organizations,partnerEvents,me,active,busy,applyOrg,cre
   </ScrollView>;
 }
 function MoreScreen({navigate,openInfo,openWelcome}){
-  const items=[['inbox','◉','Neuigkeiten','Deine Benachrichtigungen ansehen und verwalten'],['events','▦','Treffen & Veranstaltungen','Familientreffen planen und gemeinsam etwas unternehmen'],
-  ['contacts','♡','Kontakte','Kontaktanfragen und Freundschaften verwalten'],
-  ['chat','✉','Nachrichten','Private Unterhaltungen mit bestätigten Kontakten'],
-  ['push','◉','Benachrichtigungen','Freiwillige Hinweise auf diesem Gerät einstellen'],
-  ['profile','◉','Mein Profil','Hobbys, Fotos und Privatsphäre einstellen'],
-  ['inclusion','✿','Familien & Inklusion','Anlaufstelle ohne Nachweis- oder Diagnosepflicht'],
-  ['partners','✿','Kitas & Partnerwelt','Einrichtungen, freie Plätze und Kita-Veranstaltungen'],
-  ['aboutApp','♡','Über Familienfunke','Wie unsere Idee entstanden ist'],
-  ['welcome','☀','Unser Familienfunke','Die Willkommenskarte noch einmal ansehen'],
-  ['help','?','Hilfe & FAQ','Schritt-für-Schritt-Anleitungen zur App']];
+  const items=MORE_ITEMS;
+
   return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
     <H sub="Deine Kontakte, Einstellungen und unterstützenden Angebote.">Weitere Bereiche</H>
     {items.map(([id,icon,title,subtitle])=><Pressable accessibilityRole="button" accessibilityLabel={title} key={id} onPress={()=>id==='welcome'?openWelcome():navigate(id)}>
@@ -2287,11 +2296,12 @@ brand:{fontSize:33,fontWeight:'900',color:C.ink,letterSpacing:-1.15,textAlign:'c
 smallBrand:{fontSize:19,fontWeight:'900',color:C.ink,letterSpacing:-.7},tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:9},
 loginPage:{flexGrow:1,alignItems:'center',justifyContent:'center',padding:20,backgroundColor:C.bg},
 loginMark:{width:95,height:95,borderRadius:31,backgroundColor:C.sun,alignItems:'center',justifyContent:'center',marginBottom:22,transform:[{rotate:'-7deg'}]},
-topBar:{minHeight:74,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:19,flexDirection:'row',alignItems:'center',gap:10,paddingVertical:8},
+topBar:{minHeight:64,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:12,flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:6,paddingVertical:8},
+headerMenuButton:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:13,backgroundColor:C.mint},headerBackSymbol:{fontSize:31,lineHeight:35,color:C.ink,fontWeight:'700'},
 inboxBell:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:14,backgroundColor:C.sunPale},
 inboxBadge:{position:'absolute',top:0,right:0,backgroundColor:C.accentDark,minWidth:20,borderRadius:12,paddingHorizontal:4,paddingVertical:2},
 inboxBadgeText:{fontSize:12,fontWeight:'900',color:C.white,textAlign:'center'},
-headerIdentity:{flex:1,flexDirection:'row',alignItems:'center',gap:10},
+headerIdentity:{flex:1,minWidth:125,flexDirection:'row',alignItems:'center',gap:6},
 headerHeartBadge:{width:37,height:37,borderRadius:13,backgroundColor:C.sun,alignItems:'center',justifyContent:'center'},
 headerHeart:{fontSize:21,fontWeight:'900',color:'#9A4A43'},
 topHint:{fontSize:12,color:C.muted,marginTop:1,fontWeight:'600'},
