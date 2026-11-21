@@ -1,6 +1,7 @@
 import React,{useState} from 'react';
 import {ScrollView,View,Text,Pressable,StyleSheet,RefreshControl,Alert} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import PriceAlertPreference from './PriceAlertPreference';
 
 const copy={
  request:['Kontaktanfrage','Eine Familie möchte dich kennenlernen.','Kontaktanfragen ansehen','♡'],
@@ -38,7 +39,7 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
  }
  function confirmClear(){
   const through=inbox.asOf;
-  if(busy||!through||!inbox.rows.length)return;
+  if(busy||!through||!inbox.total)return;
   Alert.alert('Alle Benachrichtigungen löschen?',
    'Alle bisherigen Hinweise werden endgültig entfernt. Nachrichten, Kontakte und Anzeigen bleiben erhalten. Neue Hinweise bleiben sichtbar.',
    [{text:'Abbrechen',style:'cancel'},{text:'Alle löschen',style:'destructive',onPress:()=>erase(null,through)}],{cancelable:true});
@@ -51,9 +52,9 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
   <View style={s.row}>
    <Text accessibilityRole="header" style={[s.title,{flex:1}]}>Deine Neuigkeiten</Text>
    <Pressable accessibilityRole="button" accessibilityLabel="Alle Benachrichtigungen löschen"
-    accessibilityHint="Öffnet eine Sicherheitsabfrage" accessibilityState={{disabled:busy||inbox.loading||!inbox.rows.length||!inbox.asOf}}
-    disabled={busy||inbox.loading||!inbox.rows.length||!inbox.asOf} onPress={confirmClear}
-    style={[s.deleteAll,(busy||inbox.loading||!inbox.rows.length||!inbox.asOf)&&{opacity:.45}]}>
+    accessibilityHint="Öffnet eine Sicherheitsabfrage" accessibilityState={{disabled:busy||inbox.loading||!inbox.total||!inbox.asOf}}
+    disabled={busy||inbox.loading||!inbox.total||!inbox.asOf} onPress={confirmClear}
+    style={[s.deleteAll,(busy||inbox.loading||!inbox.total||!inbox.asOf)&&{opacity:.45}]}>
     <Text style={s.deleteSymbol}>×</Text></Pressable>
   </View>
   <Text style={s.text}>Alle wichtigen Aktivitäten an einem Ort – auch ohne Push-Benachrichtigungen.</Text>
@@ -61,12 +62,19 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
   <View style={s.summary}><Text style={s.count} accessibilityLiveRegion="polite">{inbox.unread===null?'–':inbox.unread} ungelesen</Text>
    <Action disabled={busy||!inbox.unread||!inbox.asOf} onPress={readAll}>Alle bisherigen als gelesen markieren</Action>
   </View>
+  <Text accessibilityRole="header" style={s.cardTitle}>Kategorie</Text>
+  <View style={s.filters}>
+   {[['all','Alle Neuigkeiten'],['price','Preisalarme']].map(([kind,label])=><Pressable key={kind} accessibilityRole="button" accessibilityLabel={label+(kind==='price'&&inbox.priceUnread!=null?', '+inbox.priceUnread+' ungelesen':'')} accessibilityState={{selected:inbox.kind===kind,disabled:busy}} disabled={busy} onPress={()=>inbox.refresh({kind})} style={[s.chip,inbox.kind===kind&&s.selected]}>
+    <Text style={[s.text,inbox.kind===kind&&{color:C.white,fontWeight:'800'}]}>{label}{kind==='price'&&inbox.priceUnread>0?' ('+inbox.priceUnread+')':''}</Text>
+   </Pressable>)}
+  </View>
+  {inbox.kind==='price'?<PriceAlertPreference key={inbox.owner} userId={inbox.owner} active={active}/>:null}
   <View style={s.filters}>
    {[[false,'Alle'],[true,'Ungelesen']].map(([value,label])=><Pressable key={label} accessibilityRole="button" accessibilityState={{selected:value===onlyUnread}}
     onPress={()=>setOnlyUnread(value)} style={[s.chip,value===onlyUnread&&s.selected]}><Text style={[s.text,value===onlyUnread&&{color:C.white,fontWeight:'800'}]}>{label}</Text></Pressable>)}
   </View>
   {inbox.error?<View><Text accessibilityLiveRegion="assertive" style={s.note}>{inbox.error}</Text><Action onPress={()=>inbox.refresh()}>Erneut laden</Action></View>:null}
-  {rows.length===0&&!inbox.loading&&!inbox.error?<Text style={s.note}>{onlyUnread?'Keine ungelesenen Hinweise auf dieser Seite.':'Noch keine Neuigkeiten.'}</Text>:null}
+  {rows.length===0&&!inbox.loading&&!inbox.error?<Text style={s.note}>{onlyUnread?'Keine ungelesenen Hinweise auf dieser Seite.':inbox.kind==='price'?'Noch keine Preisalarme.':'Noch keine Neuigkeiten.'}</Text>:null}
   {rows.map(row=>{const [title,description,action,icon]=eventCopy(row);return <View key={row.id} style={[s.card,!row.read_at&&s.unread]}>
    <View style={s.row}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.icon}><Text style={s.symbol}>{icon}</Text></View>
     <View style={{flex:1}}><Text style={s.cardTitle}>{title}</Text>
@@ -78,7 +86,7 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
    <Action disabled={busy} onPress={()=>open(row)}>{action}</Action>
    {!row.read_at?<Action disabled={busy} onPress={async()=>{if(busy)return;setBusy(true);try{await inbox.markRead(row.id);}finally{setBusy(false);}}}>Als gelesen markieren</Action>:null}
   </View>;})}
-  {inbox.hasMore?<Action disabled={inbox.loading||busy} onPress={()=>inbox.refresh({more:true})}>Ältere Neuigkeiten laden</Action>:null}
+  {inbox.hasMore?<Action disabled={inbox.loading||busy} onPress={()=>inbox.refresh({more:true})} >{inbox.kind==='price'?'Ältere Preisalarme laden':'Ältere Neuigkeiten laden'}</Action>:null}
   <Action onPress={onSettings}>Push-Benachrichtigungen einstellen</Action>
  </ScrollView>;
 }
