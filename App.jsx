@@ -10,6 +10,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { signPhotoPaths } from './SignedPhotoUrls';
+import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WelcomeIntro from './WelcomeIntro';
@@ -220,6 +221,12 @@ const [membership,setMembership]=useState(null);
 const [photosUrls,setPhotosUrls]=useState({});
 const [marketPhotoUrls,setMarketPhotoUrls]=useState({});
 const [marketExtraPhotoUrls,setMarketExtraPhotoUrls]=useState({});
+const [discoverCursor,setDiscoverCursor]=useState(null);
+const [discoverMore,setDiscoverMore]=useState(false);
+const [discoverLoadingMore,setDiscoverLoadingMore]=useState(false);
+const [contactsCursor,setContactsCursor]=useState(null);
+const [contactsMore,setContactsMore]=useState(false);
+const [contactsLoadingMore,setContactsLoadingMore]=useState(false);
 const me=session?.user?.id;
 const accountRef=useRef(me);accountRef.current=me;
 const inbox=useNotificationCenter(me);
@@ -228,10 +235,9 @@ if(!me||!supabase)return;
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
-supabase.from('profiles').select('*').eq('is_discoverable',true).eq('moderation_status','approved').order('created_at',{ascending:false}).limit(150),
+supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE}),
  supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('contact_requests').select('*').order('created_at',{ascending:false}).limit(200),
-supabase.from('messages').select('*').order('created_at',{ascending:false}).limit(300),
+supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE}),
 supabase.from('events').select('*').gt('ends_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(150),
 supabase.from('event_requests').select('*').limit(200),
 supabase.from('profile_photos').select('*').order('created_at',{ascending:false}).limit(100),
@@ -246,15 +252,26 @@ supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOSt
 if(accountRef.current!==me)return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,ownProfile,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
+const [profiles,ownProfile,contacts,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
  const visibleListingIds=(listings.data||[]).map(row=>row.id);
  const marketPhotos=visibleListingIds.length
    ? await supabase.from('ff_market_photos').select('*').in('listing_id',visibleListingIds).order('slot',{ascending:true}).limit(800)
    : {data:[],error:null};
  if(marketPhotos.error)throw marketPhotos.error;
  if(accountRef.current!==me)return null;
-const profileRow=ownProfile.data||profiles.data.find(p=>p.user_id===me)||null;
-setDb({profiles:profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),contacts:contacts.data||[],messages:messages.data||[],
+// Fetch contact display names separately; contacts may have hidden discovery profiles.
+const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
+const linkedProfiles=contactUserIds.length
+  ? await supabase.from('profiles').select('*').in('user_id',contactUserIds)
+  : {data:[],error:null};
+if(linkedProfiles.error)throw linkedProfiles.error;
+if(accountRef.current!==me)return null;
+const profileRow=ownProfile.data||(profiles.data||[]).find(p=>p.user_id===me)||null;
+setDiscoverCursor(socialCursor(profiles.data,'user_id'));
+setDiscoverMore(hasNextSocialPage(profiles.data));
+setContactsCursor(socialCursor(contacts.data));
+setContactsMore(hasNextSocialPage(contacts.data));
+setDb({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:contacts.data||[],messages:[],
 events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],
 listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
@@ -275,6 +292,36 @@ return {contacts:contacts.data||[],listings:listings.data||[]};
 } catch(e){if(accountRef.current===me)setError(humanError(e));return null;}
 finally{if(accountRef.current===me)setLoading(false);}
 },[me]);
+async function loadMoreFamilies(){
+ if(!me||discoverLoadingMore||!discoverMore||!discoverCursor)return;
+ setDiscoverLoadingMore(true);
+ try {
+  const {data,error:e}=await supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE,...discoverCursor});
+  if(accountRef.current!==me)return;
+  if(e)throw e;
+  setDb(old=>({...old,profiles:appendUniqueRows(old.profiles,data||[],'user_id')}));
+  setDiscoverCursor(socialCursor(data,'user_id'));
+  setDiscoverMore(hasNextSocialPage(data));
+ }catch(e){if(accountRef.current===me)setError('Weitere Familien konnten nicht geladen werden. Bitte erneut versuchen.');}
+ finally{if(accountRef.current===me)setDiscoverLoadingMore(false);}
+}
+async function loadMoreContacts(){
+ if(!me||contactsLoadingMore||!contactsMore||!contactsCursor)return;
+ setContactsLoadingMore(true);
+ try {
+  const {data,error:e}=await supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE,...contactsCursor});
+  if(e)throw e;
+  const ids=[...new Set((data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
+  const names=ids.length?await supabase.from('profiles').select('*').in('user_id',ids):{data:[],error:null};
+  if(names.error)throw names.error;
+  if(accountRef.current!==me)return;
+  setDb(old=>({...old,contacts:appendUniqueRows(old.contacts,data||[]),
+    profiles:appendUniqueRows(old.profiles,names.data||[],'user_id')}));
+  setContactsCursor(socialCursor(data));
+  setContactsMore(hasNextSocialPage(data));
+ }catch(e){if(accountRef.current===me)setError('Weitere Kontakte konnten nicht geladen werden. Bitte erneut versuchen.');}
+ finally{if(accountRef.current===me)setContactsLoadingMore(false);}
+}
 useEffect(()=>{
 if(!supabase){setSession(null);return;}
 let alive=true;
@@ -298,6 +345,8 @@ useEffect(()=>{
   setMarketIntent(null);setOutingDraft(null);setCalendarSeed(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
   setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
   setPhotosUrls({});setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
+  setDiscoverCursor(null);setDiscoverMore(false);setDiscoverLoadingMore(false);
+  setContactsCursor(null);setContactsMore(false);setContactsLoadingMore(false);
 },[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
 // Einmalige Begrüßung je Konto auf diesem Gerät. Ein erneuter Aufruf unter „Mehr“ ist jederzeit möglich.
