@@ -8,7 +8,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "npm:@supabase/server@^1";
 
-type Payload = { contact_id?: unknown; body?: unknown };
+type Payload = { contact_id?: unknown; body?: unknown; request_id?: unknown };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function fail(message: string, status: number) {
@@ -34,8 +34,12 @@ export default {
 
     const contactId = payload?.contact_id;
     const body = typeof payload?.body === "string" ? payload.body.trim() : "";
-    if (typeof contactId !== "string" || !UUID.test(contactId) || !body || body.length > 2000) {
-      return fail("Kontakt oder Nachricht ungueltig", 400);
+    // Old released clients without a request_id continue to work unchanged.
+    // New clients provide one stable UUIDv4 for each intended send.
+    const requestId = payload?.request_id;
+    if (typeof contactId !== "string" || !UUID.test(contactId) || !body || body.length > 2000 ||
+        (requestId !== undefined && (typeof requestId !== "string" || !UUID.test(requestId)))) {
+      return fail("Kontakt, Nachricht oder Anfrage-ID ungueltig", 400);
     }
 
     // Der Server ermittelt die Absender-ID selbst aus der geprueften Anmeldung.
@@ -89,6 +93,25 @@ if (contactResult.error) {
       return fail("Konto gesperrt", 403);
     }
 
+    // Duplicate replays are resolved only AFTER checking the authenticated
+    // participant, block status, verified adults and non-suspended membership.
+    // They do not consume another moderation call or send another notification.
+    const identical = (row: { id: string; contact_id: string; sender_id: string; body: string }) =>
+      row.sender_id === senderId && row.contact_id === contactId && row.body === body;
+    const findPrevious = async () => requestId
+      ? await db.from("messages").select("id, contact_id, sender_id, body, created_at")
+          .eq("id", requestId).maybeSingle()
+      : { data: null, error: null };
+
+    if (requestId) {
+      const previous = await findPrevious();
+      if (previous.error) return fail("Nachrichtenstatus nicht verfuegbar", 503);
+      if (previous.data) {
+        if (!identical(previous.data)) return fail("Anfrage-ID bereits anders verwendet", 409);
+        return Response.json({ message: previous.data, duplicate: true }, { status: 200 });
+      }
+    }
+
     // Bestehende, getestete Moderation V2 mit dem Nutzer-JWT aufrufen.
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const authorization = req.headers.get("authorization");
@@ -124,10 +147,24 @@ if (contactResult.error) {
 
     // Nur der Server speichert die gepruefte Nachricht.
     const inserted = await db.from("messages")
-      .insert({ contact_id: contactId, sender_id: senderId, body })
+      .insert({ ...(requestId ? { id: requestId } : {}), contact_id: contactId, sender_id: senderId, body })
       .select("id, contact_id, sender_id, body, created_at")
       .single();
     if (inserted.error) {
+      // A simultaneous replay can lose the unique primary-key race. The
+      // existing 5-message BEFORE INSERT trigger can also reject a replay
+      // before PostgreSQL reaches the unique check. In either case check the
+      // authoritative row before returning a quota/duplicate error.
+      if (requestId &&
+          (inserted.error.code === "23505" ||
+           (inserted.error.code === "P0001" && String(inserted.error.message).includes("FF_MSG_LIMIT_5")))) {
+        const previous = await findPrevious();
+        if (previous.error) return fail("Nachrichtenstatus nicht verfuegbar", 503);
+        if (previous.data) {
+          if (!identical(previous.data)) return fail("Anfrage-ID bereits anders verwendet", 409);
+          return Response.json({ message: previous.data, duplicate: true }, { status: 200 });
+        }
+      }
       // Die PostgreSQL-Sperre ist die maßgebliche Sicherheitsregel.
       // Keine Absenderzählung nur im Client: manipulierbare Apps würden sie umgehen.
       if (inserted.error.code === "P0001" && String(inserted.error.message).includes("FF_MSG_LIMIT_5")) {

@@ -13,6 +13,7 @@ import { signPhotoPaths } from './SignedPhotoUrls';
 import { EVENT_PAGE_SIZE, PHOTO_PAGE_SIZE, ascendingEventCursor, descendingRowCursor, hasFullPage } from './EventPhotoPages';
 import { MARKET_OWNER_PAGE_SIZE, PARTNER_PAGE_SIZE, marketCursor, partnerEventCursor, hasMarketPage } from './MarketPartnerPages';
 import { isCurrentRequest } from './RequestGeneration';
+import { createChatIntentRepository,uuidFromCrypto } from './ChatSendIntent';
 import { isTransientFailure, retryRead, createActionGate } from './NetworkResilience';
 import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
@@ -56,6 +57,18 @@ const ORG_KINDS=[['kita','Kita / Kindergarten'],['foerderverein','Förderverein'
 const SECTION_MESSAGES={market:'Von Familien für Familien: kostenlos einstellen, verschenken und tauschen. Unsere Gebühren sind offen – aktuell gibt es keine Onlinezahlungen. Wir verkaufen keine persönlichen Daten.',partners:'Kitas und Fördervereine stellen sich vor, zeigen freie Plätze und laden zu Flohmärkten ein. Ein Stern erscheint nur bei bestätigter Einrichtung.',discover:'Neue Familien kennenlernen – freiwillig, respektvoll und ohne genaue Standortfreigabe.',events:'Gemeinsam etwas unternehmen statt endlose Diskussionen. Veranstaltungen werden vor der Veröffentlichung geprüft.',inclusion:'Für Familien mit und ohne Behinderung: willkommen, respektiert und ohne Pflicht zur Offenlegung persönlicher Diagnosen.'};
 const blankProfile = {display_name:'',region_label:'',about:'',interests:[],is_discoverable:false};
 const blankData = {profiles:[],contacts:[],messages:[],events:[],eventRequests:[],photos:[],blocks:[],listings:[],marketPhotos:[],marketFavorites:[],organizations:[],partnerEvents:[]};
+const chatSendIntents=createChatIntentRepository({
+  storage:AsyncStorage,
+  createId:async()=>{
+    // Use secure device randomness when exposed; otherwise request a UUIDv4
+    // from authenticated PostgreSQL before dispatching the message.
+    const local=uuidFromCrypto(globalThis.crypto);
+    if(local)return local;
+    const {data,error}=await supabase.rpc('ff_message_request_id');
+    if(error||!data)throw error||new Error('Keine sichere Nachrichtenkennung verfügbar.');
+    return data;
+  }
+});
 const formatDate = (value) => { if (!value) return '–'; const d = new Date(value); return isNaN(d) ? '–' : d.toLocaleString('de-DE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); };
 const initial = (name) => String(name||'F').split(/\s+/).slice(0,2).map(s=>s[0]||'').join('').toUpperCase();
 const safeString = (value, length) => String(value||'').trim().slice(0,length);
@@ -66,6 +79,10 @@ const msg = errorMessage(e);
 if (/invalid login credentials/i.test(msg)) return 'E-Mail oder Passwort stimmen nicht. Bitte prüfe deine Zugangsdaten.';
 if (/email not confirmed/i.test(msg)) return 'Deine E-Mail-Adresse ist noch nicht bestätigt.';
 if (/row-level security|permission denied|policy/i.test(msg)) return 'Diese Aktion ist noch nicht freigegeben oder durch die Sicherheitsregeln gesperrt.';
+if (/FF_CONTACT_ALREADY_CLOSED/.test(msg)) return 'Diese Kontaktanfrage wurde bereits abgeschlossen. Eine neue Anfrage ist derzeit nicht möglich.';
+if (/FF_CONTACT_ALREADY_CHANGED/.test(msg)) return 'Die Kontaktanfrage wurde bereits anders beantwortet. Bitte aktualisiere deine Kontakte.';
+if (/FF_CONTACT_NOT_DISCOVERABLE|FF_CONTACT_NOT_ALLOWED|FF_CONTACT_STATUS_FORBIDDEN/.test(msg)) return 'Diese Kontaktaktion ist für die beteiligten Konten nicht erlaubt.';
+if (/FF_CONTACT_NOT_FOUND/.test(msg)) return 'Diese Kontaktanfrage ist nicht mehr verfügbar.';
 if (isTransientFailure(e)) return 'Die Verbindung zum Server ist vorübergehend gestört. Bitte prüfe dein Internet und versuche es später erneut.';
 return msg;
 };
@@ -593,10 +610,13 @@ async function sendChatMessage(body,contactId){
  setBusy(true);setError('');setNotice('');
  try{
  
-  // Die Nachricht wird ausschliesslich von der authentifizierten Edge Function
-  // geprueft und gespeichert. Kein direkter INSERT in public.messages mehr.
+  // Persist the intended send ID BEFORE dispatch, so a lost response or
+  // app restart can reuse it. No plaintext chat text is stored on disk.
+  const requestId=await chatSendIntents.reserve(actionOwner,contactId,body);
+  // The server authenticates, checks the relationship, moderates new sends
+  // and relies on messages.id PRIMARY KEY to deduplicate replays.
   const {data, error:sendError} = await supabase.functions.invoke('send-message', {
-    body: {contact_id:contactId, body},
+    body: {contact_id:contactId, body, request_id:requestId},
   });
   if(sendError){
     const status = sendError.context?.status;
@@ -605,13 +625,20 @@ async function sendChatMessage(body,contactId){
     if(status===403)throw new Error('Nachrichten sind fuer diesen Kontakt momentan nicht erlaubt.');
     if(status===429)throw new Error('Nachrichtenlimit erreicht. Bitte warte auf eine Antwort oder versuche es später erneut.');
     if(status===503)throw new Error('Die Sicherheitspruefung ist momentan nicht verfuegbar. Bitte spaeter erneut versuchen.');
+    if(status===409)throw new Error('Diese Sendeanfrage wurde bereits für einen anderen Nachrichtentext verwendet. Bitte lade das Gespräch erneut.');
     if(isTransientFailure(sendError))throw new Error('Keine sichere Versandbestätigung erhalten. Bitte prüfe zuerst den Chatverlauf, bevor du die Nachricht erneut sendest.');
     throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
   }
   if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
- if(accountRef.current!==actionOwner||!actionGate.current.isActive(ticket))return false;
+  if(data.message.id!==requestId)throw new Error('Der Nachrichtenserver konnte die eindeutige Sendeanfrage nicht bestätigen.');
+  // Acknowledgement must not turn a committed message into a send error.
+  // On a rare local storage failure, the preserved key simply replays the
+  // confirmed server row instead of creating another message.
+  try{await chatSendIntents.acknowledge(actionOwner,contactId,requestId);}
+  catch{ /* The server has already confirmed this ID. */ }
+  if(accountRef.current!==actionOwner||!actionGate.current.isActive(ticket))return false;
 
- setNotice('Nachricht gesendet.');
+ setNotice(data.duplicate?'Nachricht war bereits gespeichert.':'Nachricht gesendet.');
  return true;
  }catch(e){if(accountRef.current===actionOwner&&actionGate.current.isActive(ticket))setError(mutationError(e));return false;}
  finally{
@@ -671,8 +698,14 @@ if(!reportTarget||reportDetails.trim().length<10)return setError('Bitte den Vorf
 const ok=await executeEvent(async()=>assertResult(await supabase.from('reports').insert({reporter_id:me,subject_type:reportTarget.type,subject_id:reportTarget.id,details:reportDetails.trim()})),'Danke. Deine Meldung wurde gespeichert.');
 if(ok){setReportTarget(null);setReportDetails('');}
 }
-async function sendRequest(uid){await execute(async()=>assertResult(await supabase.from('contact_requests').insert({sender_id:me,recipient_id:uid})),'Kontaktanfrage verschickt.');}
-async function replyRequest(id,status){await execute(async()=>assertResult(await supabase.from('contact_requests').update({status}).eq('id',id)),'Kontaktanfrage aktualisiert.');}
+async function sendRequest(uid){
+ return execute(async()=>assertResult(await supabase.rpc('ff_contact_create',{p_recipient_id:uid})),
+   'Kontaktanfrage gespeichert oder bereits vorhanden.');
+}
+async function replyRequest(id,status){
+ return execute(async()=>assertResult(await supabase.rpc('ff_contact_respond',{p_contact_id:id,p_status:status})),
+   'Kontaktanfrage aktualisiert.');
+}
 async function blockUser(uid){
 Alert.alert('Kontakt blockieren?','Die Person kann dir dann keine neuen Nachrichten schicken.',[
 {text:'Abbrechen',style:'cancelled'},
