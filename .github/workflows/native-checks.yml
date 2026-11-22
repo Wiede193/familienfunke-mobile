@@ -29,6 +29,8 @@ jobs:
         run: npm run check:home
       - name: Einheitliches Farbdesign und Lesbarkeit prüfen
         run: npm run check:design
+      - name: Überarbeitete Startseite, Menüs, Basar und Profile prüfen
+        run: npm run check:design-refresh
       - name: Barrierefreiheit für Navigation, Formulare und Screenreader prüfen
         run: npm run check:accessibility
       - name: Barrierefreie Artikelbeschreibungen und lokale Ortssuche prüfen

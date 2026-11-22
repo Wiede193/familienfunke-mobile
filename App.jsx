@@ -22,6 +22,9 @@ import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WelcomeIntro from './WelcomeIntro';
 import {FAMILY_COLORS} from './FamilyTheme';
+import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
+import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
+import {FamilyEmptyState,FamilySkeleton} from './FamilyFeedback';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
 import FamilyCalendar,{CalendarEventButton} from './FamilyCalendar';
@@ -53,7 +56,7 @@ const sameRegion = (a,b) => {
   const x=normalizeLabel(a), y=normalizeLabel(b);
   return !!x && (x===y || REGION_CLUSTERS.some(group=>group.includes(x)&&group.includes(y)));
 };
-const TABS = [['home','Start','⌕'],['market','Basar','♧'],['discover','Familien','♡'],['map','Karte','⌖'],['guide','Wegweiser','☀']];
+const TABS = [['home','Start','home'],['market','Basar','bag'],['discover','Familien','users'],['map','Karte','map'],['guide','Wegweiser','book']];
 const MARKET_CATEGORIES=['Kleidung','Spielzeug','Bücher','Babyausstattung','Möbel','Sonstiges'];
 const ORG_KINDS=[['kita','Kita / Kindergarten'],['foerderverein','Förderverein'],['familienzentrum','Familienzentrum'],['verein','Familienverein']];
 const SECTION_MESSAGES={market:'Von Familien für Familien: kostenlos einstellen, verschenken und tauschen. Unsere Gebühren sind offen – aktuell gibt es keine Onlinezahlungen. Wir verkaufen keine persönlichen Daten.',partners:'Kitas und Fördervereine stellen sich vor, zeigen freie Plätze und laden zu Flohmärkten ein. Ein Stern erscheint nur bei bestätigter Einrichtung.',discover:'Neue Familien kennenlernen – freiwillig, respektvoll und ohne genaue Standortfreigabe.',events:'Gemeinsam etwas unternehmen statt endlose Diskussionen. Veranstaltungen werden vor der Veröffentlichung geprüft.',inclusion:'Für Familien mit und ohne Behinderung: willkommen, respektiert und ohne Pflicht zur Offenlegung persönlicher Diagnosen.'};
@@ -186,7 +189,7 @@ return <View style={{marginBottom:15}}>
 <Text style={[styles.micro,{marginTop:6}]}>Gib bitte keine Straße oder Hausnummer an. Deine Region ist freiwillig.</Text>
 </View>;
 }
-function Blank({title,body}) {return <Card style={{alignItems:'center',paddingVertical:30}}><Text style={{fontSize:38,marginBottom:8,color:C.coral}}>♡</Text><Text style={styles.cardTitle}>{title}</Text><Text style={[styles.sub,{textAlign:'center'}]}>{body}</Text></Card>;}
+function Blank({title,body,icon='heart',actionLabel,onAction}) {return <FamilyEmptyState title={title} description={body} icon={icon} actionLabel={actionLabel} onAction={onAction}/>;}
 function Login({error,setError,onHelp}) {
 const [email,setEmail]=useState('');
 const [password,setPassword]=useState('');
@@ -828,7 +831,10 @@ function navigateFromHome(id,marketQuery='',placeId=null){
   setCalendarSeed(null);
   setMapIntent(id==='map'&&typeof placeId==='string'?{id:placeId,returnTab:'home'}:null);
   setEventIntent(['events','partners'].includes(id)&&typeof placeId==='string'?{id:placeId,tab:id,owner:me}:null);
-  setMarketIntent(id==='box'||id==='sell'?id:(id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null));
+  setMarketIntent(id==='box'||id==='sell'?id:
+    id==='market'&&typeof placeId==='string'&&/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(placeId)?
+      {type:'buyerListing',id:placeId}:
+    id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null);
   setExtraReturnTab('home');
   setTab(id==='box'||id==='sell'?'market':id);
 }
@@ -870,7 +876,7 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><Text accessibilityElementsHidden importantForAccessibility="no" style={{fontSize:22,color:C.ink}}>🔔︎</Text>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
+{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><FamilyIcon name="bell" size={22} color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
 {detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
 <Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
@@ -895,7 +901,7 @@ disabled={busy} blocked={blocked}
 send={(body)=>sendChatMessage(body,selectedContact)}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
-tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome}/>:
+tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome} userId={me} profile={myProfile} active={active} inboxUnread={inbox.unread}/>:
 tab==='play'?<FamilyPlayScreen key={me}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
 tab==='outing'?<FamilyOutingScreen key={me} onCalendar={planCalendarPlace} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
@@ -1017,7 +1023,9 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>si
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id)&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><View style={[styles.tabIcon,(tab===id)&&styles.tabIconSelected]}>
+  <FamilyIcon name={glyph} size={24} color={tab===id?C.accentDark:C.muted}/>
+</View><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 <TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
@@ -1193,6 +1201,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
   const [minPrice,setMinPrice]=useState('');
   const [maxPrice,setMaxPrice]=useState('');
   const [filterOpen,setFilterOpen]=useState(false);
+  const [showMarketTrust,setShowMarketTrust]=useState(false);
   const [savingSearch,setSavingSearch]=useState(false);
   const [buyerFocus,setBuyerFocus]=useState(null);
   const [selectedListing,setSelectedListing]=useState(null);
@@ -1823,15 +1832,28 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
   const shownImage=gallery[Math.min(galleryIndex,Math.max(0,gallery.length-1))]?.uri;
   const imageDescription=selected?marketPhotoAlt(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length):'';
   return <ScrollView ref={marketScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-    <H sub="Kinderkleidung, Spielzeug und vieles mehr – direkt von Familien in deiner Nähe.">Familienbasar</H>
-    <Info>{SECTION_MESSAGES.market}</Info>
+    <View style={styles.marketHero}>
+      <View style={{flex:1}}>
+        <Text style={styles.marketEyebrow}>VON FAMILIEN FÜR FAMILIEN</Text>
+        <Text accessibilityRole="header" style={styles.marketHeroTitle}>Familienbasar</Text>
+        <Text style={styles.marketHeroText}>Entdecken, weitergeben, nachhaltig handeln.</Text>
+      </View>
+      <View style={styles.marketHeroIcon}><FamilyIcon name="bag" size={30}/></View>
+    </View>
     <View style={styles.marketTopActions}>
       <View style={{flex:1}}>
-        <Text style={styles.marketTopTitle}>Entdecken & weitergeben</Text>
+        <Text style={styles.marketTopTitle}>Dein Familienbasar</Text>
         <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
       </View>
       <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){resetForm();setOpen(false);}else{startQuick();}}}/>
     </View>
+    <Pressable accessibilityRole="button" accessibilityLabel="Informationen zu Gebühren und Datenschutz"
+      accessibilityState={{expanded:showMarketTrust}} onPress={()=>setShowMarketTrust(v=>!v)}
+      style={styles.marketTrust}>
+      <FamilyIcon name="shield" size={18}/><Text style={styles.marketTrustText}>Geprüfte Familien · Gebühren transparent · Keine Onlinezahlung</Text>
+      <FamilyIcon name={showMarketTrust?'chevron-up':'chevron-down'} size={16}/>
+    </Pressable>
+    {showMarketTrust?<Info>{SECTION_MESSAGES.market}</Info>:null}
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
     <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
       <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
@@ -2222,17 +2244,24 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
           <Text style={{fontSize:20,color:C.muted}}>×</Text>
         </Pressable>:null}
       </View>
-      <MarketCategoryDropdown label="Kategorie" value={filter} onChange={setFilter} options={MARKET_CATEGORIES} allOption/>
+      <Text style={styles.marketFilterHeading}>Kategorie auswählen</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}}
+        contentContainerStyle={{gap:7,paddingRight:15}}>
+        {['Alle',...MARKET_CATEGORIES].map(choice=>
+          <Chip key={choice} text={choice} selected={filter===choice} onPress={()=>setFilter(choice)}/>)}
+      </ScrollView>
       <View style={styles.marketFilters}>
         <Pressable accessibilityRole="button" accessibilityState={{expanded:filterOpen}} onPress={()=>setFilterOpen(v=>!v)}
           style={[styles.marketFilterToggle,filterOpen&&{borderColor:C.accent}]}>
-          <Text style={styles.marketFilterLabel}>⚙  Filter {filterOpen?'ausblenden':'anzeigen'}</Text>
+          <Row style={{gap:5}}><FamilyIcon name="filter" size={17}/>
+          <Text style={styles.marketFilterLabel}>Filter {filterOpen?'ausblenden':'anzeigen'}</Text></Row>
         </Pressable>
         <View style={{flex:1}}>
           <MarketSortSelect value={sortBy} onChange={setSortBy}/>
         </View>
       </View>
       {filterOpen?<Card style={{marginBottom:15,padding:15}}>
+        <MarketCategoryDropdown label="Kategorie" value={filter} onChange={setFilter} options={MARKET_CATEGORIES} allOption/>
         <Text style={styles.label}>Art des Angebots</Text>
         <View style={[styles.chipsRow,{marginTop:0,marginBottom:14}]}>
           {[['all','Alle'],['sell','Verkaufen'],['gift','Verschenken'],['swap','Tauschen']].map(([id,label])=>
@@ -2251,7 +2280,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
         <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length}{serverSearchActive&&remoteHasMore?'+':''} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
         <Text style={styles.micro}>Neu und gebraucht</Text>
       </Row>
-      {remoteBusy?<View style={{paddingVertical:12,flexDirection:'row',alignItems:'center'}}><ActivityIndicator color={C.accent}/><Text style={[styles.micro,{marginLeft:9}]}>Suche im gesamten Familienbasar …</Text></View>:null}
+      {remoteBusy?<FamilySkeleton rows={2} label="Suche im gesamten Familienbasar …"/>:null}
       {remoteError?<><Info warning>{remoteError}</Info>
         <Button title="Basarsuche erneut versuchen" mode="outline" disabled={remoteBusy}
           onPress={()=>setSearchRetry(n=>n+1)}/></>:null}
@@ -2259,7 +2288,12 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
       {onlyMine&&ownLoading?<View style={{paddingVertical:12}}><ActivityIndicator color={C.accent}/></View>:null}
       {onlyMine&&ownError?<><Info warning>{ownError}</Info><Button title="Eigene Anzeigen erneut laden" mode="outline" onPress={onRetryOwn}/></>:null}
       {onlyMine&&ownHasMore?<Text style={[styles.micro,{marginBottom:10}]}>Weitere eigene Anzeigen sind vorhanden. Suche und Sortierung beziehen sich auf die bisher geladenen Einträge.</Text>:null}
-      {shown.length===0?(remoteBusy||remoteError||(onlyMine&&(ownLoading||ownError))?null:<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>):
+      {shown.length===0?(remoteBusy||remoteError||(onlyMine&&(ownLoading||ownError))?null:<Blank icon={onlyFavorites?'heart':'bag'}
+          title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'}
+          body={onlyFavorites?'Merke dir ein freigegebenes Angebot über das Herz auf einer Produktkarte.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}
+          actionLabel={onlyFavorites?'Angebote entdecken':'Filter zurücksetzen'}
+          onAction={()=>{setOnlyFavorites(false);setOnlyMine(false);setBuyerFocus(null);
+            setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/>):
         <View style={styles.marketGrid}>
         {shown.map(x=>{
           const seller=sellerInformation(x);
@@ -2268,22 +2302,29 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
             onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={[styles.marketTile,singleColumn&&{width:'100%'}]}>
             <View style={styles.marketTileImage}>
               {(remotePhotoUrls[x.id]||photoUrls[x.id])?<Image accessible={false} source={{uri:remotePhotoUrls[x.id]||photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
-                <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>Noch kein Foto</Text></View>}
-              <View style={styles.marketPricePill}><Text style={styles.marketPricePillText} numberOfLines={1}>{priceLabel(x)}</Text></View>
+                <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}>
+                  <FamilyIcon name="camera" size={32} color={C.muted}/><Text style={styles.micro}>Noch kein Foto</Text>
+                </View>}
+              {x.trade_type==='gift'?<View style={styles.marketGiftPill}>
+                <Text style={styles.marketGiftText}>Zu verschenken</Text>
+              </View>:null}
               {x.seller_id!==me&&x.moderation_status==='approved'?
                 <Pressable accessibilityRole="button" accessibilityLabel={favoriteMap[x.id]===undefined?'Merkliste wird geprüft':favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'} hitSlop={9}
                   disabled={busy||!active||favoriteBusy[x.id]||favoriteMap[x.id]===undefined}
                   onPress={event=>{event.stopPropagation();changeFavorite(x.id);}}
                   style={{position:'absolute',right:7,top:8,backgroundColor:'#FFFFFFF2',borderRadius:20,paddingHorizontal:10,paddingVertical:7}}>
-                  <Text style={{fontSize:19,color:favoriteIds.has(x.id)?C.coralDeep:C.accentDark}}>{favoriteIds.has(x.id)?'♥':'♡'}</Text>
+                  <FamilyIcon name="heart" size={21} color={favoriteIds.has(x.id)?C.coralDeep:C.accentDark}/>
                 </Pressable>:null}
             </View>
             <View style={styles.marketTileBody}>
               <Text style={styles.marketTileTitle} numberOfLines={2}>{x.title}</Text>
+              <Text style={styles.marketTilePrice} numberOfLines={1}>{priceLabel(x)}</Text>
               {x.match_item?<Text style={[styles.micro,{color:C.accentDark,marginTop:3}]} numberOfLines={2}>Passender Artikel: {x.match_item}</Text>:null}
               {galleryOf(x).length>1?<Text style={[styles.micro,{fontWeight:'800',color:C.accentDark}]}>{galleryOf(x).length} Bilder</Text>:null}
               <Text style={styles.micro} numberOfLines={1}>{x.item_condition} · {x.category}</Text>
-              <Text style={[styles.micro,{marginTop:3}]} numberOfLines={1}>⌖ {x.region_label||'Region auf Anfrage'}</Text>
+              <Row style={{gap:4,marginTop:5}}><FamilyIcon name="pin" size={14} color={C.muted}/>
+                <Text style={styles.micro} numberOfLines={1}>{x.region_label||'Region auf Anfrage'}</Text>
+              </Row>
               {seller.org?<Text style={[styles.micro,{marginTop:3,color:C.accentDark}]} numberOfLines={1}>{seller.org.name} ✦</Text>:null}
               {seller.own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{color:x.moderation_status==='sold'?C.accentDark:C.warningText,marginTop:4}]}>{x.moderation_status==='sold'?'Vergeben · nur für dich sichtbar':x.moderation_status==='pending'?'In Prüfung · nur für dich sichtbar':'Nicht veröffentlicht'}</Text>:null}
             </View>
@@ -2568,12 +2609,27 @@ function updateFilter(setter,value){setter(value);setCardIndex(0);}
 function familyCard(p){
 const existing=requests.find(c=>(c.sender_id===me&&c.recipient_id===p.user_id)||(c.recipient_id===me&&c.sender_id===p.user_id));
 const regional=sameRegion(p.region_label,myRegion);
-return <Card key={p.user_id} style={{marginBottom:12}}>
-<Row><Avatar name={p.display_name} size={64} uri={imageFor(p.user_id)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{p.display_name}</Text><Text style={styles.micro}>⌖ {p.region_label||'Region nicht angegeben'}</Text>{regional?<Text style={[styles.micro,{color:C.accentDark,fontWeight:'800',marginTop:3}]}>✓ Gleiche Region</Text>:null}</View>{p.match>0?<View style={styles.match}><Text style={styles.matchText}>{p.match} gemeinsam</Text></View>:null}</Row>
+return <Card key={p.user_id} style={{marginBottom:12,padding:0,overflow:'hidden'}}>
+<View style={styles.familyCardAccent}/>
+<View style={{padding:17}}>
+<Row><Avatar name={p.display_name} size={67} uri={imageFor(p.user_id)}/>
+  <View style={{flex:1}}>
+    <Text style={styles.cardTitle}>{p.display_name}</Text>
+    <Row style={{gap:4,marginTop:6}}>
+      <FamilyIcon name="pin" size={14} color={C.muted}/>
+      <Text style={styles.micro}>{p.region_label||'Region nicht angegeben'}</Text>
+    </Row>
+    {regional?<Text style={styles.familyRegionBadge}>Aus eurer Region</Text>:null}
+  </View>
+  {p.match>0?<View style={styles.match}><Text style={styles.matchText}>{p.match} gemeinsam</Text></View>:null}
+</Row>
 {p.about?<Text style={[styles.body,{marginTop:13}]} numberOfLines={mode==='cards'?5:3}>{p.about}</Text>:null}
 <View style={styles.chipsRow}>{(p.interests||[]).slice(0,mode==='cards'?8:5).map(i=><Chip key={i} text={i}/>)}</View>
-<Row style={{marginTop:16}}><Button title="Profil ansehen" mode="outline" small style={{flex:1}} onPress={()=>showFamily(p.user_id)}/>
-<Button title={existing?existing.status==='accepted'?'Verbunden':existing.status==='pending'?'Anfrage offen':'Angefragt':'Kontakt anfragen'} small disabled={busy||!!existing} style={{flex:1}} onPress={()=>onContact(p.user_id)}/></Row>
+<Row style={{marginTop:16}}>
+<Button title="Profil ansehen" mode="outline" small style={{flex:1}} onPress={()=>showFamily(p.user_id)}/>
+<Button title={existing?existing.status==='accepted'?'Verbunden':existing.status==='pending'?'Anfrage offen':'Angefragt':'Kontakt anfragen'} small disabled={busy||!!existing} style={{flex:1}} onPress={()=>onContact(p.user_id)}/>
+</Row>
+</View>
 </Card>;
 }
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -2606,7 +2662,10 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Row><Chip text="Karten" selected={mode==='cards'} onPress={()=>setMode('cards')}/><Chip text="Liste" selected={mode==='list'} onPress={()=>setMode('list')}/></Row>
 </Row>
 {!active?<Blank title="Zunächst Freigabe abwarten" body="Sobald das Konto geprüft ist, erscheinen freigegebene Familienprofile."/>:
-filtered.length===0?<Blank title="Keine passenden Familien gefunden" body="Probiere andere Interessen, eine größere Region oder entferne die Filter."/>:
+filtered.length===0?<Blank title="Noch keine passenden Familien" icon="users"
+  body="Vielleicht sind noch wenige Familien aktiv. Passe die Filter an oder schau später wieder vorbei."
+  actionLabel="Filter zurücksetzen"
+  onAction={()=>{setQuery('');setInterest('Alle');setOnlyRegion(false);setOnlyShared(false);setCardIndex(0);}}/>:
 mode==='cards'?<>
 <Text style={[styles.micro,{textAlign:'center',marginBottom:12}]}>Familie {index+1} von {filtered.length} · Du entscheidest, wen du kontaktierst.</Text>
 {familyCard(filtered[index])}
@@ -2622,11 +2681,35 @@ mode==='cards'?<>
 function FamilyDetail({p,photos,photosUrls,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
 if(!p)return <Blank title="Profil nicht verfügbar" body="Das Profil kann verborgen oder gesperrt worden sein."/>;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-<Card style={{alignItems:'center',paddingTop:26}}><Avatar name={p.display_name} size={88} uri={photosUrls?.[photos?.[0]?.id]}/><Text style={[styles.h,{marginTop:12,textAlign:'center'}]}>{p.display_name}</Text><Text style={styles.sub}>⌖ {p.region_label||'Grobe Region nicht angegeben'}</Text><Text style={[styles.body,{textAlign:'center',marginTop:14}]}>{p.about||'Noch keine Beschreibung'}</Text>
-<View style={[styles.chipsRow,{justifyContent:'center'}]}>{(p.interests||[]).map(i=><Chip text={i} key={i}/>)}</View>
-{connection?.status==='accepted'?<Button title="Private Nachricht schreiben" onPress={()=>onChat(connection.id)}/>:
-!blocked&&active?<Button title={connection?'Kontaktanfrage vorhanden':'Kontakt anfragen'} disabled={disabled||!!connection} onPress={onContact}/>:null}
-<Row style={{marginTop:12}}>{blocked?<Button title="Entsperren" mode="outline" small onPress={onUnblock}/>:<Button title="Blockieren" mode="outline" small onPress={onBlock}/>}<Button title="Melden" mode="ghost" small onPress={onReport}/></Row>
+<View style={styles.familyDetailHero}>
+  <View style={styles.familyDetailSun}/>
+  <Avatar name={p.display_name} size={92} uri={photosUrls?.[photos?.[0]?.id]}/>
+  <Text accessibilityRole="header" style={styles.familyDetailName}>{p.display_name}</Text>
+  <Row style={{gap:5,justifyContent:'center',marginTop:8}}>
+    <FamilyIcon name="pin" size={17} color={C.accentDark}/>
+    <Text style={styles.familyDetailRegion}>{p.region_label||'Grobe Region nicht angegeben'}</Text>
+  </Row>
+  <Text style={styles.familyDetailNote}>Freiwillig sichtbares Familienprofil</Text>
+</View>
+<Card style={styles.familyDetailBody}>
+  <Text style={styles.sectionTitle}>Über diese Familie</Text>
+  <Text style={styles.body}>{p.about||'Diese Familie hat noch keine Beschreibung ergänzt.'}</Text>
+  {(p.interests||[]).length?<View style={{marginTop:19}}>
+    <Text style={styles.sectionTitle}>Interessen & Hobbys</Text>
+    <View style={styles.chipsRow}>{p.interests.map(i=><Chip text={i} key={i}/>)}</View>
+  </View>:null}
+  <View style={styles.familyDetailActions}>
+    {!blocked&&connection?.status==='accepted'?
+      <Button title="Private Nachricht schreiben" disabled={disabled} onPress={()=>onChat(connection.id)}/>:
+      !blocked&&active?<Button title={connection?'Kontaktanfrage vorhanden':'Kontakt anfragen'}
+        disabled={disabled||!!connection} onPress={onContact}/>:null}
+    {blocked?<Text style={styles.familyDetailBlocked}>Diese Familie ist von dir blockiert.</Text>:null}
+    <Row style={{marginTop:10}}>
+      {blocked?<Button title="Entsperren" mode="outline" small disabled={disabled} onPress={onUnblock}/>:
+        <Button title="Blockieren" mode="outline" small disabled={disabled} onPress={onBlock}/>}
+      <Button title="Melden" mode="ghost" small disabled={disabled} onPress={onReport}/>
+    </Row>
+  </View>
 </Card>
 {photoBusy?<ActivityIndicator color={C.accent}/>:null}
 {photoLoadError?<><Info warning>{photoLoadError}</Info><Button title="Fotos erneut laden" mode="outline" onPress={retryPhotos}/></>:null}
@@ -3147,6 +3230,35 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 </ScrollView>;
 }
 const styles=StyleSheet.create({
+familyCardAccent:{height:6,backgroundColor:C.sun},
+familyRegionBadge:{color:C.accentDark,fontSize:11.5,fontWeight:'700',marginTop:6},
+familyDetailHero:{backgroundColor:C.sunPale,borderRadius:22,paddingVertical:30,
+  paddingHorizontal:18,marginBottom:13,alignItems:'center',overflow:'hidden'},
+familyDetailSun:{position:'absolute',width:166,height:166,borderRadius:83,
+  top:-91,right:-60,backgroundColor:'#FFDF89'},
+familyDetailName:{color:C.ink,fontSize:26,fontWeight:'800',marginTop:15,textAlign:'center'},
+familyDetailRegion:{color:C.accentDark,fontSize:14,fontWeight:'700'},
+familyDetailNote:{color:C.muted,fontSize:12,marginTop:11,textAlign:'center'},
+familyDetailBody:{padding:18,marginBottom:18},
+familyDetailActions:{borderTopWidth:1,borderTopColor:C.line,marginTop:19,paddingTop:17},
+familyDetailBlocked:{color:C.warningText,fontSize:13,marginBottom:7},
+
+marketHero:{backgroundColor:C.sunPale,borderRadius:22,padding:18,flexDirection:'row',
+  alignItems:'center',gap:12,marginBottom:13},
+marketEyebrow:{color:'#6C4A18',fontSize:10.5,letterSpacing:1.2,fontWeight:'800'},
+marketHeroTitle:{fontSize:27,color:C.ink,fontWeight:'800',marginTop:5},
+marketHeroText:{fontSize:13.5,color:C.ink,lineHeight:19,marginTop:5},
+marketHeroIcon:{width:59,height:59,borderRadius:19,backgroundColor:C.white,
+  alignItems:'center',justifyContent:'center'},
+marketTrust:{flexDirection:'row',gap:7,alignItems:'center',
+  paddingVertical:11,paddingHorizontal:10,marginBottom:12,
+  borderRadius:14,backgroundColor:C.mint},
+marketTrustText:{fontSize:12,color:C.accentDark,fontWeight:'700',flex:1},
+marketFilterHeading:{fontSize:13,color:C.ink,fontWeight:'800',marginBottom:9},
+marketGiftPill:{position:'absolute',top:9,left:8,backgroundColor:C.sunPale,
+  paddingVertical:6,paddingHorizontal:10,borderRadius:10},
+marketGiftText:{color:'#6C4A18',fontSize:11,fontWeight:'800'},
+
 
 marketTopActions:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:C.white,padding:15,borderRadius:20,borderWidth:1,borderColor:C.line,marginBottom:17},
 marketTopTitle:{fontSize:17,fontWeight:'900',color:C.ink,marginBottom:3},
@@ -3160,14 +3272,15 @@ marketFilterToggle:{minHeight:47,borderRadius:14,borderWidth:1,borderColor:'#D0D
 marketFilterLabel:{fontSize:12.5,fontWeight:'800',color:C.accentDark},
 marketSortOptions:{backgroundColor:C.white,borderColor:C.line,borderWidth:1,borderRadius:14,marginTop:5},
 marketGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:13},
-marketTile:{width:'48.3%',borderRadius:18,borderWidth:1,borderColor:C.line,backgroundColor:C.white,overflow:'hidden',minHeight:246,shadowColor:'#986D52',shadowOpacity:0.07,shadowRadius:8,shadowOffset:{width:0,height:2},elevation:1},
-marketTileImage:{width:'100%',height:154,backgroundColor:'#F1F3EF',position:'relative'},
+marketTile:{width:'48.3%',borderRadius:19,borderWidth:1,borderColor:C.line,backgroundColor:C.white,overflow:'hidden',minHeight:262,shadowColor:'#986D52',shadowOpacity:0.05,shadowRadius:6,shadowOffset:{width:0,height:2},elevation:1},
+marketTileImage:{width:'100%',height:184,backgroundColor:'#F1F3EF',position:'relative'},
 marketTilePhoto:{width:'100%',height:'100%'},
 marketImagePlaceholder:{backgroundColor:'#F4F1EB',alignItems:'center',justifyContent:'center',gap:5},
 marketPricePill:{position:'absolute',top:8,left:7,right:50,backgroundColor:'#FFFFFFF2',borderRadius:11,paddingVertical:6,paddingHorizontal:9,alignSelf:'flex-start'},
 marketPricePillText:{fontSize:14,fontWeight:'900',color:C.ink},
-marketTileBody:{padding:11,paddingBottom:14,gap:4},
-marketTileTitle:{fontSize:15,fontWeight:'800',color:C.ink,lineHeight:19,minHeight:38},
+marketTileBody:{padding:12,paddingBottom:15,gap:3},
+marketTileTitle:{fontSize:15,fontWeight:'700',color:C.ink,lineHeight:20,minHeight:38},
+marketTilePrice:{fontSize:17,fontWeight:'800',color:C.accentDark,marginTop:6},
 marketDetailCard:{padding:17,marginBottom:18},
 marketDetailImage:{height:285,backgroundColor:'#F4F1EB',borderRadius:18,overflow:'hidden'},
 marketFullImage:{width:'100%',height:'100%'},
@@ -3201,24 +3314,24 @@ heroDecorationTwo:{position:'absolute',width:88,height:88,borderRadius:44,backgr
 heroPill:{alignSelf:'flex-start',backgroundColor:C.white,borderRadius:40,paddingHorizontal:13,paddingVertical:7,marginBottom:12},
 heroPillText:{fontSize:10.5,fontWeight:'900',letterSpacing:1.1,color:'#624315'},
 eyebrow:{fontSize:11,fontWeight:'900',letterSpacing:1.5,color:C.coralDeep},
-heroTitle:{fontSize:28,fontWeight:'900',color:C.ink,letterSpacing:-.8,lineHeight:35,maxWidth:295},
+heroTitle:{fontSize:28,fontWeight:'800',color:C.ink,letterSpacing:-.8,lineHeight:35,maxWidth:295},
 heroText:{color:'#66512F',fontSize:14,lineHeight:21,marginTop:10,maxWidth:285},
 heroTagline:{alignSelf:'flex-start',backgroundColor:'#FFFDF3',borderRadius:12,paddingVertical:8,paddingHorizontal:10,marginTop:18},
 heroTaglineText:{color:C.ink,fontSize:11.5,fontWeight:'700'},
 headingWrap:{flexDirection:'row',alignItems:'flex-start',gap:12,marginBottom:17},
 headingBar:{width:5,height:37,borderRadius:4,backgroundColor:C.sun,marginTop:3},
-h:{fontSize:25,fontWeight:'900',color:C.ink,letterSpacing:-.6},
+h:{fontSize:25,fontWeight:'800',color:C.ink,letterSpacing:-.6},
 sub:{fontSize:13.5,lineHeight:21,color:C.muted,marginTop:6},
 body:{fontSize:14.5,lineHeight:22,color:C.ink},
 micro:{fontSize:11.5,color:C.muted,lineHeight:17},
-sectionTitle:{fontSize:18,color:C.ink,fontWeight:'900',marginBottom:13},
-cardTitle:{fontSize:17,fontWeight:'900',color:C.ink},
+sectionTitle:{fontSize:18,color:C.ink,fontWeight:'800',marginBottom:13},
+cardTitle:{fontSize:17,fontWeight:'800',color:C.ink},
 label:{fontSize:13,color:C.ink,fontWeight:'800',marginBottom:8},
 input:{backgroundColor:C.white,borderColor:'#D9DED6',borderWidth:1,borderRadius:15,paddingHorizontal:15,paddingVertical:13,fontSize:15,color:C.ink,minHeight:48},
 button:{minHeight:50,paddingHorizontal:18,paddingVertical:12,borderRadius:15,justifyContent:'center',alignItems:'center',flexDirection:'row'},
 button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#AEDBDD',borderWidth:1.5},
 button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:44,paddingVertical:9,paddingHorizontal:13},
-buttonText:{color:C.white,fontSize:14,fontWeight:'900'},buttonTextDark:{color:C.accentDark},
+buttonText:{color:C.white,fontSize:14,fontWeight:'800'},buttonTextDark:{color:C.accentDark},
 chip:{borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:13,paddingVertical:8},
 chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{color:C.accentDark,fontSize:12,fontWeight:'800'},
 chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},
@@ -3226,8 +3339,8 @@ info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertica
 warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:C.accentDark},
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
-tabBar:{minHeight:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
-tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:54,paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{fontSize:24,color:'#708186',fontWeight:'500'},tabLabel:{fontSize:10.5,color:'#61757A',marginTop:3,fontWeight:'700'},
+tabBar:{minHeight:76,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:8,paddingBottom:3},
+tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:57,paddingVertical:6,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{width:35,height:29,alignItems:'center',justifyContent:'center'},tabIconSelected:{borderRadius:10},tabLabel:{fontSize:11,color:C.muted,marginTop:3,fontWeight:'600'},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},

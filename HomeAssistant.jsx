@@ -2,6 +2,11 @@ import React, {useEffect, useRef, useState} from 'react';
 import {AccessibilityInfo, ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
+import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
+import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
+import {FamilyEmptyState,FamilySkeleton,FamilySectionTitle} from './FamilyFeedback';
+import {recommendFamilyPlaces,selectHomeOffers,selectHomeEvents,missingFamilyProfileStep,homeGreeting} from './HomePersonalization';
+import {retryRead} from './NetworkResilience';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
 
 import {findFamilyMapLocations} from './FamilyMapSearch';
@@ -14,7 +19,7 @@ const SUGGESTIONS=['Spielplätze finden','Kinderjeans Größe 110','Profil bearb
 function SunMark(){
   return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.sunWrap}>
     {Array.from({length:8},(_,i)=><View key={i} style={[s.ray,{
-      transform:[{rotate:(i*45)+'deg'},{translateY:-28}]
+      transform:[{rotate:(i*45)+'deg'},{translateY:-20}]
     }]}/>)}
     <View style={s.sunCore}/>
   </View>;
@@ -25,12 +30,12 @@ function AreaCard({route,onNavigate,query,compact=false}){
     accessibilityLabel={route.title+' öffnen'}
     onPress={()=>onNavigate(route.id,productSearch?query.trim():'')}
     style={({pressed})=>[compact?s.areaGrid:s.areaRow,pressed&&s.pressed]}>
-    <View style={compact?s.areaGridAccent:s.areaAccent}/>
+    <View style={s.areaIcon}><FamilyIcon name={FAMILY_ROUTE_ICONS[route.id]||'compass'} size={compact?25:23}/></View>
     <View style={{flex:1}}>
       <Text style={[s.areaTitle,compact&&{fontSize:15}]}>{route.title}</Text>
       <Text style={s.areaSubtitle} numberOfLines={compact?3:2}>{route.subtitle}</Text>
     </View>
-    <Text style={s.areaArrow}>›</Text>
+    <FamilyIcon name="chevron-right" size={19} color={C.accentDark}/>
   </Pressable>;
 }
 function AssistantReply({entry,onNavigate}){
@@ -65,7 +70,7 @@ function AssistantReply({entry,onNavigate}){
     </Pressable>:null}
   </View>;
 }
-export default function HomeAssistant({onNavigate}){
+export default function HomeAssistant({onNavigate,profile,userId,active=false,inboxUnread=null}){
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<360||fontScale>=1.5;
   const [question,setQuestion]=useState('');
@@ -77,6 +82,44 @@ export default function HomeAssistant({onNavigate}){
   const requestSeq=useRef(0),alive=useRef(true),pending=useRef(false);
   const [searchResult,setSearchResult]=useState(null);
   const [searchBusy,setSearchBusy]=useState(false);
+  const [homeFeed,setHomeFeed]=useState({offers:null,events:null});
+  const [feedLoading,setFeedLoading]=useState(false);
+  const [feedRetry,setFeedRetry]=useState(0);
+  const region=profile?.region_label||'';
+  const profileStep=missingFamilyProfileStep(profile);
+  const suggestedPlaces=recommendFamilyPlaces(
+    CURATED_FAMILY_PLACES,{region,interests:profile?.interests||[]},3
+  );
+  useEffect(()=>{
+    let live=true;
+    if(!userId||!active){
+      setHomeFeed({offers:[],events:[]});setFeedLoading(false);
+      return()=>{live=false;};
+    }
+    setFeedLoading(true);setHomeFeed({offers:null,events:null});
+    (async()=>{
+      // Home recommendations are NOT fetched with the global app bootstrap.
+      // Both calls respect server-side approvals, RLS and block policies.
+      const [offerResponse,eventResponse]=await Promise.allSettled([
+        retryRead(()=>supabase.rpc('ff_market_search',{
+          p_query:'',p_category:'Alle',p_trade_type:'all',
+          p_sort:'newest',p_limit:10,p_offset:0
+        }),{isCurrent:()=>live}),
+        retryRead(()=>supabase.rpc('ff_search_events',{p_query:'veranstaltungen'}),{isCurrent:()=>live})
+      ]);
+      if(!live)return;
+      const offerData=offerResponse.status==='fulfilled'&&!offerResponse.value?.error&&
+        Array.isArray(offerResponse.value?.data)?offerResponse.value.data:null;
+      const eventData=eventResponse.status==='fulfilled'&&!eventResponse.value?.error&&
+        Array.isArray(eventResponse.value?.data)?eventResponse.value.data:null;
+      setHomeFeed({
+        offers:offerData===null?null:selectHomeOffers(offerData,{region,ownerId:userId},3),
+        events:eventData===null?null:selectHomeEvents(eventData,{region},2)
+      });
+    })().catch(()=>{if(live)setHomeFeed({offers:null,events:null});})
+      .finally(()=>{if(live)setFeedLoading(false);});
+    return()=>{live=false;};
+  },[userId,active,region,feedRetry]);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;requestSeq.current++;};},[]);
   function updateQuestion(value){
     requestSeq.current++;pending.current=false;
@@ -182,7 +225,7 @@ export default function HomeAssistant({onNavigate}){
       <Text accessibilityRole="header" style={s.wordmark}>Familienfunke<Text style={{color:C.coralDeep}}>.</Text></Text>
       <Text style={s.tagline}>Finden. Fragen. Entdecken.</Text>
       <View style={s.inputShell}>
-        <Text accessibilityElementsHidden importantForAccessibility="no" style={s.searchGlyph}>⌕</Text>
+        <FamilyIcon name="search" size={23} color={C.accentDark}/>
         <TextInput accessibilityLabel="Familienfunke durchsuchen oder eine KI-Frage eingeben"
           style={s.input} value={question} onChangeText={updateQuestion} editable={!busy&&!searchBusy}
           placeholder="Was möchtest du finden?"
@@ -246,8 +289,34 @@ export default function HomeAssistant({onNavigate}){
       {conversation.map((entry,i)=><AssistantReply key={i+'-'+entry.question}
         entry={entry} onNavigate={onNavigate}/>)}
     </View>:null}
+    {!needle?<View style={s.welcomeSection}>
+      <Text style={s.welcomeEyebrow}>EURE FAMILIENWELT</Text>
+      <Text accessibilityRole="header" style={s.welcomeTitle}>{homeGreeting(profile)}</Text>
+      <Text style={s.welcomeSubtitle}>Entdeckt, was euch als Familie heute Freude macht.</Text>
+      {typeof inboxUnread==='number'&&inboxUnread>0?
+        <Pressable accessibilityRole="button" accessibilityLabel={inboxUnread+' ungelesene Neuigkeiten öffnen'}
+          onPress={()=>onNavigate('inbox')} style={s.inboxCallout}>
+          <View style={s.calloutIcon}><FamilyIcon name="bell" size={21}/></View>
+          <View style={{flex:1}}>
+            <Text style={s.calloutTitle}>{inboxUnread} ungelesene {inboxUnread===1?'Neuigkeit':'Neuigkeiten'}</Text>
+            <Text style={s.calloutSubtitle}>Schaut nach, was es Neues gibt.</Text>
+          </View>
+          <FamilyIcon name="chevron-right" size={19}/>
+        </Pressable>:null}
+      {profileStep?<Pressable accessibilityRole="button"
+        accessibilityLabel={profileStep.title+' im Familienprofil'}
+        onPress={()=>onNavigate('profile')} style={s.profilePrompt}>
+        <FamilyIcon name="users" size={22}/>
+        <View style={{flex:1}}>
+          <Text style={s.promptTitle}>{profileStep.title}</Text>
+          <Text style={s.promptSubtitle}>{profileStep.detail}</Text>
+        </View>
+        <FamilyIcon name="chevron-right" size={18}/>
+      </Pressable>:null}
+    </View>:null}
     {!needle?<View style={s.section}>
-      <Text accessibilityRole="header" style={s.sectionTitle}>Direkt zu</Text>
+      <FamilySectionTitle title="Direkt zu" subtitle="Eure beliebtesten Wege durch Familienfunke"/>
+
       <View style={[s.featuredGrid,singleColumn&&{flexDirection:'column'}]}>
         {featured.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query="" compact={!singleColumn}/>)}
       </View>
@@ -261,6 +330,91 @@ export default function HomeAssistant({onNavigate}){
       <Pressable accessibilityRole="button" accessibilityLabel="Persönlichen Familienausflug planen" onPress={()=>onNavigate('outing')} style={s.outingCard}>
         <View style={{flex:1}}><Text style={s.outingTitle}>Familienausflug planen</Text><Text style={s.outingSubtitle}>Passende Ziele nach Alter, Budget und Entfernung.</Text><Text style={s.outingLink}>Ausflugsplaner öffnen ›</Text></View>
       </Pressable>
+    </View>:null}
+    {!needle?<View style={s.section}>
+      <View style={s.personalSection}>
+        <FamilySectionTitle title={region?'Ideen für eure Region':'Ausflüge zum Entdecken'}
+          subtitle={region?'Aus der Familienkarte, nach eurer Region und euren Interessen sortiert':'Redaktionell ausgewählte Orte aus der Familienkarte'}
+          actionLabel="Karte öffnen" onAction={()=>onNavigate('map')}/>
+        <View style={s.placesList}>
+          {suggestedPlaces.map(({place,isLocal})=>
+            <Pressable key={place.id} accessibilityRole="button"
+              accessibilityLabel={place.title+' auf der Familienkarte öffnen'}
+              onPress={()=>onNavigate('map','',place.id)} style={s.placeCard}>
+              <View style={s.placeIcon}><FamilyIcon name="compass" size={24}/></View>
+              <View style={{flex:1}}>
+                <Text style={s.placeTitle} numberOfLines={2}>{place.title}</Text>
+                <Text style={s.placeSubtitle} numberOfLines={2}>
+                  {isLocal?'Eure Region · ':'Aus der Familienkarte · '}{place.region_label}
+                </Text>
+                <Text style={s.placeDescription} numberOfLines={2}>{place.description}</Text>
+              </View>
+              <FamilyIcon name="chevron-right" size={19}/>
+            </Pressable>)}
+        </View>
+        {suggestedPlaces.length===0?
+          <FamilyEmptyState title="Hier entstehen eure Ausflugsideen"
+            description="Die Familienkarte enthält Orte und Ausflugsziele zum Stöbern."
+            icon="compass" actionLabel="Familienkarte ansehen"
+            onAction={()=>onNavigate('map')} compact/>:null}
+      </View>
+      {active?<><View style={s.personalSection}>
+        <FamilySectionTitle title="Frisch im Familienbasar"
+          subtitle="Nur tatsächlich freigegebene Angebote"
+          actionLabel="Zum Basar" onAction={()=>onNavigate('market')}/>
+        {feedLoading?<FamilySkeleton rows={2} label="Basarangebote werden geladen"/>:
+         homeFeed.offers===null?
+           <FamilyEmptyState title="Angebote gerade nicht erreichbar"
+             description="Die übrigen App-Bereiche bleiben nutzbar."
+             icon="bag" actionLabel="Noch einmal versuchen"
+             onAction={()=>setFeedRetry(n=>n+1)} compact/>:
+         homeFeed.offers.length?homeFeed.offers.map(offer=>
+           <Pressable key={offer.id} accessibilityRole="button"
+             accessibilityLabel={offer.title+' im Basar öffnen'}
+             onPress={()=>onNavigate('market','',offer.id)} style={s.feedCard}>
+             <View style={s.feedIcon}><FamilyIcon name="bag" size={24}/></View>
+             <View style={{flex:1}}>
+               <Text style={s.feedTitle} numberOfLines={2}>{offer.title}</Text>
+               <Text style={s.feedMeta} numberOfLines={1}>{offer.category} · {offer.region_label||'Region auf Anfrage'}</Text>
+             </View>
+             <Text style={s.feedPrice} numberOfLines={1}>
+               {offer.trade_type==='gift'?'Gratis':offer.trade_type==='swap'?'Tausch':
+                 (Number(offer.price_cents||0)/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'})}
+             </Text>
+           </Pressable>):
+           <FamilyEmptyState title="Noch keine freigegebenen Angebote"
+             description="Sobald passende Inserate veröffentlicht sind, erscheinen sie hier."
+             icon="bag" actionLabel="Familienbasar entdecken"
+             onAction={()=>onNavigate('market')} compact/>}
+      </View>
+      <View style={s.personalSection}>
+        <FamilySectionTitle title="Demnächst gemeinsam"
+          subtitle="Bevorstehende Familientreffen und Veranstaltungen"
+          actionLabel="Alle Termine" onAction={()=>onNavigate('events')}/>
+        {feedLoading?<FamilySkeleton rows={1} label="Termine werden geladen"/>:
+         homeFeed.events===null?
+         <FamilyEmptyState title="Termine nicht abrufbar"
+           description="Du kannst den Veranstaltungskalender weiterhin öffnen."
+           icon="calendar" actionLabel="Erneut laden" onAction={()=>setFeedRetry(n=>n+1)} compact/>:
+         homeFeed.events.length?homeFeed.events.map(event=>
+           <Pressable key={event.kind+event.id} accessibilityRole="button"
+             accessibilityLabel={event.title+' öffnen'}
+             onPress={()=>onNavigate(event.kind==='family'?'events':'partners','',event.id)}
+             style={s.feedCard}>
+             <View style={s.feedIcon}><FamilyIcon name="calendar" size={24}/></View>
+             <View style={{flex:1}}>
+               <Text style={s.feedTitle} numberOfLines={2}>{event.title}</Text>
+               <Text style={s.feedMeta} numberOfLines={1}>{event.region_label||'Region auf Anfrage'}</Text>
+               <Text style={s.feedDate}>
+                 {new Date(event.starts_at).toLocaleDateString('de-DE',{day:'2-digit',month:'short',year:'numeric'})}
+               </Text>
+             </View>
+             <FamilyIcon name="chevron-right" size={18}/>
+           </Pressable>):
+         <FamilyEmptyState title="Noch keine anstehenden Termine"
+           description="Bis neue Veranstaltungen freigegeben werden, findet ihr im Ausflugsplaner weitere Ideen."
+           icon="calendar" actionLabel="Ausflugsplaner öffnen" onAction={()=>onNavigate('outing')} compact/>}
+      </View></>:null}
     </View>:null}
     {!needle?<View style={s.section}>
       <Text style={s.sectionTitle}>Du könntest fragen</Text>
@@ -283,13 +437,13 @@ export default function HomeAssistant({onNavigate}){
 const s=StyleSheet.create({
   page:{flex:1,backgroundColor:C.bg},
   content:{paddingHorizontal:18,paddingTop:14,paddingBottom:45},
-  searchCenter:{alignItems:'center',paddingVertical:18,marginBottom:18},
-  searchCenterIdle:{paddingTop:56,paddingBottom:24},
-  wordmark:{fontSize:34,fontWeight:'900',letterSpacing:-1.3,color:C.ink,textAlign:'center',marginTop:7},
-  tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:6,marginBottom:24},
-  sunWrap:{width:70,height:70,alignItems:'center',justifyContent:'center'},
-  sunCore:{position:'absolute',width:35,height:35,borderRadius:18,backgroundColor:'#F5B644'},
-  ray:{position:'absolute',height:11,width:3,borderRadius:2,backgroundColor:'#E8A942'},
+  searchCenter:{alignItems:'center',paddingVertical:12,marginBottom:12},
+  searchCenterIdle:{paddingTop:14,paddingBottom:13},
+  wordmark:{fontSize:31,fontWeight:'800',letterSpacing:-1.1,color:C.ink,textAlign:'center',marginTop:6},
+  tagline:{fontSize:14,color:C.muted,textAlign:'center',marginTop:5,marginBottom:18},
+  sunWrap:{width:54,height:54,alignItems:'center',justifyContent:'center'},
+  sunCore:{position:'absolute',width:28,height:28,borderRadius:14,backgroundColor:'#F5B644'},
+  ray:{position:'absolute',height:9,width:2.5,borderRadius:2,backgroundColor:'#E8A942'},
   eyebrow:{fontWeight:'900',fontSize:12,letterSpacing:1.8,color:'#845721',marginBottom:15},
   heroTitle:{color:C.ink,fontSize:29,fontWeight:'900',lineHeight:35,maxWidth:'82%',letterSpacing:-.6},
   heroSubtitle:{color:'#66512F',fontSize:15,lineHeight:21,marginTop:11,maxWidth:'80%'},
@@ -313,11 +467,45 @@ const s=StyleSheet.create({
   directLabel:{color:C.tealDark,fontSize:13.5,fontWeight:'800',textAlign:'center'},
   directHint:{color:C.muted,fontSize:12.5,flex:1,lineHeight:17},
   error:{color:C.danger,fontSize:13,lineHeight:19,marginTop:12},
+  areaIcon:{width:37,height:37,borderRadius:13,backgroundColor:C.sunPale,alignItems:'center',
+    justifyContent:'center',marginBottom:8},
+  welcomeSection:{backgroundColor:C.sunPale,borderRadius:21,padding:18,marginBottom:21},
+  welcomeEyebrow:{fontSize:10.5,letterSpacing:1.3,fontWeight:'800',color:'#6C4A18'},
+  welcomeTitle:{fontSize:24,fontWeight:'800',letterSpacing:-0.5,color:C.ink,marginTop:5},
+  welcomeSubtitle:{fontSize:14,lineHeight:21,color:C.ink,marginTop:5,marginBottom:5},
+  inboxCallout:{backgroundColor:C.paper,borderRadius:15,minHeight:62,
+    marginTop:12,padding:12,flexDirection:'row',alignItems:'center',gap:10},
+  calloutIcon:{width:37,height:37,borderRadius:12,backgroundColor:C.sunPale,
+    alignItems:'center',justifyContent:'center'},
+  calloutTitle:{fontSize:14,fontWeight:'800',color:C.ink},
+  calloutSubtitle:{fontSize:12,color:C.muted,marginTop:3},
+  profilePrompt:{backgroundColor:C.paper,borderRadius:15,padding:12,
+    marginTop:11,flexDirection:'row',alignItems:'center',gap:10},
+  promptTitle:{fontSize:14,fontWeight:'800',color:C.ink},
+  promptSubtitle:{fontSize:12,lineHeight:17,color:C.muted,marginTop:3},
+  personalSection:{marginTop:18,marginBottom:6},
+  placesList:{gap:9},
+  placeCard:{backgroundColor:C.paper,borderWidth:1,borderColor:C.line,
+    borderRadius:17,padding:12,minHeight:94,flexDirection:'row',alignItems:'center',gap:10},
+  placeIcon:{width:54,height:54,backgroundColor:C.mint,borderRadius:15,
+    alignItems:'center',justifyContent:'center'},
+  placeTitle:{fontSize:15,fontWeight:'800',color:C.ink},
+  placeSubtitle:{fontSize:12,color:C.accentDark,marginTop:3,fontWeight:'700'},
+  placeDescription:{fontSize:12,lineHeight:17,color:C.muted,marginTop:3},
+  feedCard:{backgroundColor:C.paper,borderWidth:1,borderColor:C.line,
+    borderRadius:16,padding:12,flexDirection:'row',alignItems:'center',
+    gap:10,minHeight:80,marginBottom:9},
+  feedIcon:{width:46,height:46,backgroundColor:C.sunPale,borderRadius:14,
+    alignItems:'center',justifyContent:'center'},
+  feedTitle:{fontSize:14,fontWeight:'800',color:C.ink},
+  feedMeta:{fontSize:12,color:C.muted,marginTop:3},
+  feedPrice:{fontSize:13,color:C.accentDark,fontWeight:'800',maxWidth:95,textAlign:'right'},
+  feedDate:{fontSize:12,color:C.accentDark,marginTop:3,fontWeight:'700'},
   section:{marginBottom:22},
   sectionTitle:{color:C.ink,fontWeight:'900',fontSize:19,marginBottom:4},
   sectionSubtitle:{color:C.muted,fontSize:13,lineHeight:19,marginBottom:12},
   featuredGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:10},
-  areaGrid:{width:'48.4%',minHeight:96,backgroundColor:C.paper,borderColor:C.line,
+  areaGrid:{width:'48.4%',minHeight:114,backgroundColor:C.paper,borderColor:C.line,
     borderWidth:1,borderRadius:19,padding:14,justifyContent:'space-between'},
   areaGridAccent:{width:29,height:5,borderRadius:5,backgroundColor:C.sun,marginBottom:10},
   areaRow:{backgroundColor:C.paper,borderRadius:16,borderWidth:1,borderColor:C.line,
