@@ -211,3 +211,27 @@ Technische Details: `TECHNISCHE-ZUVERLAESSIGKEIT.md`.
 - Zusätzliche Unit- und statische Regressionstests im Native-CI.
 
 Details: `TECHNISCHE-ZUVERLAESSIGKEIT.md`.
+
+## Phase 8 – Nachrichten-Deduplizierung und sichere Kontakte (22.11.2026)
+
+- Chatversand erkennt anhand einer eindeutigen, vom Client vor dem
+  ersten Senden dauerhaft vorgemerkten UUID identische Wiederholungen;
+  `messages.id` erzwingt die serverseitige Einmaligkeit.
+  Der Moderations- und Zugriffsweg bleibt erhalten. Der neue Endpunkt
+  unterstützt ältere App-Versionen ohne diese Sende-ID weiter,
+  allerdings ohne Deduplizierung für alte Clients.
+- Kontaktanfragen nutzen nun geprüfte RPCs statt der bereits
+  entzogenen Tabellen-INSERT-/UPDATE-Rechte. Ein eindeutiger
+  Paar-Index war bereits vorhanden und bleibt unverändert.
+- `anon`-Aufrufe dieser RPCs sind gesperrt; privilegierte
+  Kontaktschreiblogik liegt ausschließlich in einem nicht
+  exponierten Schema. Keine direkten Tabellen-Schreibrechte
+  für App-Konten eingeführt.
+- Die Sendevormerkung enthält einen Hash des Texts, keine
+  Nachrichteninhalte. Sie gilt je Konto/Kontakt und läuft nach
+  sieben Tagen ab; nach bestätigtem Versand wird sie entfernt.
+- **Offen:** Echte Staging-E2E-Läufe mit zwei freigegebenen
+  Konten, Verbindungsabbruch nach erfolgreichem Insert,
+  parallelen wiederholten Aufrufen und Moderationsfehlern.
+
+Details: `TECHNISCHE-ZUVERLAESSIGKEIT.md`.
