@@ -93,7 +93,7 @@ function htmlEntities(s){
 // Municipality-specific list extraction; only official event list items are accepted.
 // Does not extract user content, images, ticket prices, or arbitrary nearby links.
 export function parseStorkowHtml(html,sourceUrl){
- const blocks=String(html||'').split(/(?=<div\s+class=["'][^"']*event-entry-new-1(?:\s|["']))/i).slice(1,200);
+ const blocks=String(html||'').split(/(?=<div\s+class=["'][^"']*event-entry-new-1(?:\s|["']))/i).slice(0,200);
  const out=[];
  for(const segment of blocks){
   if(!/^<div\s+class=["'][^"']*event-entry-new-1/i.test(segment))continue;
