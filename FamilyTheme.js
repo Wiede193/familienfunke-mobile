@@ -38,3 +38,32 @@ export const FAMILY_RADII = Object.freeze({
   input:15,
   chip:22
 });
+
+
+// Shared typography and spacing for the six-part interface refresh. Preserve
+// the established sunny palette and accessible high-contrast action colors.
+export const FAMILY_TYPE = Object.freeze({
+  display:30,
+  title:23,
+  section:19,
+  card:16,
+  body:15,
+  small:13,
+  meta:12,
+  weightDisplay:'800',
+  weightTitle:'800',
+  weightBody:'400'
+});
+export const FAMILY_SPACE = Object.freeze({
+  xs:4,sm:8,md:12,base:16,lg:20,xl:24,xxl:32,
+  touch:44,
+  screen:18
+});
+export const FAMILY_SURFACE = Object.freeze({
+  border:FAMILY_COLORS.line,
+  selected:FAMILY_COLORS.sunPale,
+  canvas:FAMILY_COLORS.bg,
+  card:FAMILY_COLORS.paper,
+  mutedCard:'#FCF8EF',
+  softTeal:FAMILY_COLORS.mint
+});
