@@ -1,6 +1,7 @@
 import React,{useState} from 'react';
 import {Modal,Pressable,SafeAreaView,ScrollView,StyleSheet,Text,View} from 'react-native';
-import {FAMILY_COLORS as C,FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
+import {FAMILY_COLORS as C} from './FamilyTheme';
+import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 
 export const MENU_GROUPS=[
