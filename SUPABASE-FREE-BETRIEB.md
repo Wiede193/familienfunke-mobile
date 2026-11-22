@@ -47,7 +47,8 @@ temporäre DB-Bytes sowie Zahl und Fehler der Cronjobs in der letzten Stunde.
 IP-Adressen oder Zugangsschlüssel werden gespeichert. Die Tabelle liegt
 im nicht API-exponierten Schema `private`; `anon` und `authenticated`
 haben weder Leserechte noch Funktions-EXECUTE. Es werden höchstens 14 Tage
-eigener Snapshots behalten.
+eigener Snapshots behalten. Die Statusansicht ist unter
+`database/ff_ops_private_status_view_20261122.sql` versioniert.
 
 Nur im **SQL-Editor mit Betreiberrechten** ausführen:
 
@@ -68,6 +69,18 @@ select
 from private.ff_ops_snapshots
 order by observed_at desc
 limit 48;
+```
+
+Eine zusätzliche, ebenfalls private `SECURITY INVOKER`-Ansicht
+`private.ff_ops_latest_status` berechnet aus dem jüngsten Snapshot
+`ok`, `warning` oder `critical`. Sie erkennt auch, wenn länger als
+zwei beziehungsweise vier Stunden kein neuer Snapshot einging.
+Sie ist nur für Betreiber im SQL-Editor lesbar, nicht für App-Nutzer.
+
+```sql
+select observed_at, database_quota_percent, connections_percent,
+       waiting_locks, cron_failures_last_hour, technical_status
+from private.ff_ops_latest_status;
 ```
 
 **Pragmatische Beobachtungsschwellen, noch keine automatischen Alarme:**
