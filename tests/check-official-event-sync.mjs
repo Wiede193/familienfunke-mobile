@@ -13,6 +13,20 @@ const html='<script type="application/ld+json">'+JSON.stringify({
   {'@type':'Event',name:'Kinderpuppentheater',startDate:'2026-12-07T14:00:00+01:00',
    url:'https://malicious.example.com/track'}
  ]})+'</script>';
+const storkowHtml='<div class="col-xs-12 col-md-6 col-lg-3 event-entry-new-1">'+
+ '<div class="event-entry-new-1-time">Sa, <time datetime="2026-12-12">12. Dez</time></div>'+
+ '<div class="event-entry-new-1-daytime"><time>11:00</time> – <time>19:00</time></div>'+
+ '<div class="event-entry-new-1-headline"><h2 class="legacy_h6"><a href="/veranstaltungen/3005555/2026/12/12/familienfest">Familienfest für Groß &amp; Klein</a></h2></div>'+
+ '<div class="event-entry-new-1-location">Burg Storkow</div></div>';
+const extracted=mod.parseStorkowHtml(storkowHtml,source.url);
+assert.equal(extracted.length,1,'Storkow event cards parsed');
+assert.equal(extracted[0].start_date,'2026-12-12');
+assert.equal(extracted[0].start_time,'11:00');
+assert.equal(extracted[0].title,'Familienfest für Groß & Klein');
+assert.equal(extracted[0].venue,'Burg Storkow');
+const normalizedHtml=await mod.normalizeEventCandidates(extracted,source,'2026-11-23');
+assert.equal(normalizedHtml.length,1,'Storkow HTML event becomes a review-only candidate');
+assert.equal(normalizedHtml[0].source_url,'https://www.storkow-mark.de/veranstaltungen/3005555/2026/12/12/familienfest');
 const parsed=mod.parseJsonLdEvents(html,source.url);
 assert.equal(parsed.length,4);
 const normalized=await mod.normalizeEventCandidates(parsed,source,'2026-11-23');
@@ -54,6 +68,7 @@ assert.match(main,/x-ff-official-sync/);
 assert.match(main,/allowedHosts|const hosts=new Set/);
 assert.match(main,/redirect:'error'/);
 assert.match(main,/ff_official_event_sources/);
+assert.match(main,/parseStorkowHtml/);
 assert.match(main,/ff_official_event_sync_runs/);
 assert.doesNotMatch(main,/\.update\(\{published:true\}\)/);
 assert.match(persistence,/review_state:'pending'|:'pending'/);
