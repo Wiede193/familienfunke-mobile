@@ -737,7 +737,7 @@ Alert.alert('Kontakt blockieren?','Die Person kann dir dann keine neuen Nachrich
 {text:'Blockieren',style:'destructive',onPress:()=>execute(async()=>assertResult(await supabase.from('blocks').insert({blocker_id:me,blocked_id:uid})),'Kontakt blockiert.')},
 ]);
 }
-async function unblockUser(uid){await execute(async()=>assertResult(await supabase.from('blocks').delete().eq('blocker_id',me).eq('blocked_id',uid)),'Blockierung aufgehoben.');}
+async function unblockUser(uid){return execute(async()=>assertResult(await supabase.from('blocks').delete().eq('blocker_id',me).eq('blocked_id',uid)),'Blockierung aufgehoben.');}
 async function changePassword(password){
 if(password.length<12)throw new Error('Das Passwort braucht mindestens 12 Zeichen.');
 return executeEvent(async()=>assertResult(await supabase.auth.updateUser({password})),'Passwort geändert.');
@@ -790,10 +790,17 @@ async function openInboxEvent(event){
        setNotice('Der Kontakt ist nicht mehr verfügbar.');return false;
      }
      // The exact authorized contact may be outside the first 40-item page.
-     setDb(old=>({...old,contacts:appendUniqueRows([older],old.contacts)}));
+     // Check the server block status before showing the conversation.
+     const counterpart=older.sender_id===owner?older.recipient_id:older.sender_id;
+     const {data:flagRows,error:flagError}=await supabase.rpc('ff_block_flags',{p_user_ids:[counterpart]});
+     if(accountRef.current!==owner)return false;
+     if(flagError||!Array.isArray(flagRows))throw flagError||new Error('Block flags unavailable');
+     setDb(old=>accountRef.current===owner?({
+       ...old,contacts:appendUniqueRows([older],old.contacts),
+       blocks:mergeVisibleBlockFlags(old.blocks,owner,[counterpart],flagRows)
+     }):old);
      // The contact is sufficient to navigate. A slow or blocked display-name
      // lookup must not delay opening the actual conversation.
-     const counterpart=older.sender_id===owner?older.recipient_id:older.sender_id;
      supabase.from('profiles').select('*').eq('user_id',counterpart).maybeSingle()
        .then(({data:linked,error:profileError})=>{
          if(profileError||!linked||accountRef.current!==owner)return;
@@ -3054,7 +3061,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Button title="Elternwissen öffnen" mode="outline" onPress={openInfo}/>
 <Text style={[styles.label,{marginTop:18}]}>Passwort ändern</Text><Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none"/>
 <Button title="Passwort ändern" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
-{blocks.length>0?<View style={{marginTop:18}}><Text style={styles.label}>Blockierte Konten</Text>{blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}><Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text><Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/></Row>)}</View>:null}
+<BlockedAccountsPanel userId={profile?.user_id} disabled={busy} onUnblock={onUnblock}/>
 <View style={{height:16}}/><Button title="Abmelden" mode="ghost" onPress={signOut}/>
 </Card>
 </>:null}
