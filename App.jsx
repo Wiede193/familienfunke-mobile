@@ -615,53 +615,70 @@ function openInbox(){
   setDetailFamily(null);setSelectedContact(null);setShowInfo(false);
   setMarketIntent(null);setFocusContactId(null);setTab('inbox');inbox.refresh();
 }
+// Opening one notification must resolve only that destination, not refresh every tab.
+// A missing/deleted target leaves the current screen intact.
 async function openInboxEvent(event){
-  try{
+ const owner=me;
+ if(!owner||!event?.id)return false;
+ try{
    const {data:row,error:e}=await supabase.from('ff_notifications')
     .select('id,kind,contact_id,listing_id,listing_status').eq('id',event.id).eq('user_id',me).maybeSingle();
-   if(accountRef.current!==me)return false;
+   if(accountRef.current!==owner)return false;
    if(e)throw e;
    if(!row){setNotice('Diese Neuigkeit ist nicht mehr verfügbar.');inbox.refresh();return false;}
-   const fresh=await load(true);
-   if(!fresh||accountRef.current!==me)return false;
-   setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);
-   setExtraReturnTab('inbox');
    if(row.kind==='search'||row.kind==='price'){
-     const {data:listing,error}=await supabase.from('ff_market_listings').select('id').eq('id',row.listing_id).eq('moderation_status','approved').neq('seller_id',me).maybeSingle();
-     if(accountRef.current!==me)return false;
-     if(error||!listing){setNotice('Dieses Angebot ist nicht mehr verfügbar.');return false;}
+     if(!row.listing_id){setNotice('Dieses Angebot ist nicht mehr verfügbar.');return false;}
+     const {data:listing,error:listingError}=await supabase.from('ff_market_listings')
+       .select('id').eq('id',row.listing_id).eq('moderation_status','approved')
+       .neq('seller_id',owner).maybeSingle();
+     if(accountRef.current!==owner)return false;
+     if(listingError)throw listingError;
+     if(!listing){setNotice('Dieses Angebot ist nicht mehr verfügbar.');return false;}
+     setDetailFamily(null);setSelectedContact(null);setShowInfo(false);
+     setExtraReturnTab('inbox');
      setMarketIntent({type:'buyerListing',id:listing.id,returnTab:'inbox'});setTab('market');
    }else if(row.kind==='market'){
-     let listing=fresh.listings.find(x=>x.id===row.listing_id&&x.seller_id===me);
-     if(!listing){
-       const {data,error}=await supabase.from('ff_market_listings').select('*').eq('id',row.listing_id).eq('seller_id',me).maybeSingle();
-       if(accountRef.current!==me)return false;
-       if(error)throw error;
-       listing=data;
-       if(listing)setDb(old=>({...old,listings:[listing,...old.listings.filter(x=>x.id!==listing.id)]}));
-     }
+     if(!row.listing_id){setNotice('Die Anzeige ist nicht mehr verfügbar.');return false;}
+     const {data:listing,error:listingError}=await supabase.from('ff_market_listings')
+       .select('id').eq('id',row.listing_id).eq('seller_id',owner).maybeSingle();
+     if(accountRef.current!==owner)return false;
+     if(listingError)throw listingError;
      if(!listing){setNotice('Die Anzeige ist nicht mehr verfügbar.');return false;}
+     // The market screen will fetch the exact older listing, including photos.
+     setDetailFamily(null);setSelectedContact(null);setShowInfo(false);
+     setExtraReturnTab('inbox');
      setMarketIntent({type:'inboxListing',id:listing.id});setTab('market');
    }else{
-     let contact=fresh.contacts.find(c=>c.id===row.contact_id&&(c.sender_id===me||c.recipient_id===me));
-     if(!contact){
-       const {data:older,error:contactError}=await supabase.from('contact_requests')
-         .select('*').eq('id',row.contact_id).maybeSingle();
-       if(contactError)throw contactError;
-       if(accountRef.current!==me)return false;
-       if(older&&(older.sender_id===me||older.recipient_id===me)){
-         contact=older;setDb(old=>({...old,contacts:appendUniqueRows([older],old.contacts)}));
-       }
+     if(!row.contact_id){setNotice('Der Kontakt ist nicht mehr verfügbar.');return false;}
+     const {data:older,error:contactError}=await supabase.from('contact_requests')
+       .select('*').eq('id',row.contact_id).maybeSingle();
+     if(accountRef.current!==owner)return false;
+     if(contactError)throw contactError;
+     if(!older||(older.sender_id!==owner&&older.recipient_id!==owner)){
+       setNotice('Der Kontakt ist nicht mehr verfügbar.');return false;
      }
-     if(!contact){setNotice('Der Kontakt ist nicht mehr verfügbar.');return false;}
-     if(row.kind==='message'&&contact.status==='accepted'){
-       setChatReturnTab('inbox');setSelectedContact(contact.id);setTab('chat');
+     // The exact authorized contact may be outside the first 40-item page.
+     setDb(old=>({...old,contacts:appendUniqueRows([older],old.contacts)}));
+     const counterpart=older.sender_id===owner?older.recipient_id:older.sender_id;
+     const {data:linked,error:profileError}=await supabase.from('profiles')
+       .select('*').eq('user_id',counterpart).maybeSingle();
+     if(accountRef.current!==owner)return false;
+     if(!profileError&&linked){
+       setDb(old=>({...old,profiles:appendUniqueRows(old.profiles,[linked],'user_id')}));
+     }
+     setDetailFamily(null);setSelectedContact(null);setShowInfo(false);
+     setMarketIntent(null);setExtraReturnTab('inbox');
+     if(row.kind==='message'&&older.status==='accepted'){
+       setChatReturnTab('inbox');setSelectedContact(older.id);setTab('chat');
      }else{
-       setFocusContactId(contact.id);setTab('contacts');
+       setFocusContactId(older.id);setTab('contacts');
      }
    }
    return true;
-  }catch(e){if(accountRef.current===me)setNotice('Neuigkeit konnte nicht geöffnet werden. Bitte erneut versuchen.');return false;}
+ }catch(e){
+   if(accountRef.current===owner)setNotice('Neuigkeit konnte nicht geöffnet werden. Bitte erneut versuchen.');
+   return false;
+ }
 }
 function navigateFromHome(id,marketQuery='',placeId=null){
   const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar','play'];
