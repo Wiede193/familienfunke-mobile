@@ -25,7 +25,7 @@ create table if not exists public.ff_official_family_events(
   published boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint ff_official_family_events_valid_dates check (end_date>=start_date and end_date<=start_date+31)
+  constraint ff_official_family_events_valid_dates check (end_date>=start_date and end_date<=start_date+100)
 );
 comment on table public.ff_official_family_events is 'Curated externally organized, source-linked public family events; distinct from private family meetings and personal appointments.';
 create index if not exists ff_official_family_events_public_dates
