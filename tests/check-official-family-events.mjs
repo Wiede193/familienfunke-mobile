@@ -1,0 +1,53 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const load=p=>import('data:text/javascript;base64,'+Buffer.from(read(p)).toString('base64'));
+const {OFFICIAL_EVENT_DISTRICTS,OFFICIAL_EVENT_CATEGORIES,officialEventRange,
+ officialEventDay,officialEventDateLabel,officialEventVisible}=await load('OfficialFamilyEventUtils.js');
+assert.equal(OFFICIAL_EVENT_DISTRICTS.length,6);
+assert.deepEqual(OFFICIAL_EVENT_DISTRICTS.slice(1).map(x=>x.id).sort(),
+ ['barnim','dahme-spreewald','frankfurt-oder','maerkisch-oderland','oder-spree']);
+assert.equal(OFFICIAL_EVENT_CATEGORIES.length,8);
+assert.deepEqual(officialEventRange('2026-11'),{from:'2026-11-01',to:'2026-11-30'});
+assert.deepEqual(officialEventRange('2028-02'),{from:'2028-02-01',to:'2028-02-29'});
+assert.deepEqual(officialEventRange('2026-12'),{from:'2026-12-01',to:'2026-12-31'});
+assert.deepEqual(officialEventRange(null,new Date(2026,10,23,12)),{from:'2026-11-23',to:'2027-02-21'});
+assert.equal(officialEventDay('2026-12-06'),'06.12.2026');
+assert.equal(officialEventDateLabel({start_date:'2026-11-27',end_date:'2026-11-29',start_time:null}),'27.11.2026 – 29.11.2026');
+const evt={id:'1',published:true,district:'oder-spree',category:'theater',end_date:'2026-11-29'};
+assert.equal(officialEventVisible(evt,'all','all','2026-11-23'),true);
+assert.equal(officialEventVisible(evt,'oder-spree','theater','2026-11-29'),true);
+assert.equal(officialEventVisible(evt,'oder-spree','market','2026-11-23'),false);
+assert.equal(officialEventVisible(evt,'barnim','theater','2026-11-23'),false);
+assert.equal(officialEventVisible(evt,'all','all','2026-11-30'),false);
+assert.equal(officialEventVisible({...evt,published:false},'all','all','2026-11-23'),false);
+const schema=read('database/ff_official_family_events.sql'),seed=read('database/ff_official_family_events_seed_2026.sql');
+assert.match(schema,/create table if not exists public\.ff_official_family_events/);
+assert.match(schema,/enable row level security/);
+assert.match(schema,/for select to authenticated using \(published and end_date >= current_date\)/);
+assert.match(schema,/grant select on public\.ff_official_family_events to authenticated/);
+assert.match(schema,/revoke all on public\.ff_official_family_events from public, anon, authenticated/);
+assert.doesNotMatch(schema,/grant (insert|update|delete|all) on public\.ff_official_family_events to authenticated/i);
+assert.match(schema,/source_url ~ '\^https:\/\//);
+assert.match(seed,/on conflict \(source_key\) do update set/);
+const keys=[...seed.matchAll(/^\('([^']+)'/gm)].map(x=>x[1]);
+assert.equal(keys.length,28,'28 strictly official, manually checked family events');
+assert.equal(new Set(keys).size,keys.length,'No duplicate organizer event keys');
+for(const token of ['oder-spree','frankfurt-oder','maerkisch-oderland','barnim','dahme-spreewald']){
+ assert.match(seed,new RegExp("'"+token+"'"));
+}
+assert.doesNotMatch(seed,/kunstausstellung|vernissage|escape.game/i);
+assert.ok((seed.match(/https:\/\//g)||[]).length>=28,'Direct source links present');
+const ui=read('OfficialFamilyEvents.jsx'),cal=read('FamilyCalendar.jsx'),app=read('App.jsx');
+assert.match(ui,/from\('ff_official_family_events'\)/);
+assert.match(ui,/\.gte\('end_date',range\.from\)\.lte\('start_date',range\.to\)/);
+assert.match(ui,/officialEventVisible\(e,district,category\)/);
+assert.match(ui,/Originalquelle öffnen/);
+assert.match(ui,/Privat vormerken/);
+assert.match(ui,/supabase\.auth\.getSession\(\)/);
+assert.match(ui,/from\('ff_personal_calendar'\)/);
+assert.match(ui,/Keine Anmeldung|keine Anmeldung/i);
+assert.match(cal,/<OfficialFamilyEvents userId=\{userId\} month=\{month\} compact onSaved=\{refresh\}\/>/);
+assert.match(app,/!focusId\?<OfficialFamilyEvents userId=\{me\}\/>:null/);
+assert.match(app,/import OfficialFamilyEvents from '\.\/OfficialFamilyEvents'/);
+console.log('28 official family events, dates, categories, source visibility, read-only RLS, and calendar bookmarking verified.');
