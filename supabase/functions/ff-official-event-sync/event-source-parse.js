@@ -82,6 +82,37 @@ export function parseJsonLdEvents(html,sourceUrl){
    source_url:safeLink(e.url,sourceUrl),cancelled:/EventCancelled/i.test(String(e.eventStatus||''))};
  });
 }
+
+function htmlEntities(s){
+ return String(s||'').replace(/&amp;/gi,'&').replace(/&quot;/gi,'"').replace(/&apos;|&#39;/gi,"'")
+  .replace(/&auml;/gi,'ä').replace(/&ouml;/gi,'ö').replace(/&uuml;/gi,'ü')
+  .replace(/&Auml;/g,'Ä').replace(/&Ouml;/g,'Ö').replace(/&Uuml;/g,'Ü')
+  .replace(/&szlig;/gi,'ß')
+  .replace(/&#(\d+);/g,(_,d)=>String.fromCodePoint(Math.min(Number(d),1114111)));
+}
+// Municipality-specific list extraction; only official event list items are accepted.
+// Does not extract user content, images, ticket prices, or arbitrary nearby links.
+export function parseStorkowHtml(html,sourceUrl){
+ const blocks=String(html||'').split(/(?=<div\s+class=["'][^"']*event-entry-new-1(?:\s|["']))/i).slice(1,200);
+ const out=[];
+ for(const segment of blocks){
+  if(!/^<div\s+class=["'][^"']*event-entry-new-1/i.test(segment))continue;
+  const day=segment.match(/<time\s+datetime=["'](\d{4}-\d{2}-\d{2})["']/i)?.[1];
+  const titleBlock=segment.match(/<h2\b[^>]*>\s*<a\s+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>\s*<\/h2>/i);
+  if(!day||!titleBlock)continue;
+  const title=plain(htmlEntities(titleBlock[2]));
+  const url=safeLink(htmlEntities(titleBlock[1]),sourceUrl);
+  const location=segment.match(/class=["']event-entry-new-1-location["'][^>]*>([\s\S]*?)<\/div>/i)?.[1]||'';
+  const daytime=segment.match(/class=["']event-entry-new-1-daytime["'][^>]*>([\s\S]*?)<\/div>/i)?.[1]||'';
+  const start=daytime.match(/<time[^>]*>(\d\d:\d\d)<\/time>/i)?.[1]||null;
+  const id=titleBlock[1].split('/').filter(Boolean).find((part,i,a)=>/^\d{5,}$/.test(part))||titleBlock[1];
+  out.push({external_id:String(id).slice(0,240),title,description:'',
+   start_date:day,end_date:day,start_time:start,venue:plain(htmlEntities(location))||'Storkow (Mark)',
+   source_url:url,cancelled:false});
+ }
+ return out;
+}
+
 function unfoldIcs(source){return String(source).replace(/\r\n[ \t]/g,'').replace(/\n[ \t]/g,'');}
 function unescapeIcs(x){return String(x||'').replace(/\\[nN]/g,' ').replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\\\/g,'\\');}
 export function parseIcsEvents(ics,sourceUrl){
