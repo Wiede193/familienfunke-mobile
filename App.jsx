@@ -1658,10 +1658,10 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
     <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
       <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyMine(false);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
-      <View style={{flex:1}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+')'}
+      <View style={{flex:1}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+(ownHasMore?'+':'')+')'}
         mode={onlyMine?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
-      <View style={{flex:1}}><Button title={'♡ Merkliste ('+favorites.filter(f=>listings.some(x=>x.id===f.listing_id&&x.moderation_status==='approved')).length+')'}
+      <View style={{flex:1}}><Button title="♡ Merkliste"
         mode={onlyFavorites?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
@@ -1991,8 +1991,8 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
         <Text style={[styles.h,{marginTop:5}]}>{selected.title}</Text>
         {selected.seller_id!==me&&selected.moderation_status==='approved'?
           <View style={{marginTop:12}}><Button title={favoriteIds.has(selected.id)?'♥ Aus Merkliste entfernen':'♡ Zur Merkliste hinzufügen'}
-            mode={favoriteIds.has(selected.id)?'primary':'outline'} disabled={busy||!active}
-            onPress={()=>toggleFavorite(selected.id,favoriteIds.has(selected.id))}/></View>:null}
+            mode={favoriteIds.has(selected.id)?'primary':'outline'} disabled={busy||!active||favoriteBusy[selected.id]||favoriteMap[selected.id]===undefined}
+            onPress={()=>changeFavorite(selected.id)}/></View>:null}
         <Text style={[styles.sub,{marginTop:8}]}>{selected.item_condition} · {selected.category} · {selected.region_label||'Region auf Anfrage'}</Text>
         <View style={{height:1,backgroundColor:C.line,marginVertical:18}}/>
         {selectedFacts?<View>
@@ -2076,7 +2076,10 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
       {remoteBusy?<View style={{paddingVertical:12,flexDirection:'row',alignItems:'center'}}><ActivityIndicator color={C.accent}/><Text style={[styles.micro,{marginLeft:9}]}>Suche im gesamten Familienbasar …</Text></View>:null}
       {remoteError?<Info warning>{remoteError}</Info>:null}
       {serverSearchActive&&query.trim()&&!remoteBusy&&!remoteError?<Text style={[styles.micro,{marginBottom:12}]}>Auch einzelne Teile innerhalb eines Pakets werden gefunden. Größen und Farben sind Angaben, die Verkäufer prüfen müssen.</Text>:null}
-      {shown.length===0?(remoteBusy||remoteError?null:<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>):
+      {onlyMine&&ownLoading?<View style={{paddingVertical:12}}><ActivityIndicator color={C.accent}/></View>:null}
+      {onlyMine&&ownError?<><Info warning>{ownError}</Info><Button title="Eigene Anzeigen erneut laden" mode="outline" onPress={onRetryOwn}/></>:null}
+      {onlyMine&&ownHasMore?<Text style={[styles.micro,{marginBottom:10}]}>Weitere eigene Anzeigen sind vorhanden. Suche und Sortierung beziehen sich auf die bisher geladenen Einträge.</Text>:null}
+      {shown.length===0?(remoteBusy||remoteError||(onlyMine&&(ownLoading||ownError))?null:<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>):
         <View style={styles.marketGrid}>
         {shown.map(x=>{
           const seller=sellerInformation(x);
@@ -2088,9 +2091,9 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
                 <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>Noch kein Foto</Text></View>}
               <View style={styles.marketPricePill}><Text style={styles.marketPricePillText} numberOfLines={1}>{priceLabel(x)}</Text></View>
               {x.seller_id!==me&&x.moderation_status==='approved'?
-                <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'} hitSlop={9}
-                  disabled={busy||!active}
-                  onPress={event=>{event.stopPropagation();toggleFavorite(x.id,favoriteIds.has(x.id));}}
+                <Pressable accessibilityRole="button" accessibilityLabel={favoriteMap[x.id]===undefined?'Merkliste wird geprüft':favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'} hitSlop={9}
+                  disabled={busy||!active||favoriteBusy[x.id]||favoriteMap[x.id]===undefined}
+                  onPress={event=>{event.stopPropagation();changeFavorite(x.id);}}
                   style={{position:'absolute',right:7,top:8,backgroundColor:'#FFFFFFF2',borderRadius:20,paddingHorizontal:10,paddingVertical:7}}>
                   <Text style={{fontSize:19,color:favoriteIds.has(x.id)?C.coralDeep:C.accentDark}}>{favoriteIds.has(x.id)?'♥':'♡'}</Text>
                 </Pressable>:null}
@@ -2107,6 +2110,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
           </Pressable>;
         })}
         </View>}
+      {onlyMine&&ownHasMore?<Button title={ownLoadingMore?'Weitere eigene Anzeigen werden geladen …':'Weitere eigene Anzeigen laden'} disabled={ownLoadingMore||ownLoading} mode="outline" onPress={onLoadMoreOwn}/>:null}
       {serverSearchActive&&remoteHasMore&&!remoteBusy&&!remoteError?<Button title="Weitere Treffer laden" mode="outline" onPress={()=>setSearchPage(n=>n+1)}/>:null}
     </>:null}
   </ScrollView>;
