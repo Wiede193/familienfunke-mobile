@@ -4,6 +4,7 @@ import {WebView} from 'react-native-webview';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {CURATED_REGION,CURATED_FAMILY_PLACES} from './FamilyMapCurated';
+import {BRANDENBURG_FAMILY_PLACES,describePlaceAccessibility} from './FamilyMapBrandenburg';
 import {NATIONAL_FAMILY_PLACES,NATIONAL_TYPES,NATIONAL_AREAS} from './FamilyMapNational';
 import {findFamilyMapLocations,mergeMapSearchResults} from './FamilyMapSearch';
 
@@ -162,18 +163,19 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
     && (nationalArea==='all'||p.area===nationalArea)
   ),[nationalType,nationalArea]);
   const all=useMemo(()=>{
-    const curated=[...CURATED_FAMILY_PLACES,...nationalShown];
+    const curated=[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES,...nationalShown];
     const curatedOSM=new Set(curated.map(p=>p.osm_key).filter(Boolean));
     const places=[...curated,...community,...osm.filter(p=>!curatedOSM.has(p.id))];
     return places.filter(p=>inGermany(p.latitude,p.longitude) && (types==='all'||p.category===types));
   },[community,osm,types,nationalShown]);
   const localMatches=useMemo(()=>findFamilyMapLocations(placeQuery,{
-    centers:CENTERS,curated:CURATED_FAMILY_PLACES,national:NATIONAL_FAMILY_PLACES,
+    centers:CENTERS,curated:[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES],national:NATIONAL_FAMILY_PLACES,
     community,osm
   }),[placeQuery,community,osm]);
   const locationMatches=useMemo(()=>mergeMapSearchResults(localMatches,geoResults),[localMatches,geoResults]);
   const selectedSearchMatch=locationMatches.find(match=>match.id===selectedSearchId)||null;
   const selected=all.find(p=>p.id===selectedId)||null;
+  const selectedAccess=describePlaceAccessibility(selected);
   useEffect(()=>{if(ready)map.current?.injectJavaScript(pinSetScript(all));},[all,ready]);
   useEffect(()=>{
     if(!ready)return;
@@ -335,7 +337,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
   // Only resolve known catalogue IDs from the planner; never trust arbitrary coordinates.
   useEffect(()=>{
     if(!entryPlaceId)return;
-    const place=[...CURATED_FAMILY_PLACES,...NATIONAL_FAMILY_PLACES].find(p=>p.id===entryPlaceId);
+    const place=[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES,...NATIONAL_FAMILY_PLACES].find(p=>p.id===entryPlaceId);
     if(!place||!inGermany(place.latitude,place.longitude))return;
     showPlace(place);
     if(ready)scroll.current?.scrollTo({y:Math.max(0,mapOffset.current-12),animated:false});
@@ -444,6 +446,24 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
       {['curated','national'].includes(selected.source)&&onCalendar?<Pressable accessibilityRole="button" accessibilityLabel="Ausflugsziel im Kalender einplanen" onPress={()=>onCalendar(selected)} style={{minHeight:44,padding:12,borderRadius:12,backgroundColor:'#E8F3E9',marginTop:10}}><Text style={{fontWeight:'800',color:'#075A60'}}>Im Kalender einplanen</Text></Pressable>:null}
       {selected.source==='national'?<Text style={[styles.micro,{marginTop:7}]}>Kategorie: {selected.kind_label} · {selected.state}</Text>:null}
       {['curated','national'].includes(selected.source)?<Text style={[styles.micro,{marginTop:8}]}>Recherchestand November 2026. Aktuelle Besuchsbedingungen beim Anbieter erfragen.</Text>:null}
+      <View style={styles.accessibilitySection}>
+         <Text accessibilityRole="header" style={styles.accessibilityTitle}>Barrierefreiheit & Teilhabe</Text>
+         <Text style={styles.accessibilityStatus}>{selectedAccess.label}</Text>
+         <Text style={styles.accessibilityText}>{selectedAccess.summary}</Text>
+         <Text style={styles.accessibilityLabel}>Zugänge & Mobilität</Text>
+         <Text style={styles.accessibilityText}>{selectedAccess.mobility}</Text>
+         <Text style={styles.accessibilityLabel}>Sinnes- und Kommunikationsangebote</Text>
+         <Text style={styles.accessibilityText}>{selectedAccess.sensory}</Text>
+         <Text style={styles.accessibilityLabel}>Einschränkungen / vorab prüfen</Text>
+         <Text style={styles.accessibilityText}>{selectedAccess.limitations}</Text>
+         {selectedAccess.source_url?<Pressable accessibilityRole="link"
+           accessibilityLabel={'Quelle zur Barrierefreiheit für '+selected.title}
+           style={styles.accessibilitySource}
+           onPress={()=>Linking.openURL(selectedAccess.source_url).catch(()=>{})}>
+           <Text style={styles.accessibilitySourceText}>Quelle zu Zugangsmerkmalen öffnen ↗</Text>
+         </Pressable>:null}
+         <Text style={styles.accessibilityDisclaimer}>Einzelne dokumentierte Merkmale bedeuten nicht, dass jeder Weg, Raum oder jede Attraktion barrierefrei ist. Aktuelle Gegebenheiten vor dem Besuch bestätigen lassen.</Text>
+       </View>
       {selected.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(selected.info_url).catch(()=>{})}
         style={styles.minorBtn}><Text style={styles.minorBtnText}>Offizielle Informationen öffnen ↗</Text></Pressable>:null}
       {selected.has_changing_table?<Text style={styles.tagGood}>Wickelmöglichkeit angegeben</Text>:null}
@@ -520,6 +540,41 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
         </Pressable>)}
       </ScrollView>
       <Text style={[styles.micro,{marginTop:10}]}>Recherche: November 2026. Öffnungszeiten, Preise und Ausstattung bitte vor einem Besuch direkt prüfen.</Text>
+    </View>
+    <View style={styles.nationalBox}>
+      <View style={[styles.row,{justifyContent:'space-between',gap:9,alignItems:'center'}]}>
+        <View style={{flex:1}}>
+          <Text style={styles.curatedEyebrow}>MEHR IN BRANDENBURG</Text>
+          <Text accessibilityRole="header" style={styles.curatedTitle}>Familienziele mit Zugangsinfos</Text>
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Brandenburg-Ausflugsziele auf Karte anzeigen"
+          style={styles.curatedMapBtn}
+          onPress={()=>{setTypes('all');setNationalType('all');setNationalArea('all');
+            setCenter({latitude:52.4,longitude:13.65,zoom:7.6});
+            map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo(52.4,13.65,7.6);true;');}}>
+          <Text style={styles.curatedMapBtnText}>⌖ Brandenburg</Text>
+        </Pressable>
+      </View>
+      <Text style={[styles.micro,{marginTop:7,marginBottom:13}]}>
+        {BRANDENBURG_FAMILY_PLACES.length} zusätzlich recherchierte Ziele. Zu jedem Ziel zeigen wir dokumentierte Einzelmerkmale und Grenzen oder ausdrücklich fehlende Angaben zur Barrierefreiheit.
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:10,paddingRight:9}}>
+        {BRANDENBURG_FAMILY_PLACES.map(place=><Pressable key={place.id} accessibilityRole="button"
+          accessibilityLabel={place.title+' und Angaben zur Barrierefreiheit öffnen'}
+          onPress={()=>showPlace(place)} style={styles.curatedPlace}>
+          <View style={styles.row}>
+            <View style={styles.curatedPlaceIcon}><Text style={{fontSize:18,color:C.teal}}>✿</Text></View>
+            <Text style={styles.curatedPlaceNumber}>Brandenburg</Text>
+          </View>
+          <Text style={styles.curatedPlaceTitle} numberOfLines={2}>{place.title}</Text>
+          <Text style={styles.micro} numberOfLines={1}>{place.region_label}</Text>
+          <Text style={[styles.micro,{marginTop:6,flex:1}]} numberOfLines={3}>{place.description}</Text>
+          <Text style={[styles.micro,{color:C.accentDark,fontWeight:'800',marginTop:5}]}>
+            {place.accessibility.status==='documented'?'Zugangsmerkmale recherchiert':'Barrierefreiheit noch ungeklärt'}
+          </Text>
+          <Text style={styles.curatedPlaceLink}>Details & Zugänglichkeit ›</Text>
+        </Pressable>)}
+      </ScrollView>
     </View>
     <View style={styles.nationalBox}>
       <View style={[styles.row,{justifyContent:'space-between',gap:9,alignItems:'center'}]}>
@@ -646,6 +701,17 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
   </ScrollView>;
 }
 const styles=StyleSheet.create({
+accessibilitySection:{marginTop:17,borderWidth:1,borderColor:C.line,
+  borderRadius:17,backgroundColor:C.mint,padding:15,gap:6},
+accessibilityTitle:{fontSize:18,fontWeight:'800',color:C.ink},
+accessibilityStatus:{fontSize:12.5,fontWeight:'800',color:C.accentDark,marginTop:3},
+accessibilityText:{fontSize:13,color:C.ink,lineHeight:20},
+accessibilityLabel:{fontSize:13.5,fontWeight:'800',color:C.ink,marginTop:8},
+accessibilitySource:{minHeight:44,borderRadius:12,backgroundColor:C.paper,
+  marginTop:7,paddingHorizontal:12,justifyContent:'center'},
+accessibilitySourceText:{fontSize:12.5,fontWeight:'800',color:C.accentDark},
+accessibilityDisclaimer:{fontSize:11.5,color:C.muted,lineHeight:18,marginTop:8},
+
  page:{flex:1,backgroundColor:C.bg},body:{padding:16,paddingBottom:40},
  nationalBox:{backgroundColor:'#F0F6F4',borderWidth:1,borderColor:'#D9EDE8',borderRadius:22,padding:16,marginTop:17},
  nationalLabel:{fontSize:12,fontWeight:'900',color:C.ink,marginBottom:8},
