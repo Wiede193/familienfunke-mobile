@@ -15,6 +15,7 @@ import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
 
 const C=FAMILY_COLORS;
 import {DEFAULT_HOME} from './FamilyLayoutModel';
+import HomeHighlights from './HomeHighlights';
 const SUGGESTIONS=['Spielplätze finden','Kinderjeans Größe 110','Profil bearbeiten','Wie beschäftige ich Kinder bei Regen?'];
 function SunMark(){
   return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.sunWrap}>
@@ -72,7 +73,7 @@ function AssistantReply({entry,onNavigate}){
     </Pressable>:null}
   </View>;
 }
-export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomize}){
+export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomize,highlights=null}){
   const {t,language,locale}=useFamilyLocale();
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<360||fontScale>=1.5;
@@ -257,6 +258,7 @@ export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomi
       {conversation.map((entry,i)=><AssistantReply key={i+'-'+entry.question}
         entry={entry} onNavigate={onNavigate}/>)}
     </View>:null}
+    {!needle?<HomeHighlights data={highlights} onNavigate={onNavigate}/>:null}
     {!needle?<View style={s.section}>
       <Text accessibilityRole="header" style={s.sectionTitle}>{t("Meine Startseite")}</Text>
       <Pressable accessibilityRole="button" onPress={onCustomize} style={s.allAction}><Text style={s.allActionLabel}>{t("Startseite & Menü gestalten")}</Text><Text style={s.allActionLabel}>›</Text></Pressable>

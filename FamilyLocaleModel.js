@@ -1095,7 +1095,22 @@ export const EN=Object.freeze({
  "Sonnenwiese": "Sunny meadow",
  "Kleines Haus": "Little house",
  "Unter Wasser": "Underwater",
- "Berge": "Mountains"
+ "Berge": "Mountains",
+ "Für eure Familie": "For your family",
+ "Persönlicher Überblick ohne zusätzlichen KI-Aufruf oder GPS-Freigabe.": "Personal overview without another AI request or GPS permission.",
+ "Anfragen beantworten": "Respond to requests",
+ "Andere Familien möchten mit euch in Kontakt treten.": "Other families would like to get in touch with you.",
+ "Treffen in eurer Region": "Meetups in your region",
+ "Familien aus eurer Region": "Families in your region",
+ "Freigegebenes Profil – Kontaktaufnahme erst nach Zustimmung.": "Approved profile – contact only with consent.",
+ "Neues aus dem Basar": "New in the marketplace",
+ "Freigegebenes Angebot aus eurer Region. Aktuelle Details im Basar prüfen.": "Approved listing in your region. Check current details in the marketplace.",
+ "Region im Profil ergänzen": "Add your region to your profile",
+ "Nur die ungefähre Region angeben, keine Wohnadresse.": "Enter an approximate region, not your home address.",
+ "Persönliche Vorschläge erscheinen nach Freigabe des Familienkontos.": "Personal suggestions appear after your family account is approved.",
+ "Bereich öffnen": "Open section",
+ "Keine passenden Vorschläge in den gerade geladenen Daten. Entdecke Familien, Ausflüge und Basarangebote über die Suche.": "No matching suggestions in the currently loaded data. Explore families, outings and listings through search.",
+ "Dies ist nur eine Auswahl. Freigaben, Sichtbarkeit und Blockierungen bleiben maßgeblich.": "This is only a preview. Approvals, visibility and blocks continue to apply."
 });
 export function normalizeLanguage(value){return LANGUAGE_OPTIONS.includes(value)?value:'auto';}
 export function resolveLanguage(preference,deviceLocale){return preference==='de'||preference==='en'?preference:/^en(?:[-_]|$)/i.test(String(deviceLocale||''))?'en':'de';}

@@ -15,6 +15,7 @@ import WelcomeIntro from './WelcomeIntro';
 import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
+import {selectHomeHighlights} from './HomePersonalization';
 import {FamilyLocaleProvider,useFamilyLocale} from './FamilyLocale';
 import {marketSearchQuery} from './MarketLocaleSearch';
 import {formatServiceMoney} from './FamilyLocaleModel';
@@ -323,6 +324,7 @@ const ownPhotos=db.photos.filter(p=>p.owner_id===me);
 const matches=useMemo(()=>db.profiles.filter(p=>p.user_id!==me&&p.moderation_status==='approved'&&p.is_discoverable)
 .map(p=>({...p,match:(p.interests||[]).filter(x=>myProfile?.interests?.includes(x)).length,localMatch:sameRegion(p.region_label,myProfile?.region_label)}))
 .sort((a,b)=>Number(b.localMatch)-Number(a.localMatch)||b.match-a.match||String(a.display_name).localeCompare(String(b.display_name))),[db.profiles,me,myProfile]);
+const homeHighlights=useMemo(()=>selectHomeHighlights({userId:me,active,profile:myProfile,matchingProfiles:matches,contacts:db.contacts,events:db.events,listings:db.listings,blocks:db.blocks}),[me,active,myProfile,matches,db.contacts,db.events,db.listings,db.blocks]);
 async function reviewMarketListing(listingId){
  let review,reviewError;
  try{
@@ -520,7 +522,7 @@ send={(body)=>execute(async()=>{
 },'Nachricht gesendet.')}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
-tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome} tileIds={layoutPrefs.layout.home} onCustomize={()=>setLayoutEditor({owner:me,section:'home'})}/>:
+tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome} tileIds={layoutPrefs.layout.home} highlights={homeHighlights} onCustomize={()=>setLayoutEditor({owner:me,section:'home'})}/>:
 tab==='play'?<FamilyPlayScreen key={me}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} drafts={drafts} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
 tab==='outing'?<FamilyOutingScreen key={me} onCalendar={planCalendarPlace} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
