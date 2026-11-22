@@ -12,4 +12,7 @@ assert.ok(app.includes('Weitere Familien laden'));
 assert.ok(app.includes('Weitere Kontakte laden'));
 assert.ok(app.includes('Weitere Gespräche anzeigen'));
 assert.ok(app.includes("setDb(old=>({...old,contacts:appendUniqueRows([older],old.contacts)}))"),'Open notification may reference old contact, fetch by exact id');
+assert.ok(app.includes('send={(body)=>sendChatMessage(body,selectedContact)}'),'Sending one chat message must not refresh the entire app');
+assert.ok(!app.includes("send={(body)=>execute(async"),'Chat sends must not invoke global refresh');
+assert.ok(app.includes("scrollToEnd({animated:false})"),'Chat should show newest messages');
 console.log('Scoped social loading static checks passed');
