@@ -1,6 +1,7 @@
 import React,{useState,useRef} from 'react';
 import {AccessibilityInfo,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import {useFamilyLocale} from './FamilyLocale';
 import {newFour,dropFour,newSudoku,sudokuPut,sudokuHint,sudokuWon,sudokuConflicts,newWord,wordPick,wordUndo,wordText,wordWon} from './FamilyClassicGames';
 import {newSolitaire,drawSolitaire,moveSolitaire,autoFoundation,sourceCards,solitaireWon,cardShort,cardLabel,red} from './FamilySolitaire';
 
@@ -14,22 +15,24 @@ function useGame(create){
 }
 const say=text=>AccessibilityInfo.announceForAccessibility(text);
 export function FourGame(){
+ const {t,language}=useFamilyLocale();
  const [game,update]=useGame(newFour);
- const status=game.winner?'Spieler '+game.winner+' gewinnt!':game.draw?'Unentschieden':'Spieler '+game.turn+' ist dran';
+ const status=game.winner?t('Spieler')+' '+game.winner+' '+t('gewinnt!'):game.draw?t('Unentschieden'):t('Spieler')+' '+game.turn+' '+t('ist dran');
  return <View style={s.card}>
-  <Text accessibilityRole="header" style={s.title}>Vier gewinnt</Text>
-  <Text style={s.text}>Zwei Personen spielen abwechselnd. Tippt auf eine Spalte: Der Stein fällt nach unten. Vier gleiche Steine waagerecht, senkrecht oder diagonal gewinnen.</Text>
+  <Text accessibilityRole="header" style={s.title}>{t("Vier gewinnt")}</Text>
+  <Text style={s.text}>{t("Zwei Personen spielen abwechselnd. Tippt auf eine Spalte: Der Stein fällt nach unten. Vier gleiche Steine waagerecht, senkrecht oder diagonal gewinnen.")}</Text>
   <Text accessibilityLiveRegion="polite" style={s.heading}>{status}</Text>
   <ScrollView horizontal showsHorizontalScrollIndicator>
    <View>
-    <View style={s.row}>{Array.from({length:7},(_,c)=><Pressable key={c} accessibilityRole="button" accessibilityLabel={'Stein in Spalte '+(c+1)+' werfen'} accessibilityState={{disabled:!!game.cells[c]||!!game.winner||game.draw}} disabled={!!game.cells[c]||!!game.winner||game.draw} onPress={()=>{const n=update(g=>dropFour(g,c));say(n.winner?'Spieler '+n.winner+' gewinnt':n.draw?'Unentschieden':'Spieler '+n.turn+' ist dran');}} style={s.drop}><Text style={s.buttonText}>↓{c+1}</Text></Pressable>)}</View>
+    <View style={s.row}>{Array.from({length:7},(_,c)=><Pressable key={c} accessibilityRole="button" accessibilityLabel={(language==='en'?'Drop piece in column ':'Stein in Spalte ')+(c+1)+(language==='en'?'':' werfen')} accessibilityState={{disabled:!!game.cells[c]||!!game.winner||game.draw}} disabled={!!game.cells[c]||!!game.winner||game.draw} onPress={()=>{const n=update(g=>dropFour(g,c));say(n.winner?'Spieler '+n.winner+' gewinnt':n.draw?'Unentschieden':'Spieler '+n.turn+' ist dran');}} style={s.drop}><Text style={s.buttonText}>↓{c+1}</Text></Pressable>)}</View>
     <View style={s.board}>{game.cells.map((v,i)=><View key={i} accessible accessibilityLabel={'Zeile '+(Math.floor(i/7)+1)+', Spalte '+(i%7+1)+', '+(v?'Spieler '+v:'frei')} style={[s.disc,v===1&&s.yellow,v===2&&s.teal,game.line.includes(i)&&s.win]}><Text style={[s.discText,v===2&&{color:C.white}]}>{v||'·'}</Text></View>)}</View>
    </View>
   </ScrollView>
-  <Action onPress={()=>update(newFour)}>Neue Runde</Action>
+  <Action onPress={()=>update(newFour)}>{t("Neue Runde")}</Action>
  </View>;
 }
 export function SudokuGame({level}){
+ const {t,language}=useFamilyLocale();
  const [game,update,ref]=useGame(()=>newSudoku(level==='little'?4:level==='school'?6:9));
  const [selected,setSelected]=useState(null),[notice,setNotice]=useState('');
  const selectedRef=useRef(null);
@@ -43,9 +46,9 @@ export function SudokuGame({level}){
  const conflicts=sudokuConflicts(game),done=sudokuWon(game);
  return <View style={s.card}>
   <Text accessibilityRole="header" style={s.title}>Sudoku</Text>
-  <Text style={s.text}>Jede Zahl von 1 bis {game.n} muss in jeder Zeile, Spalte und jedem umrandeten Block genau einmal vorkommen. Wähle ein leeres oder selbst ausgefülltes Feld und dann eine Zahl.</Text>
+  <Text style={s.text}>{language==='en'?'Each number from 1 to '+game.n+' must appear exactly once in each row, column and outlined block. Choose an empty or editable cell, then a number.':<>Jede Zahl von 1 bis {game.n} muss in jeder Zeile, Spalte und jedem umrandeten Block genau einmal vorkommen. Wähle ein leeres oder selbst ausgefülltes Feld und dann eine Zahl.</>}</Text>
   <View style={s.wrap}>{[4,6,9].map(n=><Action key={n} active={game.n===n} onPress={()=>reset(n)}>{n} × {n}</Action>)}</View>
-  <Text style={s.muted}>Das 9×9-Feld kann auf kleinen Bildschirmen seitlich gescrollt werden.</Text>
+  <Text style={s.muted}>{t("Das 9×9-Feld kann auf kleinen Bildschirmen seitlich gescrollt werden.")}</Text>
   <ScrollView horizontal>
    <View style={{width:game.n*44+2,borderWidth:1,borderColor:C.accentDark,flexDirection:'row',flexWrap:'wrap'}}>
     {game.cells.map((v,i)=>{
@@ -57,28 +60,29 @@ export function SudokuGame({level}){
     })}
    </View>
   </ScrollView>
-  <Text accessibilityLiveRegion="polite" style={s.text}>{done?'Gelöst!':conflicts.length?'Es gibt doppelte Zahlen in einer Zeile, Spalte oder einem Block.':selected===null?'Wähle ein Feld.':'Feld ausgewählt.'} {notice}</Text>
+  <Text accessibilityLiveRegion="polite" style={s.text}>{t(done?'Gelöst!':conflicts.length?'Es gibt doppelte Zahlen in einer Zeile, Spalte oder einem Block.':selected===null?'Wähle ein Feld.':'Feld ausgewählt.')} {notice}</Text>
   <View style={s.wrap}>{Array.from({length:game.n},(_,i)=><Action key={i} disabled={selected===null||done} onPress={()=>enter(i+1)}>{i+1}</Action>)}</View>
   <View style={s.wrap}>
-   <Action disabled={selected===null||done} onPress={()=>enter(0)}>Löschen</Action>
-   <Action disabled={selected===null||done} onPress={()=>{const n=update(g=>sudokuHint(g,selectedRef.current));setNotice('Hinweise genutzt: '+n.hints);if(sudokuWon(n))say('Sudoku gelöst!');}}>Tipp</Action>
-   <Action onPress={()=>reset(game.n)}>Neues Rätsel</Action>
+   <Action disabled={selected===null||done} onPress={()=>enter(0)}>{t("Löschen")}</Action>
+   <Action disabled={selected===null||done} onPress={()=>{const n=update(g=>sudokuHint(g,selectedRef.current));setNotice('Hinweise genutzt: '+n.hints);if(sudokuWon(n))say('Sudoku gelöst!');}}>{t("Tipp")}</Action>
+   <Action onPress={()=>reset(game.n)}>{t("Neues Rätsel")}</Action>
   </View>
  </View>;
 }
 export function WordGame({level}){
+ const {t,language}=useFamilyLocale();
  const [game,update]=useGame(()=>newWord(level)),seen=useRef(new Set()),[revealed,setRevealed]=useState(false);const answer=wordText(game),won=wordWon(game),full=game.selected.length===game.tiles.length,finished=won||revealed;
  function next(){seen.current.add(game.id);if(seen.current.size>=12)seen.current.clear();update(()=>newWord(level,Math.random,[...seen.current]));setRevealed(false);}
  return <View style={s.card}>
-  <Text accessibilityRole="header" style={s.title}>Wörterrätsel</Text>
-  <Text style={s.text}>Sortiere die Buchstaben zu einem passenden Wort. Die Umschreibung hilft dir dabei.</Text>
+  <Text accessibilityRole="header" style={s.title}>{t("Wörterrätsel")}</Text>{language==='en'?<Text style={s.muted}>{t("Diese Wörterrätsel verwenden deutsche Wörter. Eine englische Variante wird noch erstellt.")}</Text>:null}
+  <Text style={s.text}>{t("Sortiere die Buchstaben zu einem passenden Wort. Die Umschreibung hilft dir dabei.")}</Text>
   <View style={s.note}><Text style={s.heading}>{game.hint}</Text></View>
   <Text accessibilityLiveRegion="polite" style={s.word}>{answer||'Noch keine Buchstaben'}</Text>
   <View style={s.wrap}>{game.tiles.map(t=><Pressable key={t.id} accessibilityRole="button" accessibilityLabel={'Buchstabe '+t.letter+', Position '+(t.id+1)} accessibilityState={{disabled:game.selected.includes(t.id)||finished}} disabled={game.selected.includes(t.id)||finished} style={[s.letter,game.selected.includes(t.id)&&{opacity:.25}]} onPress={()=>{const n=update(g=>wordPick(g,t.id));if(wordWon(n))say('Richtig! '+n.word);}}><Text style={s.number}>{t.letter}</Text></Pressable>)}</View>
-  {revealed?<Text style={s.heading}>Die Lösung lautet: {game.word}</Text>:won?<Text style={s.heading}>Richtig! {game.word}</Text>:full?<Text style={s.text}>Noch nicht richtig. Versuche eine andere Reihenfolge.</Text>:null}
-  <View style={s.wrap}><Action disabled={!game.selected.length||finished} onPress={()=>update(wordUndo)}>Zurück</Action><Action disabled={finished} onPress={()=>update(g=>({...g,selected:[]}))}>Neu sortieren</Action></View>
+  {revealed?<Text style={s.heading}>Die Lösung lautet: {game.word}</Text>:won?<Text style={s.heading}>Richtig! {game.word}</Text>:full?<Text style={s.text}>{t("Noch nicht richtig. Versuche eine andere Reihenfolge.")}</Text>:null}
+  <View style={s.wrap}><Action disabled={!game.selected.length||finished} onPress={()=>update(wordUndo)}>{t("Zurück")}</Action><Action disabled={finished} onPress={()=>update(g=>({...g,selected:[]}))}>{t("Neu sortieren")}</Action></View>
   <Action onPress={()=>{if(finished)next();else {setRevealed(true);say('Die Lösung lautet '+game.word);}}}>{finished?'Nächstes Wort':'Lösung zeigen'}</Action>
-  {!finished?<Action onPress={next}>Überspringen</Action>:null}
+  {!finished?<Action onPress={next}>{t("Überspringen")}</Action>:null}
  </View>;
 }
 const same=(a,b)=>a&&b&&a.type===b.type&&a.col===b.col&&a.index===b.index;
@@ -88,6 +92,7 @@ function Card({id,hidden=false,label,selected=false,onPress}){
  </Pressable>;
 }
 export function SolitaireGame(){
+ const {t,language}=useFamilyLocale();
  const [game,update,ref]=useGame(newSolitaire),[selected,setSelected]=useState(null),[notice,setNotice]=useState('');
  const current=useRef(null),history=useRef([]);
  function choose(from){current.current=from;setSelected(from);}
@@ -101,16 +106,16 @@ export function SolitaireGame(){
  }
  function fresh(){history.current=[];update(newSolitaire);choose(null);setNotice('');}
  return <View style={s.card}>
-  <Text accessibilityRole="header" style={s.title}>Solitär – Klondike</Text>
-  <Text style={s.text}>Lege alle Karten auf die vier Zielstapel: Ass bis König, jeweils dasselbe Kartensymbol (Pik, Kreuz, Herz oder Karo). In den sieben Spielstapeln folgen die Karten absteigend und abwechselnd rot und schwarz. Leere Spielstapel beginnen mit einem König. Tippe zuerst auf die Karte oder Folge, dann auf den Zielstapel.</Text>
-  <Text style={s.muted}>Eine Karte pro Aufdecken, Nachziehstapel beliebig oft erneut nutzen. Nicht jede zufällige Austeilung ist lösbar. Die Tabelle ist seitlich scrollbar.</Text>
+  <Text accessibilityRole="header" style={s.title}>{t("Solitär – Klondike")}</Text>
+  <Text style={s.text}>{t("Lege alle Karten auf die vier Zielstapel: Ass bis König, jeweils dasselbe Kartensymbol (Pik, Kreuz, Herz oder Karo). In den sieben Spielstapeln folgen die Karten absteigend und abwechselnd rot und schwarz. Leere Spielstapel beginnen mit einem König. Tippe zuerst auf die Karte oder Folge, dann auf den Zielstapel.")}</Text>
+  <Text style={s.muted}>{t("Eine Karte pro Aufdecken, Nachziehstapel beliebig oft erneut nutzen. Nicht jede zufällige Austeilung ist lösbar. Die Tabelle ist seitlich scrollbar.")}</Text>
   <Text accessibilityLiveRegion="polite" style={s.heading}>{solitaireWon(game)?'Geschafft – alle Karten abgelegt!':game.foundations.reduce((n,p)=>n+p.length,0)+' von 52 Karten abgelegt · '+game.moves+' Züge'}</Text>
   <View style={s.wrap}><Action disabled={!game.stock.length&&!game.waste.length||solitaireWon(game)} onPress={()=>apply(drawSolitaire(ref.current))}>{game.stock.length?'Aufdecken ('+game.stock.length+')':'Nachziehstapel wenden'}</Action>
    <Card id={game.waste.at(-1)} label={game.waste.length?'Offene Karte: '+cardLabel(game.waste.at(-1)):'Keine offene Karte'} selected={selected?.type==='waste'} onPress={game.waste.length?()=>tap({type:'waste'}):undefined}/>
   </View>
-  <Text style={s.heading}>Zielstapel</Text>
+  <Text style={s.heading}>{t("Zielstapel")}</Text>
   <View style={s.wrap}>{game.foundations.map((p,i)=><Card key={i} id={p.at(-1)} label={['Pik','Kreuz','Herz','Karo'][i]+' Zielstapel, '+(p.length?cardLabel(p.at(-1)):'leer')} selected={same(selected,{type:'foundation',col:i})} onPress={()=>tap({type:'foundation',col:i})}/>)}</View>
-  <Text style={s.heading}>Spielstapel</Text>
+  <Text style={s.heading}>{t("Spielstapel")}</Text>
   <ScrollView horizontal><View style={[s.row,{alignItems:'flex-start'}]}>{game.tableau.map((pile,col)=><View key={col} style={{width:58,marginRight:4,gap:3}}>
    <Text style={s.muted}> {col+1}</Text>
    {pile.hidden>0?<View accessible accessibilityLabel={pile.hidden+' verdeckte Karten'} style={s.hiddenCount}><Text style={{color:C.white}}>◆ {pile.hidden}</Text></View>:null}
@@ -121,9 +126,9 @@ export function SolitaireGame(){
   </View>)}</View></ScrollView>
   {notice?<Text accessibilityLiveRegion="polite" style={s.text}>{notice}</Text>:null}
   <View style={s.wrap}>
-   <Action disabled={!selected||solitaireWon(game)} onPress={()=>{if(!apply(autoFoundation(ref.current,current.current)))setNotice('Diese Karte passt noch nicht auf einen Zielstapel.');}}>Zum Zielstapel</Action>
-   <Action disabled={!history.current.length} onPress={()=>{const last=history.current.pop();if(last){update(()=>last);choose(null);setNotice('');}}}>Zug zurück</Action>
-   <Action onPress={fresh}>Neu austeilen</Action>
+   <Action disabled={!selected||solitaireWon(game)} onPress={()=>{if(!apply(autoFoundation(ref.current,current.current)))setNotice('Diese Karte passt noch nicht auf einen Zielstapel.');}}>{t("Zum Zielstapel")}</Action>
+   <Action disabled={!history.current.length} onPress={()=>{const last=history.current.pop();if(last){update(()=>last);choose(null);setNotice('');}}}>{t("Zug zurück")}</Action>
+   <Action onPress={fresh}>{t("Neu austeilen")}</Action>
   </View>
  </View>;
 }

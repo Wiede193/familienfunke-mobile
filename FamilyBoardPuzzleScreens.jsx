@@ -1,6 +1,7 @@
 import React,{useRef,useState} from 'react';
 import {AccessibilityInfo,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import {useFamilyLocale} from './FamilyLocale';
 import {newChess,chessMoves,playChess,chessCheck} from './FamilyChess';
 import {newDraughts,draughtsMoves,playDraughts,CROSSWORDS,buildCrossword,crosswordPut,crosswordHint,crosswordWon,PICTURE_SCENES,pictureTile,newPicture,swapPicture,pictureWon} from './FamilyBoardPuzzles';
 const say=text=>AccessibilityInfo.announceForAccessibility(text);
@@ -24,6 +25,7 @@ function Board({board,selected,moves,last,onTap,render,label,disabled}){
  })}</View></ScrollView>;
 }
 export function ChessGame(){
+ const {t,language}=useFamilyLocale();
  const [game,update,ref]=usePosition(newChess),[selected,setSelected]=useState(null),[promotion,setPromotion]=useState(null);
  const current=useRef(null),pending=useRef(null);
  const choose=i=>{current.current=i;setSelected(i);};
@@ -44,17 +46,18 @@ export function ChessGame(){
  function reset(){update(newChess());choose(null);pending.current=null;setPromotion(null);}
  const status=game.result?(game.result.winner?(game.result.winner==='w'?'Weiß':'Schwarz')+' gewinnt – '+game.result.reason:'Remis – '+game.result.reason):(game.turn==='w'?'Weiß':'Schwarz')+' ist dran'+(chessCheck(game)?' · Schach':'');
  return <View style={s.card}>
-  <Text accessibilityRole="header" style={s.title}>Schach</Text>
-  <Text style={s.text}>Zwei Personen am selben Gerät. Wähle eine Figur und ein markiertes Zielfeld. Rochade, en passant und Bauernumwandlung sind möglich.</Text>
+  <Text accessibilityRole="header" style={s.title}>{t("Schach")}</Text>
+  <Text style={s.text}>{t("Zwei Personen am selben Gerät. Wähle eine Figur und ein markiertes Zielfeld. Rochade, en passant und Bauernumwandlung sind möglich.")}</Text>
   <Text accessibilityLiveRegion="polite" style={s.heading}>{status}</Text>
   <Board board={game.board} selected={selected} moves={moves} last={game.last} disabled={!!game.result||!!promotion} onTap={tap}
    label={p=>p?(p===p.toUpperCase()?'Weiß, ':'Schwarz, ')+names[p.toLowerCase()]:'frei'} render={p=><Text style={s.piece}>{pieces[p]||''}</Text>}/>
-  {promotion?<View style={s.note}><Text style={s.heading}>Bauernumwandlung</Text><View style={s.wrap}>{['q','r','b','n'].map(p=><Action key={p} onPress={()=>{if(pending.current)finish(pending.current.from,pending.current.to,p);}}>{names[p]}</Action>)}</View></View>:null}
-  <Text style={s.muted}>Freizeitregeln ohne Uhr: dreifache Wiederholung und 50-Züge-Regel gelten automatisch als Remis. Das Brett lässt sich seitlich scrollen.</Text>
-  <Action onPress={reset}>Neue Partie</Action>
+  {promotion?<View style={s.note}><Text style={s.heading}>{t("Bauernumwandlung")}</Text><View style={s.wrap}>{['q','r','b','n'].map(p=><Action key={p} onPress={()=>{if(pending.current)finish(pending.current.from,pending.current.to,p);}}>{names[p]}</Action>)}</View></View>:null}
+  <Text style={s.muted}>{t("Freizeitregeln ohne Uhr: dreifache Wiederholung und 50-Züge-Regel gelten automatisch als Remis. Das Brett lässt sich seitlich scrollen.")}</Text>
+  <Action onPress={reset}>{t("Neue Partie")}</Action>
  </View>;
 }
 export function DraughtsGame(){
+ const {t,language}=useFamilyLocale();
  const [game,update,ref]=usePosition(newDraughts),[selected,setSelected]=useState(null),current=useRef(null);
  const choose=i=>{current.current=i;setSelected(i);};
  const moves=draughtsMoves(game).filter(m=>m.from===selected);
@@ -65,17 +68,18 @@ export function DraughtsGame(){
   else if(old.forced===null)choose(draughtsMoves(old).some(m=>m.from===i)?i:null);
  }
  return <View style={s.card}>
-  <Text accessibilityRole="header" style={s.title}>Dame</Text>
-  <Text style={s.text}>Englische 8×8-Variante: einfache Steine ziehen und schlagen diagonal vorwärts, gekrönte Damen auch rückwärts – jeweils über ein Feld. Schlagen ist Pflicht, Schlagketten werden fortgesetzt.</Text>
+  <Text accessibilityRole="header" style={s.title}>{t("Dame")}</Text>
+  <Text style={s.text}>{t("Englische 8×8-Variante: einfache Steine ziehen und schlagen diagonal vorwärts, gekrönte Damen auch rückwärts – jeweils über ein Feld. Schlagen ist Pflicht, Schlagketten werden fortgesetzt.")}</Text>
   <Text accessibilityLiveRegion="polite" style={s.heading}>{game.winner?'Spieler '+game.winner+' gewinnt!':game.draw?'Unentschieden':'Spieler '+game.turn+' ist dran'+(game.forced!==null?' · Weiter schlagen':draughtsMoves(game).some(m=>m.capture!==undefined)?' · Schlagzwang':'')}</Text>
   <Board board={game.board} selected={selected} moves={moves} last={game.last} disabled={!!game.winner||game.draw} onTap={tap}
    label={p=>p?'Spieler '+Math.abs(p)+(p<0?', Dame':', Stein'):'frei'}
    render={p=>p?<View style={[s.stone,Math.abs(p)===2&&s.stone2]}><Text style={[s.stoneText,Math.abs(p)===2&&{color:C.white}]}>{p<0?'D':Math.abs(p)}</Text></View>:null}/>
-  <Text style={s.muted}>Eine Dame entsteht beim Erreichen der Gegenseite. Bei 80 Halbzügen ohne Schlag oder Bauernzug endet diese Freizeitvariante remis.</Text>
-  <Action onPress={()=>{update(newDraughts());choose(null);}}>Neue Partie</Action>
+  <Text style={s.muted}>{t("Eine Dame entsteht beim Erreichen der Gegenseite. Bei 80 Halbzügen ohne Schlag oder Bauernzug endet diese Freizeitvariante remis.")}</Text>
+  <Action onPress={()=>{update(newDraughts());choose(null);}}>{t("Neue Partie")}</Action>
  </View>;
 }
 export function CrosswordGame({level}){
+ const {t,language}=useFamilyLocale();
  const pool=CROSSWORDS.filter(x=>x.level===level);
  const [game,update,ref]=usePosition(()=>buildCrossword(pool[0])),[selected,setSelected]=useState(null),[clue,setClue]=useState(null),[check,setCheck]=useState(false);
  const current=useRef(null),clueRef=useRef(null);
@@ -94,8 +98,8 @@ export function CrosswordGame({level}){
  const selectedClue=game.clues.find(x=>x.id===clue);
  const done=crosswordWon(game);
  return <View style={s.card}>
-  <Text accessibilityRole="header" style={s.title}>Kreuzworträtsel</Text>
-  <Text style={s.text}>Wähle ein Rätsel und eine Frage. Trage die Buchstaben ein. Gemeinsame Felder verbinden die Wörter.</Text>
+  <Text accessibilityRole="header" style={s.title}>{t("Kreuzworträtsel")}</Text>{language==='en'?<Text style={s.muted}>{t("Diese Kreuzworträtsel verwenden deutsche Begriffe und Hinweise. Eine englische Variante wird noch erstellt.")}</Text>:null}
+  <Text style={s.text}>{t("Wähle ein Rätsel und eine Frage. Trage die Buchstaben ein. Gemeinsame Felder verbinden die Wörter.")}</Text>
   <View style={s.wrap}>{pool.map(p=><Action key={p.id} active={p.id===game.id} onPress={()=>load(p.id)}>{p.title}</Action>)}</View>
   <ScrollView horizontal><View style={{width:game.width*44,flexDirection:'row',flexWrap:'wrap'}}>{game.cells.map((v,i)=>{
    if(v===null)return <View key={i} style={s.block}/>;
@@ -111,7 +115,7 @@ export function CrosswordGame({level}){
   </Pressable>)}
   <Text accessibilityLiveRegion="polite" style={s.heading}>{done?'Gelöst!':selected===null?'Wähle eine Frage oder ein Feld.':'Buchstaben eingeben'}</Text>
   <View style={s.wrap}>{[...'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ'].map(letter=><Action key={letter} disabled={selected===null||done} onPress={()=>enter(letter)}>{letter}</Action>)}</View>
-  <View style={s.wrap}><Action disabled={selected===null||done} onPress={()=>enter('')}>Löschen</Action><Action disabled={selected===null||done} onPress={()=>enter('',true)}>Tipp</Action><Action active={check} onPress={()=>setCheck(x=>!x)}>Prüfen</Action><Action onPress={()=>load(game.id)}>Neu beginnen</Action></View>
+  <View style={s.wrap}><Action disabled={selected===null||done} onPress={()=>enter('')}>{t("Löschen")}</Action><Action disabled={selected===null||done} onPress={()=>enter('',true)}>{t("Tipp")}</Action><Action active={check} onPress={()=>setCheck(x=>!x)}>{t("Prüfen")}</Action><Action onPress={()=>load(game.id)}>{t("Neu beginnen")}</Action></View>
   <Text style={s.muted}>Hinweise genutzt: {game.hints}</Text>
  </View>;
 }
@@ -122,6 +126,7 @@ function PixelTile({pixels,size}){
  </View>;
 }
 export function PictureGame({level}){
+ const {t,language}=useFamilyLocale();
  const [game,update,ref]=usePosition(()=>newPicture(level==='little'?2:level==='school'?3:4)),[selected,setSelected]=useState(null),current=useRef(null),[show,setShow]=useState(true);
  const choose=i=>{current.current=i;setSelected(i);};
  const scene=PICTURE_SCENES[game.sceneId],done=pictureWon(game),tile=72;
@@ -132,8 +137,8 @@ export function PictureGame({level}){
   const next=swapPicture(ref.current,current.current,i);update(next);choose(null);if(pictureWon(next))say('Bildpuzzle gelöst!');
  }
  return <View style={s.card}>
-  <Text accessibilityRole="header" style={s.title}>Bilderpuzzle</Text>
-  <Text style={s.text}>Tippe zwei Bildteile nacheinander an, um sie zu tauschen. Stelle das Motiv wieder her.</Text>
+  <Text accessibilityRole="header" style={s.title}>{t("Bilderpuzzle")}</Text>
+  <Text style={s.text}>{t("Tippe zwei Bildteile nacheinander an, um sie zu tauschen. Stelle das Motiv wieder her.")}</Text>
   <View style={s.wrap}>{[2,3,4].map(n=><Action key={n} active={n===game.n} onPress={()=>reset(n,game.sceneId)}>{n*n} Teile</Action>)}</View>
   <View style={s.wrap}>{PICTURE_SCENES.map(x=><Action key={x.id} active={x.id===scene.id} onPress={()=>reset(game.n,x.id)}>{x.title}</Action>)}</View>
   <Action active={show} onPress={()=>setShow(v=>!v)}>{show?'Vorlage ausblenden':'Vorlage anzeigen'}</Action>
@@ -144,7 +149,7 @@ export function PictureGame({level}){
    <PixelTile pixels={pictureTile(scene,game.n,id)} size={tile}/>
   </Pressable>)}</View></ScrollView>
   <Text accessibilityLiveRegion="polite" style={s.heading}>{done?'Bild fertig!':game.moves+' Tauschzüge'}</Text>
-  <Action onPress={()=>reset(game.n,scene.id)}>Neu mischen</Action>
+  <Action onPress={()=>reset(game.n,scene.id)}>{t("Neu mischen")}</Action>
  </View>;
 }
 const s=StyleSheet.create({card:{padding:16,borderRadius:20,backgroundColor:C.paper,borderWidth:1,borderColor:C.line,gap:12},title:{fontSize:23,fontWeight:'900',color:C.ink},heading:{fontSize:17,fontWeight:'800',color:C.ink},text:{fontSize:15,lineHeight:22,color:C.ink},muted:{fontSize:13,color:C.muted,lineHeight:19},wrap:{flexDirection:'row',flexWrap:'wrap',gap:8},button:{minWidth:44,minHeight:48,padding:11,borderRadius:12,backgroundColor:C.mint,alignItems:'center',justifyContent:'center'},buttonText:{fontSize:15,fontWeight:'800',color:C.accentDark,textAlign:'center'},active:{backgroundColor:C.accentDark},board:{width:352,flexDirection:'row',flexWrap:'wrap'},square:{width:44,height:44,backgroundColor:C.sunPale,alignItems:'center',justifyContent:'center',borderWidth:.5,borderColor:C.line},darkSquare:{backgroundColor:'#90B9B1'},last:{backgroundColor:C.mint},chosen:{backgroundColor:C.sun,borderWidth:2,borderColor:C.accentDark},target:{borderWidth:2,borderColor:C.accentDark},piece:{fontSize:31,color:C.ink,lineHeight:40},dot:{position:'absolute',bottom:3,right:3,width:7,height:7,borderRadius:4,backgroundColor:C.accentDark},stone:{width:32,height:32,borderRadius:16,backgroundColor:C.sun,borderWidth:2,borderColor:C.ink,alignItems:'center',justifyContent:'center'},stone2:{backgroundColor:C.ink},stoneText:{fontSize:16,fontWeight:'900',color:C.ink},note:{padding:12,borderRadius:12,backgroundColor:C.bg,gap:4},block:{width:44,height:44,backgroundColor:C.ink},crossCell:{width:44,height:44,borderWidth:1,borderColor:C.line,backgroundColor:C.paper,alignItems:'center',justifyContent:'center'},clueNumber:{position:'absolute',top:1,left:2,fontSize:10,color:C.ink},letter:{fontSize:20,fontWeight:'800',color:C.ink},wrong:{backgroundColor:C.peach}});

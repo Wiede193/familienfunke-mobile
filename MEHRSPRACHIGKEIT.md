@@ -26,3 +26,5 @@ Die Navigation der Familienkarte und die Wegweiser-Statussteuerung sind jetzt te
 Die Karten-/Karten-Screenreader-Tests prüfen jetzt dynamische lokalisierte Labels. Spielkarten-Navigation und Ergebnisanzeige der Quiz-Auswahl verwenden die aktive Sprache.
 
 Mini-Spiele (Paare, Drei gewinnt, Zahlenfolgen) haben jetzt englische Beschriftungen und bekannte Regel-/Screenreader-Texte. Zahlenfolgen-Erklärungen werden nur für drei exakt bekannte Vorlagen übersetzt, Mathematik unverändert.
+
+Weitere Spielbildschirme: Standardanleitungen und Hauptaktionen der Klassiker und Brettspiele sind englisch. Deutsche Wörter-/Kreuzworträtsel werden ausdrücklich gekennzeichnet; Lösungen bleiben original. Einzelne dynamische Spielstandsmeldungen, Schachfigur-Namen und Screenreader-Texte benötigen noch vollständige Lokalisierung. Keine Änderungen der Spielalgorithmen.
