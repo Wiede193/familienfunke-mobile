@@ -21,7 +21,9 @@ import BlockedAccountsPanel from './BlockedAccountsPanel';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WelcomeIntro from './WelcomeIntro';
-import {FAMILY_COLORS} from './FamilyTheme';
+import {FAMILY_COLORS,FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
+import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
+import {FamilyEmptyState,FamilySkeleton} from './FamilyFeedback';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
 import FamilyCalendar,{CalendarEventButton} from './FamilyCalendar';
@@ -53,7 +55,7 @@ const sameRegion = (a,b) => {
   const x=normalizeLabel(a), y=normalizeLabel(b);
   return !!x && (x===y || REGION_CLUSTERS.some(group=>group.includes(x)&&group.includes(y)));
 };
-const TABS = [['home','Start','⌕'],['market','Basar','♧'],['discover','Familien','♡'],['map','Karte','⌖'],['guide','Wegweiser','☀']];
+const TABS = [['home','Start','home'],['market','Basar','bag'],['discover','Familien','users'],['map','Karte','map'],['guide','Wegweiser','book']];
 const MARKET_CATEGORIES=['Kleidung','Spielzeug','Bücher','Babyausstattung','Möbel','Sonstiges'];
 const ORG_KINDS=[['kita','Kita / Kindergarten'],['foerderverein','Förderverein'],['familienzentrum','Familienzentrum'],['verein','Familienverein']];
 const SECTION_MESSAGES={market:'Von Familien für Familien: kostenlos einstellen, verschenken und tauschen. Unsere Gebühren sind offen – aktuell gibt es keine Onlinezahlungen. Wir verkaufen keine persönlichen Daten.',partners:'Kitas und Fördervereine stellen sich vor, zeigen freie Plätze und laden zu Flohmärkten ein. Ein Stern erscheint nur bei bestätigter Einrichtung.',discover:'Neue Familien kennenlernen – freiwillig, respektvoll und ohne genaue Standortfreigabe.',events:'Gemeinsam etwas unternehmen statt endlose Diskussionen. Veranstaltungen werden vor der Veröffentlichung geprüft.',inclusion:'Für Familien mit und ohne Behinderung: willkommen, respektiert und ohne Pflicht zur Offenlegung persönlicher Diagnosen.'};
@@ -186,7 +188,7 @@ return <View style={{marginBottom:15}}>
 <Text style={[styles.micro,{marginTop:6}]}>Gib bitte keine Straße oder Hausnummer an. Deine Region ist freiwillig.</Text>
 </View>;
 }
-function Blank({title,body}) {return <Card style={{alignItems:'center',paddingVertical:30}}><Text style={{fontSize:38,marginBottom:8,color:C.coral}}>♡</Text><Text style={styles.cardTitle}>{title}</Text><Text style={[styles.sub,{textAlign:'center'}]}>{body}</Text></Card>;}
+function Blank({title,body,icon='heart',actionLabel,onAction}) {return <FamilyEmptyState title={title} description={body} icon={icon} actionLabel={actionLabel} onAction={onAction}/>;}
 function Login({error,setError,onHelp}) {
 const [email,setEmail]=useState('');
 const [password,setPassword]=useState('');
@@ -828,7 +830,10 @@ function navigateFromHome(id,marketQuery='',placeId=null){
   setCalendarSeed(null);
   setMapIntent(id==='map'&&typeof placeId==='string'?{id:placeId,returnTab:'home'}:null);
   setEventIntent(['events','partners'].includes(id)&&typeof placeId==='string'?{id:placeId,tab:id,owner:me}:null);
-  setMarketIntent(id==='box'||id==='sell'?id:(id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null));
+  setMarketIntent(id==='box'||id==='sell'?id:
+    id==='market'&&typeof placeId==='string'&&/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(placeId)?
+      {type:'buyerListing',id:placeId}:
+    id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null);
   setExtraReturnTab('home');
   setTab(id==='box'||id==='sell'?'market':id);
 }
@@ -870,7 +875,7 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><Text accessibilityElementsHidden importantForAccessibility="no" style={{fontSize:22,color:C.ink}}>🔔︎</Text>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
+{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><FamilyIcon name="bell" size={22} color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
 {detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
 <Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
@@ -895,7 +900,7 @@ disabled={busy} blocked={blocked}
 send={(body)=>sendChatMessage(body,selectedContact)}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
-tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome}/>:
+tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome} userId={me} profile={myProfile} active={active} inboxUnread={inbox.unread}/>:
 tab==='play'?<FamilyPlayScreen key={me}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
 tab==='outing'?<FamilyOutingScreen key={me} onCalendar={planCalendarPlace} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
@@ -1017,7 +1022,9 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>si
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><Text style={[styles.tabIcon,(tab===id)&&{color:C.accentDark}]}>{glyph}</Text><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><View style={[styles.tabIcon,(tab===id)&&styles.tabIconSelected]}>
+  <FamilyIcon name={glyph} size={24} color={tab===id?C.accentDark:C.muted}/>
+</View><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 <TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
@@ -3226,8 +3233,8 @@ info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertica
 warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:C.accentDark},
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
-tabBar:{minHeight:77,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:5},
-tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:54,paddingVertical:8,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{fontSize:24,color:'#708186',fontWeight:'500'},tabLabel:{fontSize:10.5,color:'#61757A',marginTop:3,fontWeight:'700'},
+tabBar:{minHeight:76,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:8,paddingBottom:3},
+tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:57,paddingVertical:6,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{width:35,height:29,alignItems:'center',justifyContent:'center'},tabIconSelected:{borderRadius:10},tabLabel:{fontSize:11,color:C.muted,marginTop:3,fontWeight:'600'},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},
