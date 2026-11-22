@@ -228,7 +228,8 @@ if(!me||!supabase)return;
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
-supabase.from('profiles').select('*').limit(150),
+supabase.from('profiles').select('*').eq('is_discoverable',true).eq('moderation_status','approved').order('created_at',{ascending:false}).limit(150),
+ supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('contact_requests').select('*').order('created_at',{ascending:false}).limit(200),
 supabase.from('messages').select('*').order('created_at',{ascending:false}).limit(300),
 supabase.from('events').select('*').gt('ends_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(150),
@@ -237,7 +238,7 @@ supabase.from('profile_photos').select('*').order('created_at',{ascending:false}
 supabase.from('blocks').select('*').limit(200),
 supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('ff_market_listings').select('*').order('created_at',{ascending:false}).limit(160),
+supabase.from('ff_market_listings').select('*').eq('seller_id',me).order('created_at',{ascending:false}).limit(160),
 supabase.from('ff_market_favorites').select('*').eq('user_id',me).limit(800),
 supabase.from('ff_organizations').select('*').order('created_at',{ascending:false}).limit(100),
 supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(100),
@@ -245,15 +246,15 @@ supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOSt
 if(accountRef.current!==me)return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
+const [profiles,ownProfile,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
  const visibleListingIds=(listings.data||[]).map(row=>row.id);
  const marketPhotos=visibleListingIds.length
    ? await supabase.from('ff_market_photos').select('*').in('listing_id',visibleListingIds).order('slot',{ascending:true}).limit(800)
    : {data:[],error:null};
  if(marketPhotos.error)throw marketPhotos.error;
  if(accountRef.current!==me)return null;
-const profileRow=profiles.data.find(p=>p.user_id===me)||null;
-setDb({profiles:profiles.data||[],contacts:contacts.data||[],messages:messages.data||[],
+const profileRow=ownProfile.data||profiles.data.find(p=>p.user_id===me)||null;
+setDb({profiles:profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),contacts:contacts.data||[],messages:messages.data||[],
 events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],
 listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
