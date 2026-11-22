@@ -16,4 +16,9 @@ for(const fn of ['ff_discover_page','ff_contacts_page','ff_chat_page']){
  assert.ok(sql.includes('public.'+fn)); assert.ok(sql.includes('grant execute on function public.'+fn));
 }
 assert.equal((sql.match(/security invoker/g)||[]).length,3,'Never bypass social RLS');
+const previewSQL=readFileSync(new URL('../database/ff_chat_previews_20261122.sql',import.meta.url),'utf8');
+assert.ok(previewSQL.includes('security invoker'));
+assert.ok(previewSQL.includes('cardinality(p_contact_ids),0) between 1 and 50'));
+assert.ok(previewSQL.includes("c.status='accepted'"));
+assert.ok(previewSQL.includes('grant execute on function public.ff_chat_previews'));
 console.log('Scoped social cursor and RLS source checks passed');
