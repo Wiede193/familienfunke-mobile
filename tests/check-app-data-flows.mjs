@@ -11,7 +11,7 @@ assert.ok(load.includes('const seq=++loadSeq.current'),'Every full refresh needs
 assert.ok(load.includes('const stillCurrent=()=>isCurrentRequest('));
 assert.ok((load.match(/if\(!stillCurrent\(\)\)return null;/g)||[]).length>=3,'Discard old async responses after awaited calls');
 assert.ok(load.includes('setDb(old=>!stillCurrent()?old:'),'Guard queued state updates too');
-assert.ok(load.includes('if(stillCurrent())setError('),'Old failed requests must not show a stale error');
+assert.ok(load.includes('if(stillCurrent()){') && load.includes('setError(isTransientFailure(e)?'), 'Old failed requests must not show a stale error or connection warning');
 const pages=slice('async function loadMoreFamilies','useEffect(()=>{\nif(!supabase)');
 assert.ok((pages.match(/requestedDuringLoad=loadSeq.current/g)||[]).length===2);
 assert.ok((pages.match(/setDb\(old=>isCurrentRequest\(/g)||[]).length===2,'Both social pages must check generation before updating');
