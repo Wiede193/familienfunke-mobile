@@ -3,10 +3,11 @@ import {ActivityIndicator,AccessibilityInfo,Linking,Pressable,ScrollView,StyleSh
 import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import {CURATED_FAMILY_PLACES} from './FamilyMapCurated';
+import {BRANDENBURG_FAMILY_PLACES} from './FamilyMapBrandenburg';
 import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
 import {ORIGINS,AGES,RADII,BUDGETS,INTERESTS,DURATIONS,localOrigins,remoteOrigins,selectOutings,orderOutings,planSteps} from './FamilyOutingPlan';
 
-const CATALOG=[...CURATED_FAMILY_PLACES,...NATIONAL_FAMILY_PLACES];
+const CATALOG=[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES,...NATIONAL_FAMILY_PLACES];
 const initial={query:'',origin:null,prefs:{ages:[],radius:25,budget:50,interest:'any',duration:'full'},result:null};
 function Action({children,onPress,disabled=false,secondary=false}){
  return <Pressable accessibilityRole="button" accessibilityState={{disabled}} disabled={disabled} onPress={onPress}

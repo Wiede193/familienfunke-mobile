@@ -17,6 +17,15 @@ export const CURATED_FAMILY_PLACES=[
     id:'curated-burg-storkow',title:'Burg Storkow & Naturpark-Besucherzentrum',category:'outing',
     description:'Historische Burg mit Ausstellung zur Natur- und Kulturgeschichte sowie Tourist-Information. Ein Ausflug für wissbegierige Familien.',
     region_label:'Storkow (Mark)',address:'Schloßstraße 6, 15859 Storkow (Mark)',
+    accessibility:{
+      status:'documented',
+      summary:'Die Ausstellungsbereiche des Naturpark-Besucherzentrums sind laut Betreiber für Rollstuhl, Rollator und Kinderwagen erreichbar.',
+      mobility:'Stufenlose Zuwegung zur Burg und Aufzug zur Naturpark-Ausstellung. Die Zugänglichkeit aller historischen Außenbereiche separat prüfen.',
+      sensory:'Die Naturpark-Dauerausstellung bietet ein Angebot zum Entdecken mit mehreren Sinnen.',
+      limitations:'Die Angaben betreffen ausdrücklich das Besucherzentrum und die Ausstellung, nicht pauschal jede Fläche der historischen Burg.',
+      source_url:'https://www.burgstorkow.de/seite/658680/oeffnungszeiten-tickets-preise',
+      checked:'2026-11-22'
+    },
     latitude:52.25288295,longitude:13.93338919,
     info_url:'https://www.dahme-heideseen-naturpark.de/themen/ausflugsziele-erlebnisse/besucherzentrum-burg-storkow-mark/'
   },

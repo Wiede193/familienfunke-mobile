@@ -11,6 +11,7 @@ import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavi
 
 import {findFamilyMapLocations} from './FamilyMapSearch';
 import {CURATED_FAMILY_PLACES} from './FamilyMapCurated';
+import {BRANDENBURG_FAMILY_PLACES} from './FamilyMapBrandenburg';
 import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
 
 const C=FAMILY_COLORS;
@@ -88,7 +89,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   const region=profile?.region_label||'';
   const profileStep=missingFamilyProfileStep(profile);
   const suggestedPlaces=recommendFamilyPlaces(
-    CURATED_FAMILY_PLACES,{region,interests:profile?.interests||[]},3
+    [...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES],{region,interests:profile?.interests||[]},3
   );
   useEffect(()=>{
     let live=true;
@@ -127,7 +128,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   }
   const needle=question.trim();
   const matches=findHomeRoutes(needle);
-  const places=needle.length>=2?findFamilyMapLocations(needle,{curated:CURATED_FAMILY_PLACES,national:NATIONAL_FAMILY_PLACES},4):[];
+  const places=needle.length>=2?findFamilyMapLocations(needle,{curated:[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES],national:NATIONAL_FAMILY_PLACES},4):[];
   const marketIntent=looksLikeMarketProductQuery(needle)||matches[0]?.id==='market';
   const visibleSearch=searchResult?.query===needle?searchResult:null;
   const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);

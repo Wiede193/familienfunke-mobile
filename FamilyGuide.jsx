@@ -1,8 +1,10 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {VERIFIED_GUIDE_DETAILS, ODER_SPREE_GUIDE} from './FamilyGuideVerified';
+import {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES,
+  guessBrandenburgRegion,findBrandenburgRegions,officeForGuideStep,REGIONAL_DIRECTORY_URL} from './BrandenburgFamilyRegions';
 
 const P=FAMILY_COLORS;
 const TYPES={
@@ -83,6 +85,12 @@ export default function FamilyGuideScreen({userId,regionLabel}){
   const [phaseId,setPhaseId]=useState('pregnancy');
   const [stepId,setStepId]=useState(null);
   const [showOderSpree,setShowOderSpree]=useState(false);
+  const [regionSearch,setRegionSearch]=useState('');
+  const [pickedRegionId,setPickedRegionId]=useState(null);
+  const guessedRegion=useMemo(()=>guessBrandenburgRegion(regionLabel),[regionLabel]);
+  const selectedRegion=BRANDENBURG_REGIONS.find(r=>r.id===pickedRegionId)||guessedRegion;
+  const visibleRegions=findBrandenburgRegions(regionSearch);
+  const regionStepOffices=officeForGuideStep(selectedRegion,stepId);
   const storageKey='familienfunke.guide.status.v1.'+userId;
   useEffect(()=>{
     let active=true;
@@ -110,7 +118,7 @@ export default function FamilyGuideScreen({userId,regionLabel}){
   if(!ready)return <View style={st.loading}><ActivityIndicator color={P.teal}/><Text style={st.small}>Deinen Wegweiser laden …</Text></View>;
   if(activeStep){
     const source=activeStep.source||LINKS[activeStep.link];
-    const localNote=showOderSpree?ODER_SPREE_GUIDE.steps[activeStep.id]:null;
+    const localNote=selectedRegion?.id==='oder-spree'&&showOderSpree?ODER_SPREE_GUIDE.steps[activeStep.id]:null;
     return <ScrollView style={st.page} contentContainerStyle={st.content}>
       <Pressable accessibilityRole="button" onPress={()=>{setStepId(null);setPhaseId(activeStep.phaseId);}} style={st.back}><Text style={st.backText}>‹ Zurück zur Zeitleiste</Text></Pressable>
       <View style={st.detailCard}>
@@ -127,6 +135,19 @@ export default function FamilyGuideScreen({userId,regionLabel}){
           <Text style={st.question}>Hinweis für den Landkreis Oder-Spree</Text>
           <Text style={st.body}>{localNote}</Text>
           {['parental_allowance','childcare_search','kita_application'].includes(activeStep.id)?<Pressable accessibilityRole="link" onPress={()=>openLink(ODER_SPREE_GUIDE.offices[activeStep.id==='parental_allowance'?0:1].url)}><Text style={st.localLink}>Zuständige Landkreis-Seite öffnen ↗</Text></Pressable>:null}
+        </View>:null}
+        {regionStepOffices.length?<View style={st.localNotice}>
+          <Text style={st.question}>Zuständig für {selectedRegion.name}</Text>
+          {regionStepOffices.map(office=><View key={office.topic+office.title} style={st.officeCard}>
+            <Text style={st.question}>{office.title}</Text>
+            <Text style={st.body}>{office.detail}</Text>
+            {office.contact?<Text style={st.small}>Kontakt: {office.contact}</Text>:null}
+            <Pressable accessibilityRole="link"
+              accessibilityLabel={'Offizielle Seite: '+office.title}
+              style={st.officeLink} onPress={()=>openLink(office.url)}>
+              <Text style={st.localLink}>Verfahren, Formulare und Kontakt öffnen ↗</Text>
+            </Pressable>
+          </View>)}
         </View>:null}
         <View style={st.detailDivider}/>
         {[
@@ -169,19 +190,57 @@ export default function FamilyGuideScreen({userId,regionLabel}){
       TYPES.recommended,TYPES.voluntary,TYPES.individual
     ].map(t=><View key={t.short} style={[st.tag,{backgroundColor:t.bg}]}><Text style={[st.tagText,{color:t.color}]}>{t.short}</Text></View>)}</View>
     <View style={st.regionCard}>
-      <Text style={st.regionTitle}>Regionale Informationen</Text>
-      <Text style={st.small}>Zusätzliche Ansprechpartner und Kita-Regeln für Brandenburg und den Landkreis Oder-Spree. Diese Auswahl ändert nichts an deinem Familienprofil.</Text>
-      <Pressable accessibilityRole="button" accessibilityState={{expanded:showOderSpree}} onPress={()=>setShowOderSpree(value=>!value)} style={st.regionButton}>
-        <Text style={st.regionButtonText}>{showOderSpree?'Landkreis-Infos ausblenden':'Brandenburg / Oder-Spree anzeigen'}</Text>
+      <Text accessibilityRole="header" style={st.regionTitle}>Regionale Stellen & Anträge</Text>
+      <Text style={st.small}>Alle 14 Landkreise und vier kreisfreien Städte Brandenburgs sind auswählbar. Für derzeit acht Regionen sind konkrete Fachseiten hinterlegt; für die übrigen zeigen wir das amtliche Verzeichnis statt unbestätigter Ansprechpersonen. Diese Auswahl ändert weder dein Profil noch deinen Standort.</Text>
+      {selectedRegion?<Text style={[st.small,{marginTop:8,fontWeight:'800',color:P.tealDark}]}>Aktuelle Auswahl: {selectedRegion.name} · {selectedRegion.coverage==='verified'?'Regionalquellen geprüft':'Amtliches Verzeichnis, Detailrecherche offen'}</Text>:null}
+      <Pressable accessibilityRole="button" accessibilityState={{expanded:showOderSpree}}
+        accessibilityLabel="Regionale Stellen und Formulare anzeigen"
+        onPress={()=>setShowOderSpree(value=>!value)} style={st.regionButton}>
+        <Text style={st.regionButtonText}>{showOderSpree?'Regionsauswahl schließen':'Landkreis oder Stadt auswählen'}</Text>
       </Pressable>
       {showOderSpree?<View style={st.regionDetails}>
-        <Text style={st.regionTitle}>{ODER_SPREE_GUIDE.title}</Text>
-        <Text style={st.small}>{ODER_SPREE_GUIDE.description}</Text>
-        <Text style={[st.small,{marginTop:7}]}>{ODER_SPREE_GUIDE.reviewed}</Text>
-        {ODER_SPREE_GUIDE.offices.map(office=><View key={office.id} style={st.officeCard}>
-          <Text style={st.question}>{office.title}</Text>
-          <Text style={st.small}>{office.detail}</Text>
-          <Pressable accessibilityRole="link" onPress={()=>openLink(office.url)} style={st.officeLink}><Text style={st.localLink}>Offizielle Seite öffnen ↗</Text></Pressable>
+        <Text style={st.question}>Wohnort-Landkreis oder kreisfreie Stadt suchen</Text>
+        <TextInput accessibilityLabel="Brandenburger Landkreis oder Stadt suchen"
+          placeholder="z. B. Barnim, Strausberg, Cottbus …"
+          placeholderTextColor={P.muted} value={regionSearch}
+          onChangeText={setRegionSearch} style={st.regionInput}/>
+        <Text style={st.small}>{visibleRegions.length} {visibleRegions.length===1?'Region':'Regionen'} in der Auswahl</Text>
+        {visibleRegions.map(region=><Pressable key={region.id}
+          accessibilityRole="button" accessibilityLabel={region.name+' auswählen'}
+          accessibilityState={{selected:selectedRegion?.id===region.id}}
+          style={[st.regionChoice,selectedRegion?.id===region.id&&st.regionChoiceSelected]}
+          onPress={()=>{setPickedRegionId(region.id);setRegionSearch('');}}>
+          <View style={{flex:1}}>
+            <Text style={st.regionChoiceTitle}>{region.name}</Text>
+            <Text style={st.small}>{region.coverage==='verified'?'Konkrete Kontaktseiten geprüft':'Amtliches Verzeichnis, lokale Details folgen'}</Text>
+          </View>
+          <Text style={st.regionChoiceArrow}>{selectedRegion?.id===region.id?'✓':'›'}</Text>
+        </Pressable>)}
+        {selectedRegion?<View style={{marginTop:16}}>
+          <Text accessibilityRole="header" style={st.regionTitle}>{selectedRegion.name}</Text>
+          {selectedRegion.offices.length?selectedRegion.offices.map(office=><View key={office.topic+office.title} style={st.officeCard}>
+            <Text style={st.question}>{office.title}</Text>
+            <Text style={st.small}>{office.detail}</Text>
+            {office.contact?<Text style={[st.small,{marginTop:5}]}>Kontakt: {office.contact}</Text>:null}
+            <Pressable accessibilityRole="link"
+              accessibilityLabel={office.title+' offizielle Fachseite öffnen'}
+              onPress={()=>openLink(office.url)} style={st.officeLink}>
+              <Text style={st.localLink}>Offizielle Fachseite und Formulare ↗</Text>
+            </Pressable>
+          </View>):<Text style={st.small}>Für diese Region liegt noch keine einzeln überprüfte Fachstelle vor. Nutze zunächst das amtliche Kommunalverzeichnis und die unten verlinkten landesweiten Antragsseiten.</Text>}
+          <Pressable accessibilityRole="link" onPress={()=>openLink(selectedRegion.directory_url)}
+            style={st.officeLink}>
+            <Text style={st.localLink}>Amtliches Kommunalverzeichnis öffnen ↗</Text>
+          </Pressable>
+        </View>:null}
+        <Text accessibilityRole="header" style={[st.regionTitle,{marginTop:16}]}>Brandenburgweite Anträge und Hilfen</Text>
+        {BRANDENBURG_FAMILY_RESOURCES.map(item=><View key={item.id} style={st.officeCard}>
+          <Text style={st.question}>{item.title}</Text>
+          <Text style={st.small}>{item.explanation}</Text>
+          <Pressable accessibilityRole="link" accessibilityLabel={item.title+' öffnen'}
+            style={st.officeLink} onPress={()=>openLink(item.url)}>
+            <Text style={st.localLink}>Amtliche Information / Antragsweg ↗</Text>
+          </Pressable>
         </View>)}
       </View>:null}
     </View>
@@ -275,6 +334,11 @@ const st=StyleSheet.create({
   regionButton:{backgroundColor:P.teal,paddingVertical:12,paddingHorizontal:12,borderRadius:12,alignItems:'center',marginTop:12},
   regionButtonText:{fontWeight:'900',color:P.paper,fontSize:13},
   regionDetails:{marginTop:15},
+  regionInput:{borderWidth:1,borderColor:P.line,borderRadius:12,backgroundColor:P.paper,padding:12,minHeight:48,fontSize:14,color:P.ink,marginVertical:8},
+  regionChoice:{minHeight:58,padding:11,borderRadius:13,flexDirection:'row',alignItems:'center',marginTop:7,borderWidth:1,borderColor:P.line,backgroundColor:P.bg},
+  regionChoiceSelected:{borderColor:P.teal,backgroundColor:P.sunPale},
+  regionChoiceTitle:{fontSize:14,fontWeight:'800',color:P.ink},
+  regionChoiceArrow:{fontSize:18,fontWeight:'800',color:P.tealDark},
   officeCard:{paddingVertical:12,borderTopWidth:1,borderTopColor:P.line},
   officeLink:{minHeight:44,justifyContent:'center',marginTop:3},
   note:{backgroundColor:P.warn,padding:15,borderRadius:16,marginTop:16},
