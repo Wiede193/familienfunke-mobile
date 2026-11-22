@@ -20,7 +20,7 @@ function SelectRow({label,options,value,onChange}){
   </ScrollView>
  </View>;
 }
-export default function OfficialFamilyEvents({userId,month=null,compact=false,onSaved}){
+export default function OfficialFamilyEvents({userId,month=null,compact=false,onSaved,onEventsLoaded}){
  const [district,setDistrict]=useState('all'),[category,setCategory]=useState('all');
  const [events,setEvents]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const [revision,setRevision]=useState(0),[savingKey,setSavingKey]=useState(null);
@@ -35,8 +35,8 @@ export default function OfficialFamilyEvents({userId,month=null,compact=false,on
     .gte('end_date',range.from).lte('start_date',range.to)
     .order('start_date',{ascending:true}).order('start_time',{ascending:true}).limit(100);
    if(failure||!Array.isArray(data))throw Error('Termine können derzeit nicht geladen werden.');
-   if(active&&current===seq.current)setEvents(data);
-  })().catch(e=>{if(active&&current===seq.current){setEvents([]);setError(e.message);}})
+   if(active&&current===seq.current){setEvents(data);onEventsLoaded?.(data);}
+  })().catch(e=>{if(active&&current===seq.current){setEvents([]);onEventsLoaded?.([]);setError(e.message);}})
     .finally(()=>{if(active&&current===seq.current)setLoading(false);});
   const sub=AppState.addEventListener('change',next=>{if(next==='active'&&active)setRevision(x=>x+1);});
   return()=>{active=false;seq.current++;sub.remove();};
