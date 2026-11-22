@@ -2,6 +2,7 @@ import React,{useState,useRef} from 'react';
 import {AccessibilityInfo,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import {useFamilyLocale} from './FamilyLocale';
+import {ENGLISH_WORDS} from './FamilyPlayEnglishPuzzles';
 import {fourStatus,fourCellLabel,gridCellLabel,sudokuStatus,solitaireCardName,solitaireProgress,solitaireFoundationLabel} from './FamilyGameA11y';
 import {newFour,dropFour,newSudoku,sudokuPut,sudokuHint,sudokuWon,sudokuConflicts,newWord,wordPick,wordUndo,wordText,wordWon} from './FamilyClassicGames';
 import {newSolitaire,drawSolitaire,moveSolitaire,autoFoundation,sourceCards,solitaireWon,cardShort,cardLabel,red} from './FamilySolitaire';
@@ -72,10 +73,10 @@ export function SudokuGame({level}){
 }
 export function WordGame({level}){
  const {t,language}=useFamilyLocale();
- const [game,update]=useGame(()=>newWord(level)),seen=useRef(new Set()),[revealed,setRevealed]=useState(false);const answer=wordText(game),won=wordWon(game),full=game.selected.length===game.tiles.length,finished=won||revealed;
- function next(){seen.current.add(game.id);if(seen.current.size>=12)seen.current.clear();update(()=>newWord(level,Math.random,[...seen.current]));setRevealed(false);}
+ const [game,update]=useGame(()=>newWord(level,Math.random,[],language==='en'?ENGLISH_WORDS:undefined)),seen=useRef(new Set()),[revealed,setRevealed]=useState(false);const answer=wordText(game),won=wordWon(game),full=game.selected.length===game.tiles.length,finished=won||revealed;
+ function next(){seen.current.add(game.id);if(seen.current.size>=12)seen.current.clear();update(()=>newWord(level,Math.random,[...seen.current],language==='en'?ENGLISH_WORDS:undefined));setRevealed(false);}
  return <View style={s.card}>
-  <Text accessibilityRole="header" style={s.title}>{t("Wörterrätsel")}</Text>{language==='en'?<Text style={s.muted}>{t("Diese Wörterrätsel verwenden deutsche Wörter. Eine englische Variante wird noch erstellt.")}</Text>:null}
+  <Text accessibilityRole="header" style={s.title}>{t("Wörterrätsel")}</Text>
   <Text style={s.text}>{t("Sortiere die Buchstaben zu einem passenden Wort. Die Umschreibung hilft dir dabei.")}</Text>
   <View style={s.note}><Text style={s.heading}>{game.hint}</Text></View>
   <Text accessibilityLiveRegion="polite" style={s.word}>{answer||t('Noch keine Buchstaben')}</Text>

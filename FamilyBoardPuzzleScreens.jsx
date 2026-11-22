@@ -2,6 +2,7 @@ import React,{useRef,useState} from 'react';
 import {AccessibilityInfo,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import {useFamilyLocale} from './FamilyLocale';
+import {ENGLISH_CROSSWORDS} from './FamilyPlayEnglishPuzzles';
 import {gridCellLabel,chessStatus,chessPieceName,draughtsStatus,draughtsPieceName,crosswordStatus,pictureStatus,pictureTileLabel} from './FamilyGameA11y';
 import {newChess,chessMoves,playChess,chessCheck} from './FamilyChess';
 import {newDraughts,draughtsMoves,playDraughts,CROSSWORDS,buildCrossword,crosswordPut,crosswordHint,crosswordWon,PICTURE_SCENES,pictureTile,newPicture,swapPicture,pictureWon} from './FamilyBoardPuzzles';
@@ -83,7 +84,7 @@ export function DraughtsGame(){
 }
 export function CrosswordGame({level}){
  const {t,language}=useFamilyLocale();
- const pool=CROSSWORDS.filter(x=>x.level===level);
+ const pool=(language==='en'?ENGLISH_CROSSWORDS:CROSSWORDS).filter(x=>x.level===level);
  const [game,update,ref]=usePosition(()=>buildCrossword(pool[0])),[selected,setSelected]=useState(null),[clue,setClue]=useState(null),[check,setCheck]=useState(false);
  const current=useRef(null),clueRef=useRef(null);
  function choose(i,c=null){current.current=i;setSelected(i);clueRef.current=c;setClue(c);}
@@ -101,7 +102,7 @@ export function CrosswordGame({level}){
  const selectedClue=game.clues.find(x=>x.id===clue);
  const done=crosswordWon(game);
  return <View style={s.card}>
-  <Text accessibilityRole="header" style={s.title}>{t("Kreuzworträtsel")}</Text>{language==='en'?<Text style={s.muted}>{t("Diese Kreuzworträtsel verwenden deutsche Begriffe und Hinweise. Eine englische Variante wird noch erstellt.")}</Text>:null}
+  <Text accessibilityRole="header" style={s.title}>{t("Kreuzworträtsel")}</Text>
   <Text style={s.text}>{t("Wähle ein Rätsel und eine Frage. Trage die Buchstaben ein. Gemeinsame Felder verbinden die Wörter.")}</Text>
   <View style={s.wrap}>{pool.map(p=><Action key={p.id} active={p.id===game.id} onPress={()=>load(p.id)}>{p.title}</Action>)}</View>
   <ScrollView horizontal><View style={{width:game.width*44,flexDirection:'row',flexWrap:'wrap'}}>{game.cells.map((v,i)=>{
@@ -117,7 +118,7 @@ export function CrosswordGame({level}){
    <Text style={s.heading}>{c.number} {t(c.dir==='across'?'Waagerecht':'Senkrecht')} · {c.cells.length} {t('Buchstaben')}</Text><Text style={s.text}>{c.clue}</Text>
   </Pressable>)}
   <Text accessibilityLiveRegion="polite" style={s.heading}>{crosswordStatus(done,selected,language)}</Text>
-  <View style={s.wrap}>{[...'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ'].map(letter=><Action key={letter} disabled={selected===null||done} onPress={()=>enter(letter)}>{letter}</Action>)}</View>
+  <View style={s.wrap}>{[...(language==='en'?'ABCDEFGHIJKLMNOPQRSTUVWXYZ':'ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ')].map(letter=><Action key={letter} disabled={selected===null||done} onPress={()=>enter(letter)}>{letter}</Action>)}</View>
   <View style={s.wrap}><Action disabled={selected===null||done} onPress={()=>enter('')}>{t("Löschen")}</Action><Action disabled={selected===null||done} onPress={()=>enter('',true)}>{t("Tipp")}</Action><Action active={check} onPress={()=>setCheck(x=>!x)}>{t("Prüfen")}</Action><Action onPress={()=>load(game.id)}>{t("Neu beginnen")}</Action></View>
   <Text style={s.muted}>{t('Hinweise genutzt: ')}{game.hints}</Text>
  </View>;

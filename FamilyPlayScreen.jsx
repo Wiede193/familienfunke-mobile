@@ -63,7 +63,7 @@ export default function FamilyPlayScreen(){
    {shownIdeas.map(idea=><View style={s.card} key={idea.id}><Text style={s.eyebrow}>{idea.duration}</Text><Text style={s.heading}>{idea.title}</Text><Text style={s.text}>{idea.text}</Text></View>)}
    <Action secondary onPress={()=>setIdeas(old=>shuffled(sourceIdeas.filter(x=>!old.some(y=>y.id===x.id))).slice(0,3))}>{t("Andere Ideen zeigen")}</Action>
   </>:['pairs','three','pattern','sudoku','solitaire','four','word','chess','draughts','crossword','picture'].includes(stage)?<>
-    {stage==='pairs'?<PairsGame level={level}/>:stage==='three'?<ThreeGame/>:stage==='pattern'?<PatternGame level={level}/>:stage==='sudoku'?<SudokuGame level={level}/>:stage==='solitaire'?<SolitaireGame/>:stage==='four'?<FourGame/>:stage==='word'?<WordGame level={level}/>:stage==='chess'?<ChessGame/>:stage==='draughts'?<DraughtsGame/>:stage==='crossword'?<CrosswordGame level={level}/>:<PictureGame level={level}/>}
+    {stage==='pairs'?<PairsGame level={level}/>:stage==='three'?<ThreeGame/>:stage==='pattern'?<PatternGame level={level}/>:stage==='sudoku'?<SudokuGame level={level}/>:stage==='solitaire'?<SolitaireGame/>:stage==='four'?<FourGame/>:stage==='word'?<WordGame key={language+'-'+level} level={level}/>:stage==='chess'?<ChessGame/>:stage==='draughts'?<DraughtsGame/>:stage==='crossword'?<CrosswordGame key={language+'-'+level} level={level}/>:<PictureGame level={level}/>}
     <Action secondary onPress={()=>{setStage('start');top();}}>{t("Spiel beenden")}</Action>
   </>:stage==='round'&&question?<View style={s.card}>
    <Text style={s.eyebrow}>{t('FRAGE')} {index+1} {t('VON')} {round.length}</Text>

@@ -41,8 +41,8 @@ assert.match(play,/ENGLISH_QUESTIONS/);
 assert.match(play,/language==='en'\?makeEnglishRound/);
 assert.match(play,/\{t\(title\)\}<\/Text><Text style=\{s\.text\}>\{t\(description\)\}/);
 const classics=read('FamilyClassicGameScreens.jsx'),board=read('FamilyBoardPuzzleScreens.jsx');
-assert.match(classics,/Diese Wörterrätsel verwenden deutsche Wörter/);
-assert.match(board,/Diese Kreuzworträtsel verwenden deutsche Begriffe/);
+assert.match(classics,/language==='en'\?ENGLISH_WORDS:undefined/);
+assert.match(board,/language==='en'\?ENGLISH_CROSSWORDS:CROSSWORDS/);
 for(const p of ['FamilyMiniGameScreens.jsx','FamilyClassicGameScreens.jsx','FamilyBoardPuzzleScreens.jsx'])
  assert.doesNotMatch(read(p),/\b(?:supabase|AsyncStorage|fetch)\s*\(/);
 console.log('Map, guide, English game content, pattern math and German-only warnings checked');
