@@ -153,7 +153,7 @@ const s=StyleSheet.create({
  chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},
  chipText:{fontSize:13,fontWeight:'700',color:C.ink},chipTextSelected:{color:C.white},
  card:{padding:15,borderWidth:1,borderColor:C.line,borderRadius:17,backgroundColor:C.paper,gap:7},
- kicker:{fontSize:12,fontWeight:'800',color:C.accentDark},eventTitle:{fontSize:17,fontWeight:'850',color:C.ink},
+ kicker:{fontSize:12,fontWeight:'800',color:C.accentDark},eventTitle:{fontSize:17,fontWeight:'800',color:C.ink},
  date:{fontSize:15,fontWeight:'800',color:C.ink},source:{fontSize:12,lineHeight:17,color:C.muted,marginTop:3},
  actions:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:7},
  btn:{paddingVertical:12,paddingHorizontal:13,borderRadius:12,minHeight:44,backgroundColor:C.accentDark,justifyContent:'center'},
