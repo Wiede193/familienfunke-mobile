@@ -2608,12 +2608,27 @@ function updateFilter(setter,value){setter(value);setCardIndex(0);}
 function familyCard(p){
 const existing=requests.find(c=>(c.sender_id===me&&c.recipient_id===p.user_id)||(c.recipient_id===me&&c.sender_id===p.user_id));
 const regional=sameRegion(p.region_label,myRegion);
-return <Card key={p.user_id} style={{marginBottom:12}}>
-<Row><Avatar name={p.display_name} size={64} uri={imageFor(p.user_id)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{p.display_name}</Text><Text style={styles.micro}>⌖ {p.region_label||'Region nicht angegeben'}</Text>{regional?<Text style={[styles.micro,{color:C.accentDark,fontWeight:'800',marginTop:3}]}>✓ Gleiche Region</Text>:null}</View>{p.match>0?<View style={styles.match}><Text style={styles.matchText}>{p.match} gemeinsam</Text></View>:null}</Row>
+return <Card key={p.user_id} style={{marginBottom:12,padding:0,overflow:'hidden'}}>
+<View style={styles.familyCardAccent}/>
+<View style={{padding:17}}>
+<Row><Avatar name={p.display_name} size={67} uri={imageFor(p.user_id)}/>
+  <View style={{flex:1}}>
+    <Text style={styles.cardTitle}>{p.display_name}</Text>
+    <Row style={{gap:4,marginTop:6}}>
+      <FamilyIcon name="pin" size={14} color={C.muted}/>
+      <Text style={styles.micro}>{p.region_label||'Region nicht angegeben'}</Text>
+    </Row>
+    {regional?<Text style={styles.familyRegionBadge}>Aus eurer Region</Text>:null}
+  </View>
+  {p.match>0?<View style={styles.match}><Text style={styles.matchText}>{p.match} gemeinsam</Text></View>:null}
+</Row>
 {p.about?<Text style={[styles.body,{marginTop:13}]} numberOfLines={mode==='cards'?5:3}>{p.about}</Text>:null}
 <View style={styles.chipsRow}>{(p.interests||[]).slice(0,mode==='cards'?8:5).map(i=><Chip key={i} text={i}/>)}</View>
-<Row style={{marginTop:16}}><Button title="Profil ansehen" mode="outline" small style={{flex:1}} onPress={()=>showFamily(p.user_id)}/>
-<Button title={existing?existing.status==='accepted'?'Verbunden':existing.status==='pending'?'Anfrage offen':'Angefragt':'Kontakt anfragen'} small disabled={busy||!!existing} style={{flex:1}} onPress={()=>onContact(p.user_id)}/></Row>
+<Row style={{marginTop:16}}>
+<Button title="Profil ansehen" mode="outline" small style={{flex:1}} onPress={()=>showFamily(p.user_id)}/>
+<Button title={existing?existing.status==='accepted'?'Verbunden':existing.status==='pending'?'Anfrage offen':'Angefragt':'Kontakt anfragen'} small disabled={busy||!!existing} style={{flex:1}} onPress={()=>onContact(p.user_id)}/>
+</Row>
+</View>
 </Card>;
 }
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -2646,7 +2661,10 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Row><Chip text="Karten" selected={mode==='cards'} onPress={()=>setMode('cards')}/><Chip text="Liste" selected={mode==='list'} onPress={()=>setMode('list')}/></Row>
 </Row>
 {!active?<Blank title="Zunächst Freigabe abwarten" body="Sobald das Konto geprüft ist, erscheinen freigegebene Familienprofile."/>:
-filtered.length===0?<Blank title="Keine passenden Familien gefunden" body="Probiere andere Interessen, eine größere Region oder entferne die Filter."/>:
+filtered.length===0?<Blank title="Noch keine passenden Familien" icon="users"
+  body="Vielleicht sind noch wenige Familien aktiv. Passe die Filter an oder schau später wieder vorbei."
+  actionLabel="Filter zurücksetzen"
+  onAction={()=>{setQuery('');setInterest('Alle');setOnlyRegion(false);setOnlyShared(false);setCardIndex(0);}}/>:
 mode==='cards'?<>
 <Text style={[styles.micro,{textAlign:'center',marginBottom:12}]}>Familie {index+1} von {filtered.length} · Du entscheidest, wen du kontaktierst.</Text>
 {familyCard(filtered[index])}
@@ -2662,11 +2680,35 @@ mode==='cards'?<>
 function FamilyDetail({p,photos,photosUrls,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
 if(!p)return <Blank title="Profil nicht verfügbar" body="Das Profil kann verborgen oder gesperrt worden sein."/>;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-<Card style={{alignItems:'center',paddingTop:26}}><Avatar name={p.display_name} size={88} uri={photosUrls?.[photos?.[0]?.id]}/><Text style={[styles.h,{marginTop:12,textAlign:'center'}]}>{p.display_name}</Text><Text style={styles.sub}>⌖ {p.region_label||'Grobe Region nicht angegeben'}</Text><Text style={[styles.body,{textAlign:'center',marginTop:14}]}>{p.about||'Noch keine Beschreibung'}</Text>
-<View style={[styles.chipsRow,{justifyContent:'center'}]}>{(p.interests||[]).map(i=><Chip text={i} key={i}/>)}</View>
-{connection?.status==='accepted'?<Button title="Private Nachricht schreiben" onPress={()=>onChat(connection.id)}/>:
-!blocked&&active?<Button title={connection?'Kontaktanfrage vorhanden':'Kontakt anfragen'} disabled={disabled||!!connection} onPress={onContact}/>:null}
-<Row style={{marginTop:12}}>{blocked?<Button title="Entsperren" mode="outline" small onPress={onUnblock}/>:<Button title="Blockieren" mode="outline" small onPress={onBlock}/>}<Button title="Melden" mode="ghost" small onPress={onReport}/></Row>
+<View style={styles.familyDetailHero}>
+  <View style={styles.familyDetailSun}/>
+  <Avatar name={p.display_name} size={92} uri={photosUrls?.[photos?.[0]?.id]}/>
+  <Text accessibilityRole="header" style={styles.familyDetailName}>{p.display_name}</Text>
+  <Row style={{gap:5,justifyContent:'center',marginTop:8}}>
+    <FamilyIcon name="pin" size={17} color={C.accentDark}/>
+    <Text style={styles.familyDetailRegion}>{p.region_label||'Grobe Region nicht angegeben'}</Text>
+  </Row>
+  <Text style={styles.familyDetailNote}>Freiwillig sichtbares Familienprofil</Text>
+</View>
+<Card style={styles.familyDetailBody}>
+  <Text style={styles.sectionTitle}>Über diese Familie</Text>
+  <Text style={styles.body}>{p.about||'Diese Familie hat noch keine Beschreibung ergänzt.'}</Text>
+  {(p.interests||[]).length?<View style={{marginTop:19}}>
+    <Text style={styles.sectionTitle}>Interessen & Hobbys</Text>
+    <View style={styles.chipsRow}>{p.interests.map(i=><Chip text={i} key={i}/>)}</View>
+  </View>:null}
+  <View style={styles.familyDetailActions}>
+    {!blocked&&connection?.status==='accepted'?
+      <Button title="Private Nachricht schreiben" disabled={disabled} onPress={()=>onChat(connection.id)}/>:
+      !blocked&&active?<Button title={connection?'Kontaktanfrage vorhanden':'Kontakt anfragen'}
+        disabled={disabled||!!connection} onPress={onContact}/>:null}
+    {blocked?<Text style={styles.familyDetailBlocked}>Diese Familie ist von dir blockiert.</Text>:null}
+    <Row style={{marginTop:10}}>
+      {blocked?<Button title="Entsperren" mode="outline" small disabled={disabled} onPress={onUnblock}/>:
+        <Button title="Blockieren" mode="outline" small disabled={disabled} onPress={onBlock}/>}
+      <Button title="Melden" mode="ghost" small disabled={disabled} onPress={onReport}/>
+    </Row>
+  </View>
 </Card>
 {photoBusy?<ActivityIndicator color={C.accent}/>:null}
 {photoLoadError?<><Info warning>{photoLoadError}</Info><Button title="Fotos erneut laden" mode="outline" onPress={retryPhotos}/></>:null}
@@ -3187,6 +3229,19 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 </ScrollView>;
 }
 const styles=StyleSheet.create({
+familyCardAccent:{height:6,backgroundColor:C.sun},
+familyRegionBadge:{color:C.accentDark,fontSize:11.5,fontWeight:'700',marginTop:6},
+familyDetailHero:{backgroundColor:C.sunPale,borderRadius:22,paddingVertical:30,
+  paddingHorizontal:18,marginBottom:13,alignItems:'center',overflow:'hidden'},
+familyDetailSun:{position:'absolute',width:166,height:166,borderRadius:83,
+  top:-91,right:-60,backgroundColor:'#FFDF89'},
+familyDetailName:{color:C.ink,fontSize:26,fontWeight:'800',marginTop:15,textAlign:'center'},
+familyDetailRegion:{color:C.accentDark,fontSize:14,fontWeight:'700'},
+familyDetailNote:{color:C.muted,fontSize:12,marginTop:11,textAlign:'center'},
+familyDetailBody:{padding:18,marginBottom:18},
+familyDetailActions:{borderTopWidth:1,borderTopColor:C.line,marginTop:19,paddingTop:17},
+familyDetailBlocked:{color:C.warningText,fontSize:13,marginBottom:7},
+
 marketHero:{backgroundColor:C.sunPale,borderRadius:22,padding:18,flexDirection:'row',
   alignItems:'center',gap:12,marginBottom:13},
 marketEyebrow:{color:'#6C4A18',fontSize:10.5,letterSpacing:1.2,fontWeight:'800'},
@@ -3258,24 +3313,24 @@ heroDecorationTwo:{position:'absolute',width:88,height:88,borderRadius:44,backgr
 heroPill:{alignSelf:'flex-start',backgroundColor:C.white,borderRadius:40,paddingHorizontal:13,paddingVertical:7,marginBottom:12},
 heroPillText:{fontSize:10.5,fontWeight:'900',letterSpacing:1.1,color:'#624315'},
 eyebrow:{fontSize:11,fontWeight:'900',letterSpacing:1.5,color:C.coralDeep},
-heroTitle:{fontSize:28,fontWeight:'900',color:C.ink,letterSpacing:-.8,lineHeight:35,maxWidth:295},
+heroTitle:{fontSize:28,fontWeight:'800',color:C.ink,letterSpacing:-.8,lineHeight:35,maxWidth:295},
 heroText:{color:'#66512F',fontSize:14,lineHeight:21,marginTop:10,maxWidth:285},
 heroTagline:{alignSelf:'flex-start',backgroundColor:'#FFFDF3',borderRadius:12,paddingVertical:8,paddingHorizontal:10,marginTop:18},
 heroTaglineText:{color:C.ink,fontSize:11.5,fontWeight:'700'},
 headingWrap:{flexDirection:'row',alignItems:'flex-start',gap:12,marginBottom:17},
 headingBar:{width:5,height:37,borderRadius:4,backgroundColor:C.sun,marginTop:3},
-h:{fontSize:25,fontWeight:'900',color:C.ink,letterSpacing:-.6},
+h:{fontSize:25,fontWeight:'800',color:C.ink,letterSpacing:-.6},
 sub:{fontSize:13.5,lineHeight:21,color:C.muted,marginTop:6},
 body:{fontSize:14.5,lineHeight:22,color:C.ink},
 micro:{fontSize:11.5,color:C.muted,lineHeight:17},
-sectionTitle:{fontSize:18,color:C.ink,fontWeight:'900',marginBottom:13},
-cardTitle:{fontSize:17,fontWeight:'900',color:C.ink},
+sectionTitle:{fontSize:18,color:C.ink,fontWeight:'800',marginBottom:13},
+cardTitle:{fontSize:17,fontWeight:'800',color:C.ink},
 label:{fontSize:13,color:C.ink,fontWeight:'800',marginBottom:8},
 input:{backgroundColor:C.white,borderColor:'#D9DED6',borderWidth:1,borderRadius:15,paddingHorizontal:15,paddingVertical:13,fontSize:15,color:C.ink,minHeight:48},
 button:{minHeight:50,paddingHorizontal:18,paddingVertical:12,borderRadius:15,justifyContent:'center',alignItems:'center',flexDirection:'row'},
 button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#AEDBDD',borderWidth:1.5},
 button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:44,paddingVertical:9,paddingHorizontal:13},
-buttonText:{color:C.white,fontSize:14,fontWeight:'900'},buttonTextDark:{color:C.accentDark},
+buttonText:{color:C.white,fontSize:14,fontWeight:'800'},buttonTextDark:{color:C.accentDark},
 chip:{borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:13,paddingVertical:8},
 chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{color:C.accentDark,fontSize:12,fontWeight:'800'},
 chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},
