@@ -11,6 +11,7 @@ import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { signPhotoPaths } from './SignedPhotoUrls';
 import { EVENT_PAGE_SIZE, PHOTO_PAGE_SIZE, ascendingEventCursor, descendingRowCursor, hasFullPage } from './EventPhotoPages';
+import { MARKET_OWNER_PAGE_SIZE, marketCursor, hasMarketPage } from './MarketPartnerPages';
 import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -222,6 +223,13 @@ const [membership,setMembership]=useState(null);
 const [photosUrls,setPhotosUrls]=useState({});
 const [marketPhotoUrls,setMarketPhotoUrls]=useState({});
 const [marketExtraPhotoUrls,setMarketExtraPhotoUrls]=useState({});
+const [marketEpoch,setMarketEpoch]=useState(0);
+const [marketOwnerCursor,setMarketOwnerCursor]=useState(null);
+const [marketOwnerHasMore,setMarketOwnerHasMore]=useState(false);
+const [marketOwnerBusy,setMarketOwnerBusy]=useState(false);
+const [marketOwnerBusyMore,setMarketOwnerBusyMore]=useState(false);
+const [marketOwnerError,setMarketOwnerError]=useState('');
+const marketSeq=useRef(0);
 const [photoCursor,setPhotoCursor]=useState(null);
 const [photoHasMore,setPhotoHasMore]=useState(false);
 const [photoBusy,setPhotoBusy]=useState(false);
@@ -253,21 +261,12 @@ supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE}),
 supabase.from('blocks').select('*').limit(200),
 supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('ff_market_listings').select('*').eq('seller_id',me).order('created_at',{ascending:false}).limit(160),
-supabase.from('ff_market_favorites').select('*').eq('user_id',me).limit(800),
-supabase.from('ff_organizations').select('*').order('created_at',{ascending:false}).limit(100),
-supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(100),
+supabase.from('ff_organizations').select('*').eq('owner_id',me).order('created_at',{ascending:false}).limit(50),
 ]);
 if(accountRef.current!==me)return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,ownProfile,contacts,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
- const visibleListingIds=(listings.data||[]).map(row=>row.id);
- const marketPhotos=visibleListingIds.length
-   ? await supabase.from('ff_market_photos').select('*').in('listing_id',visibleListingIds).order('slot',{ascending:true}).limit(800)
-   : {data:[],error:null};
- if(marketPhotos.error)throw marketPhotos.error;
- if(accountRef.current!==me)return null;
+const [profiles,ownProfile,contacts,blocks,verificationRow,membershipRow,ownOrganizations]=queries;
 // Fetch contact display names separately; contacts may have hidden discovery profiles.
 const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
 // Preserve only the currently open conversation if it falls outside the newest contact page.
@@ -291,19 +290,10 @@ setContactsCursor(socialCursor(contacts.data));
 setContactsMore(hasNextSocialPage(contacts.data));
 setDb(old=>({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
 events:old.events,eventRequests:old.eventRequests,photos:old.photos,blocks:blocks.data||[],
-listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]}));
+listings:old.listings,marketPhotos:old.marketPhotos,marketFavorites:[],organizations:ownOrganizations.data||[],partnerEvents:old.partnerEvents}));
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');
-const marketSigned=await signPhotoPaths(supabase,'ff-market-photos',[
-   ...(listings.data||[]).map(row=>row.photo_path),
-   ...(marketPhotos.data||[]).map(row=>row.photo_path),
- ],600);
- if(accountRef.current!==me)return null;
- setMarketPhotoUrls(Object.fromEntries((listings.data||[]).filter(row=>row.photo_path)
-   .map(row=>[row.id,marketSigned[row.photo_path]||null])));
- setMarketExtraPhotoUrls(Object.fromEntries((marketPhotos.data||[])
-   .map(row=>[row.photo_path,marketSigned[row.photo_path]||null])));
-return {contacts:contacts.data||[],listings:listings.data||[]};
+return {contacts:contacts.data||[],listings:[]};
 } catch(e){if(accountRef.current===me)setError(humanError(e));return null;}
 finally{if(accountRef.current===me)setLoading(false);}
 },[me]);
@@ -360,6 +350,7 @@ useEffect(()=>{
   setMarketIntent(null);setOutingDraft(null);setCalendarSeed(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
   setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
   setPhotosUrls({});setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
+  setMarketOwnerCursor(null);setMarketOwnerHasMore(false);setMarketOwnerError('');setMarketOwnerBusy(false);setMarketOwnerBusyMore(false);
   setPhotoCursor(null);setPhotoHasMore(false);setPhotoLoadError('');
   setDiscoverCursor(null);setDiscoverMore(false);setDiscoverLoadingMore(false);
   setContactsCursor(null);setContactsMore(false);setContactsLoadingMore(false);
