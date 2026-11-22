@@ -71,9 +71,15 @@ export function orderOutings(candidates,ids){
  }
  return out;
 }
-export function planSteps(duration,places=[],ages=[]){
+export function planSteps(duration,places=[],ages=[],language='de'){
  const first=places[0]?.title,second=places[1]?.title;
  if(!first)return [];
+ if(language==='en'){
+  const pause=ages.includes('baby')||ages.includes('preschool')?'Plan short stages and flexible food, rest and toilet breaks.':'Plan breaks and time for your own discoveries.';
+  if(duration==='weekend')return ['Saturday: '+first+' as a first suggestion – only after checking opening hours, travel and costs.',second?'Sunday: optionally '+second+' or a quiet day. No combined route has been calculated.':'Sunday: a quiet day or another destination of your choice.',pause];
+  if(duration==='half')return ['Before departure: check current visitor conditions and total costs.','Main activity: '+first+'. '+pause,'Then return at a time that suits you.'];
+  return ['Morning: '+first+' after confirming opening hours.','Midday: food and rest break.','Afternoon: explore further on site or return early. '+pause];
+ }
  const pause=ages.includes('baby')||ages.includes('preschool')?'Kurze Etappen und flexible Essens-, Ruhe- und Toilettenpausen einplanen.':'Pausen und Zeit für eigene Entdeckungen einplanen.';
  if(duration==='weekend')return ['Samstag: '+first+' als erster Vorschlag – nur nach Prüfung der Öffnung, Anfahrt und Kosten.',second?'Sonntag: optional '+second+' oder ein ruhiger Tag. Keine gemeinsame Fahrtstrecke berechnet.':'Sonntag: ein ruhiger Tag oder ein weiteres selbst gewähltes Ziel.',pause];
  if(duration==='half')return ['Vor der Abfahrt: aktuelle Besuchsbedingungen und Gesamtkosten prüfen.','Hauptaktivität: '+first+'. '+pause,'Anschließend flexible Rückfahrt.'];

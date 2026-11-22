@@ -1,7 +1,9 @@
 import React,{useState} from 'react';
 import {ScrollView,View,Text,Pressable,StyleSheet,RefreshControl,Alert} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import {useFamilyLocale} from './FamilyLocale';
 import PriceAlertPreference from './PriceAlertPreference';
+import {formatServiceMoney} from './FamilyLocaleModel';
 
 const copy={
  request:['Kontaktanfrage','Eine Familie möchte dich kennenlernen.','Kontaktanfragen ansehen','♡'],
@@ -11,21 +13,23 @@ const copy={
  search:['Neuer Basar-Treffer','Ein neu freigegebenes Angebot passt zu einem deiner Suchaufträge.','Angebot öffnen','♡'],
  market:['Basar-Prüfung','Der Prüfstatus deiner Anzeige wurde aktualisiert.','Meine Anzeige öffnen','♧']
 };
-function eventCopy(row){
+function eventCopy(row,t=k=>k,language='de'){
+ const localize=values=>[t(values[0]),t(values[1]),t(values[2]),values[3]];
  const base=copy[row.kind]||['Neuigkeit','Es gibt eine Aktualisierung.','Ansehen','•'];
  if(row.kind==='price'&&Number.isInteger(row.old_price_cents)&&Number.isInteger(row.new_price_cents)){
-  const money=v=>(v/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
-  return [base[0],'Bei einem gemerkten Angebot sank der veröffentlichte Preis von '+money(row.old_price_cents)+' auf '+money(row.new_price_cents)+'. Öffne das Angebot für den aktuellen Preis.',base[2],base[3]];
+  const money=v=>formatServiceMoney(v,language);
+  return [t(base[0]),language==='en'?'The published price of a favourite listing fell from '+money(row.old_price_cents)+' to '+money(row.new_price_cents)+'. Open the listing for its current price.':'Bei einem gemerkten Angebot sank der veröffentlichte Preis von '+money(row.old_price_cents)+' auf '+money(row.new_price_cents)+'. Öffne das Angebot für den aktuellen Preis.',t(base[2]),base[3]];
  }
- return row.kind==='market'?[row.listing_status==='approved'?'Anzeige freigegeben':'Anzeige abgelehnt',
-  row.listing_status==='approved'?'Dein Angebot wurde freigegeben.':'Dein Angebot wurde nicht freigegeben. Prüfe die Details in deinem Basar.',base[2],base[3]]:base;
+ return localize(row.kind==='market'?[row.listing_status==='approved'?'Anzeige freigegeben':'Anzeige abgelehnt',
+  row.listing_status==='approved'?'Dein Angebot wurde freigegeben.':'Dein Angebot wurde nicht freigegeben. Prüfe die Details in deinem Basar.',base[2],base[3]]:base);
 }
-const formatDate=value=>{const d=new Date(value);return Number.isNaN(d.getTime())?'':d.toLocaleString('de-DE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});};
+const formatDate=(value,locale='de-DE')=>{const d=new Date(value);return Number.isNaN(d.getTime())?'':d.toLocaleString(locale,{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});};
 function Action({children,onPress,disabled}){
  return <Pressable accessibilityRole="button" accessibilityState={{disabled:!!disabled}} disabled={disabled} onPress={onPress}
   style={[s.action,disabled&&{opacity:.5}]}><Text style={s.actionText}>{children}</Text></Pressable>;
 }
 export default function NotificationCenterScreen({inbox,onOpen,onSettings,active}){
+ const {t,language,locale}=useFamilyLocale();
  const [onlyUnread,setOnlyUnread]=useState(false),[busy,setBusy]=useState(false);
  const rows=onlyUnread?inbox.rows.filter(r=>!r.read_at):inbox.rows;
  async function open(row){
@@ -40,9 +44,9 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
  function confirmClear(){
   const through=inbox.asOf;
   if(busy||!through||!inbox.total)return;
-  Alert.alert('Alle Benachrichtigungen löschen?',
-   'Alle bisherigen Hinweise werden endgültig entfernt. Nachrichten, Kontakte und Anzeigen bleiben erhalten. Neue Hinweise bleiben sichtbar.',
-   [{text:'Abbrechen',style:'cancel'},{text:'Alle löschen',style:'destructive',onPress:()=>erase(null,through)}],{cancelable:true});
+  Alert.alert(t('Alle Benachrichtigungen löschen?'),
+   t('Alle bisherigen Hinweise werden endgültig entfernt. Nachrichten, Kontakte und Anzeigen bleiben erhalten. Neue Hinweise bleiben sichtbar.'),
+   [{text:t('Abbrechen'),style:'cancel'},{text:t('Alle löschen'),style:'destructive',onPress:()=>erase(null,through)}],{cancelable:true});
  }
  async function readAll(){
   if(busy)return;setBusy(true);
@@ -50,44 +54,44 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
  }
  return <ScrollView contentContainerStyle={s.page} refreshControl={<RefreshControl refreshing={inbox.loading} onRefresh={()=>inbox.refresh()}/>}>
   <View style={s.row}>
-   <Text accessibilityRole="header" style={[s.title,{flex:1}]}>Deine Neuigkeiten</Text>
-   <Pressable accessibilityRole="button" accessibilityLabel="Alle Benachrichtigungen löschen"
-    accessibilityHint="Öffnet eine Sicherheitsabfrage" accessibilityState={{disabled:busy||inbox.loading||!inbox.total||!inbox.asOf}}
+   <Text accessibilityRole="header" style={[s.title,{flex:1}]}>{t("Deine Neuigkeiten")}</Text>
+   <Pressable accessibilityRole="button" accessibilityLabel={t("Alle Benachrichtigungen löschen")}
+    accessibilityHint={t("Öffnet eine Sicherheitsabfrage")} accessibilityState={{disabled:busy||inbox.loading||!inbox.total||!inbox.asOf}}
     disabled={busy||inbox.loading||!inbox.total||!inbox.asOf} onPress={confirmClear}
     style={[s.deleteAll,(busy||inbox.loading||!inbox.total||!inbox.asOf)&&{opacity:.45}]}>
     <Text style={s.deleteSymbol}>×</Text></Pressable>
   </View>
-  <Text style={s.text}>Alle wichtigen Aktivitäten an einem Ort – auch ohne Push-Benachrichtigungen.</Text>
-  {!active&&<Text style={s.note}>Dein Familienkonto muss freigegeben sein, bevor persönliche Aktivitäten angezeigt werden.</Text>}
-  <View style={s.summary}><Text style={s.count} accessibilityLiveRegion="polite">{inbox.unread===null?'–':inbox.unread} ungelesen</Text>
-   <Action disabled={busy||!inbox.unread||!inbox.asOf} onPress={readAll}>Alle bisherigen als gelesen markieren</Action>
+  <Text style={s.text}>{t("Alle wichtigen Aktivitäten an einem Ort – auch ohne Push-Benachrichtigungen.")}</Text>
+  {!active&&<Text style={s.note}>{t("Dein Familienkonto muss freigegeben sein, bevor persönliche Aktivitäten angezeigt werden.")}</Text>}
+  <View style={s.summary}><Text style={s.count} accessibilityLiveRegion="polite">{inbox.unread===null?'–':inbox.unread} {t('ungelesen')}</Text>
+   <Action disabled={busy||!inbox.unread||!inbox.asOf} onPress={readAll}>{t("Alle bisherigen als gelesen markieren")}</Action>
   </View>
-  <Text accessibilityRole="header" style={s.cardTitle}>Kategorie</Text>
+  <Text accessibilityRole="header" style={s.cardTitle}>{t("Kategorie")}</Text>
   <View style={s.filters}>
-   {[['all','Alle Neuigkeiten'],['price','Preisalarme']].map(([kind,label])=><Pressable key={kind} accessibilityRole="button" accessibilityLabel={label+(kind==='price'&&inbox.priceUnread!=null?', '+inbox.priceUnread+' ungelesen':'')} accessibilityState={{selected:inbox.kind===kind,disabled:busy}} disabled={busy} onPress={()=>inbox.refresh({kind})} style={[s.chip,inbox.kind===kind&&s.selected]}>
-    <Text style={[s.text,inbox.kind===kind&&{color:C.white,fontWeight:'800'}]}>{label}{kind==='price'&&inbox.priceUnread>0?' ('+inbox.priceUnread+')':''}</Text>
+   {[['all','Alle Neuigkeiten'],['price','Preisalarme']].map(([kind,label])=><Pressable key={kind} accessibilityRole="button" accessibilityLabel={t(label)+(kind==='price'&&inbox.priceUnread!=null?', '+inbox.priceUnread+' '+t('ungelesen'):'')} accessibilityState={{selected:inbox.kind===kind,disabled:busy}} disabled={busy} onPress={()=>inbox.refresh({kind})} style={[s.chip,inbox.kind===kind&&s.selected]}>
+    <Text style={[s.text,inbox.kind===kind&&{color:C.white,fontWeight:'800'}]}>{t(label)}{kind==='price'&&inbox.priceUnread>0?' ('+inbox.priceUnread+')':''}</Text>
    </Pressable>)}
   </View>
   {inbox.kind==='price'?<PriceAlertPreference key={inbox.owner} userId={inbox.owner} active={active}/>:null}
   <View style={s.filters}>
-   {[[false,'Alle'],[true,'Ungelesen']].map(([value,label])=><Pressable key={label} accessibilityRole="button" accessibilityState={{selected:value===onlyUnread}}
-    onPress={()=>setOnlyUnread(value)} style={[s.chip,value===onlyUnread&&s.selected]}><Text style={[s.text,value===onlyUnread&&{color:C.white,fontWeight:'800'}]}>{label}</Text></Pressable>)}
+   {[[false,'Alle'],[true,t("Ungelesen")]].map(([value,label])=><Pressable key={label} accessibilityRole="button" accessibilityState={{selected:value===onlyUnread}}
+    onPress={()=>setOnlyUnread(value)} style={[s.chip,value===onlyUnread&&s.selected]}><Text style={[s.text,value===onlyUnread&&{color:C.white,fontWeight:'800'}]}>{t(label)}</Text></Pressable>)}
   </View>
-  {inbox.error?<View><Text accessibilityLiveRegion="assertive" style={s.note}>{inbox.error}</Text><Action onPress={()=>inbox.refresh()}>Erneut laden</Action></View>:null}
-  {rows.length===0&&!inbox.loading&&!inbox.error?<Text style={s.note}>{onlyUnread?'Keine ungelesenen Hinweise auf dieser Seite.':inbox.kind==='price'?'Noch keine Preisalarme.':'Noch keine Neuigkeiten.'}</Text>:null}
-  {rows.map(row=>{const [title,description,action,icon]=eventCopy(row);return <View key={row.id} style={[s.card,!row.read_at&&s.unread]}>
+  {inbox.error?<View><Text accessibilityLiveRegion="assertive" style={s.note}>{t(inbox.error)}</Text><Action onPress={()=>inbox.refresh()}>{t("Erneut laden")}</Action></View>:null}
+  {rows.length===0&&!inbox.loading&&!inbox.error?<Text style={s.note}>{onlyUnread?t("Keine ungelesenen Hinweise auf dieser Seite."):inbox.kind==='price'?t("Noch keine Preisalarme."):t("Noch keine Neuigkeiten.")}</Text>:null}
+  {rows.map(row=>{const [title,description,action,icon]=eventCopy(row,t,language);return <View key={row.id} style={[s.card,!row.read_at&&s.unread]}>
    <View style={s.row}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.icon}><Text style={s.symbol}>{icon}</Text></View>
     <View style={{flex:1}}><Text style={s.cardTitle}>{title}</Text>
-    <Text style={s.muted}>{formatDate(row.created_at)} · {row.read_at?'Gelesen':'Ungelesen'}</Text></View>
-    <Pressable accessibilityRole="button" accessibilityLabel={title+' vom '+formatDate(row.created_at)+' löschen'}
+    <Text style={s.muted}>{formatDate(row.created_at,locale)} · {row.read_at?t("Gelesen"):t("Ungelesen")}</Text></View>
+    <Pressable accessibilityRole="button" accessibilityLabel={language==='en'?'Delete '+title+' from '+formatDate(row.created_at,locale):title+' vom '+formatDate(row.created_at,locale)+' löschen'}
      accessibilityState={{disabled:busy}} disabled={busy} onPress={()=>erase(row.id)} style={s.deleteOne}><Text style={s.deleteSymbol}>×</Text></Pressable>
    </View>
    <Text style={s.text}>{description}</Text>
    <Action disabled={busy} onPress={()=>open(row)}>{action}</Action>
-   {!row.read_at?<Action disabled={busy} onPress={async()=>{if(busy)return;setBusy(true);try{await inbox.markRead(row.id);}finally{setBusy(false);}}}>Als gelesen markieren</Action>:null}
+   {!row.read_at?<Action disabled={busy} onPress={async()=>{if(busy)return;setBusy(true);try{await inbox.markRead(row.id);}finally{setBusy(false);}}}>{t("Als gelesen markieren")}</Action>:null}
   </View>;})}
-  {inbox.hasMore?<Action disabled={inbox.loading||busy} onPress={()=>inbox.refresh({more:true})} >{inbox.kind==='price'?'Ältere Preisalarme laden':'Ältere Neuigkeiten laden'}</Action>:null}
-  <Action onPress={onSettings}>Push-Benachrichtigungen einstellen</Action>
+  {inbox.hasMore?<Action disabled={inbox.loading||busy} onPress={()=>inbox.refresh({more:true})} >{inbox.kind==='price'?t("Ältere Preisalarme laden"):t("Ältere Neuigkeiten laden")}</Action>:null}
+  <Action onPress={onSettings}>{t("Push-Benachrichtigungen einstellen")}</Action>
  </ScrollView>;
 }
 const s=StyleSheet.create({
