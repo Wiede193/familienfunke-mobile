@@ -639,7 +639,8 @@ return <SafeAreaView style={styles.screen}>
 <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined} keyboardVerticalOffset={0}>
 {detailFamily?<FamilyDetail p={db.profiles.find(p=>p.user_id===detailFamily)}
 imageUrl={photosUrls[photoOf(detailFamily)?.id]} photos={db.photos.filter(p=>p.owner_id===detailFamily&&p.moderation_status==='approved')}
-photosUrls={photosUrls} active={active} disabled={busy} blocked={blocked(detailFamily)}
+photosUrls={photosUrls} photoBusy={photoBusy} photoBusyMore={photoBusyMore} photoHasMore={photoHasMore} photoLoadError={photoLoadError} loadMorePhotos={loadMorePhotos}
+active={active} disabled={busy} blocked={blocked(detailFamily)}
 connection={db.contacts.find(c=>c.sender_id===detailFamily||c.recipient_id===detailFamily)}
 onContact={()=>sendRequest(detailFamily)} onBlock={()=>blockUser(detailFamily)} onUnblock={()=>unblockUser(detailFamily)}
 onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setChatReturnTab('discover');setDetailFamily(null);setSelectedContact(cid);setTab('chat');}}/>:
@@ -747,6 +748,7 @@ replyEvent={(id,requester,status)=>execute(async()=>assertResult(await supabase.
 reportEvent={(id)=>report('event',id)}/>:
 <ProfileScreen profile={myProfile} verification={verification} membership={membership} active={active}
 photos={ownPhotos} photosUrls={photosUrls} busy={busy}
+ photoBusy={photoBusy} photoBusyMore={photoBusyMore} photoHasMore={photoHasMore} photoLoadError={photoLoadError} loadMorePhotos={loadMorePhotos}
 save={(value)=>execute(async()=>{
   await moderateTextOrThrow([value.display_name,value.region_label,value.about]);
   assertResult(await supabase.from('profiles').update(value).eq('user_id',me));
@@ -2229,7 +2231,7 @@ mode==='cards'?<>
 <Text style={[styles.micro,{marginTop:17,textAlign:'center'}]}>Die Suche berücksichtigt bisher geladene Familien. Falls du nichts Passendes siehst, lade weitere Ergebnisse. „Meine Region“ nutzt freiwillige Regionsnamen und bekannte Landkreis-Zuordnungen, keine Kilometerentfernungen. Exakte Standorte werden nicht abgefragt.</Text>
 </ScrollView>;
 }
-function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
+function FamilyDetail({p,photos,photosUrls,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
 if(!p)return <Blank title="Profil nicht verfügbar" body="Das Profil kann verborgen oder gesperrt worden sein."/>;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <Card style={{alignItems:'center',paddingTop:26}}><Avatar name={p.display_name} size={88} uri={photosUrls?.[photos?.[0]?.id]}/><Text style={[styles.h,{marginTop:12,textAlign:'center'}]}>{p.display_name}</Text><Text style={styles.sub}>⌖ {p.region_label||'Grobe Region nicht angegeben'}</Text><Text style={[styles.body,{textAlign:'center',marginTop:14}]}>{p.about||'Noch keine Beschreibung'}</Text>
@@ -2238,7 +2240,10 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 !blocked&&active?<Button title={connection?'Kontaktanfrage vorhanden':'Kontakt anfragen'} disabled={disabled||!!connection} onPress={onContact}/>:null}
 <Row style={{marginTop:12}}>{blocked?<Button title="Entsperren" mode="outline" small onPress={onUnblock}/>:<Button title="Blockieren" mode="outline" small onPress={onBlock}/>}<Button title="Melden" mode="ghost" small onPress={onReport}/></Row>
 </Card>
+{photoBusy?<ActivityIndicator color={C.accent}/>:null}
+{photoLoadError?<Info warning>{photoLoadError}</Info>:null}
 {photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image accessibilityLabel={photo.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
+{photoHasMore?<Button title={photoBusyMore?'Weitere Bilder werden geladen …':'Weitere Familienbilder laden'} disabled={photoBusyMore} mode="outline" onPress={loadMorePhotos}/>:null}
 </ScrollView>;
 }
 function ContactsScreen({focusId,pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat,hasMore,loadingMore,onLoadMore}){
@@ -2429,7 +2434,7 @@ request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request
 })}
 </ScrollView>;
 }
-function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
+function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
 const [form,setForm]=useState(blankProfile);
 const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
@@ -2523,12 +2528,15 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </View>:<Text style={[styles.micro,{marginTop:10}]}>
   Nach der Fotoauswahl kannst du eine Beschreibung ergänzen und beides zusammen einreichen.
 </Text>}
+{photoBusy?<ActivityIndicator color={C.accent}/>:null}
+{photoLoadError?<Info warning>{photoLoadError}</Info>:null}
 <View style={[styles.photoGrid,{marginTop:15}]}>{photos.map(p=><Card key={p.id} style={styles.photoCard}>
 {photosUrls[p.id]?<Image accessibilityLabel={p.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
 <Text style={styles.micro} numberOfLines={2}>{p.caption||'Profilbild'}</Text><Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'Freigegeben':p.moderation_status==='pending'?'In Prüfung':'Abgelehnt'}</Text>
 <Button title="Löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
 </Card>)}</View>
-{photos.length===0?<Text style={[styles.micro,{marginTop:10}]}>Noch keine Bilder hochgeladen.</Text>:null}
+{!photoBusy&&photos.length===0&&!photoLoadError?<Text style={[styles.micro,{marginTop:10}]}>Noch keine Bilder hochgeladen.</Text>:null}
+{photoHasMore?<Button title={photoBusyMore?'Weitere Fotos werden geladen …':'Weitere Profilfotos laden'} mode="outline" disabled={photoBusyMore} onPress={loadMorePhotos}/>:null}
 </Card>
 </>:null}
 {profileSection==='security'?<><Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Sicherheit und Einstellungen</Text>
