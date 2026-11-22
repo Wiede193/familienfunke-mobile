@@ -30,6 +30,7 @@ jobs:
           node tests/check-family-life-locale.mjs
           node tests/check-play-english.mjs
           node tests/check-map-guide-play-locale.mjs
+          node tests/check-game-a11y-locale.mjs
       - name: KI-Startseite Navigation und Datenschutz prüfen
         run: npm run check:home
       - name: Kontobezogene Layout-Synchronisierung und RLS-Verträge prüfen

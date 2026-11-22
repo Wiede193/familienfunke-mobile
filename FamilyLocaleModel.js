@@ -1083,7 +1083,12 @@ export const EN=Object.freeze({
  "Tippe zwei Bildteile nacheinander an, um sie zu tauschen. Stelle das Motiv wieder her.": "Tap two picture pieces to swap them and restore the image.",
  "Neu mischen": "Shuffle again",
  "Diese Wörterrätsel verwenden deutsche Wörter. Eine englische Variante wird noch erstellt.": "These word puzzles use German words. An English version is not yet available.",
- "Diese Kreuzworträtsel verwenden deutsche Begriffe und Hinweise. Eine englische Variante wird noch erstellt.": "These crosswords use German words and clues. An English version is not yet available."
+ "Diese Kreuzworträtsel verwenden deutsche Begriffe und Hinweise. Eine englische Variante wird noch erstellt.": "These crosswords use German words and clues. An English version is not yet available.",
+ "Karte oder Folge ausgewählt.": "Card or sequence selected.",
+ "Dieser Zug ist nicht möglich.": "That move is not possible.",
+ "Diese Karte passt noch nicht auf einen Zielstapel.": "This card cannot go to a foundation yet.",
+ "Hinweise genutzt: ": "Hints used: ",
+ "Die Lösung lautet: ": "The answer is: "
 });
 export function normalizeLanguage(value){return LANGUAGE_OPTIONS.includes(value)?value:'auto';}
 export function resolveLanguage(preference,deviceLocale){return preference==='de'||preference==='en'?preference:/^en(?:[-_]|$)/i.test(String(deviceLocale||''))?'en':'de';}
