@@ -230,6 +230,7 @@ const [contactsLoadingMore,setContactsLoadingMore]=useState(false);
 const me=session?.user?.id;
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
+const chatSendingRef=useRef(false);
 const inbox=useNotificationCenter(me);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
@@ -414,6 +415,32 @@ async function reviewMarketListing(listingId){
  setNotice('Die Anzeige ist gespeichert, aber noch nicht veröffentlicht. Die KI-Prüfung kann unter „Meine“ erneut gestartet werden.');
  return 'pending';
 }
+async function sendChatMessage(body,contactId){
+ if(chatSendingRef.current||!contactId)return false;
+ chatSendingRef.current=true;setBusy(true);setError('');setNotice('');
+ try{
+ 
+  // Die Nachricht wird ausschliesslich von der authentifizierten Edge Function
+  // geprueft und gespeichert. Kein direkter INSERT in public.messages mehr.
+  const {data, error:sendError} = await supabase.functions.invoke('send-message', {
+    body: {contact_id:contactId, body},
+  });
+  if(sendError){
+    const status = sendError.context?.status;
+    if(status===422)throw new Error('Diese Nachricht wurde wegen unserer Inhaltsregeln zurueckgehalten. Bitte formuliere sie anders.');
+    if(status===401)throw new Error('Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.');
+    if(status===403)throw new Error('Nachrichten sind fuer diesen Kontakt momentan nicht erlaubt.');
+    if(status===429)throw new Error('Nachrichtenlimit erreicht. Bitte warte auf eine Antwort oder versuche es später erneut.');
+    if(status===503)throw new Error('Die Sicherheitspruefung ist momentan nicht verfuegbar. Bitte spaeter erneut versuchen.');
+    throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
+  }
+  if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
+
+ setNotice('Nachricht gesendet.');
+ return true;
+ }catch(e){setError(humanError(e));return false;}
+ finally{chatSendingRef.current=false;setBusy(false);}
+}
 async function execute(fn,success){
 if(busy)return;
 setBusy(true);setError('');setNotice('');
@@ -558,23 +585,7 @@ onContact={()=>sendRequest(detailFamily)} onBlock={()=>blockUser(detailFamily)} 
 onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setChatReturnTab('discover');setDetailFamily(null);setSelectedContact(cid);setTab('chat');}}/>:
 selectedContact?<ChatScreen contact={accepted.find(c=>c.id===selectedContact)} me={me} nameOf={findName}
 disabled={busy} blocked={blocked}
-send={(body)=>execute(async()=>{
-  // Die Nachricht wird ausschliesslich von der authentifizierten Edge Function
-  // geprueft und gespeichert. Kein direkter INSERT in public.messages mehr.
-  const {data, error:sendError} = await supabase.functions.invoke('send-message', {
-    body: {contact_id:selectedContact, body},
-  });
-  if(sendError){
-    const status = sendError.context?.status;
-    if(status===422)throw new Error('Diese Nachricht wurde wegen unserer Inhaltsregeln zurueckgehalten. Bitte formuliere sie anders.');
-    if(status===401)throw new Error('Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.');
-    if(status===403)throw new Error('Nachrichten sind fuer diesen Kontakt momentan nicht erlaubt.');
-    if(status===429)throw new Error('Nachrichtenlimit erreicht. Bitte warte auf eine Antwort oder versuche es später erneut.');
-    if(status===503)throw new Error('Die Sicherheitspruefung ist momentan nicht verfuegbar. Bitte spaeter erneut versuchen.');
-    throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
-  }
-  if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
-},'Nachricht gesendet.')}
+send={(body)=>sendChatMessage(body,selectedContact)}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
 tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome}/>:
