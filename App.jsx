@@ -739,7 +739,7 @@ tab==='savedSearches'?<SavedMarketSearches key={me} userId={me} onSearch={row=>{
 tab==='market'?<MarketScreen key={me} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} listings={db.listings} me={me} active={active} busy={busy}
  ownLoading={marketOwnerBusy} ownLoadingMore={marketOwnerBusyMore} ownHasMore={marketOwnerHasMore}
  ownError={marketOwnerError} onLoadMoreOwn={loadMoreOwnListings} onRetryOwn={()=>setMarketEpoch(n=>n+1)}
-organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} favorites={db.marketFavorites} contacts={db.contacts}
+organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} contacts={db.contacts}
 createListing={(v,assets,stableId)=>executeMarket(async()=>{
  // Basar-Texte nicht wegen einzelner Wörter vorab blockieren.
  // Die verpflichtende Inhalts- und Produktprüfung findet auf dem Server statt.
@@ -1010,7 +1010,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
     </View>:null}
   </View>;
 }
-function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked}){
+function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked,ownLoading,ownLoadingMore,ownHasMore,ownError,onLoadMoreOwn,onRetryOwn}){
   const [open,setOpen]=useState(false);
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<375||fontScale>=1.5;
@@ -1036,6 +1036,10 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
   const [remotePhotoUrls,setRemotePhotoUrls]=useState({});
   const [remoteExtraPhotos,setRemoteExtraPhotos]=useState([]);
   const [remoteExtraUrls,setRemoteExtraUrls]=useState({});
+  const [remoteOrganizations,setRemoteOrganizations]=useState([]);
+  const [favoriteMap,setFavoriteMap]=useState({});
+  const [favoriteBusy,setFavoriteBusy]=useState({});
+  const [favoriteRefresh,setFavoriteRefresh]=useState(0);
   const searchSeq=useRef(0);
   const [title,setTitle]=useState('');
   const [description,setDescription]=useState('');
@@ -1183,7 +1187,21 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
   const cropSource=cropDraft?boxBatches.find(b=>b.id===cropDraft.batchId)?.photo:null;
   const cropBusy=busy||scanBusy||choosing;
   const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
-  const favoriteIds=new Set(favorites.map(x=>x.listing_id));
+  const favoriteIds=new Set(Object.keys(favoriteMap).filter(id=>favoriteMap[id]===true));
+  const allMarketOrganizations=organizations.concat(remoteOrganizations);
+  async function changeFavorite(listingId){
+    if(favoriteBusy[listingId]||favoriteMap[listingId]===undefined)return false;
+    const wasFavorite=favoriteMap[listingId];
+    setFavoriteBusy(old=>({...old,[listingId]:true}));
+    try{
+      const ok=await toggleFavorite(listingId,wasFavorite);
+      if(ok){
+        setFavoriteMap(old=>({...old,[listingId]:!wasFavorite}));
+        setFavoriteRefresh(n=>n+1);
+      }
+      return !!ok;
+    }finally{setFavoriteBusy(old=>({...old,[listingId]:false}));}
+  }
   const editingListing=editingId?listings.find(x=>x.id===editingId&&x.seller_id===me):null;
   const existingPhotoCount=editingListing?(editingListing.photo_path?1:0)
     +marketPhotos.filter(x=>x.listing_id===editingId).length:0;
@@ -1218,8 +1236,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
   const minimum=parsePrice(minPrice), maximum=parsePrice(maxPrice);
   // Active buyer filters are executed against the full database, not the 160-item initial feed.
   const serverSearchActive=!onlyMine; // The complete buyer catalog is always paginated on the server.
-  const favoriteVersion=favorites.map(f=>f.listing_id).join(',');
-  useEffect(()=>{setSearchPage(0);},[query,filter,tradeFilter,minPrice,maxPrice,onlyMine,onlyFavorites,sortBy,favoriteVersion]);
+  useEffect(()=>{setSearchPage(0);},[query,filter,tradeFilter,minPrice,maxPrice,onlyMine,onlyFavorites,sortBy,favoriteRefresh]);
   useEffect(()=>{
     const seq=++searchSeq.current;
     if(!serverSearchActive){
@@ -1248,13 +1265,22 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
             .select('*').in('listing_id',ids).order('slot',{ascending:true});
           if(!photosError)extras=photos||[];
         }
-        const signed=await signPhotoPaths(supabase,'ff-market-photos',[
+        // Only lookup hearts for this buyer page, never fetch all favorites.
+         const flagQuery=ids.length?await supabase.rpc('ff_market_favorite_flags',{p_listing_ids:ids}):{data:[],error:null};
+         if(flagQuery.error)throw flagQuery.error;
+         const flags=new Set((flagQuery.data||[]).map(row=>row.listing_id));
+         const orgIds=[...new Set(records.map(row=>row.organization_id).filter(Boolean))];
+         const orgQuery=orgIds.length?await supabase.from('ff_organizations').select('*').in('id',orgIds):{data:[],error:null};
+         if(orgQuery.error)throw orgQuery.error;
+         const signed=await signPhotoPaths(supabase,'ff-market-photos',[
            ...records.map(row=>row.photo_path),...extras.map(row=>row.photo_path),
          ],600);
          const images=records.filter(row=>row.photo_path).map(row=>[row.id,signed[row.photo_path]||null]);
          const extraLinks=extras.map(row=>[row.photo_path,signed[row.photo_path]||null]);
          if(!live||seq!==searchSeq.current)return;
-        setRemoteListings(old=>searchPage===0?records:[
+        setFavoriteMap(old=>({...old,...Object.fromEntries(ids.map(id=>[id,flags.has(id)]))}));
+         setRemoteOrganizations(old=>searchPage===0?(orgQuery.data||[]):appendUniqueRows(old,orgQuery.data||[]));
+         setRemoteListings(old=>searchPage===0?records:[
           ...old,...records.filter(row=>!old.some(existing=>existing.id===row.id))
         ]);
         setRemotePhotoUrls(old=>({...old,...Object.fromEntries(images)}));
@@ -1272,7 +1298,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
       }
     },searchPage===0?320:0);
     return ()=>{live=false;clearTimeout(timer);};
-  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteVersion,me,buyerFocus]);
+  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteRefresh,me,buyerFocus]);
   const filtered=serverSearchActive?remoteListings.filter(x=>!blocked(x.seller_id)):
     listings.filter(x=>
       ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
@@ -1600,7 +1626,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
   }
   function sellerInformation(x){
     const own=x.seller_id===me;
-    const org=organizations.find(o=>o.id===x.organization_id&&o.status==='approved');
+    const org=allMarketOrganizations.find(o=>o.id===x.organization_id&&o.status==='approved');
     const contact=contacts.find(c=>(c.sender_id===me&&c.recipient_id===x.seller_id)||(c.recipient_id===me&&c.sender_id===x.seller_id));
     return {own,org,contact,seller:org?org.name:nameOf(x.seller_id)};
   }
