@@ -463,7 +463,16 @@ async function openInboxEvent(event){
      if(!listing){setNotice('Die Anzeige ist nicht mehr verfügbar.');return false;}
      setMarketIntent({type:'inboxListing',id:listing.id});setTab('market');
    }else{
-     const contact=fresh.contacts.find(c=>c.id===row.contact_id&&(c.sender_id===me||c.recipient_id===me));
+     let contact=fresh.contacts.find(c=>c.id===row.contact_id&&(c.sender_id===me||c.recipient_id===me));
+     if(!contact){
+       const {data:older,error:contactError}=await supabase.from('contact_requests')
+         .select('*').eq('id',row.contact_id).maybeSingle();
+       if(contactError)throw contactError;
+       if(accountRef.current!==me)return false;
+       if(older&&(older.sender_id===me||older.recipient_id===me)){
+         contact=older;setDb(old=>({...old,contacts:appendUniqueRows([older],old.contacts)}));
+       }
+     }
      if(!contact){setNotice('Der Kontakt ist nicht mehr verfügbar.');return false;}
      if(row.kind==='message'&&contact.status==='accepted'){
        setChatReturnTab('inbox');setSelectedContact(contact.id);setTab('chat');
@@ -538,7 +547,7 @@ connection={db.contacts.find(c=>c.sender_id===detailFamily||c.recipient_id===det
 onContact={()=>sendRequest(detailFamily)} onBlock={()=>blockUser(detailFamily)} onUnblock={()=>unblockUser(detailFamily)}
 onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setChatReturnTab('discover');setDetailFamily(null);setSelectedContact(cid);setTab('chat');}}/>:
 selectedContact?<ChatScreen contact={accepted.find(c=>c.id===selectedContact)} me={me} nameOf={findName}
-messages={db.messages.filter(m=>m.contact_id===selectedContact)} disabled={busy} blocked={blocked}
+disabled={busy} blocked={blocked}
 send={(body)=>execute(async()=>{
   // Die Nachricht wird ausschliesslich von der authentifizierten Edge Function
   // geprueft und gespeichert. Kein direkter INSERT in public.messages mehr.
@@ -637,13 +646,15 @@ tab==='help'?<TechnicalHelpScreen/>:
 tab==='push'?<PushSettings key={me} userId={me} active={active}/>:
 tab==='inbox'?<NotificationCenterScreen key={me} inbox={inbox} active={active} onOpen={openInboxEvent} onSettings={()=>{setExtraReturnTab('inbox');setTab('push');}}/>:
 tab==='discover'?<DiscoverScreen matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
+ hasMore={discoverMore} loadingMore={discoverLoadingMore} onLoadMore={loadMoreFamilies}
 myProfile={myProfile} verification={verification} membership={membership}
 showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked}/>:
 tab==='contacts'?<ContactsScreen focusId={focusContactId} pending={pending} accepted={accepted} me={me} nameOf={findName}
+ hasMore={contactsMore} loadingMore={contactsLoadingMore} onLoadMore={loadMoreContacts}
 respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onUnblock={unblockUser}
 onChat={(id)=>{setChatReturnTab('contacts');setSelectedContact(id);setTab('chat');}}/>:
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
-onChat={(id)=>{setChatReturnTab('chat');setSelectedContact(id);}} messages={db.messages}/>:
+onChat={(id)=>{setChatReturnTab('chat');setSelectedContact(id);}} hasMore={contactsMore} loadingMore={contactsLoadingMore} onLoadMore={loadMoreContacts}/>:
 tab==='events'?<EventsScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='events'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
 profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
 createEvent={(event)=>execute(async()=>{
@@ -2066,7 +2077,7 @@ function InclusionScreen(){
   </ScrollView>;
 }
 
-function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked}) {
+function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked,hasMore,loadingMore,onLoadMore}) {
 const [query,setQuery]=useState('');
 const [interest,setInterest]=useState('Alle');
 const [onlyRegion,setOnlyRegion]=useState(false);
@@ -2120,7 +2131,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </Row>
 </View>
 <Row style={{justifyContent:'space-between',marginBottom:14,marginTop:5}}>
-<Text style={[styles.micro,{fontWeight:'800'}]}>{filtered.length} {filtered.length===1?'Familie':'Familien'} gefunden</Text>
+<Text style={[styles.micro,{fontWeight:'800'}]}>{filtered.length} {filtered.length===1?'Familie':'Familien'} in geladenen Ergebnissen</Text>
 <Row><Chip text="Karten" selected={mode==='cards'} onPress={()=>setMode('cards')}/><Chip text="Liste" selected={mode==='list'} onPress={()=>setMode('list')}/></Row>
 </Row>
 {!active?<Blank title="Zunächst Freigabe abwarten" body="Sobald das Konto geprüft ist, erscheinen freigegebene Familienprofile."/>:
@@ -2133,7 +2144,8 @@ mode==='cards'?<>
 <Button title="Nächste Familie →" mode="outline" disabled={index===filtered.length-1} style={{flex:1}} onPress={()=>setCardIndex(index+1)}/>
 </Row>
 </>:filtered.map(p=>familyCard(p))}
-<Text style={[styles.micro,{marginTop:17,textAlign:'center'}]}>„Meine Region“ nutzt freiwillige Regionsnamen und bekannte Landkreis-Zuordnungen, keine Kilometerentfernungen. Exakte Standorte werden nicht abgefragt.</Text>
+{hasMore?<View style={{marginTop:14}}><Button title={loadingMore?'Weitere Familien werden geladen …':'Weitere Familien laden'} disabled={loadingMore} mode="outline" onPress={onLoadMore}/></View>:null}
+<Text style={[styles.micro,{marginTop:17,textAlign:'center'}]}>Die Suche berücksichtigt bisher geladene Familien. Falls du nichts Passendes siehst, lade weitere Ergebnisse. „Meine Region“ nutzt freiwillige Regionsnamen und bekannte Landkreis-Zuordnungen, keine Kilometerentfernungen. Exakte Standorte werden nicht abgefragt.</Text>
 </ScrollView>;
 }
 function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
@@ -2148,7 +2160,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 {photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image accessibilityLabel={photo.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
 </ScrollView>;
 }
-function ContactsScreen({focusId,pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat}){
+function ContactsScreen({focusId,pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat,hasMore,loadingMore,onLoadMore}){
 pending=[...pending].sort((a,b)=>Number(b.id===focusId)-Number(a.id===focusId));
 accepted=[...accepted].sort((a,b)=>Number(b.id===focusId)-Number(a.id===focusId));
 const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
@@ -2164,27 +2176,74 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text style={styles.micro}>{blocked(uid)?'Blockiert':'Kontakt bestätigt'}</Text></View></Row>
 <Row style={{marginTop:12}}><Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>{blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:<Button title="Blockieren" small mode="outline" onPress={()=>onBlock(uid)}/>}</Row>
 </Card>;})}
+{hasMore?<View style={{marginTop:13}}><Button title={loadingMore?'Kontakte werden geladen …':'Weitere Kontakte laden'} mode="outline" disabled={loadingMore} onPress={onLoadMore}/></View>:null}
 </ScrollView>;
 }
-function ChatList({contacts,me,nameOf,messages,onChat,blocked}){
+function ChatList({contacts,me,nameOf,onChat,blocked,hasMore,loadingMore,onLoadMore}){
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
 {contacts.length===0?<Blank title="Noch keine Gespräche" body="Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben."/>:
-contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;const last=messages.filter(m=>m.contact_id===c.id)[0];return <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={'Gespräch mit '+nameOf(uid)+' öffnen'} onPress={()=>onChat(c.id)}>
-<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':last?.body||'Noch keine Nachrichten'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
+contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;return <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={'Gespräch mit '+nameOf(uid)+' öffnen'} onPress={()=>onChat(c.id)}>
+<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':'Unterhaltung öffnen'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
 </Pressable>;})}
+{hasMore?<View style={{marginTop:13}}><Button title={loadingMore?'Kontakte werden geladen …':'Weitere Gespräche anzeigen'} disabled={loadingMore} mode="outline" onPress={onLoadMore}/></View>:null}
 </ScrollView>;
 }
-function ChatScreen({contact,me,nameOf,messages,disabled,blocked,send,onReport,onBlock}) {
+function ChatScreen({contact,me,nameOf,disabled,blocked,send,onReport,onBlock}) {
 const [text,setText]=useState('');
+const [messages,setMessages]=useState([]);
+const [hasOlder,setHasOlder]=useState(false);
+const [chatLoading,setChatLoading]=useState(false);
+const [olderLoading,setOlderLoading]=useState(false);
+const [chatError,setChatError]=useState('');
+const [refreshToken,setRefreshToken]=useState(0);
+const requestSeq=useRef(0);
+const contactId=contact?.id;
+useEffect(()=>{
+  const seq=++requestSeq.current;
+  if(!contactId){setMessages([]);setHasOlder(false);setChatLoading(false);return;}
+  let live=true;
+  setMessages([]);setHasOlder(false);setChatError('');setChatLoading(true);
+  supabase.rpc('ff_chat_page',{p_contact_id:contactId,p_limit:SOCIAL_PAGE_SIZE})
+    .then(({data,error:e})=>{
+      if(!live||requestSeq.current!==seq)return;
+      if(e||!Array.isArray(data))throw e||new Error('Invalid chat page');
+      setMessages(data);setHasOlder(hasNextSocialPage(data));
+    })
+    .catch(()=>{if(live&&requestSeq.current===seq)setChatError('Gespräch konnte nicht geladen werden.');})
+    .finally(()=>{if(live&&requestSeq.current===seq)setChatLoading(false);});
+  return()=>{live=false;requestSeq.current++;};
+},[contactId,me,refreshToken]);
+async function loadOlder(){
+  const cursor=socialCursor(messages);
+  if(!contactId||!hasOlder||olderLoading||chatLoading||!cursor)return;
+  const seq=requestSeq.current;
+  setOlderLoading(true);setChatError('');
+  try{
+    const {data,error:e}=await supabase.rpc('ff_chat_page',{p_contact_id:contactId,p_limit:SOCIAL_PAGE_SIZE,...cursor});
+    if(requestSeq.current!==seq)return;
+    if(e||!Array.isArray(data))throw e||new Error('Invalid chat page');
+    setMessages(old=>appendUniqueRows(old,data));setHasOlder(hasNextSocialPage(data));
+  }catch{if(requestSeq.current===seq)setChatError('Ältere Nachrichten konnten nicht geladen werden.');}
+  finally{if(requestSeq.current===seq)setOlderLoading(false);}
+}
+async function submit(){
+  const body=text.trim();if(!body)return;
+  const ok=await send(body);
+  if(ok){setText('');setRefreshToken(x=>x+1);}
+}
 if(!contact)return <Blank title="Gespräch nicht verfügbar" body="Kontakt ist nicht mehr bestätigt oder wurde verborgen."/>;
 const other=contact.sender_id===me?contact.recipient_id:contact.sender_id;
-const sorted=[...messages].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-async function submit(){const body=text.trim();if(!body)return; const ok=await send(body);if(ok)setText('');}
+const sorted=[...messages].reverse();
 return <View style={{flex:1}}>
 <Row style={styles.chatHeader}><Avatar name={nameOf(other)} size={38}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other)}</Text><Text style={styles.micro}>Privates Gespräch</Text></View><Button title="Blockieren" small mode="ghost" onPress={()=>onBlock(other)}/></Row>
 <ScrollView style={{flex:1}} contentContainerStyle={{padding:16}} keyboardShouldPersistTaps="handled">
-{sorted.length===0?<Blank title="Sag Hallo!" body="Hier beginnt euer privates Gespräch."/>:sorted.map(m=><View key={m.id} style={[styles.bubble,m.sender_id===me?styles.mine:styles.theirs]}>
+{chatLoading?<ActivityIndicator color={C.accent}/>:null}
+{chatError?<Info warning>{chatError}</Info>:null}
+{chatError&&messages.length===0?<Button title="Erneut versuchen" mode="outline" onPress={()=>setRefreshToken(x=>x+1)}/>:null}
+{hasOlder?<Button title={olderLoading?'Ältere Nachrichten werden geladen …':'Ältere Nachrichten laden'} mode="outline" disabled={olderLoading||chatLoading} onPress={loadOlder}/>:null}
+{!chatLoading&&messages.length===0&&!chatError?<Blank title="Sag Hallo!" body="Hier beginnt euer privates Gespräch."/>:
+sorted.map(m=><View key={m.id} style={[styles.bubble,m.sender_id===me?styles.mine:styles.theirs]}>
 <Text style={[styles.bubbleText,m.sender_id===me&&{color:C.white}]}>{m.body}</Text>
 <Row style={{justifyContent:'space-between',marginTop:7}}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>{formatDate(m.created_at)}</Text><Pressable accessibilityRole="button" accessibilityLabel={'Nachricht vom '+formatDate(m.created_at)+' melden'} hitSlop={10} onPress={()=>onReport(m.id)}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>Melden</Text></Pressable></Row>
 </View>)}
