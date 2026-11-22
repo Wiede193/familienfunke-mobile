@@ -1200,6 +1200,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
   const [minPrice,setMinPrice]=useState('');
   const [maxPrice,setMaxPrice]=useState('');
   const [filterOpen,setFilterOpen]=useState(false);
+  const [showMarketTrust,setShowMarketTrust]=useState(false);
   const [savingSearch,setSavingSearch]=useState(false);
   const [buyerFocus,setBuyerFocus]=useState(null);
   const [selectedListing,setSelectedListing]=useState(null);
@@ -1830,15 +1831,28 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
   const shownImage=gallery[Math.min(galleryIndex,Math.max(0,gallery.length-1))]?.uri;
   const imageDescription=selected?marketPhotoAlt(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length):'';
   return <ScrollView ref={marketScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-    <H sub="Kinderkleidung, Spielzeug und vieles mehr – direkt von Familien in deiner Nähe.">Familienbasar</H>
-    <Info>{SECTION_MESSAGES.market}</Info>
+    <View style={styles.marketHero}>
+      <View style={{flex:1}}>
+        <Text style={styles.marketEyebrow}>VON FAMILIEN FÜR FAMILIEN</Text>
+        <Text accessibilityRole="header" style={styles.marketHeroTitle}>Familienbasar</Text>
+        <Text style={styles.marketHeroText}>Entdecken, weitergeben, nachhaltig handeln.</Text>
+      </View>
+      <View style={styles.marketHeroIcon}><FamilyIcon name="bag" size={30}/></View>
+    </View>
     <View style={styles.marketTopActions}>
       <View style={{flex:1}}>
-        <Text style={styles.marketTopTitle}>Entdecken & weitergeben</Text>
+        <Text style={styles.marketTopTitle}>Dein Familienbasar</Text>
         <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
       </View>
       <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){resetForm();setOpen(false);}else{startQuick();}}}/>
     </View>
+    <Pressable accessibilityRole="button" accessibilityLabel="Informationen zu Gebühren und Datenschutz"
+      accessibilityState={{expanded:showMarketTrust}} onPress={()=>setShowMarketTrust(v=>!v)}
+      style={styles.marketTrust}>
+      <FamilyIcon name="shield" size={18}/><Text style={styles.marketTrustText}>Geprüfte Familien · Gebühren transparent · Keine Onlinezahlung</Text>
+      <FamilyIcon name={showMarketTrust?'chevron-up':'chevron-down'} size={16}/>
+    </Pressable>
+    {showMarketTrust?<Info>{SECTION_MESSAGES.market}</Info>:null}
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
     <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
       <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
@@ -2229,17 +2243,24 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
           <Text style={{fontSize:20,color:C.muted}}>×</Text>
         </Pressable>:null}
       </View>
-      <MarketCategoryDropdown label="Kategorie" value={filter} onChange={setFilter} options={MARKET_CATEGORIES} allOption/>
+      <Text style={styles.marketFilterHeading}>Kategorie auswählen</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}}
+        contentContainerStyle={{gap:7,paddingRight:15}}>
+        {['Alle',...MARKET_CATEGORIES].map(choice=>
+          <Chip key={choice} text={choice} selected={filter===choice} onPress={()=>setFilter(choice)}/>)}
+      </ScrollView>
       <View style={styles.marketFilters}>
         <Pressable accessibilityRole="button" accessibilityState={{expanded:filterOpen}} onPress={()=>setFilterOpen(v=>!v)}
           style={[styles.marketFilterToggle,filterOpen&&{borderColor:C.accent}]}>
-          <Text style={styles.marketFilterLabel}>⚙  Filter {filterOpen?'ausblenden':'anzeigen'}</Text>
+          <Row style={{gap:5}}><FamilyIcon name="filter" size={17}/>
+          <Text style={styles.marketFilterLabel}>Filter {filterOpen?'ausblenden':'anzeigen'}</Text></Row>
         </Pressable>
         <View style={{flex:1}}>
           <MarketSortSelect value={sortBy} onChange={setSortBy}/>
         </View>
       </View>
       {filterOpen?<Card style={{marginBottom:15,padding:15}}>
+        <MarketCategoryDropdown label="Kategorie" value={filter} onChange={setFilter} options={MARKET_CATEGORIES} allOption/>
         <Text style={styles.label}>Art des Angebots</Text>
         <View style={[styles.chipsRow,{marginTop:0,marginBottom:14}]}>
           {[['all','Alle'],['sell','Verkaufen'],['gift','Verschenken'],['swap','Tauschen']].map(([id,label])=>
@@ -2258,7 +2279,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
         <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length}{serverSearchActive&&remoteHasMore?'+':''} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
         <Text style={styles.micro}>Neu und gebraucht</Text>
       </Row>
-      {remoteBusy?<View style={{paddingVertical:12,flexDirection:'row',alignItems:'center'}}><ActivityIndicator color={C.accent}/><Text style={[styles.micro,{marginLeft:9}]}>Suche im gesamten Familienbasar …</Text></View>:null}
+      {remoteBusy?<FamilySkeleton rows={2} label="Suche im gesamten Familienbasar …"/>:null}
       {remoteError?<><Info warning>{remoteError}</Info>
         <Button title="Basarsuche erneut versuchen" mode="outline" disabled={remoteBusy}
           onPress={()=>setSearchRetry(n=>n+1)}/></>:null}
@@ -2266,7 +2287,12 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
       {onlyMine&&ownLoading?<View style={{paddingVertical:12}}><ActivityIndicator color={C.accent}/></View>:null}
       {onlyMine&&ownError?<><Info warning>{ownError}</Info><Button title="Eigene Anzeigen erneut laden" mode="outline" onPress={onRetryOwn}/></>:null}
       {onlyMine&&ownHasMore?<Text style={[styles.micro,{marginBottom:10}]}>Weitere eigene Anzeigen sind vorhanden. Suche und Sortierung beziehen sich auf die bisher geladenen Einträge.</Text>:null}
-      {shown.length===0?(remoteBusy||remoteError||(onlyMine&&(ownLoading||ownError))?null:<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>):
+      {shown.length===0?(remoteBusy||remoteError||(onlyMine&&(ownLoading||ownError))?null:<Blank icon={onlyFavorites?'heart':'bag'}
+          title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'}
+          body={onlyFavorites?'Merke dir ein freigegebenes Angebot über das Herz auf einer Produktkarte.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}
+          actionLabel={onlyFavorites?'Angebote entdecken':'Filter zurücksetzen'}
+          onAction={()=>{setOnlyFavorites(false);setOnlyMine(false);setBuyerFocus(null);
+            setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/>):
         <View style={styles.marketGrid}>
         {shown.map(x=>{
           const seller=sellerInformation(x);
@@ -2275,22 +2301,29 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
             onPress={()=>{setSelectedListing(x.id);setGalleryIndex(0);}} style={[styles.marketTile,singleColumn&&{width:'100%'}]}>
             <View style={styles.marketTileImage}>
               {(remotePhotoUrls[x.id]||photoUrls[x.id])?<Image accessible={false} source={{uri:remotePhotoUrls[x.id]||photoUrls[x.id]}} style={styles.marketTilePhoto} resizeMode="cover"/>:
-                <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>Noch kein Foto</Text></View>}
-              <View style={styles.marketPricePill}><Text style={styles.marketPricePillText} numberOfLines={1}>{priceLabel(x)}</Text></View>
+                <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}>
+                  <FamilyIcon name="camera" size={32} color={C.muted}/><Text style={styles.micro}>Noch kein Foto</Text>
+                </View>}
+              {x.trade_type==='gift'?<View style={styles.marketGiftPill}>
+                <Text style={styles.marketGiftText}>Zu verschenken</Text>
+              </View>:null}
               {x.seller_id!==me&&x.moderation_status==='approved'?
                 <Pressable accessibilityRole="button" accessibilityLabel={favoriteMap[x.id]===undefined?'Merkliste wird geprüft':favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'} hitSlop={9}
                   disabled={busy||!active||favoriteBusy[x.id]||favoriteMap[x.id]===undefined}
                   onPress={event=>{event.stopPropagation();changeFavorite(x.id);}}
                   style={{position:'absolute',right:7,top:8,backgroundColor:'#FFFFFFF2',borderRadius:20,paddingHorizontal:10,paddingVertical:7}}>
-                  <Text style={{fontSize:19,color:favoriteIds.has(x.id)?C.coralDeep:C.accentDark}}>{favoriteIds.has(x.id)?'♥':'♡'}</Text>
+                  <FamilyIcon name="heart" size={21} color={favoriteIds.has(x.id)?C.coralDeep:C.accentDark}/>
                 </Pressable>:null}
             </View>
             <View style={styles.marketTileBody}>
               <Text style={styles.marketTileTitle} numberOfLines={2}>{x.title}</Text>
+              <Text style={styles.marketTilePrice} numberOfLines={1}>{priceLabel(x)}</Text>
               {x.match_item?<Text style={[styles.micro,{color:C.accentDark,marginTop:3}]} numberOfLines={2}>Passender Artikel: {x.match_item}</Text>:null}
               {galleryOf(x).length>1?<Text style={[styles.micro,{fontWeight:'800',color:C.accentDark}]}>{galleryOf(x).length} Bilder</Text>:null}
               <Text style={styles.micro} numberOfLines={1}>{x.item_condition} · {x.category}</Text>
-              <Text style={[styles.micro,{marginTop:3}]} numberOfLines={1}>⌖ {x.region_label||'Region auf Anfrage'}</Text>
+              <Row style={{gap:4,marginTop:5}}><FamilyIcon name="pin" size={14} color={C.muted}/>
+                <Text style={styles.micro} numberOfLines={1}>{x.region_label||'Region auf Anfrage'}</Text>
+              </Row>
               {seller.org?<Text style={[styles.micro,{marginTop:3,color:C.accentDark}]} numberOfLines={1}>{seller.org.name} ✦</Text>:null}
               {seller.own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{color:x.moderation_status==='sold'?C.accentDark:C.warningText,marginTop:4}]}>{x.moderation_status==='sold'?'Vergeben · nur für dich sichtbar':x.moderation_status==='pending'?'In Prüfung · nur für dich sichtbar':'Nicht veröffentlicht'}</Text>:null}
             </View>
@@ -3154,6 +3187,22 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 </ScrollView>;
 }
 const styles=StyleSheet.create({
+marketHero:{backgroundColor:C.sunPale,borderRadius:22,padding:18,flexDirection:'row',
+  alignItems:'center',gap:12,marginBottom:13},
+marketEyebrow:{color:'#6C4A18',fontSize:10.5,letterSpacing:1.2,fontWeight:'800'},
+marketHeroTitle:{fontSize:27,color:C.ink,fontWeight:'800',marginTop:5},
+marketHeroText:{fontSize:13.5,color:C.ink,lineHeight:19,marginTop:5},
+marketHeroIcon:{width:59,height:59,borderRadius:19,backgroundColor:C.white,
+  alignItems:'center',justifyContent:'center'},
+marketTrust:{flexDirection:'row',gap:7,alignItems:'center',
+  paddingVertical:11,paddingHorizontal:10,marginBottom:12,
+  borderRadius:14,backgroundColor:C.mint},
+marketTrustText:{fontSize:12,color:C.accentDark,fontWeight:'700',flex:1},
+marketFilterHeading:{fontSize:13,color:C.ink,fontWeight:'800',marginBottom:9},
+marketGiftPill:{position:'absolute',top:9,left:8,backgroundColor:C.sunPale,
+  paddingVertical:6,paddingHorizontal:10,borderRadius:10},
+marketGiftText:{color:'#6C4A18',fontSize:11,fontWeight:'800'},
+
 
 marketTopActions:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:C.white,padding:15,borderRadius:20,borderWidth:1,borderColor:C.line,marginBottom:17},
 marketTopTitle:{fontSize:17,fontWeight:'900',color:C.ink,marginBottom:3},
@@ -3167,14 +3216,15 @@ marketFilterToggle:{minHeight:47,borderRadius:14,borderWidth:1,borderColor:'#D0D
 marketFilterLabel:{fontSize:12.5,fontWeight:'800',color:C.accentDark},
 marketSortOptions:{backgroundColor:C.white,borderColor:C.line,borderWidth:1,borderRadius:14,marginTop:5},
 marketGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:13},
-marketTile:{width:'48.3%',borderRadius:18,borderWidth:1,borderColor:C.line,backgroundColor:C.white,overflow:'hidden',minHeight:246,shadowColor:'#986D52',shadowOpacity:0.07,shadowRadius:8,shadowOffset:{width:0,height:2},elevation:1},
-marketTileImage:{width:'100%',height:154,backgroundColor:'#F1F3EF',position:'relative'},
+marketTile:{width:'48.3%',borderRadius:19,borderWidth:1,borderColor:C.line,backgroundColor:C.white,overflow:'hidden',minHeight:262,shadowColor:'#986D52',shadowOpacity:0.05,shadowRadius:6,shadowOffset:{width:0,height:2},elevation:1},
+marketTileImage:{width:'100%',height:184,backgroundColor:'#F1F3EF',position:'relative'},
 marketTilePhoto:{width:'100%',height:'100%'},
 marketImagePlaceholder:{backgroundColor:'#F4F1EB',alignItems:'center',justifyContent:'center',gap:5},
 marketPricePill:{position:'absolute',top:8,left:7,right:50,backgroundColor:'#FFFFFFF2',borderRadius:11,paddingVertical:6,paddingHorizontal:9,alignSelf:'flex-start'},
 marketPricePillText:{fontSize:14,fontWeight:'900',color:C.ink},
-marketTileBody:{padding:11,paddingBottom:14,gap:4},
-marketTileTitle:{fontSize:15,fontWeight:'800',color:C.ink,lineHeight:19,minHeight:38},
+marketTileBody:{padding:12,paddingBottom:15,gap:3},
+marketTileTitle:{fontSize:15,fontWeight:'700',color:C.ink,lineHeight:20,minHeight:38},
+marketTilePrice:{fontSize:17,fontWeight:'800',color:C.accentDark,marginTop:6},
 marketDetailCard:{padding:17,marginBottom:18},
 marketDetailImage:{height:285,backgroundColor:'#F4F1EB',borderRadius:18,overflow:'hidden'},
 marketFullImage:{width:'100%',height:'100%'},
