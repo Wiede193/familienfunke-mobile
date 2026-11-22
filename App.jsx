@@ -172,12 +172,17 @@ function Login({error,setError,onHelp}) {
 const [email,setEmail]=useState('');
 const [password,setPassword]=useState('');
 const [busy,setBusy]=useState(false);
+const signInLock=useRef(false);
 async function submit() {
-if (!email.includes('@')||!password) return setError('Bitte E-Mail und Passwort eingeben.');
-setBusy(true);setError('');
-const {error:e}=await supabase.auth.signInWithPassword({email:email.trim(),password});
-if (e) setError(humanError(e));
-setBusy(false);
+ if(signInLock.current)return;
+ if (!email.includes('@')||!password) return setError('Bitte E-Mail und Passwort eingeben.');
+ signInLock.current=true;
+ setBusy(true);setError('');
+ try{
+   const {error:e}=await supabase.auth.signInWithPassword({email:email.trim(),password});
+   if(e)setError(humanError(e));
+ }catch(e){setError(humanError(e));}
+ finally{signInLock.current=false;setBusy(false);}
 }
 return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
 <ScrollView contentContainerStyle={styles.loginPage} keyboardShouldPersistTaps="handled">
@@ -584,6 +589,8 @@ async function reviewMarketListing(listingId){
 }
 async function sendChatMessage(body,contactId){
  if(chatSendingRef.current||!contactId)return false;
+ const ticket=actionGate.current.acquire();
+ if(ticket===null)return false;
  const actionOwner=me;
  chatSendingRef.current=true;setBusy(true);setError('');setNotice('');
  try{
@@ -600,6 +607,7 @@ async function sendChatMessage(body,contactId){
     if(status===403)throw new Error('Nachrichten sind fuer diesen Kontakt momentan nicht erlaubt.');
     if(status===429)throw new Error('Nachrichtenlimit erreicht. Bitte warte auf eine Antwort oder versuche es später erneut.');
     if(status===503)throw new Error('Die Sicherheitspruefung ist momentan nicht verfuegbar. Bitte spaeter erneut versuchen.');
+    if(isTransientFailure(sendError))throw new Error('Keine sichere Versandbestätigung erhalten. Bitte prüfe zuerst den Chatverlauf, bevor du die Nachricht erneut sendest.');
     throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
   }
   if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
@@ -607,12 +615,19 @@ async function sendChatMessage(body,contactId){
 
  setNotice('Nachricht gesendet.');
  return true;
- }catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
- finally{chatSendingRef.current=false;if(accountRef.current===actionOwner)setBusy(false);}
+ }catch(e){if(accountRef.current===actionOwner)setError(mutationError(e));return false;}
+ finally{
+   actionGate.current.release(ticket);
+   if(actionGate.current.isActive(ticket))chatSendingRef.current=false;
+   chatSendingRef.current=false;
+   if(accountRef.current===actionOwner)setBusy(false);
+ }
 }
 // Events refresh their own cursor and request status; do not reload every app list.
 async function executeEvent(fn,success){
  if(eventActionRef.current)return false;
+ const ticket=actionGate.current.acquire();
+ if(ticket===null)return false;
  const actionOwner=me;
  eventActionRef.current=true;setBusy(true);setError('');setNotice('');
  try{
@@ -620,8 +635,12 @@ async function executeEvent(fn,success){
   if(accountRef.current!==actionOwner)return false;
   if(success)setNotice(success);
   return true;
- }catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
- finally{eventActionRef.current=false;if(accountRef.current===actionOwner)setBusy(false);}
+ }catch(e){if(accountRef.current===actionOwner)setError(mutationError(e));return false;}
+ finally{
+   actionGate.current.release(ticket);
+   eventActionRef.current=false;
+   if(accountRef.current===actionOwner)setBusy(false);
+ }
 }
 async function executeMarket(fn,success){
  const ok=await executeEvent(fn,success);
@@ -630,6 +649,8 @@ async function executeMarket(fn,success){
 }
 async function execute(fn,success){
 if(busy)return false;
+const ticket=actionGate.current.acquire();
+if(ticket===null)return false;
 const actionOwner=me;
 setBusy(true);setError('');setNotice('');
 try{
@@ -641,8 +662,11 @@ try{
  await load(true);
  return accountRef.current===actionOwner;
 }
-catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
-finally{if(accountRef.current===actionOwner)setBusy(false);}
+catch(e){if(accountRef.current===actionOwner)setError(mutationError(e));return false;}
+finally{
+ actionGate.current.release(ticket);
+ if(accountRef.current===actionOwner)setBusy(false);
+}
 }
 function report(type,id){setReportDetails('');setReportTarget({type,id});}
 async function sendReport(){
