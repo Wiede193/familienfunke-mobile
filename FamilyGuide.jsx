@@ -5,6 +5,7 @@ import {FAMILY_COLORS} from './FamilyTheme';
 import {VERIFIED_GUIDE_DETAILS, ODER_SPREE_GUIDE} from './FamilyGuideVerified';
 import {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES,
   guessBrandenburgRegion,findBrandenburgRegions,officeForGuideStep,REGIONAL_DIRECTORY_URL} from './BrandenburgFamilyRegions';
+import {GERMANY_FAMILY_STATES,GERMANY_FAMILY_RESOURCES,findGermanyFamilyStates} from './GermanyFamilyDirectory';
 
 const P=FAMILY_COLORS;
 const TYPES={
@@ -87,6 +88,11 @@ export default function FamilyGuideScreen({userId,regionLabel}){
   const [showOderSpree,setShowOderSpree]=useState(false);
   const [regionSearch,setRegionSearch]=useState('');
   const [pickedRegionId,setPickedRegionId]=useState(null);
+  const [showGermany,setShowGermany]=useState(false);
+  const [stateSearch,setStateSearch]=useState('');
+  const [pickedStateCode,setPickedStateCode]=useState(null);
+  const visibleStates=findGermanyFamilyStates(stateSearch);
+  const pickedState=GERMANY_FAMILY_STATES.find(s=>s.code===pickedStateCode);
   const guessedRegion=useMemo(()=>guessBrandenburgRegion(regionLabel),[regionLabel]);
   const selectedRegion=BRANDENBURG_REGIONS.find(r=>r.id===pickedRegionId)||guessedRegion;
   const visibleRegions=findBrandenburgRegions(regionSearch);
@@ -191,7 +197,7 @@ export default function FamilyGuideScreen({userId,regionLabel}){
     ].map(t=><View key={t.short} style={[st.tag,{backgroundColor:t.bg}]}><Text style={[st.tagText,{color:t.color}]}>{t.short}</Text></View>)}</View>
     <View style={st.regionCard}>
       <Text accessibilityRole="header" style={st.regionTitle}>Regionale Stellen & Anträge</Text>
-      <Text style={st.small}>Alle 14 Landkreise und vier kreisfreien Städte Brandenburgs sind auswählbar. Für derzeit acht Regionen sind konkrete Fachseiten hinterlegt; für die übrigen zeigen wir das amtliche Verzeichnis statt unbestätigter Ansprechpersonen. Diese Auswahl ändert weder dein Profil noch deinen Standort.</Text>
+      <Text style={st.small}>Alle 14 Landkreise und vier kreisfreien Städte Brandenburgs sind auswählbar. Für jede Region ist mindestens eine konkrete amtliche Fachseite hinterlegt. Nicht jede Leistung, jeder Kontakt oder jedes kommunale Formular ist einzeln geprüft. Die Auswahl ändert weder Profil noch Standort.</Text>
       {selectedRegion?<Text style={[st.small,{marginTop:8,fontWeight:'800',color:P.tealDark}]}>Aktuelle Auswahl: {selectedRegion.name} · {selectedRegion.coverage==='verified'?'Regionalquellen geprüft':'Amtliches Verzeichnis, Detailrecherche offen'}</Text>:null}
       <Pressable accessibilityRole="button" accessibilityState={{expanded:showOderSpree}}
         accessibilityLabel="Regionale Stellen und Formulare anzeigen"
@@ -240,6 +246,49 @@ export default function FamilyGuideScreen({userId,regionLabel}){
           <Pressable accessibilityRole="link" accessibilityLabel={item.title+' öffnen'}
             style={st.officeLink} onPress={()=>openLink(item.url)}>
             <Text style={st.localLink}>Amtliche Information / Antragsweg ↗</Text>
+          </Pressable>
+        </View>)}
+      </View>:null}
+    </View>
+    <View style={st.regionCard}>
+      <Text accessibilityRole="header" style={st.regionTitle}>Deutschlandweite Familienhilfe</Text>
+      <Text style={st.small}>Alle 16 Bundesländer mit amtlichen Einstiegsportalen sowie überregionale Informationen zu Anträgen, Inklusion und barrierefreien Ausflügen. Ein Landesportal bestätigt noch keine konkrete kommunale Zuständigkeit.</Text>
+      <Pressable accessibilityRole="button" accessibilityState={{expanded:showGermany}}
+        accessibilityLabel="Bundesländer und deutschlandweite Hilfen anzeigen"
+        onPress={()=>setShowGermany(value=>!value)} style={st.regionButton}>
+        <Text style={st.regionButtonText}>{showGermany?'Deutschland-Wegweiser schließen':'Bundesland oder bundesweite Hilfe finden'}</Text>
+      </Pressable>
+      {showGermany?<View style={st.regionDetails}>
+        <Text style={st.question}>Bundesland suchen</Text>
+        <TextInput accessibilityLabel="Bundesland oder Landeshauptstadt suchen"
+          placeholder="z. B. Sachsen, Berlin, München …" placeholderTextColor={P.muted}
+          value={stateSearch} onChangeText={setStateSearch} style={st.regionInput}/>
+        <Text style={st.small}>{visibleStates.length} Bundesländer in der Auswahl</Text>
+        {visibleStates.map(state=><Pressable key={state.code} accessibilityRole="button"
+          accessibilityLabel={state.name+' als Bundesland auswählen'}
+          accessibilityState={{selected:pickedStateCode===state.code}}
+          onPress={()=>setPickedStateCode(state.code)} style={[st.regionChoice,pickedStateCode===state.code&&st.regionChoiceSelected]}>
+          <View style={{flex:1}}>
+            <Text style={st.regionChoiceTitle}>{state.name}</Text>
+            <Text style={st.small}>Amtliches Landesportal · örtliche Zuständigkeit separat prüfen</Text>
+          </View>
+          <Text style={st.regionChoiceArrow}>{pickedStateCode===state.code?'✓':'›'}</Text>
+        </Pressable>)}
+        {pickedState?<View style={st.officeCard}>
+          <Text style={st.question}>{pickedState.name}: offizielles Serviceportal</Text>
+          <Text style={st.small}>Hier kannst du Leistungen und Zuständigkeiten nach Wohnort suchen. Für Brandenburg sind zusätzlich die Kreisstellen oben erfasst.</Text>
+          <Pressable accessibilityRole="link" accessibilityLabel={'Amtliches Serviceportal '+pickedState.name+' öffnen'}
+            style={st.officeLink} onPress={()=>openLink(pickedState.portal_url)}>
+            <Text style={st.localLink}>Landesportal öffnen ↗</Text>
+          </Pressable>
+        </View>:null}
+        <Text accessibilityRole="header" style={[st.regionTitle,{marginTop:16}]}>Bundesweite Anträge, Beratung & Teilhabe</Text>
+        {GERMANY_FAMILY_RESOURCES.map(item=><View key={item.id} style={st.officeCard}>
+          <Text style={st.question}>{item.title}</Text>
+          <Text style={st.small}>{item.description}</Text>
+          <Pressable accessibilityRole="link" accessibilityLabel={item.title+' öffnen'}
+            style={st.officeLink} onPress={()=>openLink(item.url)}>
+            <Text style={st.localLink}>Amtliche Information und Suchportal öffnen ↗</Text>
           </Pressable>
         </View>)}
       </View>:null}
