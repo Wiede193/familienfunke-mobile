@@ -17,6 +17,12 @@ for(const expression of [
  'cron.job_run_details'
 ])assert.ok(sql.includes(expression),'Expected private monitoring guard '+expression);
 assert.ok(!sql.includes('delete from cron.job_run_details'),'Do not delete shared Cron diagnostics');
+const view=readFileSync(new URL('../database/ff_ops_private_status_view_20261122.sql',import.meta.url),'utf8');
+assert.ok(view.includes('create or replace view private.ff_ops_latest_status'));
+assert.ok(view.includes('security_invoker = true'),'Operator-only view must not bypass permissions');
+assert.ok(view.includes('revoke all on private.ff_ops_latest_status from public, anon, authenticated'));
+assert.ok(view.includes("then 'critical'")&&view.includes("then 'warning'")&&view.includes("else 'ok'"));
+assert.ok(view.includes("interval '4 hours'"),'Detect a stalled hourly cron job');
 assert.ok(!sql.includes('auth.users'),'Do not persist user information in metrics');
 assert.ok(!sql.includes('security definer'),'No privileged function in an exposed schema');
 assert.ok(script.includes('requireStagingTarget(env)'),'Production rejection must precede any network operation');
