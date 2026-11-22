@@ -1,7 +1,8 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {AccessibilityInfo, ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
-import {FAMILY_COLORS,FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
+import {FAMILY_COLORS} from './FamilyTheme';
+import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 import {FamilyEmptyState,FamilySkeleton,FamilySectionTitle} from './FamilyFeedback';
 import {recommendFamilyPlaces,selectHomeOffers,selectHomeEvents,missingFamilyProfileStep,homeGreeting} from './HomePersonalization';
