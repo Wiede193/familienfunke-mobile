@@ -29,3 +29,5 @@ assert.match(home,/HomeHighlights data=\{highlights\}/);
 assert.match(app,/selectHomeHighlights\(/);assert.match(app,/highlights=\{homeHighlights\}/);
 assert.doesNotMatch(read('HomePersonalization.js'),/\b(?:supabase|AsyncStorage|fetch|functions\.invoke)\b/);
 console.log('Regional homepage preview: permission-safe data filtering and navigation passed');
+
+const ui=read('HomeHighlights.jsx');assert.match(ui,/data\.status==='ready'\?<Pressable/);assert.match(ui,/onPress=\{\(\)=>onNavigate\('events'\)\}/);

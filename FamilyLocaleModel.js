@@ -1119,7 +1119,8 @@ export const EN=Object.freeze({
  "Einladungsnachricht teilen": "Share invitation message",
  "Noch ohne Direktlink: Die Nachricht enthält keine Beschreibung, Namen oder genaue Adresse.": "There is no direct link yet: the message includes no description, names or exact address.",
  "Teilen nicht möglich": "Unable to share",
- "Die Teilen-Funktion konnte nicht geöffnet werden.": "Could not open the share menu."
+ "Die Teilen-Funktion konnte nicht geöffnet werden.": "Could not open the share menu.",
+ "＋ Familienrunde planen": "＋ Plan a family meetup"
 });
 export function normalizeLanguage(value){return LANGUAGE_OPTIONS.includes(value)?value:'auto';}
 export function resolveLanguage(preference,deviceLocale){return preference==='de'||preference==='en'?preference:/^en(?:[-_]|$)/i.test(String(deviceLocale||''))?'en':'de';}

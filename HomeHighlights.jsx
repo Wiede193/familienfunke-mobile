@@ -20,6 +20,7 @@ export default function HomeHighlights({data,onNavigate}){
     <Text style={s.kicker}>{card.label}</Text><Text numberOfLines={2} style={s.title}>{card.title}</Text><Text style={s.detail} numberOfLines={3}>{card.note}</Text><Text style={s.link}>{t('Bereich öffnen')} ›</Text>
    </Pressable>)}</View>:
    <Text style={s.empty}>{t('Keine passenden Vorschläge in den gerade geladenen Daten. Entdecke Familien, Ausflüge und Basarangebote über die Suche.')}</Text>}
+  {data.status==='ready'?<Pressable accessibilityRole="button" style={s.action} onPress={()=>onNavigate('events')}><Text style={s.actionText}>{t('＋ Familienrunde planen')}</Text><Text style={s.actionText}>›</Text></Pressable>:null}
   <Text style={s.note}>{t('Dies ist nur eine Auswahl. Freigaben, Sichtbarkeit und Blockierungen bleiben maßgeblich.')}</Text>
  </View>;
 }
@@ -27,5 +28,6 @@ const s=StyleSheet.create({
  section:{marginBottom:24},heading:{fontSize:21,fontWeight:'900',color:C.ink,marginBottom:6},subtitle:{fontSize:13,color:C.muted,lineHeight:19,marginBottom:12},
  grid:{flexDirection:'row',flexWrap:'wrap',gap:10},card:{minWidth:145,flexBasis:'47%',flexGrow:1,minHeight:142,backgroundColor:C.paper,borderWidth:1,borderColor:C.line,borderRadius:17,padding:15,justifyContent:'space-between'},
  kicker:{color:C.tealDark,fontSize:11,fontWeight:'800',marginBottom:6},title:{fontSize:16,fontWeight:'800',color:C.ink,lineHeight:22},detail:{fontSize:13,color:C.muted,lineHeight:19,marginTop:5},link:{fontSize:13,fontWeight:'800',color:C.tealDark,marginTop:10},
+ action:{minHeight:48,marginTop:10,backgroundColor:C.sunPale,borderRadius:14,paddingHorizontal:15,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},actionText:{color:C.ink,fontSize:14,fontWeight:'800'},
  empty:{backgroundColor:C.sunPale,borderRadius:16,padding:16,color:C.ink,fontSize:14,lineHeight:21},note:{fontSize:11.5,color:C.muted,lineHeight:17,marginTop:11}
 });
