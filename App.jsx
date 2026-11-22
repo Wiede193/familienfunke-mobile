@@ -678,13 +678,15 @@ async function openInboxEvent(event){
      }
      // The exact authorized contact may be outside the first 40-item page.
      setDb(old=>({...old,contacts:appendUniqueRows([older],old.contacts)}));
+     // The contact is sufficient to navigate. A slow or blocked display-name
+     // lookup must not delay opening the actual conversation.
      const counterpart=older.sender_id===owner?older.recipient_id:older.sender_id;
-     const {data:linked,error:profileError}=await supabase.from('profiles')
-       .select('*').eq('user_id',counterpart).maybeSingle();
-     if(accountRef.current!==owner)return false;
-     if(!profileError&&linked){
-       setDb(old=>({...old,profiles:appendUniqueRows(old.profiles,[linked],'user_id')}));
-     }
+     supabase.from('profiles').select('*').eq('user_id',counterpart).maybeSingle()
+       .then(({data:linked,error:profileError})=>{
+         if(profileError||!linked||accountRef.current!==owner)return;
+         setDb(old=>accountRef.current===owner
+           ? {...old,profiles:appendUniqueRows(old.profiles,[linked],'user_id')}:old);
+       }).catch(()=>{});
      setDetailFamily(null);setSelectedContact(null);setShowInfo(false);
      setMarketIntent(null);setExtraReturnTab('inbox');
      if(row.kind==='message'&&older.status==='accepted'){
