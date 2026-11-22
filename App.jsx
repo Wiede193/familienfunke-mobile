@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
 ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Linking,
 Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, Modal, useWindowDimensions,
-StatusBar, Switch, Text, TextInput, View,
+StatusBar, Switch, Share, Text, TextInput, View,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
@@ -16,6 +16,7 @@ import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
 import {selectHomeHighlights} from './HomePersonalization';
+import {newFamilyRoundDraft,publicMeetingShareText} from './FamilyRoundModel';
 import {FamilyLocaleProvider,useFamilyLocale} from './FamilyLocale';
 import {marketSearchQuery} from './MarketLocaleSearch';
 import {formatServiceMoney} from './FamilyLocaleModel';
@@ -609,7 +610,7 @@ onChat={(id)=>{setChatReturnTab('contacts');setSelectedContact(id);setTab('chat'
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
 onChat={(id)=>{setChatReturnTab('chat');setSelectedContact(id);}} messages={db.messages}/>:
 tab==='events'?<EventsScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='events'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
-profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
+profiles={db.profiles} myRegion={myProfile?.region_label||''} showForm={showEventForm} setShowForm={setShowEventForm}
 createEvent={(event)=>execute(async()=>{
   await moderateTextOrThrow([event.title,event.description,event.region_label]);
   assertResult(await supabase.from('events').insert({organizer_id:me,...event}));
@@ -2187,30 +2188,39 @@ function FocusedEventStatus({focus,clearFocus}){
   {focus.status==='error'?<><Info warning>Veranstaltung konnte nicht geladen werden.</Info><Button title="Erneut versuchen" mode="outline" onPress={focus.retry}/></>:null}
  </View>;
 }
-function EventsScreen({focusId,clearFocus,events,eventRequests,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
+function EventsScreen({focusId,clearFocus,events,eventRequests,me,active,busy,profiles,myRegion,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
+const {t,language,locale}=useFamilyLocale();
 const focus=useFocusedEvent('events',focusId,me);
 const [title,setTitle]=useState('');const [description,setDescription]=useState('');const [region,setRegion]=useState('');
 const [date,setDate]=useState('');const [time,setTime]=useState('15:00');const [count,setCount]=useState('10');const [visibility,setVisibility]=useState('community');
+const [roundMode,setRoundMode]=useState(false);
+function prepareRound(){const draft=newFamilyRoundDraft(myRegion);setTitle(draft.title);setDescription(draft.description);setRegion(draft.region_label);setDate('');setTime(draft.time);setCount(draft.max_participants);setVisibility(draft.visibility);setRoundMode(true);setShowForm(true);}
+async function shareApprovedMeeting(e){
+ const message=publicMeetingShareText(e,{language,locale});
+ if(!message)return;
+ try{await Share.share({message});}catch{Alert.alert(t('Teilen nicht möglich'),t('Die Teilen-Funktion konnte nicht geöffnet werden.'));}
+}
 const names=(uid)=>profiles.find(p=>p.user_id===uid)?.display_name||'Familie';
 async function submit(){
 if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time))return Alert.alert('Termin prüfen','Bitte Datum als JJJJ-MM-TT und Zeit als HH:MM eingeben.');
 const start=givenDate(date,time);const max=parseInt(count,10);
-if(!start||start<=new Date()||title.trim().length<4||max<2||max>50)return Alert.alert('Bitte prüfen','Titel, zukünftigen Beginn und Teilnehmerzahl (2–50) korrigieren.');
+if(!start||start<=new Date()||title.trim().length<4||!Number.isInteger(max)||max<2||max>(roundMode?8:50))return Alert.alert(t('Bitte prüfen'),t(roundMode?'Für eine Familienrunde sind 2–8 Personen vorgesehen. Bitte Titel, Datum und Teilnehmerzahl prüfen.':'Titel, zukünftigen Beginn und Teilnehmerzahl (2–50) korrigieren.'));
 const ok=await createEvent({title:safeString(title,100),description:safeString(description,1000),region_label:safeString(region,80),starts_at:start.toISOString(),ends_at:new Date(start.getTime()+2*60*60*1000).toISOString(),max_participants:max,visibility});
 if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');}
 }
 const upcoming=focusId?(focus.row?[focus.row]:[]):events.filter(e=>new Date(e.ends_at)>new Date());
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 <Info>{SECTION_MESSAGES.events}</Info><H sub="Gemeinsame Aktivitäten statt öffentlicher Diskussionen.">Treffen & Veranstaltungen</H>
-<Button title={showForm?'Formular schließen':'＋ Aktivität erstellen'} disabled={!active} onPress={()=>setShowForm(!showForm)}/>
+<Button title={showForm?'Formular schließen':'＋ Aktivität erstellen'} disabled={!active} onPress={()=>{setRoundMode(false);setShowForm(!showForm);}}/>
+<View style={{marginTop:12,marginBottom:6,gap:6}}><Button title={t('＋ Kleine Familienrunde planen (bis 8 Personen)')} mode="outline" disabled={!active} onPress={prepareRound}/><Text style={styles.sub}>{t('Kleine Treffen an öffentlichen Orten. Neue Termine müssen freigegeben werden; Teilnahme ist erst nach Bestätigung verbindlich.')}</Text></View>
 {showForm?<Card style={{marginTop:14}}>
-<Text style={styles.cardTitle}>Neue Aktivität</Text><Text style={[styles.sub,{marginBottom:15}]}>Vor Veröffentlichung wird der Termin geprüft. Bitte keine Privatadressen veröffentlichen.</Text>
+<Text style={styles.cardTitle}>{roundMode?t('Kleine Familienrunde planen'):'Neue Aktivität'}</Text><Text style={[styles.sub,{marginBottom:15}]}>Vor Veröffentlichung wird der Termin geprüft. Bitte keine Privatadressen veröffentlichen.</Text>
 <Input label="Titel" placeholder="Spielplatztreffen am Samstag" maxLength={100} value={title} onChangeText={setTitle}/>
 <Input label="Beschreibung" multiline maxLength={1000} value={description} onChangeText={setDescription}/>
 <Input label="Grobe Region" placeholder="z. B. Potsdam" maxLength={80} value={region} onChangeText={setRegion}/>
 <Input label="Datum (JJJJ-MM-TT)" placeholder="2026-12-05" value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation"/>
 <Input label="Uhrzeit (HH:MM)" placeholder="15:00" value={time} onChangeText={setTime}/>
-<Input label="Maximale Personen (2–50)" value={count} onChangeText={setCount} keyboardType="number-pad"/>
+<Input label={roundMode?t('Maximale Personen (2–8)'):'Maximale Personen (2–50)'} value={count} onChangeText={setCount} keyboardType="number-pad"/>
 <Text style={styles.label}>Wer soll den Termin sehen?</Text><Row style={{marginBottom:15}}><Chip text="Alle geprüften Familien" selected={visibility==='community'} onPress={()=>setVisibility('community')}/><Chip text="Nur Kontakte" selected={visibility==='contacts'} onPress={()=>setVisibility('contacts')}/></Row>
 <Button title="Zur Freigabe einreichen" disabled={busy} onPress={submit}/>
 </Card>:null}
@@ -2224,6 +2234,7 @@ return <Card key={e.id} style={{marginBottom:12}}>
 <Text style={[styles.sub,{marginTop:7}]}>{e.description||'Gemeinsames Familientreffen'}</Text>
 <Text style={[styles.micro,{marginTop:10}]}>⌖ {e.region_label||'Region nach Absprache'} · max. {e.max_participants} Personen</Text>
 {e.moderation_status==='approved'&&new Date(e.ends_at)>new Date()?<CalendarEventButton userId={me} kind="family" id={e.id}/>:null}
+{e.moderation_status==='approved'&&e.visibility==='community'&&new Date(e.starts_at)>new Date()?<View style={{marginTop:9}}><Button title={t('Einladungsnachricht teilen')} mode="outline" small onPress={()=>shareApprovedMeeting(e)}/><Text style={styles.micro}>{t('Noch ohne Direktlink: Die Nachricht enthält keine Beschreibung, Namen oder genaue Adresse.')}</Text></View>:null}
 {self?<Info warning>{e.moderation_status==='pending'?'Dein Termin wartet auf Freigabe.':'Du organisierst diesen Termin.'}</Info>:
 request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request.status==='requested'?'angefragt':request.status==='declined'?'abgelehnt':'zurückgezogen'}</Info>:
 <Button title="Teilnahme anfragen" disabled={busy||!active} small style={{marginTop:12}} onPress={()=>requestEvent(e.id)}/>}

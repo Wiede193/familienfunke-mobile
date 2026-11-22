@@ -1110,7 +1110,16 @@ export const EN=Object.freeze({
  "Persönliche Vorschläge erscheinen nach Freigabe des Familienkontos.": "Personal suggestions appear after your family account is approved.",
  "Bereich öffnen": "Open section",
  "Keine passenden Vorschläge in den gerade geladenen Daten. Entdecke Familien, Ausflüge und Basarangebote über die Suche.": "No matching suggestions in the currently loaded data. Explore families, outings and listings through search.",
- "Dies ist nur eine Auswahl. Freigaben, Sichtbarkeit und Blockierungen bleiben maßgeblich.": "This is only a preview. Approvals, visibility and blocks continue to apply."
+ "Dies ist nur eine Auswahl. Freigaben, Sichtbarkeit und Blockierungen bleiben maßgeblich.": "This is only a preview. Approvals, visibility and blocks continue to apply.",
+ "＋ Kleine Familienrunde planen (bis 8 Personen)": "＋ Plan a small family meetup (up to 8 people)",
+ "Kleine Familienrunde planen": "Plan a small family meetup",
+ "Kleine Treffen an öffentlichen Orten. Neue Termine müssen freigegeben werden; Teilnahme ist erst nach Bestätigung verbindlich.": "Small gatherings in public places. New events require approval and attendance is only confirmed after acceptance.",
+ "Maximale Personen (2–8)": "Maximum participants (2–8)",
+ "Für eine Familienrunde sind 2–8 Personen vorgesehen. Bitte Titel, Datum und Teilnehmerzahl prüfen.": "A family meetup is intended for 2–8 people. Check the title, date and number of participants.",
+ "Einladungsnachricht teilen": "Share invitation message",
+ "Noch ohne Direktlink: Die Nachricht enthält keine Beschreibung, Namen oder genaue Adresse.": "There is no direct link yet: the message includes no description, names or exact address.",
+ "Teilen nicht möglich": "Unable to share",
+ "Die Teilen-Funktion konnte nicht geöffnet werden.": "Could not open the share menu."
 });
 export function normalizeLanguage(value){return LANGUAGE_OPTIONS.includes(value)?value:'auto';}
 export function resolveLanguage(preference,deviceLocale){return preference==='de'||preference==='en'?preference:/^en(?:[-_]|$)/i.test(String(deviceLocale||''))?'en':'de';}
