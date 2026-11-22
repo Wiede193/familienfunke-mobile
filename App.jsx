@@ -259,9 +259,7 @@ const me=session?.user?.id;
 const photoTarget=detailFamily||(tab==='profile'?me:null);
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
-const chatSendingRef=useRef(false);
 const loadSeq=useRef(0);
-const eventActionRef=useRef(false);
 const actionGate=useRef(createActionGate());
 const inbox=useNotificationCenter(me);
 const load=useCallback(async(silent=false)=>{
@@ -390,7 +388,7 @@ useEffect(()=>{
   setDiscoverCursor(null);setDiscoverMore(false);setDiscoverLoadingMore(false);
   setContactsCursor(null);setContactsMore(false);setContactsLoadingMore(false);
   loadSeq.current++; // Invalidate in-flight queries even before the next account load.
-  actionGate.current.reset();chatSendingRef.current=false;eventActionRef.current=false;
+  actionGate.current.reset();
   setBusy(false);setLoading(false);setError('');setNotice('');setConnectionIssue(false); // Never carry messages across accounts.
   setReportTarget(null);setReportDetails('');
 },[me]);
@@ -588,11 +586,11 @@ async function reviewMarketListing(listingId){
  return 'pending';
 }
 async function sendChatMessage(body,contactId){
- if(chatSendingRef.current||!contactId)return false;
+ if(!contactId)return false;
  const ticket=actionGate.current.acquire();
  if(ticket===null)return false;
  const actionOwner=me;
- chatSendingRef.current=true;setBusy(true);setError('');setNotice('');
+ setBusy(true);setError('');setNotice('');
  try{
  
   // Die Nachricht wird ausschliesslich von der authentifizierten Edge Function
@@ -611,35 +609,33 @@ async function sendChatMessage(body,contactId){
     throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
   }
   if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
- if(accountRef.current!==actionOwner)return false;
+ if(accountRef.current!==actionOwner||!actionGate.current.isActive(ticket))return false;
 
  setNotice('Nachricht gesendet.');
  return true;
- }catch(e){if(accountRef.current===actionOwner)setError(mutationError(e));return false;}
+ }catch(e){if(accountRef.current===actionOwner&&actionGate.current.isActive(ticket))setError(mutationError(e));return false;}
  finally{
+   const active=actionGate.current.isActive(ticket);
    actionGate.current.release(ticket);
-   if(actionGate.current.isActive(ticket))chatSendingRef.current=false;
-   chatSendingRef.current=false;
-   if(accountRef.current===actionOwner)setBusy(false);
+   if(active&&accountRef.current===actionOwner)setBusy(false);
  }
 }
 // Events refresh their own cursor and request status; do not reload every app list.
 async function executeEvent(fn,success){
- if(eventActionRef.current)return false;
  const ticket=actionGate.current.acquire();
  if(ticket===null)return false;
  const actionOwner=me;
- eventActionRef.current=true;setBusy(true);setError('');setNotice('');
+ setBusy(true);setError('');setNotice('');
  try{
   await fn();
-  if(accountRef.current!==actionOwner)return false;
+  if(accountRef.current!==actionOwner||!actionGate.current.isActive(ticket))return false;
   if(success)setNotice(success);
   return true;
- }catch(e){if(accountRef.current===actionOwner)setError(mutationError(e));return false;}
+ }catch(e){if(accountRef.current===actionOwner&&actionGate.current.isActive(ticket))setError(mutationError(e));return false;}
  finally{
+   const active=actionGate.current.isActive(ticket);
    actionGate.current.release(ticket);
-   eventActionRef.current=false;
-   if(accountRef.current===actionOwner)setBusy(false);
+   if(active&&accountRef.current===actionOwner)setBusy(false);
  }
 }
 async function executeMarket(fn,success){
@@ -655,17 +651,18 @@ const actionOwner=me;
 setBusy(true);setError('');setNotice('');
 try{
  await fn();
- if(accountRef.current!==actionOwner)return false;
+ if(accountRef.current!==actionOwner||!actionGate.current.isActive(ticket))return false;
  if(success)setNotice(success);
  // The write already succeeded even if the follow-up refresh failed.
  // Never report a saved listing as unsaved: retrying might create duplicates.
  await load(true);
- return accountRef.current===actionOwner;
+ return accountRef.current===actionOwner&&actionGate.current.isActive(ticket);
 }
-catch(e){if(accountRef.current===actionOwner)setError(mutationError(e));return false;}
+catch(e){if(accountRef.current===actionOwner&&actionGate.current.isActive(ticket))setError(mutationError(e));return false;}
 finally{
+ const active=actionGate.current.isActive(ticket);
  actionGate.current.release(ticket);
- if(accountRef.current===actionOwner)setBusy(false);
+ if(active&&accountRef.current===actionOwner)setBusy(false);
 }
 }
 function report(type,id){setReportDetails('');setReportTarget({type,id});}
