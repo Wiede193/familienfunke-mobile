@@ -5,6 +5,12 @@ const load=p=>import('data:text/javascript;base64,'+Buffer.from(read(p)).toStrin
 const {selectOutings,distanceKm,localOrigins,remoteOrigins,orderOutings,planSteps}=await load('FamilyOutingPlan.js');
 const {CURATED_FAMILY_PLACES}=await load('FamilyMapCurated.js');
 const {NATIONAL_FAMILY_PLACES}=await load('FamilyMapNational.js');
+assert.equal(NATIONAL_FAMILY_PLACES.length,28);
+assert.equal(new Set(NATIONAL_FAMILY_PLACES.map(p=>p.state)).size,16,'All federal states have a verified sample destination');
+for(const state of ['Rheinland-Pfalz','Saarland','Sachsen-Anhalt','Thüringen']){
+ assert.ok(NATIONAL_FAMILY_PLACES.some(p=>p.state===state));
+}
+assert.ok(NATIONAL_FAMILY_PLACES.every(p=>p.info_url?.startsWith('https://')&&p.address?.includes('Deutschland')));
 const catalog=[...CURATED_FAMILY_PLACES,...NATIONAL_FAMILY_PLACES];
 const origin=localOrigins('Frankfurt (Oder)')[0];
 assert.equal(origin.title,'Frankfurt (Oder)');
