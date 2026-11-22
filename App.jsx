@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Linking,
+ActivityIndicator, Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Linking,
 Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, Modal, useWindowDimensions,
 StatusBar, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
@@ -2635,51 +2635,118 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 </ScrollView>;
 }
 function ContactsScreen({focusId,pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat,hasMore,loadingMore,onLoadMore}){
-pending=[...pending].sort((a,b)=>Number(b.id===focusId)-Number(a.id===focusId));
-accepted=[...accepted].sort((a,b)=>Number(b.id===focusId)-Number(a.id===focusId));
-const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-<H sub="Nachrichten sind erst nach gegenseitiger Bestätigung möglich.">Deine Kontakte</H>
-<Text style={styles.sectionTitle}>Offene Anfragen</Text>
-{pending.length===0?<Blank title="Keine offenen Anfragen" body="Neue Kontaktwünsche erscheinen hier."/>:pending.map(c=><Card key={c.id} style={{marginBottom:10,borderColor:c.id===focusId?C.accent:C.line,borderWidth:c.id===focusId?2:1}}>
-<Row><Avatar name={nameOf(other(c))}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other(c))}</Text><Text style={styles.micro}>{c.recipient_id===me?'Möchte dich kennenlernen':'Von dir angefragt'}</Text></View></Row>
-<Row style={{marginTop:13}}>{c.recipient_id===me?<><Button title="Annehmen" small disabled={disabled} onPress={()=>respond(c.id,'accepted')} style={{flex:1}}/><Button title="Ablehnen" mode="outline" small disabled={disabled} onPress={()=>respond(c.id,'declined')} style={{flex:1}}/></>:<Button title="Zurückziehen" small mode="outline" disabled={disabled} onPress={()=>respond(c.id,'cancelled')}/>}</Row>
-</Card>)}
-<Text style={styles.sectionTitle}>Bestätigte Kontakte</Text>
-{accepted.length===0?<Blank title="Noch keine Kontakte" body="Bestätigte Familien erscheinen hier."/>:accepted.map(c=>{const uid=other(c);return <Card key={c.id} style={{marginBottom:10,borderColor:c.id===focusId?C.accent:C.line,borderWidth:c.id===focusId?2:1}}>
-<Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text style={styles.micro}>{blocked(uid)?'Blockiert':'Kontakt bestätigt'}</Text></View></Row>
-<Row style={{marginTop:12}}><Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>{blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:<Button title="Blockieren" small mode="outline" onPress={()=>onBlock(uid)}/>}</Row>
-</Card>;})}
-{hasMore?<View style={{marginTop:13}}><Button title={loadingMore?'Kontakte werden geladen …':'Weitere Kontakte laden'} mode="outline" disabled={loadingMore} onPress={onLoadMore}/></View>:null}
-</ScrollView>;
+  const byFocus=(a,b)=>Number(b.id===focusId)-Number(a.id===focusId);
+  const waiting=[...pending].sort(byFocus);
+  const connected=[...accepted].sort(byFocus);
+  const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
+  const items=[
+    {kind:'header',key:'pending-header',title:'Offene Anfragen'},
+    ...waiting.map(row=>({kind:'pending',key:'pending-'+row.id,row})),
+    ...(!waiting.length?[{kind:'empty-pending',key:'no-pending'}]:[]),
+    {kind:'header',key:'accepted-header',title:'Bestätigte Kontakte'},
+    ...connected.map(row=>({kind:'accepted',key:'accepted-'+row.id,row})),
+    ...(!connected.length?[{kind:'empty-accepted',key:'no-accepted'}]:[])
+  ];
+  function renderContact({item}){
+    if(item.kind==='header')return <Text style={styles.sectionTitle}>{item.title}</Text>;
+    if(item.kind==='empty-pending')return <Blank title="Keine offenen Anfragen" body="Neue Kontaktwünsche erscheinen hier."/>;
+    if(item.kind==='empty-accepted')return <Blank title="Noch keine Kontakte" body="Bestätigte Familien erscheinen hier."/>;
+    const c=item.row,uid=other(c);
+    if(item.kind==='pending')return <Card style={{marginBottom:10,borderColor:c.id===focusId?C.accent:C.line,borderWidth:c.id===focusId?2:1}}>
+      <Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text>
+      <Text style={styles.micro}>{c.recipient_id===me?'Möchte dich kennenlernen':'Von dir angefragt'}</Text></View></Row>
+      <Row style={{marginTop:13}}>{c.recipient_id===me?<>
+        <Button title="Annehmen" small disabled={disabled} onPress={()=>respond(c.id,'accepted')} style={{flex:1}}/>
+        <Button title="Ablehnen" mode="outline" small disabled={disabled} onPress={()=>respond(c.id,'declined')} style={{flex:1}}/>
+      </>:<Button title="Zurückziehen" small mode="outline" disabled={disabled} onPress={()=>respond(c.id,'cancelled')}/>}</Row>
+    </Card>;
+    return <Card style={{marginBottom:10,borderColor:c.id===focusId?C.accent:C.line,borderWidth:c.id===focusId?2:1}}>
+      <Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text>
+      <Text style={styles.micro}>{blocked(uid)?'Blockiert':'Kontakt bestätigt'}</Text></View></Row>
+      <Row style={{marginTop:12}}>
+        <Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>
+        {blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:
+        <Button title="Blockieren" small mode="outline" onPress={()=>onBlock(uid)}/>}
+      </Row>
+    </Card>;
+  }
+  return <FlatList style={styles.scroll} contentContainerStyle={styles.content}
+    data={items} keyExtractor={item=>item.key} renderItem={renderContact}
+    initialNumToRender={12} maxToRenderPerBatch={12} windowSize={7}
+    keyboardShouldPersistTaps="handled"
+    ListHeaderComponent={<H sub="Nachrichten sind erst nach gegenseitiger Bestätigung möglich.">Deine Kontakte</H>}
+    ListFooterComponent={hasMore?<View style={{marginTop:13}}>
+      <Button title={loadingMore?'Kontakte werden geladen …':'Weitere Kontakte laden'}
+        mode="outline" disabled={loadingMore} onPress={onLoadMore}/>
+    </View>:null}/>;
 }
 function ChatList({contacts,me,nameOf,onChat,blocked,hasMore,loadingMore,onLoadMore}){
-const [previews,setPreviews]=useState({});
-const idsKey=contacts.map(c=>c.id).join(',');
-useEffect(()=>{
-  let live=true;
-  const ids=idsKey?idsKey.split(','):[];
-  if(!me||!ids.length){setPreviews({});return()=>{live=false;};}
-  (async()=>{
-    const next={};
-    // Fetch previews only when this overview is open, never on app startup.
-    for(let index=0;index<ids.length;index+=50){
-      const {data,error:e}=await supabase.rpc('ff_chat_previews',{p_contact_ids:ids.slice(index,index+50)});
-      if(e)throw e;
-      for(const row of data||[])if(row?.contact_id)next[row.contact_id]=row.body;
-    }
-    if(live)setPreviews(next);
-  })().catch(()=>{if(live)setPreviews({});});
-  return()=>{live=false;};
-},[me,idsKey]);
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-<H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
-{contacts.length===0?<Blank title="Noch keine Gespräche" body="Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben."/>:
-contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;return <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={'Gespräch mit '+nameOf(uid)+' öffnen'} onPress={()=>onChat(c.id)}>
-<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':previews[c.id]||'Noch keine Nachrichten'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
-</Pressable>;})}
-{hasMore?<View style={{marginTop:13}}><Button title={loadingMore?'Kontakte werden geladen …':'Weitere Gespräche anzeigen'} disabled={loadingMore} mode="outline" onPress={onLoadMore}/></View>:null}
-</ScrollView>;
+  const [previews,setPreviews]=useState({});
+  const [previewError,setPreviewError]=useState('');
+  const [previewRetry,setPreviewRetry]=useState(0);
+  const alreadyLoaded=useRef(new Set());
+  const previewSeq=useRef(0);
+  const idsKey=contacts.map(c=>c.id).join(',');
+  useEffect(()=>{
+    alreadyLoaded.current=new Set();
+    setPreviews({});setPreviewError('');
+  },[me]);
+  useEffect(()=>{
+    const seq=++previewSeq.current;let live=true;
+    const ids=(idsKey?idsKey.split(','):[]).filter(id=>!alreadyLoaded.current.has(id));
+    if(!me||!ids.length)return()=>{live=false;previewSeq.current++;};
+    (async()=>{
+      // Load only previews added by new contacts; never refetch the entire
+      // previously loaded conversation list when a page is appended.
+      for(let index=0;index<ids.length;index+=50){
+        const batch=ids.slice(index,index+50);
+        const {data,error:e}=await retryRead(
+          ()=>supabase.rpc('ff_chat_previews',{p_contact_ids:batch}),
+          {isCurrent:()=>live&&previewSeq.current===seq}
+        );
+        if(e||!Array.isArray(data))throw e||new Error('Invalid chat preview page');
+        if(!live||previewSeq.current!==seq)return;
+        const patch={};
+        for(const row of data)if(row?.contact_id&&batch.includes(row.contact_id))patch[row.contact_id]=row.body;
+        batch.forEach(id=>alreadyLoaded.current.add(id));
+        setPreviews(old=>({...old,...patch}));
+      }
+      if(live&&previewSeq.current===seq)setPreviewError('');
+    })().catch(()=>{
+      if(live&&previewSeq.current===seq)setPreviewError('Die neuesten Nachrichten-Vorschauen konnten nicht geladen werden.');
+    });
+    return()=>{live=false;previewSeq.current++;};
+  },[me,idsKey,previewRetry]);
+
+  return <FlatList style={styles.scroll} contentContainerStyle={styles.content}
+    data={contacts} keyExtractor={c=>c.id} initialNumToRender={12}
+    maxToRenderPerBatch={12} windowSize={7}
+    ListHeaderComponent={<>
+      <H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
+      {previewError?<View style={{marginBottom:12}}>
+        <Info warning>{previewError}</Info>
+        <Button title="Vorschauen erneut laden" mode="outline" onPress={()=>setPreviewRetry(n=>n+1)}/>
+      </View>:null}
+    </>}
+    ListEmptyComponent={<Blank title="Noch keine Gespräche" body="Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben."/>}
+    renderItem={({item:c})=>{
+      const uid=c.sender_id===me?c.recipient_id:c.sender_id;
+      const isBlocked=blocked(uid);
+      return <Pressable accessibilityRole="button"
+        accessibilityLabel={'Gespräch mit '+nameOf(uid)+(isBlocked?' ist blockiert':' öffnen')}
+        accessibilityState={{disabled:isBlocked}} disabled={isBlocked}
+        key={c.id} onPress={()=>onChat(c.id)} style={isBlocked&&{opacity:0.65}}>
+        <Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/>
+          <View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text>
+            <Text numberOfLines={1} style={styles.sub}>{isBlocked?'Kontakt blockiert':previews[c.id]||'Noch keine Nachrichten'}</Text>
+          </View><Text style={{fontSize:23,color:C.accent}}>›</Text>
+        </Row></Card>
+      </Pressable>;
+    }}
+    ListFooterComponent={hasMore?<View style={{marginTop:13}}>
+      <Button title={loadingMore?'Kontakte werden geladen …':'Weitere Gespräche anzeigen'}
+        disabled={loadingMore} mode="outline" onPress={onLoadMore}/>
+    </View>:null}/>;
 }
 function ChatScreen({contact,me,nameOf,disabled,blocked,send,onReport,onBlock}) {
 const [text,setText]=useState('');
