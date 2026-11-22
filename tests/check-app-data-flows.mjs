@@ -24,7 +24,7 @@ assert.ok(inbox.includes("supabase.from('profiles')"),'A linked profile may be l
 assert.ok(inbox.includes('setChatReturnTab(\'inbox\')'));
 const actions=slice('async function sendChatMessage(','function report(type,id)');
 assert.ok(actions.includes('const actionOwner=me;'),'Mutation updates must be account-bound');
-assert.ok(actions.includes('if(accountRef.current!==actionOwner)return false;'));
+assert.ok(actions.includes('if(accountRef.current!==actionOwner||!actionGate.current.isActive(ticket))return false;'),'Do not apply previous-account write results');
 assert.ok(actions.includes('await load(true);'),'Actions still refresh where membership/contact state changes');
 assert.ok(!actions.includes('return accountRef.current===actionOwner&&!!refreshed'),'Committed writes must never be misreported if refresh fails');
 const photos=slice('async function executePhoto','// Einmalige Begrüßung');
