@@ -737,7 +737,7 @@ respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onU
 onChat={(id)=>{setChatReturnTab('contacts');setSelectedContact(id);setTab('chat');}}/>:
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
 onChat={(id)=>{setChatReturnTab('chat');setSelectedContact(id);}} hasMore={contactsMore} loadingMore={contactsLoadingMore} onLoadMore={loadMoreContacts}/>:
-tab==='events'?<EventsScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='events'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
+tab==='events'?<EventsScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='events'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} me={me} active={active} busy={busy}
 profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
 createEvent={(event)=>execute(async()=>{
   await moderateTextOrThrow([event.title,event.description,event.region_label]);
@@ -2388,17 +2388,137 @@ function FocusedEventStatus({focus,clearFocus}){
   {focus.status==='error'?<><Info warning>Veranstaltung konnte nicht geladen werden.</Info><Button title="Erneut versuchen" mode="outline" onPress={focus.retry}/></>:null}
  </View>;
 }
-function EventsScreen({focusId,clearFocus,events,eventRequests,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
+function EventPendingPanel({eventId,me,busy,profiles,replyEvent}){
+const [open,setOpen]=useState(false);
+const [rows,setRows]=useState([]);
+const [cursor,setCursor]=useState(null);
+const [hasMore,setHasMore]=useState(false);
+const [loading,setLoading]=useState(false);
+const [loadingMore,setLoadingMore]=useState(false);
+const [error,setError]=useState('');
+const [revision,setRevision]=useState(0);
+const seqRef=useRef(0);
+useEffect(()=>{
+ const seq=++seqRef.current;
+ if(!open)return()=>{seqRef.current++;};
+ let live=true;
+ setLoading(true);setRows([]);setHasMore(false);setCursor(null);setError('');
+ (async()=>{
+  const {data,error:e}=await supabase.rpc('ff_event_pending_page',
+    {p_event_id:eventId,p_limit:EVENT_PAGE_SIZE});
+  if(e||!Array.isArray(data))throw e||new Error('Ungültige Antwort');
+  if(!live||seqRef.current!==seq)return;
+  setRows(data);setCursor(descendingRowCursor(data,'requester_id'));setHasMore(hasFullPage(data,EVENT_PAGE_SIZE));
+ })().catch(()=>{if(live&&seqRef.current===seq)setError('Teilnahmeanfragen konnten nicht geladen werden.');})
+ .finally(()=>{if(live&&seqRef.current===seq)setLoading(false);});
+ return()=>{live=false;seqRef.current++;};
+},[eventId,me,open,revision]);
+async function loadMore(){
+ if(!cursor||!hasMore||loadingMore||loading)return;
+ const seq=seqRef.current;setLoadingMore(true);
+ try{
+  const {data,error:e}=await supabase.rpc('ff_event_pending_page',
+    {p_event_id:eventId,p_limit:EVENT_PAGE_SIZE,...cursor});
+  if(e||!Array.isArray(data))throw e||new Error('Ungültige Antwort');
+  if(seqRef.current!==seq)return;
+  setRows(old=>appendUniqueRows(old,data,'requester_id'));
+  setCursor(descendingRowCursor(data,'requester_id'));
+  setHasMore(hasFullPage(data,EVENT_PAGE_SIZE));
+  setError('');
+ }catch{if(seqRef.current===seq)setError('Weitere Anfragen konnten nicht geladen werden.');}
+ finally{if(seqRef.current===seq)setLoadingMore(false);}
+}
+async function respond(requesterId,status){
+ const ok=await replyEvent(eventId,requesterId,status);
+ if(ok)setRevision(n=>n+1);
+}
+return <View style={{marginTop:12}}>
+<Button title={open?'Teilnahmeanfragen schließen':'Teilnahmeanfragen anzeigen'} small mode="outline" onPress={()=>setOpen(x=>!x)}/>
+{open?<View style={{marginTop:10}}>
+{loading?<ActivityIndicator color={C.accent}/>:null}
+{error?<Info warning>{error}</Info>:null}
+{rows.length===0&&!loading&&!error?<Text style={styles.micro}>Keine offenen Anfragen.</Text>:null}
+{rows.map(r=><View key={r.requester_id} style={{marginTop:9}}>
+ <Text style={styles.body}>{profiles.find(p=>p.user_id===r.requester_id)?.display_name||'Anfragende Familie'}</Text>
+ <Row><Button title="Annehmen" small disabled={busy} onPress={()=>respond(r.requester_id,'approved')}/>
+ <Button title="Ablehnen" small mode="outline" disabled={busy} onPress={()=>respond(r.requester_id,'declined')}/></Row>
+</View>)}
+{hasMore?<Button title={loadingMore?'Weitere Anfragen werden geladen …':'Weitere Anfragen laden'} mode="outline" disabled={loadingMore} onPress={loadMore}/>:null}
+{error&&!loading?<Button title="Erneut versuchen" mode="outline" onPress={()=>setRevision(n=>n+1)}/>:null}
+</View>:null}
+</View>;
+}
+function EventsScreen({focusId,clearFocus,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
 const focus=useFocusedEvent('events',focusId,me);
+const [events,setEvents]=useState([]);
+const [myRequests,setMyRequests]=useState([]);
+const [focusedRequest,setFocusedRequest]=useState(null);
+const [cursor,setCursor]=useState(null);
+const [hasMore,setHasMore]=useState(false);
+const [loading,setLoading]=useState(true);
+const [loadingMore,setLoadingMore]=useState(false);
+const [loadError,setLoadError]=useState('');
+const [revision,setRevision]=useState(0);
+const seqRef=useRef(0);
 const [title,setTitle]=useState('');const [description,setDescription]=useState('');const [region,setRegion]=useState('');
 const [date,setDate]=useState('');const [time,setTime]=useState('15:00');const [count,setCount]=useState('10');const [visibility,setVisibility]=useState('community');
-const names=(uid)=>profiles.find(p=>p.user_id===uid)?.display_name||'Familie';
+async function ownRequestsFor(rows){
+ const ids=rows.map(row=>row.id).slice(0,EVENT_PAGE_SIZE);
+ if(!ids.length)return [];
+ const {data,error:e}=await supabase.rpc('ff_my_event_requests',{p_event_ids:ids});
+ if(e||!Array.isArray(data))throw e||new Error('Ungültiger Teilnahmestatus');
+ return data;
+}
+useEffect(()=>{
+ const seq=++seqRef.current;let live=true;
+ setEvents([]);setMyRequests([]);setHasMore(false);setCursor(null);setLoading(true);setLoadError('');
+ (async()=>{
+  const {data,error:e}=await supabase.rpc('ff_events_page',{p_limit:EVENT_PAGE_SIZE});
+  if(e||!Array.isArray(data))throw e||new Error('Ungültige Veranstaltungsliste');
+  const mine=await ownRequestsFor(data);
+  if(!live||seqRef.current!==seq)return;
+  setEvents(data);setMyRequests(mine);
+  setCursor(ascendingEventCursor(data));setHasMore(hasFullPage(data,EVENT_PAGE_SIZE));
+ })().catch(()=>{if(live&&seqRef.current===seq)setLoadError('Veranstaltungen konnten nicht geladen werden.');})
+ .finally(()=>{if(live&&seqRef.current===seq)setLoading(false);});
+ return()=>{live=false;seqRef.current++;};
+},[me,revision]);
+useEffect(()=>{
+ let live=true;
+ setFocusedRequest(null);
+ if(focusId&&focus.row?.id){
+   supabase.rpc('ff_my_event_requests',{p_event_ids:[focus.row.id]})
+     .then(({data,error:e})=>{
+       if(e)throw e;
+       if(live)setFocusedRequest(Array.isArray(data)?data[0]||null:null);
+     }).catch(()=>{if(live)setFocusedRequest(null);});
+ }
+ return()=>{live=false;};
+},[focusId,focus.row?.id,me,revision]);
+async function loadMoreEvents(){
+ if(!cursor||!hasMore||loadingMore||loading)return;
+ const seq=seqRef.current;setLoadingMore(true);setLoadError('');
+ try{
+  const {data,error:e}=await supabase.rpc('ff_events_page',{p_limit:EVENT_PAGE_SIZE,...cursor});
+  if(e||!Array.isArray(data))throw e||new Error('Ungültige Veranstaltungsliste');
+  const mine=await ownRequestsFor(data);
+  if(seqRef.current!==seq)return;
+  setEvents(old=>appendUniqueRows(old,data));
+  setMyRequests(old=>appendUniqueRows(old,mine,'event_id'));
+  setCursor(ascendingEventCursor(data));setHasMore(hasFullPage(data,EVENT_PAGE_SIZE));
+ }catch{if(seqRef.current===seq)setLoadError('Weitere Veranstaltungen konnten nicht geladen werden.');}
+ finally{if(seqRef.current===seq)setLoadingMore(false);}
+}
 async function submit(){
-if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time))return Alert.alert('Termin prüfen','Bitte Datum als JJJJ-MM-TT und Zeit als HH:MM eingeben.');
-const start=givenDate(date,time);const max=parseInt(count,10);
-if(!start||start<=new Date()||title.trim().length<4||max<2||max>50)return Alert.alert('Bitte prüfen','Titel, zukünftigen Beginn und Teilnehmerzahl (2–50) korrigieren.');
-const ok=await createEvent({title:safeString(title,100),description:safeString(description,1000),region_label:safeString(region,80),starts_at:start.toISOString(),ends_at:new Date(start.getTime()+2*60*60*1000).toISOString(),max_participants:max,visibility});
-if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');}
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time))return Alert.alert('Termin prüfen','Bitte Datum als JJJJ-MM-TT und Zeit als HH:MM eingeben.');
+ const start=givenDate(date,time);const max=parseInt(count,10);
+ if(!start||start<=new Date()||title.trim().length<4||max<2||max>50)return Alert.alert('Bitte prüfen','Titel, zukünftigen Beginn und Teilnehmerzahl (2–50) korrigieren.');
+ const ok=await createEvent({title:safeString(title,100),description:safeString(description,1000),region_label:safeString(region,80),starts_at:start.toISOString(),ends_at:new Date(start.getTime()+2*60*60*1000).toISOString(),max_participants:max,visibility});
+ if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');setRevision(n=>n+1);}
+}
+async function requestAndRefresh(id){
+ const ok=await requestEvent(id);
+ if(ok)setRevision(n=>n+1);
 }
 const upcoming=focusId?(focus.row?[focus.row]:[]):events.filter(e=>new Date(e.ends_at)>new Date());
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -2417,21 +2537,25 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </Card>:null}
 <Text style={[styles.sectionTitle,{marginTop:22}]}>Anstehende Treffen</Text>
 {focusId?<FocusedEventStatus focus={focus} clearFocus={clearFocus}/>:null}
-{upcoming.length===0?(focusId?null:<Blank title="Noch keine Treffen" body="Neue Aktivitäten erscheinen hier nach Freigabe."/>):upcoming.map(e=>{
-const self=e.organizer_id===me;const request=eventRequests.find(x=>x.event_id===e.id&&x.requester_id===me);
-const pending=eventRequests.filter(x=>x.event_id===e.id&&x.status==='requested');
-return <Card key={e.id} style={{marginBottom:12}}>
-<Text style={styles.eyebrow}>▦ {formatDate(e.starts_at)}</Text><Text style={[styles.cardTitle,{fontSize:19,marginTop:5}]}>{e.title}</Text>
-<Text style={[styles.sub,{marginTop:7}]}>{e.description||'Gemeinsames Familientreffen'}</Text>
-<Text style={[styles.micro,{marginTop:10}]}>⌖ {e.region_label||'Region nach Absprache'} · max. {e.max_participants} Personen</Text>
-{e.moderation_status==='approved'&&new Date(e.ends_at)>new Date()?<CalendarEventButton userId={me} kind="family" id={e.id}/>:null}
-{self?<Info warning>{e.moderation_status==='pending'?'Dein Termin wartet auf Freigabe.':'Du organisierst diesen Termin.'}</Info>:
-request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request.status==='requested'?'angefragt':request.status==='declined'?'abgelehnt':'zurückgezogen'}</Info>:
-<Button title="Teilnahme anfragen" disabled={busy||!active} small style={{marginTop:12}} onPress={()=>requestEvent(e.id)}/>}
-{self&&pending.length>0?<View style={{marginTop:12}}><Text style={styles.label}>Teilnahmeanfragen</Text>{pending.map(r=><View key={r.requester_id} style={{marginTop:9}}><Text style={styles.body}>{names(r.requester_id)}</Text><Row><Button title="Annehmen" small disabled={busy} onPress={()=>replyEvent(e.id,r.requester_id,'approved')}/><Button title="Ablehnen" small mode="outline" disabled={busy} onPress={()=>replyEvent(e.id,r.requester_id,'declined')}/></Row></View>)}</View>:null}
-{!self?<Pressable accessibilityRole="button" accessibilityLabel="Veranstaltung melden" onPress={()=>reportEvent(e.id)} style={{marginTop:12,minHeight:44,justifyContent:'center'}}><Text style={styles.micro}>⚑ Veranstaltung melden</Text></Pressable>:null}
-</Card>;
+{!focusId&&loading?<ActivityIndicator color={C.accent}/>:null}
+{!focusId&&loadError?<Info warning>{loadError}</Info>:null}
+{!focusId&&loadError&&events.length===0?<Button title="Erneut versuchen" mode="outline" onPress={()=>setRevision(n=>n+1)}/>:null}
+{upcoming.length===0&&!loading&&!loadError?(focusId?null:<Blank title="Noch keine Treffen" body="Neue Aktivitäten erscheinen hier nach Freigabe."/>):upcoming.map(e=>{
+ const self=e.organizer_id===me;
+ const request=(focusId&&focus.row?.id===e.id?focusedRequest:null)||myRequests.find(x=>x.event_id===e.id&&x.requester_id===me);
+ return <Card key={e.id} style={{marginBottom:12}}>
+ <Text style={styles.eyebrow}>▦ {formatDate(e.starts_at)}</Text><Text style={[styles.cardTitle,{fontSize:19,marginTop:5}]}>{e.title}</Text>
+ <Text style={[styles.sub,{marginTop:7}]}>{e.description||'Gemeinsames Familientreffen'}</Text>
+ <Text style={[styles.micro,{marginTop:10}]}>⌖ {e.region_label||'Region nach Absprache'} · max. {e.max_participants} Personen</Text>
+ {e.moderation_status==='approved'&&new Date(e.ends_at)>new Date()?<CalendarEventButton userId={me} kind="family" id={e.id}/>:null}
+ {self?<Info warning>{e.moderation_status==='pending'?'Dein Termin wartet auf Freigabe.':'Du organisierst diesen Termin.'}</Info>:
+ request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request.status==='requested'?'angefragt':request.status==='declined'?'abgelehnt':'zurückgezogen'}</Info>:
+ <Button title="Teilnahme anfragen" disabled={busy||!active} small style={{marginTop:12}} onPress={()=>requestAndRefresh(e.id)}/>}
+ {self?<EventPendingPanel eventId={e.id} me={me} busy={busy} profiles={profiles} replyEvent={replyEvent}/>:null}
+ {!self?<Pressable accessibilityRole="button" accessibilityLabel="Veranstaltung melden" onPress={()=>reportEvent(e.id)} style={{marginTop:12,minHeight:44,justifyContent:'center'}}><Text style={styles.micro}>⚑ Veranstaltung melden</Text></Pressable>:null}
+ </Card>;
 })}
+{!focusId&&hasMore?<Button title={loadingMore?'Weitere Veranstaltungen werden geladen …':'Weitere Veranstaltungen laden'} mode="outline" disabled={loadingMore} onPress={loadMoreEvents}/>:null}
 </ScrollView>;
 }
 function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
