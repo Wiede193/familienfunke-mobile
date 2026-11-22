@@ -19,3 +19,9 @@ for(const q of questions){assert.ok(q.correct>=0&&q.correct<3);assert.equal(new 
 const app=readFileSync(new URL('../FamilyPlayContent.js',import.meta.url),'utf8');
 assert.match(app,/export const QUESTIONS=/);assert.match(app,/export function makeRound/);
 console.log('45 English questions: answers, 3 ages, 3 subjects, rounds and German fallback checked');
+
+const screen=readFileSync(new URL('../FamilyPlayScreen.jsx',import.meta.url),'utf8');
+assert.match(screen,/const sourceQuestions=language==='en'\?ENGLISH_QUESTIONS:QUESTIONS/);
+assert.match(screen,/makeEnglishRound\(level,ENGLISH_TOPICS\.includes\(topic\)\?topic:'all'/);
+assert.match(screen,/\{t\(title\)\}<\/Text><Text style=\{s\.text\}>\{t\(description\)\}/);
+assert.match(screen,/\{question\.question\}/);

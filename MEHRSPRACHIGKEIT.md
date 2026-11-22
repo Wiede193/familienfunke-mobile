@@ -22,3 +22,5 @@ Die Navigation der Familienkarte und die Wegweiser-Statussteuerung sind jetzt te
 
 ## Ausbaustufe 6 – Spiele und Quiz
 45 lokal gespeicherte englische Fragen: je fünf für jede Kombination aus drei Altersstufen und den Bereichen Natur, Allgemeinwissen und Logik. Englisch verwendet einen eigenen Pool und acht übersetzte Aktivitäten; Deutsch behält den vorhandenen Pool. Die Quiz-Auswahl und das Screenreader-Feedback wechseln mit der Sprache, ohne Antworthistorie zu speichern. Sprachabhängige Wort- und Kreuzworträtsel bleiben auf Deutsch und werden in der Auswahl entsprechend gekennzeichnet. Die Mini-Spiele und Klassiker werden bei der Oberfläche separat weiter lokalisiert.
+
+Die Karten-/Karten-Screenreader-Tests prüfen jetzt dynamische lokalisierte Labels. Spielkarten-Navigation und Ergebnisanzeige der Quiz-Auswahl verwenden die aktive Sprache.

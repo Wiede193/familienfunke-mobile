@@ -69,7 +69,7 @@ assert.match(map,/function markCoordinates\(\)/,
   'Keyboard coordinates must be actionable');
 assert.match(map,/inGermany\(latitude,longitude\)/,
   'Accessible coordinates must be validated');
-assert.match(map,/accessibilityLabel="Wickeltisch vorhanden"/,
+assert.match(map,/accessibilityLabel=\{t\("Wickeltisch vorhanden"\)\}/,
   'Map switches require names');
 assert.doesNotMatch(map,/multi&&\{height:85/,
   'Map multiline fields should grow with text');
