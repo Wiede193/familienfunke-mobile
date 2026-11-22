@@ -43,4 +43,13 @@ for(const path of ['FamilyOutingScreen.jsx','HomeAssistant.jsx']){
  assert.match(src,/BRANDENBURG_FAMILY_PLACES/,path+' must also surface added destination options');
 }
 assert.match(read('HomeAssistant.jsx'),/curated:\[\.\.\.CURATED_FAMILY_PLACES,\.\.\.BRANDENBURG_FAMILY_PLACES\]/);
+assert.equal(read('FamilyMapBrandenburg.js'),
+  read('supabase/functions/ff-app-assistant/FamilyMapBrandenburg.js'),
+  'AI must only accept IDs from the same reviewed destination dataset as app');
+assert.equal(read('FamilyMapCurated.js'),
+  read('supabase/functions/ff-app-assistant/FamilyMapCurated.js'),
+  'AI and map shared original curated catalog must match');
+assert.match(read('supabase/functions/ff-app-assistant/index.ts'),
+ /const OUTINGS=new Map\(\[\.\.\.CURATED_FAMILY_PLACES,\.\.\.BRANDENBURG_FAMILY_PLACES,\.\.\.NATIONAL_FAMILY_PLACES\]/,
+ 'Server-side AI outing allowlist must accept the same grounded Brandenburg destinations');
 console.log('Eight grounded Brandenburg map pins, accessible detail disclaimers, search, planner and Home links passed.');
