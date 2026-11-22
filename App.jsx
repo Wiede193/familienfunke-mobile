@@ -248,10 +248,13 @@ const photoTarget=detailFamily||(tab==='profile'?me:null);
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
 const chatSendingRef=useRef(false);
+const loadSeq=useRef(0);
 const eventActionRef=useRef(false);
 const inbox=useNotificationCenter(me);
 const load=useCallback(async(silent=false)=>{
-if(!me||!supabase)return;
+if(!me||!supabase)return null;
+const seq=++loadSeq.current;
+const stillCurrent=()=>accountRef.current===me&&loadSeq.current===seq;
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
@@ -263,7 +266,7 @@ supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('ff_organizations').select('*').eq('owner_id',me).order('created_at',{ascending:false}).limit(50),
 ]);
-if(accountRef.current!==me)return null;
+if(!stillCurrent())return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
 const [profiles,ownProfile,contacts,blocks,verificationRow,membershipRow,ownOrganizations]=queries;
@@ -275,43 +278,45 @@ const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.r
    ? await supabase.from('contact_requests').select('*').eq('id',pinnedContactId).maybeSingle()
    : {data:null,error:null};
  if(pinnedContact.error)throw pinnedContact.error;
- if(accountRef.current!==me)return null;
+ if(!stillCurrent())return null;
  const allContacts=appendUniqueRows(contacts.data||[],pinnedContact.data?[pinnedContact.data]:[]);
  const linkedUserIds=[...new Set([...contactUserIds,...(pinnedContact.data?[pinnedContact.data.sender_id===me?pinnedContact.data.recipient_id:pinnedContact.data.sender_id]:[])])];
  const linkedProfiles=linkedUserIds.length
   ? await supabase.from('profiles').select('*').in('user_id',linkedUserIds)
   : {data:[],error:null};
 if(linkedProfiles.error)throw linkedProfiles.error;
-if(accountRef.current!==me)return null;
+if(!stillCurrent())return null;
 const profileRow=ownProfile.data||(profiles.data||[]).find(p=>p.user_id===me)||null;
 setDiscoverCursor(socialCursor(profiles.data,'user_id'));
 setDiscoverMore(hasNextSocialPage(profiles.data));
 setContactsCursor(socialCursor(contacts.data));
 setContactsMore(hasNextSocialPage(contacts.data));
-setDb(old=>({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
+setDb(old=>!stillCurrent()?old:({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
 events:old.events,eventRequests:old.eventRequests,photos:old.photos,blocks:blocks.data||[],
 listings:old.listings,marketPhotos:old.marketPhotos,marketFavorites:[],organizations:ownOrganizations.data||[],partnerEvents:old.partnerEvents}));
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');
 return {contacts:contacts.data||[],listings:[]};
-} catch(e){if(accountRef.current===me)setError(humanError(e));return null;}
-finally{if(accountRef.current===me)setLoading(false);}
+} catch(e){if(stillCurrent())setError(humanError(e));return null;}
+finally{if(stillCurrent())setLoading(false);}
 },[me]);
 async function loadMoreFamilies(){
  if(!me||discoverLoadingMore||!discoverMore||!discoverCursor)return;
+ const requestedDuringLoad=loadSeq.current;
  setDiscoverLoadingMore(true);
  try {
   const {data,error:e}=await supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE,...discoverCursor});
-  if(accountRef.current!==me)return;
+  if(accountRef.current!==me||loadSeq.current!==requestedDuringLoad)return;
   if(e)throw e;
   setDb(old=>({...old,profiles:appendUniqueRows(old.profiles,data||[],'user_id')}));
   setDiscoverCursor(socialCursor(data,'user_id'));
   setDiscoverMore(hasNextSocialPage(data));
- }catch(e){if(accountRef.current===me)setError('Weitere Familien konnten nicht geladen werden. Bitte erneut versuchen.');}
+ }catch(e){if(accountRef.current===me&&loadSeq.current===requestedDuringLoad)setError('Weitere Familien konnten nicht geladen werden. Bitte erneut versuchen.');}
  finally{if(accountRef.current===me)setDiscoverLoadingMore(false);}
 }
 async function loadMoreContacts(){
  if(!me||contactsLoadingMore||!contactsMore||!contactsCursor)return;
+ const requestedDuringLoad=loadSeq.current;
  setContactsLoadingMore(true);
  try {
   const {data,error:e}=await supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE,...contactsCursor});
@@ -319,12 +324,12 @@ async function loadMoreContacts(){
   const ids=[...new Set((data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
   const names=ids.length?await supabase.from('profiles').select('*').in('user_id',ids):{data:[],error:null};
   if(names.error)throw names.error;
-  if(accountRef.current!==me)return;
+  if(accountRef.current!==me||loadSeq.current!==requestedDuringLoad)return;
   setDb(old=>({...old,contacts:appendUniqueRows(old.contacts,data||[]),
     profiles:appendUniqueRows(old.profiles,names.data||[],'user_id')}));
   setContactsCursor(socialCursor(data));
   setContactsMore(hasNextSocialPage(data));
- }catch(e){if(accountRef.current===me)setError('Weitere Kontakte konnten nicht geladen werden. Bitte erneut versuchen.');}
+ }catch(e){if(accountRef.current===me&&loadSeq.current===requestedDuringLoad)setError('Weitere Kontakte konnten nicht geladen werden. Bitte erneut versuchen.');}
  finally{if(accountRef.current===me)setContactsLoadingMore(false);}
 }
 useEffect(()=>{
@@ -340,6 +345,7 @@ return ()=>{alive=false;listener.subscription.unsubscribe();};
 },[]);
 // Nach jeder Anmeldung startet Familienfunke auf der KI-Startseite – auch nach Kontowechsel.
 useEffect(()=>{
+  loadSeq.current++; // Invalidate in-flight queries even before the next account load.
   setTab('home');
   setMenuOpen(false);
   setSelectedContact(null);
