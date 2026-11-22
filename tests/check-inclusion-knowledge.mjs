@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const {INCLUSION_CATEGORIES,INCLUSION_ARTICLES,findInclusionArticles}=
+ await import('data:text/javascript;base64,'+Buffer.from(read('InclusionKnowledge.js')).toString('base64'));
+assert.equal(INCLUSION_ARTICLES.length,14);
+assert.equal(new Set(INCLUSION_ARTICLES.map(x=>x.id)).size,14);
+assert.equal(INCLUSION_CATEGORIES.length,6);
+for(const a of INCLUSION_ARTICLES){
+ assert.ok(a.title.length>=10,a.id+' title');
+ assert.ok(a.overview.length>=100,a.id+' overview');
+ assert.ok(a.firstSteps.length>=4,a.id+' four actionable steps');
+ assert.ok(a.documents.length>=35,a.id+' document guidance');
+ assert.ok(a.responsible.length>=30,a.id+' responsible authority');
+ assert.ok(a.caveat.length>=40,a.id+' calibrated caveat');
+ assert.ok(a.sources.length>=1,a.id+' official references');
+ assert.ok(a.sources.every(x=>x.title&&x.url.startsWith('https://')));
+ assert.ok(INCLUSION_CATEGORIES.some(x=>x.id===a.category),a.id+' category');
+}
+assert.equal(findInclusionArticles().length,14);
+assert.ok(findInclusionArticles('pflegegrad').some(x=>x.id==='care-grade'));
+assert.ok(findInclusionArticles('fRüHföRDERUNG').some(x=>x.id==='early-intervention'));
+assert.ok(findInclusionArticles('Widerspruch').some(x=>x.id==='objections'));
+assert.ok(findInclusionArticles('barriere').some(x=>x.id==='accessible-outings'));
+assert.ok(findInclusionArticles('Pflegegrad','rights').length===0);
+assert.ok(findInclusionArticles('TeilHaBe','benefits').length>=1);
+assert.deepEqual(findInclusionArticles('nicht-vorhandener-begriff'),[]);
+assert.ok(INCLUSION_ARTICLES.some(x=>x.id==='gdb-application'&&/nicht.*barrierefrei|Barrierefreiheit/i.test(x.caveat)));
+assert.ok(INCLUSION_ARTICLES.some(x=>x.id==='school-support'));
+assert.ok(INCLUSION_ARTICLES.some(x=>x.id==='inclusive-kita'));
+assert.ok(INCLUSION_ARTICLES.some(x=>x.id==='personal-budget'));
+assert.ok(INCLUSION_ARTICLES.some(x=>x.id==='kindergeld-disability'));
+const ui=read('InclusionKnowledgeScreen.jsx'),app=read('App.jsx');
+assert.match(ui,/findInclusionArticles\(search,category\)/);
+assert.match(ui,/accessibilityLabel="Inklusionswissen durchsuchen"/);
+assert.match(ui,/article\.sources\.map/);
+assert.match(ui,/article\.firstSteps\.map/);
+assert.match(ui,/onOpenMap/);
+assert.match(ui,/keine Diagnose angeben/);
+assert.match(ui,/nicht als Gesundheitsprofil gespeichert/);
+assert.match(app,/import InclusionKnowledgeScreen from '\.\/InclusionKnowledgeScreen';/);
+assert.match(app,/tab==='inclusion'\?<InclusionScreen regionLabel=\{myProfile\?\.region_label\}/);
+assert.doesNotMatch(ui,/supabase|AsyncStorage|from\('profiles'\)/,'Reading inclusion guidance must not store medical profiles');
+console.log('14 practical disability knowledge guides, search, official links, inclusion routes and no sensitive-data storage passed.');
