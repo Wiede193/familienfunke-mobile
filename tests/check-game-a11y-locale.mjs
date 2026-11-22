@@ -36,3 +36,12 @@ assert.equal(g.crosswordStatus(false,null,'en'),'Choose a clue or cell.');
 assert.equal(g.pictureStatus(true,9,'en'),'Picture complete!');
 assert.equal(g.pictureTileLabel(3,1,'en'),'Position 3, picture piece 1');
 console.log('Game screenreader labels: 52 cards, status changes and DE/EN board states verified');
+
+const classic=read('FamilyClassicGameScreens.jsx'),board=read('FamilyBoardPuzzleScreens.jsx');
+for(const term of ['fourStatus(game,language)','fourCellLabel(v,i,language)','gridCellLabel(r+1,c+1,v,language,{fixed,conflict})','sudokuStatus(done,conflicts.length>0,selected,language)','solitaireProgress(','solitaireFoundationLabel(','solitaireCardName('])
+ assert.ok(classic.includes(term),'Missing accessible classic game binding: '+term);
+for(const term of ['chessStatus(game,chessCheck(game),language)','chessPieceName(p,language)','draughtsStatus(game,','draughtsPieceName(p,language)','gridCellLabel(Math.floor(i/game.width)+1','crosswordStatus(done,selected,language)','pictureStatus(done,game.moves,language)','pictureTileLabel(i+1,id+1,language)'])
+ assert.ok(board.includes(term),'Missing accessible board binding: '+term);
+assert.match(board,/accessibilityLabel=\{coord\(i\)/);
+assert.match(classic,/accessibilityLiveRegion="polite"/);
+assert.match(board,/accessibilityLiveRegion="polite"/);
