@@ -22,7 +22,7 @@ assert.ok(findInclusionArticles('pflegegrad').some(x=>x.id==='care-grade'));
 assert.ok(findInclusionArticles('fRüHföRDERUNG').some(x=>x.id==='early-intervention'));
 assert.ok(findInclusionArticles('Widerspruch').some(x=>x.id==='objections'));
 assert.ok(findInclusionArticles('barriere').some(x=>x.id==='accessible-outings'));
-assert.ok(findInclusionArticles('Pflegegrad','rights').length===0);
+assert.ok(findInclusionArticles('Pflegegrad','rights').every(x=>x.category==='rights'),'Category filter applies even when rights guidance references a Pflegegrad');
 assert.ok(findInclusionArticles('TeilHaBe','benefits').length>=1);
 assert.deepEqual(findInclusionArticles('nicht-vorhandener-begriff'),[]);
 assert.ok(INCLUSION_ARTICLES.some(x=>x.id==='gdb-application'&&/nicht.*barrierefrei|Barrierefreiheit/i.test(x.caveat)));
