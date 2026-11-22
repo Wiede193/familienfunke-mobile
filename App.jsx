@@ -229,6 +229,7 @@ const [contactsMore,setContactsMore]=useState(false);
 const [contactsLoadingMore,setContactsLoadingMore]=useState(false);
 const me=session?.user?.id;
 const accountRef=useRef(me);accountRef.current=me;
+const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
 const inbox=useNotificationCenter(me);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
@@ -261,8 +262,17 @@ const [profiles,ownProfile,contacts,events,eventRequests,photos,blocks,verificat
  if(accountRef.current!==me)return null;
 // Fetch contact display names separately; contacts may have hidden discovery profiles.
 const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
-const linkedProfiles=contactUserIds.length
-  ? await supabase.from('profiles').select('*').in('user_id',contactUserIds)
+// Preserve only the currently open conversation if it falls outside the newest contact page.
+ const pinnedContactId=selectedContactRef.current;
+ const pinnedContact=pinnedContactId&&!(contacts.data||[]).some(c=>c.id===pinnedContactId)
+   ? await supabase.from('contact_requests').select('*').eq('id',pinnedContactId).maybeSingle()
+   : {data:null,error:null};
+ if(pinnedContact.error)throw pinnedContact.error;
+ if(accountRef.current!==me)return null;
+ const allContacts=appendUniqueRows(contacts.data||[],pinnedContact.data?[pinnedContact.data]:[]);
+ const linkedUserIds=[...new Set([...contactUserIds,...(pinnedContact.data?[pinnedContact.data.sender_id===me?pinnedContact.data.recipient_id:pinnedContact.data.sender_id]:[])])];
+ const linkedProfiles=linkedUserIds.length
+  ? await supabase.from('profiles').select('*').in('user_id',linkedUserIds)
   : {data:[],error:null};
 if(linkedProfiles.error)throw linkedProfiles.error;
 if(accountRef.current!==me)return null;
@@ -271,7 +281,7 @@ setDiscoverCursor(socialCursor(profiles.data,'user_id'));
 setDiscoverMore(hasNextSocialPage(profiles.data));
 setContactsCursor(socialCursor(contacts.data));
 setContactsMore(hasNextSocialPage(contacts.data));
-setDb({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:contacts.data||[],messages:[],
+setDb({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
 events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],
 listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
