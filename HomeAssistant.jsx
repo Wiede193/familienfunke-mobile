@@ -4,7 +4,7 @@ import {supabase} from './supabase';
 import {FAMILY_COLORS,FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 import {FamilyEmptyState,FamilySkeleton,FamilySectionTitle} from './FamilyFeedback';
-import {recommendFamilyPlaces,selectHomeOffers,selectHomeEvents,missingFamilyProfileStep} from './HomePersonalization';
+import {recommendFamilyPlaces,selectHomeOffers,selectHomeEvents,missingFamilyProfileStep,homeGreeting} from './HomePersonalization';
 import {retryRead} from './NetworkResilience';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
 
@@ -290,7 +290,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
     </View>:null}
     {!needle?<View style={s.welcomeSection}>
       <Text style={s.welcomeEyebrow}>EURE FAMILIENWELT</Text>
-      <Text accessibilityRole="header" style={s.welcomeTitle}>Schön, dass ihr da seid!</Text>
+      <Text accessibilityRole="header" style={s.welcomeTitle}>{homeGreeting(profile)}</Text>
       <Text style={s.welcomeSubtitle}>Entdeckt, was euch als Familie heute Freude macht.</Text>
       {typeof inboxUnread==='number'&&inboxUnread>0?
         <Pressable accessibilityRole="button" accessibilityLabel={inboxUnread+' ungelesene Neuigkeiten öffnen'}
