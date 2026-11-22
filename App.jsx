@@ -319,7 +319,10 @@ async function loadMoreFamilies(){
  const requestedDuringLoad=loadSeq.current;
  setDiscoverLoadingMore(true);
  try {
-  const {data,error:e}=await supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE,...discoverCursor});
+  const {data,error:e}=await retryRead(
+   ()=>supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE,...discoverCursor}),
+   {isCurrent:()=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)}
+  );
   if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
   if(e)throw e;
   setDb(old=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)
@@ -334,10 +337,16 @@ async function loadMoreContacts(){
  const requestedDuringLoad=loadSeq.current;
  setContactsLoadingMore(true);
  try {
-  const {data,error:e}=await supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE,...contactsCursor});
+  const {data,error:e}=await retryRead(
+   ()=>supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE,...contactsCursor}),
+   {isCurrent:()=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)}
+  );
   if(e)throw e;
   const ids=[...new Set((data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
-  const names=ids.length?await supabase.from('profiles').select('*').in('user_id',ids):{data:[],error:null};
+  const names=ids.length?await retryRead(
+     ()=>supabase.from('profiles').select('*').in('user_id',ids),
+     {isCurrent:()=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)}
+   ):{data:[],error:null};
   if(names.error)throw names.error;
   if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
   setDb(old=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)
@@ -387,8 +396,8 @@ useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPh
 async function prepareOwnListingPhotos(rows){
  const ids=rows.map(r=>r.id).filter(Boolean);
  const {data:extra,error:e}=ids.length
-   ? await supabase.from('ff_market_photos').select('*')
-      .in('listing_id',ids).order('slot',{ascending:true}).limit(ids.length*4)
+   ? await retryRead(()=>supabase.from('ff_market_photos').select('*')
+      .in('listing_id',ids).order('slot',{ascending:true}).limit(ids.length*4))
    : {data:[],error:null};
  if(e)throw e;
  const signed=await signPhotoPaths(supabase,'ff-market-photos',[
@@ -407,13 +416,19 @@ useEffect(()=>{
  setMarketOwnerBusy(!!me&&tab==='market');setMarketOwnerBusyMore(false);
  if(!me||tab!=='market')return()=>{alive=false;marketSeq.current++;};
  (async()=>{
-  const {data,error:e}=await supabase.rpc('ff_my_market_page',{p_limit:MARKET_OWNER_PAGE_SIZE});
+  const {data,error:e}=await retryRead(
+    ()=>supabase.rpc('ff_my_market_page',{p_limit:MARKET_OWNER_PAGE_SIZE}),
+    {isCurrent:()=>alive&&marketSeq.current===seq&&accountRef.current===me}
+  );
   if(e||!Array.isArray(data))throw e||new Error('Invalid owner listing page');
   let records=data;
   // A notification may open an older listing outside the first page.
   if(pinnedMarketListingId&&!data.some(row=>row.id===pinnedMarketListingId)){
-   const {data:pinned,error:pinnedError}=await supabase.from('ff_market_listings')
-     .select('*').eq('id',pinnedMarketListingId).eq('seller_id',me).maybeSingle();
+   const {data:pinned,error:pinnedError}=await retryRead(
+     ()=>supabase.from('ff_market_listings').select('*')
+        .eq('id',pinnedMarketListingId).eq('seller_id',me).maybeSingle(),
+     {isCurrent:()=>alive&&marketSeq.current===seq&&accountRef.current===me}
+   );
    if(pinnedError)throw pinnedError;
    if(pinned)records=[...data,pinned];
   }
@@ -433,9 +448,10 @@ async function loadMoreOwnListings(){
  if(!me||tab!=='market'||marketOwnerBusy||marketOwnerBusyMore||!marketOwnerHasMore||!marketOwnerCursor)return;
  const seq=marketSeq.current;setMarketOwnerBusyMore(true);setMarketOwnerError('');
  try{
-  const {data,error:e}=await supabase.rpc('ff_my_market_page',{
-    p_limit:MARKET_OWNER_PAGE_SIZE,...marketOwnerCursor
-  });
+  const {data,error:e}=await retryRead(
+     ()=>supabase.rpc('ff_my_market_page',{p_limit:MARKET_OWNER_PAGE_SIZE,...marketOwnerCursor}),
+     {isCurrent:()=>marketSeq.current===seq&&accountRef.current===me}
+   );
   if(e||!Array.isArray(data))throw e||new Error('Invalid owner listing page');
   const media=await prepareOwnListingPhotos(data);
   if(marketSeq.current!==seq||accountRef.current!==me)return;
@@ -464,8 +480,10 @@ useEffect(()=>{
  setPhotoBusy(!!me&&!!photoTarget);setPhotoBusyMore(false);
  if(!me||!photoTarget)return ()=>{live=false;photoSeq.current++;};
  (async()=>{
-   const {data,error:e}=await supabase.rpc('ff_profile_photos_page',
-     {p_owner_id:photoTarget,p_limit:PHOTO_PAGE_SIZE});
+   const {data,error:e}=await retryRead(
+     ()=>supabase.rpc('ff_profile_photos_page',{p_owner_id:photoTarget,p_limit:PHOTO_PAGE_SIZE}),
+     {isCurrent:()=>live&&photoSeq.current===seq&&accountRef.current===me}
+   );
    if(e||!Array.isArray(data))throw e||new Error('Invalid photo page');
    const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),1800);
    if(!live||photoSeq.current!==seq||accountRef.current!==me)return;
@@ -485,8 +503,10 @@ async function loadMorePhotos(){
  const seq=photoSeq.current;
  setPhotoBusyMore(true);
  try{
-   const {data,error:e}=await supabase.rpc('ff_profile_photos_page',
-     {p_owner_id:photoTarget,p_limit:PHOTO_PAGE_SIZE,...photoCursor});
+   const {data,error:e}=await retryRead(
+     ()=>supabase.rpc('ff_profile_photos_page',{p_owner_id:photoTarget,p_limit:PHOTO_PAGE_SIZE,...photoCursor}),
+     {isCurrent:()=>photoSeq.current===seq&&accountRef.current===me}
+   );
    if(e||!Array.isArray(data))throw e||new Error('Invalid photo page');
    const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),1800);
    if(accountRef.current!==me||photoSeq.current!==seq)return;
@@ -768,6 +788,11 @@ return <SafeAreaView style={styles.screen}>
 {detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
 <Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
+{connectionIssue?<View accessibilityLiveRegion="polite" style={{paddingHorizontal:12,paddingTop:8}}>
+   <Info warning>Der Server ist vorübergehend nicht erreichbar. Einige Inhalte konnten nicht geladen werden.</Info>
+   <Button title={loading?'Verbindung wird geprüft …':'Daten erneut laden'}
+     disabled={loading} mode="outline" onPress={()=>load()}/>
+ </View>:null}
 {error?<Pressable accessibilityRole="button" accessibilityLabel={'Fehlermeldung schließen. '+error} accessibilityLiveRegion="assertive" onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
 {notice?<Pressable accessibilityRole="button" accessibilityLabel={'Hinweis schließen. '+notice} accessibilityLiveRegion="polite" onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
 {loading?<View style={{padding:4}}><ActivityIndicator color={C.accent}/></View>:null}
@@ -1094,6 +1119,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
   const [remoteHasMore,setRemoteHasMore]=useState(false);
   const [remoteBusy,setRemoteBusy]=useState(false);
   const [remoteError,setRemoteError]=useState('');
+  const [searchRetry,setSearchRetry]=useState(0);
   const [remotePhotoUrls,setRemotePhotoUrls]=useState({});
   const [remoteExtraPhotos,setRemoteExtraPhotos]=useState([]);
   const [remoteExtraUrls,setRemoteExtraUrls]=useState({});
@@ -1310,11 +1336,16 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
     if(searchPage===0){setRemoteListings([]);setRemoteHasMore(false);}
     const timer=setTimeout(async()=>{
       try{
-        const {data,error:e}=buyerFocus?await supabase.from('ff_market_listings').select('*').eq('id',buyerFocus).eq('moderation_status','approved'):await supabase.rpc('ff_market_search',{
-          p_query:query.trim().slice(0,160),p_category:filter,p_trade_type:tradeFilter,
-          p_min_cents:minimum,p_max_cents:maximum,p_favorites_only:onlyFavorites,
-          p_sort:sortBy,p_limit:40,p_offset:searchPage*40
-        });
+        const {data,error:e}=await retryRead(
+          ()=>buyerFocus?supabase.from('ff_market_listings').select('*')
+            .eq('id',buyerFocus).eq('moderation_status','approved')
+            :supabase.rpc('ff_market_search',{
+              p_query:query.trim().slice(0,160),p_category:filter,p_trade_type:tradeFilter,
+              p_min_cents:minimum,p_max_cents:maximum,p_favorites_only:onlyFavorites,
+              p_sort:sortBy,p_limit:40,p_offset:searchPage*40
+            }),
+          {isCurrent:()=>live&&seq===searchSeq.current}
+        );
         if(e)throw e;
         if(!Array.isArray(data))throw new Error('Ungültige Suchantwort');
         const records=(buyerFocus?data.map(listing=>({listing})):data).map(row=>({...row.listing,match_item:row.match_item||''}))
@@ -1359,7 +1390,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
       }
     },searchPage===0?320:0);
     return ()=>{live=false;clearTimeout(timer);};
-  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteRefresh,me,buyerFocus]);
+  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteRefresh,me,buyerFocus,searchRetry]);
   const filtered=serverSearchActive?remoteListings.filter(x=>!blocked(x.seller_id)):
     listings.filter(x=>
       ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
@@ -2135,7 +2166,9 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
         <Text style={styles.micro}>Neu und gebraucht</Text>
       </Row>
       {remoteBusy?<View style={{paddingVertical:12,flexDirection:'row',alignItems:'center'}}><ActivityIndicator color={C.accent}/><Text style={[styles.micro,{marginLeft:9}]}>Suche im gesamten Familienbasar …</Text></View>:null}
-      {remoteError?<Info warning>{remoteError}</Info>:null}
+      {remoteError?<><Info warning>{remoteError}</Info>
+        <Button title="Basarsuche erneut versuchen" mode="outline" disabled={remoteBusy}
+          onPress={()=>setSearchRetry(n=>n+1)}/></>:null}
       {serverSearchActive&&query.trim()&&!remoteBusy&&!remoteError?<Text style={[styles.micro,{marginBottom:12}]}>Auch einzelne Teile innerhalb eines Pakets werden gefunden. Größen und Farben sind Angaben, die Verkäufer prüfen müssen.</Text>:null}
       {onlyMine&&ownLoading?<View style={{paddingVertical:12}}><ActivityIndicator color={C.accent}/></View>:null}
       {onlyMine&&ownError?<><Info warning>{ownError}</Info><Button title="Eigene Anzeigen erneut laden" mode="outline" onPress={onRetryOwn}/></>:null}
