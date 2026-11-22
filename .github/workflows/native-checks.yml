@@ -67,6 +67,8 @@ jobs:
         run: npm run check:social
       - name: Seitenweise Veranstaltungen und private Profilfotos prüfen
         run: npm run check:event-photo-pages
+      - name: Eigene Basaranzeigen, Merkliste und Partnerseiten prüfen
+        run: npm run check:market-partners
       - name: KI-Freigabe und Fehlerbehandlung prüfen
         run: npm run check:market-auto-review
       - name: Automatische Wiederholung und Moderationsausnahmen prüfen

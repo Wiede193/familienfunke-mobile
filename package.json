@@ -31,7 +31,8 @@
     "check:play": "node tests/check-family-play.mjs",
     "check:scale": "node tests/check-signed-urls.mjs && node tests/check-viral-load.mjs",
     "check:social": "node tests/check-social-pages.mjs && node tests/check-social-app.mjs",
-    "check:event-photo-pages": "node tests/check-event-photo-pages.mjs && node tests/check-event-photo-app.mjs"
+    "check:event-photo-pages": "node tests/check-event-photo-pages.mjs && node tests/check-event-photo-app.mjs",
+    "check:market-partners": "node tests/check-market-partner-pages.mjs && node tests/check-market-partner-app.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

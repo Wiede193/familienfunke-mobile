@@ -11,6 +11,7 @@ import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { signPhotoPaths } from './SignedPhotoUrls';
 import { EVENT_PAGE_SIZE, PHOTO_PAGE_SIZE, ascendingEventCursor, descendingRowCursor, hasFullPage } from './EventPhotoPages';
+import { MARKET_OWNER_PAGE_SIZE, PARTNER_PAGE_SIZE, marketCursor, partnerEventCursor, hasMarketPage } from './MarketPartnerPages';
 import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -222,6 +223,13 @@ const [membership,setMembership]=useState(null);
 const [photosUrls,setPhotosUrls]=useState({});
 const [marketPhotoUrls,setMarketPhotoUrls]=useState({});
 const [marketExtraPhotoUrls,setMarketExtraPhotoUrls]=useState({});
+const [marketEpoch,setMarketEpoch]=useState(0);
+const [marketOwnerCursor,setMarketOwnerCursor]=useState(null);
+const [marketOwnerHasMore,setMarketOwnerHasMore]=useState(false);
+const [marketOwnerBusy,setMarketOwnerBusy]=useState(false);
+const [marketOwnerBusyMore,setMarketOwnerBusyMore]=useState(false);
+const [marketOwnerError,setMarketOwnerError]=useState('');
+const marketSeq=useRef(0);
 const [photoCursor,setPhotoCursor]=useState(null);
 const [photoHasMore,setPhotoHasMore]=useState(false);
 const [photoBusy,setPhotoBusy]=useState(false);
@@ -253,21 +261,12 @@ supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE}),
 supabase.from('blocks').select('*').limit(200),
 supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('ff_market_listings').select('*').eq('seller_id',me).order('created_at',{ascending:false}).limit(160),
-supabase.from('ff_market_favorites').select('*').eq('user_id',me).limit(800),
-supabase.from('ff_organizations').select('*').order('created_at',{ascending:false}).limit(100),
-supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(100),
+supabase.from('ff_organizations').select('*').eq('owner_id',me).order('created_at',{ascending:false}).limit(50),
 ]);
 if(accountRef.current!==me)return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,ownProfile,contacts,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
- const visibleListingIds=(listings.data||[]).map(row=>row.id);
- const marketPhotos=visibleListingIds.length
-   ? await supabase.from('ff_market_photos').select('*').in('listing_id',visibleListingIds).order('slot',{ascending:true}).limit(800)
-   : {data:[],error:null};
- if(marketPhotos.error)throw marketPhotos.error;
- if(accountRef.current!==me)return null;
+const [profiles,ownProfile,contacts,blocks,verificationRow,membershipRow,ownOrganizations]=queries;
 // Fetch contact display names separately; contacts may have hidden discovery profiles.
 const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
 // Preserve only the currently open conversation if it falls outside the newest contact page.
@@ -291,19 +290,10 @@ setContactsCursor(socialCursor(contacts.data));
 setContactsMore(hasNextSocialPage(contacts.data));
 setDb(old=>({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
 events:old.events,eventRequests:old.eventRequests,photos:old.photos,blocks:blocks.data||[],
-listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]}));
+listings:old.listings,marketPhotos:old.marketPhotos,marketFavorites:[],organizations:ownOrganizations.data||[],partnerEvents:old.partnerEvents}));
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');
-const marketSigned=await signPhotoPaths(supabase,'ff-market-photos',[
-   ...(listings.data||[]).map(row=>row.photo_path),
-   ...(marketPhotos.data||[]).map(row=>row.photo_path),
- ],600);
- if(accountRef.current!==me)return null;
- setMarketPhotoUrls(Object.fromEntries((listings.data||[]).filter(row=>row.photo_path)
-   .map(row=>[row.id,marketSigned[row.photo_path]||null])));
- setMarketExtraPhotoUrls(Object.fromEntries((marketPhotos.data||[])
-   .map(row=>[row.photo_path,marketSigned[row.photo_path]||null])));
-return {contacts:contacts.data||[],listings:listings.data||[]};
+return {contacts:contacts.data||[],listings:[]};
 } catch(e){if(accountRef.current===me)setError(humanError(e));return null;}
 finally{if(accountRef.current===me)setLoading(false);}
 },[me]);
@@ -360,11 +350,82 @@ useEffect(()=>{
   setMarketIntent(null);setOutingDraft(null);setCalendarSeed(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
   setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
   setPhotosUrls({});setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
+  setMarketOwnerCursor(null);setMarketOwnerHasMore(false);setMarketOwnerError('');setMarketOwnerBusy(false);setMarketOwnerBusyMore(false);
   setPhotoCursor(null);setPhotoHasMore(false);setPhotoLoadError('');
   setDiscoverCursor(null);setDiscoverMore(false);setDiscoverLoadingMore(false);
   setContactsCursor(null);setContactsMore(false);setContactsLoadingMore(false);
 },[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
+
+// Seller listings are private and no longer part of the app-start fanout.
+// Fetch just the first 30 when the Basar opens, then page by seller and tuple cursor.
+async function prepareOwnListingPhotos(rows){
+ const ids=rows.map(r=>r.id).filter(Boolean);
+ const {data:extra,error:e}=ids.length
+   ? await supabase.from('ff_market_photos').select('*')
+      .in('listing_id',ids).order('slot',{ascending:true}).limit(ids.length*4)
+   : {data:[],error:null};
+ if(e)throw e;
+ const signed=await signPhotoPaths(supabase,'ff-market-photos',[
+    ...rows.map(r=>r.photo_path),...(extra||[]).map(p=>p.photo_path)
+ ],600);
+ return {extra:extra||[],
+   main:Object.fromEntries(rows.filter(r=>r.photo_path).map(r=>[r.id,signed[r.photo_path]||null])),
+   links:Object.fromEntries((extra||[]).map(r=>[r.photo_path,signed[r.photo_path]||null]))};
+}
+const pinnedMarketListingId=marketIntent?.type==='inboxListing'?marketIntent.id:null;
+useEffect(()=>{
+ let alive=true;const seq=++marketSeq.current;
+ setDb(old=>({...old,listings:[],marketPhotos:[]}));
+ setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
+ setMarketOwnerCursor(null);setMarketOwnerHasMore(false);setMarketOwnerError('');
+ setMarketOwnerBusy(!!me&&tab==='market');setMarketOwnerBusyMore(false);
+ if(!me||tab!=='market')return()=>{alive=false;marketSeq.current++;};
+ (async()=>{
+  const {data,error:e}=await supabase.rpc('ff_my_market_page',{p_limit:MARKET_OWNER_PAGE_SIZE});
+  if(e||!Array.isArray(data))throw e||new Error('Invalid owner listing page');
+  let records=data;
+  // A notification may open an older listing outside the first page.
+  if(pinnedMarketListingId&&!data.some(row=>row.id===pinnedMarketListingId)){
+   const {data:pinned,error:pinnedError}=await supabase.from('ff_market_listings')
+     .select('*').eq('id',pinnedMarketListingId).eq('seller_id',me).maybeSingle();
+   if(pinnedError)throw pinnedError;
+   if(pinned)records=[...data,pinned];
+  }
+  const media=await prepareOwnListingPhotos(records);
+  if(!alive||marketSeq.current!==seq||accountRef.current!==me)return;
+  setDb(old=>({...old,listings:records,marketPhotos:media.extra}));
+  setMarketPhotoUrls(media.main);setMarketExtraPhotoUrls(media.links);
+  setMarketOwnerCursor(marketCursor(data));setMarketOwnerHasMore(hasMarketPage(data));
+ })().catch(()=>{
+  if(alive&&marketSeq.current===seq&&accountRef.current===me)setMarketOwnerError('Eigene Anzeigen konnten nicht geladen werden. Bitte erneut versuchen.');
+ }).finally(()=>{
+  if(alive&&marketSeq.current===seq&&accountRef.current===me)setMarketOwnerBusy(false);
+ });
+ return()=>{alive=false;marketSeq.current++;};
+},[me,tab,marketEpoch,pinnedMarketListingId]);
+async function loadMoreOwnListings(){
+ if(!me||tab!=='market'||marketOwnerBusy||marketOwnerBusyMore||!marketOwnerHasMore||!marketOwnerCursor)return;
+ const seq=marketSeq.current;setMarketOwnerBusyMore(true);setMarketOwnerError('');
+ try{
+  const {data,error:e}=await supabase.rpc('ff_my_market_page',{
+    p_limit:MARKET_OWNER_PAGE_SIZE,...marketOwnerCursor
+  });
+  if(e||!Array.isArray(data))throw e||new Error('Invalid owner listing page');
+  const media=await prepareOwnListingPhotos(data);
+  if(marketSeq.current!==seq||accountRef.current!==me)return;
+  setDb(old=>({...old,listings:appendUniqueRows(old.listings,data),
+    marketPhotos:appendUniqueRows(old.marketPhotos,media.extra,'photo_path')}));
+  setMarketPhotoUrls(old=>({...old,...media.main}));
+  setMarketExtraPhotoUrls(old=>({...old,...media.links}));
+  setMarketOwnerCursor(marketCursor(data));setMarketOwnerHasMore(hasMarketPage(data));
+ }catch{
+  if(marketSeq.current===seq&&accountRef.current===me)setMarketOwnerError('Weitere Anzeigen konnten nicht geladen werden.');
+ }finally{
+  if(marketSeq.current===seq&&accountRef.current===me)setMarketOwnerBusyMore(false);
+ }
+}
+
 
 // Only the currently viewed adult's photos are requested. Existing photo RLS
 // permits own uploads and approved images of established contacts; never cache
@@ -511,6 +572,11 @@ async function executeEvent(fn,success){
   return true;
  }catch(e){setError(humanError(e));return false;}
  finally{eventActionRef.current=false;setBusy(false);}
+}
+async function executeMarket(fn,success){
+ const ok=await executeEvent(fn,success);
+ if(ok)setMarketEpoch(n=>n+1);
+ return ok;
 }
 async function execute(fn,success){
 if(busy)return;
@@ -671,8 +737,10 @@ tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
 tab==='savedSearches'?<SavedMarketSearches key={me} userId={me} onSearch={row=>{setMarketIntent({type:'savedSearch',row,returnTab:'savedSearches'});setTab('market');}} onBrowse={()=>{setMarketIntent(null);setTab('market');}}/>:
 tab==='market'?<MarketScreen key={me} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} listings={db.listings} me={me} active={active} busy={busy}
-organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} favorites={db.marketFavorites} contacts={db.contacts}
-createListing={(v,assets,stableId)=>execute(async()=>{
+ ownLoading={marketOwnerBusy} ownLoadingMore={marketOwnerBusyMore} ownHasMore={marketOwnerHasMore}
+ ownError={marketOwnerError} onLoadMoreOwn={loadMoreOwnListings} onRetryOwn={()=>setMarketEpoch(n=>n+1)}
+organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} contacts={db.contacts}
+createListing={(v,assets,stableId)=>executeMarket(async()=>{
  // Basar-Texte nicht wegen einzelner Wörter vorab blockieren.
  // Die verpflichtende Inhalts- und Produktprüfung findet auf dem Server statt.
  const {data:inserted,error:insertError}=await supabase.from('ff_market_listings').insert({...v,seller_id:me,...(stableId?{id:stableId}:{})}).select('id').single();
@@ -692,11 +760,11 @@ createListing={(v,assets,stableId)=>execute(async()=>{
  }
  await reviewMarketListing(inserted.id);
 })}
-addPendingPhotos={(listingId,assets)=>execute(async()=>{
+addPendingPhotos={(listingId,assets)=>executeMarket(async()=>{
  await uploadMarketPhotos(listingId,assets,me);
  await reviewMarketListing(listingId);
 })}
-editListing={(listingId,v,assets)=>execute(async()=>{
+editListing={(listingId,v,assets)=>executeMarket(async()=>{
  const {data,error:e}=await supabase.rpc('ff_market_edit_listing',{
    p_listing_id:listingId,p_title:v.title,p_description:v.description,
    p_category:v.category,p_item_condition:v.item_condition,
@@ -710,18 +778,18 @@ editListing={(listingId,v,assets)=>execute(async()=>{
  }
  await reviewMarketListing(listingId);
 })}
-toggleFavorite={(listingId,isFavorite)=>execute(async()=>{
+toggleFavorite={(listingId,isFavorite)=>executeEvent(async()=>{
  if(isFavorite)assertResult(await supabase.from('ff_market_favorites').delete().eq('user_id',me).eq('listing_id',listingId));
  else assertResult(await supabase.from('ff_market_favorites').insert({user_id:me,listing_id:listingId}));
 },isFavorite?'Aus der Merkliste entfernt.':'In deiner Merkliste gespeichert.')}
-markListingSold={(id)=>execute(async()=>{const {data,error:e}=await supabase.rpc('ff_market_mark_sold',{p_listing_id:id});if(e)throw e;if(data!==true)throw new Error('Das Inserat konnte nicht abgeschlossen werden. Bitte aktualisiere den Basar.');},'Angebot abgeschlossen. Es ist für andere nicht mehr sichtbar.')}
-retryReview={(id)=>execute(async()=>{
+markListingSold={(id)=>executeMarket(async()=>{const {data,error:e}=await supabase.rpc('ff_market_mark_sold',{p_listing_id:id});if(e)throw e;if(data!==true)throw new Error('Das Inserat konnte nicht abgeschlossen werden. Bitte aktualisiere den Basar.');},'Angebot abgeschlossen. Es ist für andere nicht mehr sichtbar.')}
+retryReview={(id)=>executeMarket(async()=>{
  const ownPending=db.listings.some(x=>x.id===id&&x.seller_id===me&&x.moderation_status==='pending');
  if(!ownPending)throw new Error('Nur eine eigene, noch nicht veröffentlichte Anzeige kann erneut geprüft werden.');
  await reviewMarketListing(id);
 })}
 onContact={sendRequest} onChat={(cid)=>{setChatReturnTab('market');setSelectedContact(cid);setTab('chat');}} nameOf={findName} blocked={blocked}/>:
-tab==='partners'?<PartnersScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='partners'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} organizations={db.organizations} partnerEvents={db.partnerEvents}
+tab==='partners'?<PartnersScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='partners'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} organizations={db.organizations}
 me={me} active={active} busy={busy}
 applyOrg={(v)=>execute(async()=>{
  await moderateTextOrThrow([v.name,v.description,v.region_label]);
@@ -942,7 +1010,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
     </View>:null}
   </View>;
 }
-function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorites,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked}){
+function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked,ownLoading,ownLoadingMore,ownHasMore,ownError,onLoadMoreOwn,onRetryOwn}){
   const [open,setOpen]=useState(false);
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<375||fontScale>=1.5;
@@ -968,6 +1036,10 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
   const [remotePhotoUrls,setRemotePhotoUrls]=useState({});
   const [remoteExtraPhotos,setRemoteExtraPhotos]=useState([]);
   const [remoteExtraUrls,setRemoteExtraUrls]=useState({});
+  const [remoteOrganizations,setRemoteOrganizations]=useState([]);
+  const [favoriteMap,setFavoriteMap]=useState({});
+  const [favoriteBusy,setFavoriteBusy]=useState({});
+  const [favoriteRefresh,setFavoriteRefresh]=useState(0);
   const searchSeq=useRef(0);
   const [title,setTitle]=useState('');
   const [description,setDescription]=useState('');
@@ -1115,7 +1187,21 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
   const cropSource=cropDraft?boxBatches.find(b=>b.id===cropDraft.batchId)?.photo:null;
   const cropBusy=busy||scanBusy||choosing;
   const myOrgs=organizations.filter(x=>x.owner_id===me&&x.status==='approved');
-  const favoriteIds=new Set(favorites.map(x=>x.listing_id));
+  const favoriteIds=new Set(Object.keys(favoriteMap).filter(id=>favoriteMap[id]===true));
+  const allMarketOrganizations=organizations.concat(remoteOrganizations);
+  async function changeFavorite(listingId){
+    if(favoriteBusy[listingId]||favoriteMap[listingId]===undefined)return false;
+    const wasFavorite=favoriteMap[listingId];
+    setFavoriteBusy(old=>({...old,[listingId]:true}));
+    try{
+      const ok=await toggleFavorite(listingId,wasFavorite);
+      if(ok){
+        setFavoriteMap(old=>({...old,[listingId]:!wasFavorite}));
+        setFavoriteRefresh(n=>n+1);
+      }
+      return !!ok;
+    }finally{setFavoriteBusy(old=>({...old,[listingId]:false}));}
+  }
   const editingListing=editingId?listings.find(x=>x.id===editingId&&x.seller_id===me):null;
   const existingPhotoCount=editingListing?(editingListing.photo_path?1:0)
     +marketPhotos.filter(x=>x.listing_id===editingId).length:0;
@@ -1150,8 +1236,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
   const minimum=parsePrice(minPrice), maximum=parsePrice(maxPrice);
   // Active buyer filters are executed against the full database, not the 160-item initial feed.
   const serverSearchActive=!onlyMine; // The complete buyer catalog is always paginated on the server.
-  const favoriteVersion=favorites.map(f=>f.listing_id).join(',');
-  useEffect(()=>{setSearchPage(0);},[query,filter,tradeFilter,minPrice,maxPrice,onlyMine,onlyFavorites,sortBy,favoriteVersion]);
+  useEffect(()=>{setSearchPage(0);},[query,filter,tradeFilter,minPrice,maxPrice,onlyMine,onlyFavorites,sortBy,favoriteRefresh]);
   useEffect(()=>{
     const seq=++searchSeq.current;
     if(!serverSearchActive){
@@ -1180,13 +1265,22 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
             .select('*').in('listing_id',ids).order('slot',{ascending:true});
           if(!photosError)extras=photos||[];
         }
-        const signed=await signPhotoPaths(supabase,'ff-market-photos',[
+        // Only lookup hearts for this buyer page, never fetch all favorites.
+         const flagQuery=ids.length?await supabase.rpc('ff_market_favorite_flags',{p_listing_ids:ids}):{data:[],error:null};
+         if(flagQuery.error)throw flagQuery.error;
+         const flags=new Set((flagQuery.data||[]).map(row=>row.listing_id));
+         const orgIds=[...new Set(records.map(row=>row.organization_id).filter(Boolean))];
+         const orgQuery=orgIds.length?await supabase.from('ff_organizations').select('*').in('id',orgIds):{data:[],error:null};
+         if(orgQuery.error)throw orgQuery.error;
+         const signed=await signPhotoPaths(supabase,'ff-market-photos',[
            ...records.map(row=>row.photo_path),...extras.map(row=>row.photo_path),
          ],600);
          const images=records.filter(row=>row.photo_path).map(row=>[row.id,signed[row.photo_path]||null]);
          const extraLinks=extras.map(row=>[row.photo_path,signed[row.photo_path]||null]);
          if(!live||seq!==searchSeq.current)return;
-        setRemoteListings(old=>searchPage===0?records:[
+        setFavoriteMap(old=>({...old,...Object.fromEntries(ids.map(id=>[id,flags.has(id)]))}));
+         setRemoteOrganizations(old=>searchPage===0?(orgQuery.data||[]):appendUniqueRows(old,orgQuery.data||[]));
+         setRemoteListings(old=>searchPage===0?records:[
           ...old,...records.filter(row=>!old.some(existing=>existing.id===row.id))
         ]);
         setRemotePhotoUrls(old=>({...old,...Object.fromEntries(images)}));
@@ -1204,7 +1298,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
       }
     },searchPage===0?320:0);
     return ()=>{live=false;clearTimeout(timer);};
-  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteVersion,me,buyerFocus]);
+  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteRefresh,me,buyerFocus]);
   const filtered=serverSearchActive?remoteListings.filter(x=>!blocked(x.seller_id)):
     listings.filter(x=>
       ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
@@ -1532,7 +1626,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
   }
   function sellerInformation(x){
     const own=x.seller_id===me;
-    const org=organizations.find(o=>o.id===x.organization_id&&o.status==='approved');
+    const org=allMarketOrganizations.find(o=>o.id===x.organization_id&&o.status==='approved');
     const contact=contacts.find(c=>(c.sender_id===me&&c.recipient_id===x.seller_id)||(c.recipient_id===me&&c.sender_id===x.seller_id));
     return {own,org,contact,seller:org?org.name:nameOf(x.seller_id)};
   }
@@ -1564,10 +1658,10 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
     <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
       <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyMine(false);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
-      <View style={{flex:1}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+')'}
+      <View style={{flex:1}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+(ownHasMore?'+':'')+')'}
         mode={onlyMine?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
-      <View style={{flex:1}}><Button title={'♡ Merkliste ('+favorites.filter(f=>listings.some(x=>x.id===f.listing_id&&x.moderation_status==='approved')).length+')'}
+      <View style={{flex:1}}><Button title="♡ Merkliste"
         mode={onlyFavorites?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
@@ -1897,8 +1991,8 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
         <Text style={[styles.h,{marginTop:5}]}>{selected.title}</Text>
         {selected.seller_id!==me&&selected.moderation_status==='approved'?
           <View style={{marginTop:12}}><Button title={favoriteIds.has(selected.id)?'♥ Aus Merkliste entfernen':'♡ Zur Merkliste hinzufügen'}
-            mode={favoriteIds.has(selected.id)?'primary':'outline'} disabled={busy||!active}
-            onPress={()=>toggleFavorite(selected.id,favoriteIds.has(selected.id))}/></View>:null}
+            mode={favoriteIds.has(selected.id)?'primary':'outline'} disabled={busy||!active||favoriteBusy[selected.id]||favoriteMap[selected.id]===undefined}
+            onPress={()=>changeFavorite(selected.id)}/></View>:null}
         <Text style={[styles.sub,{marginTop:8}]}>{selected.item_condition} · {selected.category} · {selected.region_label||'Region auf Anfrage'}</Text>
         <View style={{height:1,backgroundColor:C.line,marginVertical:18}}/>
         {selectedFacts?<View>
@@ -1982,7 +2076,10 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
       {remoteBusy?<View style={{paddingVertical:12,flexDirection:'row',alignItems:'center'}}><ActivityIndicator color={C.accent}/><Text style={[styles.micro,{marginLeft:9}]}>Suche im gesamten Familienbasar …</Text></View>:null}
       {remoteError?<Info warning>{remoteError}</Info>:null}
       {serverSearchActive&&query.trim()&&!remoteBusy&&!remoteError?<Text style={[styles.micro,{marginBottom:12}]}>Auch einzelne Teile innerhalb eines Pakets werden gefunden. Größen und Farben sind Angaben, die Verkäufer prüfen müssen.</Text>:null}
-      {shown.length===0?(remoteBusy||remoteError?null:<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>):
+      {onlyMine&&ownLoading?<View style={{paddingVertical:12}}><ActivityIndicator color={C.accent}/></View>:null}
+      {onlyMine&&ownError?<><Info warning>{ownError}</Info><Button title="Eigene Anzeigen erneut laden" mode="outline" onPress={onRetryOwn}/></>:null}
+      {onlyMine&&ownHasMore?<Text style={[styles.micro,{marginBottom:10}]}>Weitere eigene Anzeigen sind vorhanden. Suche und Sortierung beziehen sich auf die bisher geladenen Einträge.</Text>:null}
+      {shown.length===0?(remoteBusy||remoteError||(onlyMine&&(ownLoading||ownError))?null:<Blank title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'} body={onlyFavorites?'Tippe bei einem passenden Angebot auf das Herz. Hier erscheinen nur noch verfügbare, freigegebene Inserate.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}/>):
         <View style={styles.marketGrid}>
         {shown.map(x=>{
           const seller=sellerInformation(x);
@@ -1994,9 +2091,9 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
                 <View style={[styles.marketTilePhoto,styles.marketImagePlaceholder]}><Text style={{fontSize:29,color:C.coral}}>♧</Text><Text style={styles.micro}>Noch kein Foto</Text></View>}
               <View style={styles.marketPricePill}><Text style={styles.marketPricePillText} numberOfLines={1}>{priceLabel(x)}</Text></View>
               {x.seller_id!==me&&x.moderation_status==='approved'?
-                <Pressable accessibilityRole="button" accessibilityLabel={favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'} hitSlop={9}
-                  disabled={busy||!active}
-                  onPress={event=>{event.stopPropagation();toggleFavorite(x.id,favoriteIds.has(x.id));}}
+                <Pressable accessibilityRole="button" accessibilityLabel={favoriteMap[x.id]===undefined?'Merkliste wird geprüft':favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'} hitSlop={9}
+                  disabled={busy||!active||favoriteBusy[x.id]||favoriteMap[x.id]===undefined}
+                  onPress={event=>{event.stopPropagation();changeFavorite(x.id);}}
                   style={{position:'absolute',right:7,top:8,backgroundColor:'#FFFFFFF2',borderRadius:20,paddingHorizontal:10,paddingVertical:7}}>
                   <Text style={{fontSize:19,color:favoriteIds.has(x.id)?C.coralDeep:C.accentDark}}>{favoriteIds.has(x.id)?'♥':'♡'}</Text>
                 </Pressable>:null}
@@ -2013,6 +2110,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
           </Pressable>;
         })}
         </View>}
+      {onlyMine&&ownHasMore?<Button title={ownLoadingMore?'Weitere eigene Anzeigen werden geladen …':'Weitere eigene Anzeigen laden'} disabled={ownLoadingMore||ownLoading} mode="outline" onPress={onLoadMoreOwn}/>:null}
       {serverSearchActive&&remoteHasMore&&!remoteBusy&&!remoteError?<Button title="Weitere Treffer laden" mode="outline" onPress={()=>setSearchPage(n=>n+1)}/>:null}
     </>:null}
   </ScrollView>;
@@ -2037,7 +2135,7 @@ function MarketSortSelect({value,onChange}){
   </View>;
 }
 
-function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,active,busy,applyOrg,createPartnerEvent,openInclusion}){
+function PartnersScreen({focusId,clearFocus,organizations,me,active,busy,applyOrg,createPartnerEvent,openInclusion}){
   const focus=useFocusedEvent('ff_partner_events',focusId,me);
   const [applying,setApplying]=useState(false);
   const [kind,setKind]=useState('kita');
@@ -2052,15 +2150,103 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
   const [eventRegion,setEventRegion]=useState('');
   const [eventDate,setEventDate]=useState('');
   const [eventTime,setEventTime]=useState('10:00');
+  const [publicOrgs,setPublicOrgs]=useState([]);
+  const [listedEvents,setListedEvents]=useState([]);
+  const [linkedOrgs,setLinkedOrgs]=useState([]);
+  const [orgCursor,setOrgCursor]=useState(null);
+  const [eventCursor,setEventCursor]=useState(null);
+  const [orgMore,setOrgMore]=useState(false);
+  const [eventMore,setEventMore]=useState(false);
+  const [orgBusy,setOrgBusy]=useState(false);
+  const [eventBusy,setEventBusy]=useState(false);
+  const [orgMoreBusy,setOrgMoreBusy]=useState(false);
+  const [eventMoreBusy,setEventMoreBusy]=useState(false);
+  const [partnerError,setPartnerError]=useState('');
+  const [partnerEpoch,setPartnerEpoch]=useState(0);
+  const partnerSeq=useRef(0);
+  async function getLinkedOrgs(events){
+    const ids=[...new Set((events||[]).map(e=>e.organization_id).filter(Boolean))];
+    if(!ids.length)return [];
+    const {data,error:e}=await supabase.from('ff_organizations').select('*').in('id',ids);
+    if(e)throw e;
+    return data||[];
+  }
+  useEffect(()=>{
+    let live=true;const seq=++partnerSeq.current;
+    setPublicOrgs([]);setListedEvents([]);setLinkedOrgs([]);
+    setOrgCursor(null);setEventCursor(null);setOrgMore(false);setEventMore(false);
+    setPartnerError('');
+    setOrgBusy(!focusId);setEventBusy(!focusId);
+    if(focusId)return()=>{live=false;partnerSeq.current++;};
+    (async()=>{
+      try{
+        const [orgRes,eventRes]=await Promise.all([
+          supabase.rpc('ff_partner_orgs_page',{p_limit:PARTNER_PAGE_SIZE}),
+          supabase.rpc('ff_partner_events_page',{p_limit:PARTNER_PAGE_SIZE}),
+        ]);
+        if(orgRes.error)throw orgRes.error;
+        if(eventRes.error)throw eventRes.error;
+        const orgData=orgRes.data||[],eventData=eventRes.data||[];
+        if(!Array.isArray(orgData)||!Array.isArray(eventData))throw new Error('Invalid partner page');
+        const extra=await getLinkedOrgs(eventData);
+        if(!live||seq!==partnerSeq.current)return;
+        setPublicOrgs(orgData);setListedEvents(eventData);setLinkedOrgs(extra);
+        setOrgCursor(marketCursor(orgData));setOrgMore(hasMarketPage(orgData,PARTNER_PAGE_SIZE));
+        setEventCursor(partnerEventCursor(eventData));setEventMore(hasMarketPage(eventData,PARTNER_PAGE_SIZE));
+      }catch{
+        if(live&&seq===partnerSeq.current)setPartnerError('Die Partnerwelt konnte nicht geladen werden. Bitte erneut versuchen.');
+      }finally{
+        if(live&&seq===partnerSeq.current){setOrgBusy(false);setEventBusy(false);}
+      }
+    })();
+    return()=>{live=false;partnerSeq.current++;};
+  },[me,focusId,partnerEpoch]);
+  useEffect(()=>{
+    let live=true;const organizationId=focus.row?.organization_id;
+    if(!focusId||!organizationId)return()=>{live=false;};
+    supabase.from('ff_organizations').select('*').eq('id',organizationId).maybeSingle()
+      .then(({data,error:e})=>{
+        if(e)throw e;
+        if(live&&data)setLinkedOrgs([data]);
+      }).catch(()=>{});
+    return()=>{live=false;};
+  },[focusId,focus.row?.organization_id,me]);
+  async function loadMorePartnerOrgs(){
+    if(!orgMore||!orgCursor||orgBusy||orgMoreBusy)return;
+    const seq=partnerSeq.current;setOrgMoreBusy(true);setPartnerError('');
+    try{
+      const {data,error:e}=await supabase.rpc('ff_partner_orgs_page',{p_limit:PARTNER_PAGE_SIZE,...orgCursor});
+      if(e||!Array.isArray(data))throw e||new Error('Invalid partner org page');
+      if(seq!==partnerSeq.current)return;
+      setPublicOrgs(old=>appendUniqueRows(old,data));
+      setOrgCursor(marketCursor(data));setOrgMore(hasMarketPage(data,PARTNER_PAGE_SIZE));
+    }catch{if(seq===partnerSeq.current)setPartnerError('Weitere Einrichtungen konnten nicht geladen werden.');}
+    finally{if(seq===partnerSeq.current)setOrgMoreBusy(false);}
+  }
+  async function loadMorePartnerEvents(){
+    if(!eventMore||!eventCursor||eventBusy||eventMoreBusy)return;
+    const seq=partnerSeq.current;setEventMoreBusy(true);setPartnerError('');
+    try{
+      const {data,error:e}=await supabase.rpc('ff_partner_events_page',{p_limit:PARTNER_PAGE_SIZE,...eventCursor});
+      if(e||!Array.isArray(data))throw e||new Error('Invalid partner event page');
+      const names=await getLinkedOrgs(data);
+      if(seq!==partnerSeq.current)return;
+      setListedEvents(old=>appendUniqueRows(old,data));
+      setLinkedOrgs(old=>appendUniqueRows(old,names));
+      setEventCursor(partnerEventCursor(data));setEventMore(hasMarketPage(data,PARTNER_PAGE_SIZE));
+    }catch{if(seq===partnerSeq.current)setPartnerError('Weitere Partnertermine konnten nicht geladen werden.');}
+    finally{if(seq===partnerSeq.current)setEventMoreBusy(false);}
+  }
   const mine=organizations.filter(o=>o.owner_id===me);
   const approvedMine=mine.filter(o=>o.status==='approved');
-  const shown=organizations.filter(o=>o.status==='approved'||o.owner_id===me);
-  const events=focusId?(focus.row?[focus.row]:[]):partnerEvents.filter(e=>new Date(e.starts_at)>new Date());
+  const allOrgs=appendUniqueRows(appendUniqueRows(organizations,publicOrgs),linkedOrgs);
+  const shown=appendUniqueRows(organizations,publicOrgs).filter(o=>o.status==='approved'||o.owner_id===me);
+  const events=focusId?(focus.row?[focus.row]:[]):listedEvents.filter(e=>new Date(e.starts_at)>new Date());
   async function apply(){
     if(!active||name.trim().length<3)return Alert.alert('Einrichtung','Bitte den Namen der Einrichtung angeben.');
     const ok=await applyOrg({kind,name:safeString(name,100),region_label:safeString(region,80),
        description:safeString(description,800),open_places:places});
-    if(ok){setApplying(false);setName('');setDescription('');setRegion('');setPlaces(false);}
+    if(ok){setApplying(false);setName('');setDescription('');setRegion('');setPlaces(false);setPartnerEpoch(n=>n+1);}
   }
   async function postEvent(){
     const start=givenDate(eventDate,eventTime);
@@ -2069,12 +2255,12 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
       return Alert.alert('Veranstaltung prüfen','Bitte Einrichtung, Titel und zukünftiges Datum korrekt eintragen.');
     const ok=await createPartnerEvent({organization_id:org.id,title:safeString(eventTitle,100),
        description:safeString(eventDesc,1000),region_label:safeString(eventRegion,80),starts_at:start.toISOString()});
-    if(ok){setEventForm(false);setEventTitle('');setEventDesc('');setEventDate('');}
+    if(ok){setEventForm(false);setEventTitle('');setEventDesc('');setEventDate('');setPartnerEpoch(n=>n+1);}
   }
   const renderEvent=e=><Card key={e.id} style={{marginBottom:12}}>
           <Text style={[styles.eyebrow,{marginBottom:7}]}>{formatDate(e.starts_at)}</Text>
           <Text style={styles.cardTitle}>{e.title}</Text>
-          <Text style={styles.micro}>{organizations.find(o=>o.id===e.organization_id)?.name||'Einrichtung'} · {e.region_label||'Ort auf Anfrage'}</Text>
+          <Text style={styles.micro}>{allOrgs.find(o=>o.id===e.organization_id)?.name||'Einrichtung'} · {e.region_label||'Ort auf Anfrage'}</Text>
           {e.description?<Text style={[styles.body,{marginTop:8}]}>{e.description}</Text>:null}
           {e.moderation_status==='approved'&&new Date(e.starts_at)>new Date()?<CalendarEventButton userId={me} kind="partner" id={e.id}/>:null}
           {e.creator_id===me&&e.moderation_status!=='approved'?<Text style={[styles.micro,{marginTop:10}]}>Für dich sichtbar · wartet auf Freigabe</Text>:null}
@@ -2107,7 +2293,9 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
       <Button title="Antrag kostenlos einreichen" disabled={busy||!active} onPress={apply}/>
     </Card>:null}
     <Text style={styles.sectionTitle}>Kitas und Partner</Text>
-    {shown.length===0?<Blank title="Partnerwelt im Aufbau" body="Nach Bestätigung der ersten Einrichtungen entstehen hier Kita-Profile, Vorstellungen und Veranstaltungen."/>:
+    {orgBusy?<ActivityIndicator color={C.accent}/>:null}
+    {partnerError?<><Info warning>{partnerError}</Info><Button title="Partnerwelt erneut laden" mode="outline" onPress={()=>setPartnerEpoch(n=>n+1)}/></>:null}
+    {shown.length===0?(orgBusy||partnerError?null:<Blank title="Partnerwelt im Aufbau" body="Nach Bestätigung der ersten Einrichtungen entstehen hier Kita-Profile, Vorstellungen und Veranstaltungen."/>):
        shown.map(o=><Card key={o.id} style={{marginBottom:12}}>
           <Row style={{alignItems:'flex-start'}}>
             <View style={{width:42,height:42,borderRadius:12,backgroundColor:C.sunny,alignItems:'center',justifyContent:'center'}}><Text style={{fontSize:21}}>✿</Text></View>
@@ -2123,6 +2311,7 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
           {o.status==='approved'&&o.open_places?<Text style={[styles.micro,{marginTop:9,color:C.accentDark,fontWeight:'800'}]}>Freie Plätze · Angabe der Einrichtung, bitte direkt erfragen</Text>:null}
           {o.owner_id===me&&o.status!=='approved'?<Text style={[styles.micro,{marginTop:11}]}>Dein Antrag ist nur für dich sichtbar. Freigabe ausstehend.</Text>:null}
        </Card>)}
+    {orgMore?<Button title={orgMoreBusy?'Weitere Einrichtungen werden geladen …':'Weitere Einrichtungen laden'} disabled={orgMoreBusy} mode="outline" onPress={loadMorePartnerOrgs}/>:null}
     {approvedMine.length>0?<Card style={{marginTop:6,marginBottom:13}}>
         <Text style={styles.sectionTitle}>Flohmarkt oder Kita-Veranstaltung ankündigen</Text>
         <Button title={eventForm?'Formular schließen':'＋ Partnerveranstaltung erstellen'} mode="outline" onPress={()=>setEventForm(v=>!v)}/>
@@ -2138,8 +2327,10 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
         </View>:null}
     </Card>:null}
     <Text style={[styles.sectionTitle,{marginTop:15}]}>Flohmärkte & Veranstaltungen</Text>
-    {events.length===0?(focusId?null:<Blank title="Noch keine Partnerveranstaltungen" body="Bestätigte Einrichtungen können hier ihre Flohmärkte und Termine bewerben."/>):
+    {eventBusy?<ActivityIndicator color={C.accent}/>:null}
+    {events.length===0?(eventBusy||partnerError?null:<Blank title="Noch keine Partnerveranstaltungen" body="Bestätigte Einrichtungen können hier ihre Flohmärkte und Termine bewerben."/>):
        events.map(renderEvent)}
+    {eventMore?<Button title={eventMoreBusy?'Weitere Termine werden geladen …':'Weitere Partnerveranstaltungen laden'} disabled={eventMoreBusy} mode="outline" onPress={loadMorePartnerEvents}/>:null}
     <View style={{marginTop:13}}><Button title="Inklusion und Familienunterstützung" mode="ghost" onPress={openInclusion}/></View>
   </ScrollView>;
 }
