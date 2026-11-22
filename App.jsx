@@ -240,6 +240,7 @@ const photoTarget=detailFamily||(tab==='profile'?me:null);
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
 const chatSendingRef=useRef(false);
+const eventActionRef=useRef(false);
 const inbox=useNotificationCenter(me);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
@@ -501,6 +502,16 @@ async function sendChatMessage(body,contactId){
  }catch(e){setError(humanError(e));return false;}
  finally{chatSendingRef.current=false;setBusy(false);}
 }
+// Events refresh their own cursor and request status; do not reload every app list.
+async function executeEvent(fn,success){
+ if(eventActionRef.current)return false;
+ eventActionRef.current=true;setBusy(true);setError('');setNotice('');
+ try{
+  await fn();if(success)setNotice(success);
+  return true;
+ }catch(e){setError(humanError(e));return false;}
+ finally{eventActionRef.current=false;setBusy(false);}
+}
 async function execute(fn,success){
 if(busy)return;
 setBusy(true);setError('');setNotice('');
@@ -739,12 +750,12 @@ tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={bl
 onChat={(id)=>{setChatReturnTab('chat');setSelectedContact(id);}} hasMore={contactsMore} loadingMore={contactsLoadingMore} onLoadMore={loadMoreContacts}/>:
 tab==='events'?<EventsScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='events'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} me={me} active={active} busy={busy}
 profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
-createEvent={(event)=>execute(async()=>{
+createEvent={(event)=>executeEvent(async()=>{
   await moderateTextOrThrow([event.title,event.description,event.region_label]);
   assertResult(await supabase.from('events').insert({organizer_id:me,...event}));
 },'Termin eingereicht. Er wird vor Veröffentlichung geprüft.')}
-requestEvent={(id)=>execute(async()=>assertResult(await supabase.from('event_requests').insert({event_id:id,requester_id:me})),'Teilnahme angefragt.')}
-replyEvent={(id,requester,status)=>execute(async()=>assertResult(await supabase.from('event_requests').update({status}).eq('event_id',id).eq('requester_id',requester)),'Teilnahmestatus aktualisiert.')}
+requestEvent={(id)=>executeEvent(async()=>assertResult(await supabase.from('event_requests').insert({event_id:id,requester_id:me})),'Teilnahme angefragt.')}
+replyEvent={(id,requester,status)=>executeEvent(async()=>assertResult(await supabase.from('event_requests').update({status}).eq('event_id',id).eq('requester_id',requester)),'Teilnahmestatus aktualisiert.')}
 reportEvent={(id)=>report('event',id)}/>:
 <ProfileScreen profile={myProfile} verification={verification} membership={membership} active={active}
 photos={ownPhotos} photosUrls={photosUrls} busy={busy}
