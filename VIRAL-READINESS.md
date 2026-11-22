@@ -50,10 +50,11 @@ Kapazität**. Der aktuell angebundene Supabase-Datenbestand ist eine kleine Beta
    Zielwerte vor dem Test vereinbaren (z. B. p95 für Lesen <2s und Fehler <1%
    ohne absichtliche Quota-429); keine echten Nutzer-/Privatfotos kopieren.
 2. **Restliche Abfragen optimieren:** Die Hauptbereiche Familie, Kontakte,
-   Chat, Veranstaltungen, Teilnahme und Profilfotos sind jetzt seitenweise
-   abrufbar. Eigene Inserate, Partner- und Organisationslisten sowie einzelne
-   Nebenbereiche haben weiterhin feste Grenzen und müssen vor Launch
-   nutzerspezifisch gefiltert und auf echten Geräten geprüft werden.
+   Chat, Veranstaltungen, Teilnahme, Profilfotos, eigene Basar-Anzeigen,
+   Merkliste und Partnerveranstaltungen werden jetzt bedarfsgerecht bzw.
+   seitenweise geladen. Einzelne Nebenbereiche (z. B. Blocklisten,
+   Einrichtungsverwaltung und organisatorische Profile) benötigen weitere
+   fachliche Limits und Überprüfung auf echten Geräten.
 3. **Supabase-Kapazität und Kosten:** Datenbank-Compute, Pooler/Verbindungslimits,
    API-Raten, Speicher-Bandbreite, CDN und Egress am tatsächlichen Tarif prüfen.
    Bei Bedarf Budgetalarm, Upgrade und getrennte Staging-Umgebung einrichten.
@@ -106,6 +107,38 @@ Supabase-Prüfung auf kompromittierte Passwörter ist ein Dashboard-Schritt.
 und Favoriten müssen weiter gezielt geprüft und optimiert werden.
 Geräte-Integrationstests, Testdaten in größerer Menge sowie ein gestufter
 Lasttest fehlen weiterhin.
+
+## Phase 4 – Eigenanzeigen, Merkliste und Partnerwelt
+
+- **Eigene Basar-Inserate:** nicht mehr beim allgemeinen App-Start abgerufen.
+  Erst beim Betreten des Basars lädt die App höchstens 30 eigene Anzeigen über
+  `ff_my_market_page` (Cursor `created_at,id`). Weitere Anzeigen lassen sich
+  ausdrücklich nachladen. Zugehörige private Fotos werden nur für diese IDs
+  gelesen und gebündelt signiert; ältere Anzeige-Benachrichtigungen lösen
+  eine gezielte, RLS-geschützte Detailabfrage aus.
+- **Favoriten:** statt bis zu 800 Merkliste-IDs pro App-Start werden die
+  Herz-Symbole ausschließlich für tatsächlich angezeigte Suchtreffer
+  geprüft (`ff_market_favorite_flags`, höchstens 40 IDs je Aufruf).
+  Die Merkliste selbst wird weiter von der bestehenden, seitenweisen
+  `ff_market_search`-Funktion serverseitig gefiltert. Eine bisher falsche,
+  nur mit eigenen Listings verrechnete Merkliste-Zahl wurde entfernt.
+  Einzelne Favorit-Aktionen erfordern keinen globalen App-Refresh mehr.
+- **Kita- und Partnerwelt:** zugängliche Einrichtungen und bevorstehende
+  Partnerveranstaltungen werden erst beim Aufruf des Bereichs über
+  `ff_partner_orgs_page` und `ff_partner_events_page` mit jeweils 20
+  Einträgen geladen. Auch hier gibt es Nachladen und RLS-Schutz.
+  Verknüpfte Einrichtungsnamen werden nur für tatsächlich angezeigte
+  Partnertermine abgefragt. Eigene Einrichtungen werden für den
+  Anzeigeneditor separat und nach Eigentümer gefiltert vorgeladen.
+- Die vier neuen Funktionen verwenden `SECURITY INVOKER` und sind nur
+  für `authenticated` ausführbar. Die bestehenden RLS-Regeln bleiben
+  alleinige Instanz für lesbare Daten.
+
+**Noch offen:** Persönliche Favoritenzähler über einen separaten
+aggregierten Endpoint, vollständig paginierte eigene Einrichtungslisten,
+Blocklisten und weitere Randbereiche, Monitoring, gestufte Lasttests und
+eine echte Staging-Umgebung mit synthetischen Testdaten.
+Der Free-Tarif ist unverändert.
 
 ## Status Phase 2
 
