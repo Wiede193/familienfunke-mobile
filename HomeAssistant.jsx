@@ -357,7 +357,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
             icon="compass" actionLabel="Familienkarte ansehen"
             onAction={()=>onNavigate('map')} compact/>:null}
       </View>
-      {active?<View style={s.personalSection}>
+      {active?<><View style={s.personalSection}>
         <FamilySectionTitle title="Frisch im Familienbasar"
           subtitle="Nur tatsächlich freigegebene Angebote"
           actionLabel="Zum Basar" onAction={()=>onNavigate('market')}/>
@@ -413,7 +413,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
          <FamilyEmptyState title="Noch keine anstehenden Termine"
            description="Bis neue Veranstaltungen freigegeben werden, findet ihr im Ausflugsplaner weitere Ideen."
            icon="calendar" actionLabel="Ausflugsplaner öffnen" onAction={()=>onNavigate('outing')} compact/>}
-      </View>:null}:null}
+      </View></>:null}
     </View>:null}
     {!needle?<View style={s.section}>
       <Text style={s.sectionTitle}>Du könntest fragen</Text>
