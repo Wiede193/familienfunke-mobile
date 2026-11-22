@@ -1,5 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.80.0';
-import {parseJsonLdEvents,parseIcsEvents,normalizeEventCandidates} from './event-source-parse.js';
+import {parseJsonLdEvents,parseIcsEvents,parseStorkowHtml,normalizeEventCandidates} from './event-source-parse.js';
 import {stageCandidate,recordPageCheck} from './source-sync-store.js';
 
 const hosts=new Set(['storkow-mark.de','eberswalde.de','burg-beeskow.de',
@@ -42,6 +42,7 @@ async function processSource(db,source,day,stats){
   const page=await retrieve(source.url);
   if(page.status!==200)throw Error('http_'+page.status);
   const found=source.format==='ics'?parseIcsEvents(page.body,source.url):
+   source.format==='html_storkow'?parseStorkowHtml(page.body,source.url):
    parseJsonLdEvents(page.body,source.url);
   const candidates=await normalizeEventCandidates(found,source,day);
   items=candidates.length;
