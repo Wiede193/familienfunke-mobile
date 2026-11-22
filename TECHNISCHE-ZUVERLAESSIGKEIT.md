@@ -61,3 +61,47 @@ kein Nachweis einer getesteten Mehrnutzer-Kapazität.
   getrennt und mit Integrationstests abgesichert werden.
 - Vor einem öffentlichen Nutzeransturm sind Staging, Backups,
   Monitoring und realistische Lasttests erforderlich.
+
+
+## Phase 7 – Schwache Verbindung und doppelte Aktionen
+
+- **Gezielter, begrenzter Retry:** `NetworkResilience.js` wiederholt nur
+  idempotente lesende Supabase-Abfragen und nur bei erkennbar temporären
+  Netzwerkfehlern oder HTTP 408/502/503/504. Ein höchstens zweiter Aufruf
+  wird nach 350 ms ausgeführt; auf 401/403/429, Validierungs- und
+  RLS-Fehler wird **nicht** automatisch reagiert. Bereits veraltete Anfragen
+  werden nicht nochmals gestartet. Auch ein zweimaliger Fehler führt
+  zu **keinem dritten Aufruf**.
+- **Verbindungswarnung:** Schlägt das Laden der allgemeinen Konto-Daten
+  nach dem begrenzten Wiederholungsversuch fehl, zeigt die App einen
+  Hinweis mit `Daten erneut laden`. Bei erfolgreichem Laden verschwindet
+  der Hinweis wieder. Der Verbindungszustand wird **aus echten
+  Anfragefehlern**, nicht aus einem unzuverlässigen Offline-Detektor,
+  abgeleitet.
+- **Basarsuche:** Ein fehlgeschlagener Suchlauf zeigt
+  `Basarsuche erneut versuchen` statt den Nutzer zum Zurückgehen oder
+  Ändern der Filter zu zwingen. Die Seite wird mit den gleichen
+  Suchkriterien neu angefordert.
+- **Doppelklick-Schutz:** Anmelden nutzt eine unmittelbare Ref-Sperre.
+  Senden von Chats, Kontakten/Freigaben, Inseraten, Meldungen und
+  anderen App-weiten Mutationen teilen einen atomaren
+  `createActionGate`. Schnelle zusätzliche Klicks erzeugen während der
+  ersten Aktion keine zweite Anfrage. Der Sperr-Token wird beim
+  Kontowechsel verworfen; eine späte alte Antwort darf die neue Aktion
+  nicht freischalten.
+- **Wichtige Grenze:** Schreiboperationen werden **niemals automatisch
+  wiederholt**. Bei fehlender Serverbestätigung bleibt unklar, ob der
+  Server sie bereits gespeichert hat. Die App fordert zur Prüfung des
+  Chatverlaufs oder aktuellen Status auf. Ein lokaler Klickschutz
+  ersetzt **keine** serverseitigen Idempotency-Keys gegen erneutes
+  Senden nach App-Neustart oder manueller Wiederholung.
+- **Tests:** `npm run check:network` deckt temporäre und definitive
+  Fehler, genau einen Retry, abgebrochene Anfragen, doppelte Aktionen,
+  ungültige alte Konto-Tickets und die UI-Verkabelung ab. Die vorhandenen
+  Native-CI- und Sicherheitsprüfungen bleiben erhalten.
+
+**Weitere Prioritäten:** Gerätesimulation mit abgeschaltetem WLAN und
+wechselndem Mobilfunk, gezielte Server-Idempotenz für Chatnachrichten
+und Kontaktanfragen, vollständige Blocklisten-Paginierung und
+verlässliche Überwachung der Antwortzeiten. Die Änderung ist
+keine Lasttest-Freigabe.

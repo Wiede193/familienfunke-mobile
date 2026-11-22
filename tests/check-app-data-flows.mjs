@@ -11,7 +11,7 @@ assert.ok(load.includes('const seq=++loadSeq.current'),'Every full refresh needs
 assert.ok(load.includes('const stillCurrent=()=>isCurrentRequest('));
 assert.ok((load.match(/if\(!stillCurrent\(\)\)return null;/g)||[]).length>=3,'Discard old async responses after awaited calls');
 assert.ok(load.includes('setDb(old=>!stillCurrent()?old:'),'Guard queued state updates too');
-assert.ok(load.includes('if(stillCurrent())setError('),'Old failed requests must not show a stale error');
+assert.ok(load.includes('if(stillCurrent()){') && load.includes('setError(isTransientFailure(e)?'), 'Old failed requests must not show a stale error or connection warning');
 const pages=slice('async function loadMoreFamilies','useEffect(()=>{\nif(!supabase)');
 assert.ok((pages.match(/requestedDuringLoad=loadSeq.current/g)||[]).length===2);
 assert.ok((pages.match(/setDb\(old=>isCurrentRequest\(/g)||[]).length===2,'Both social pages must check generation before updating');
@@ -24,7 +24,7 @@ assert.ok(inbox.includes("supabase.from('profiles')"),'A linked profile may be l
 assert.ok(inbox.includes('setChatReturnTab(\'inbox\')'));
 const actions=slice('async function sendChatMessage(','function report(type,id)');
 assert.ok(actions.includes('const actionOwner=me;'),'Mutation updates must be account-bound');
-assert.ok(actions.includes('if(accountRef.current!==actionOwner)return false;'));
+assert.ok(actions.includes('if(accountRef.current!==actionOwner||!actionGate.current.isActive(ticket))return false;'),'Do not apply previous-account write results');
 assert.ok(actions.includes('await load(true);'),'Actions still refresh where membership/contact state changes');
 assert.ok(!actions.includes('return accountRef.current===actionOwner&&!!refreshed'),'Committed writes must never be misreported if refresh fails');
 const photos=slice('async function executePhoto','// Einmalige Begrüßung');

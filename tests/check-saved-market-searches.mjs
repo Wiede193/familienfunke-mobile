@@ -32,7 +32,7 @@ assert.match(app,/entryIntent\?\.type==='savedSearch'/);
 assert.match(app,/setMinPrice\(row\.min_cents/);
 assert.match(app,/setMaxPrice\(row\.max_cents/);
 assert.match(app,/row\.kind==='search'/);
-assert.match(app,/buyerFocus\?await supabase\.from\('ff_market_listings'\)/);
+assert.match(app,/retryRead\(\s*\(\)=>buyerFocus\?supabase\.from\('ff_market_listings'\)/,'Direct buyer focus stays scoped and read-only under bounded retry');
 assert.match(read('NotificationCenterScreen.jsx'),/search:\['Neuer Basar-Treffer'/);
 assert.match(read('TopRightMenu.jsx'),/\['savedSearches'/);
 assert.match(ui,/ff_saved_market_search_toggle/);

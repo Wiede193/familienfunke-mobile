@@ -13,6 +13,7 @@ import { signPhotoPaths } from './SignedPhotoUrls';
 import { EVENT_PAGE_SIZE, PHOTO_PAGE_SIZE, ascendingEventCursor, descendingRowCursor, hasFullPage } from './EventPhotoPages';
 import { MARKET_OWNER_PAGE_SIZE, PARTNER_PAGE_SIZE, marketCursor, partnerEventCursor, hasMarketPage } from './MarketPartnerPages';
 import { isCurrentRequest } from './RequestGeneration';
+import { isTransientFailure, retryRead, createActionGate } from './NetworkResilience';
 import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -65,8 +66,12 @@ const msg = errorMessage(e);
 if (/invalid login credentials/i.test(msg)) return 'E-Mail oder Passwort stimmen nicht. Bitte prüfe deine Zugangsdaten.';
 if (/email not confirmed/i.test(msg)) return 'Deine E-Mail-Adresse ist noch nicht bestätigt.';
 if (/row-level security|permission denied|policy/i.test(msg)) return 'Diese Aktion ist noch nicht freigegeben oder durch die Sicherheitsregeln gesperrt.';
+if (isTransientFailure(e)) return 'Die Verbindung zum Server ist vorübergehend gestört. Bitte prüfe dein Internet und versuche es später erneut.';
 return msg;
 };
+const mutationError = error => isTransientFailure(error)
+  ? 'Die Serverantwort ist ausgeblieben. Die Aktion könnte trotzdem gespeichert worden sein. Bitte prüfe zuerst den aktuellen Stand, bevor du sie erneut ausführst.'
+  : humanError(error);
 /**
  * Erste Integrationsstufe: Texte vor dem Speichern über die authentifizierte
  * Supabase Edge Function prüfen. Fehler führen dazu, dass nichts gespeichert wird.
@@ -167,12 +172,17 @@ function Login({error,setError,onHelp}) {
 const [email,setEmail]=useState('');
 const [password,setPassword]=useState('');
 const [busy,setBusy]=useState(false);
+const signInLock=useRef(false);
 async function submit() {
-if (!email.includes('@')||!password) return setError('Bitte E-Mail und Passwort eingeben.');
-setBusy(true);setError('');
-const {error:e}=await supabase.auth.signInWithPassword({email:email.trim(),password});
-if (e) setError(humanError(e));
-setBusy(false);
+ if(signInLock.current)return;
+ if (!email.includes('@')||!password) return setError('Bitte E-Mail und Passwort eingeben.');
+ signInLock.current=true;
+ setBusy(true);setError('');
+ try{
+   const {error:e}=await supabase.auth.signInWithPassword({email:email.trim(),password});
+   if(e)setError(humanError(e));
+ }catch(e){setError(humanError(e));}
+ finally{signInLock.current=false;setBusy(false);}
 }
 return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined}>
 <ScrollView contentContainerStyle={styles.loginPage} keyboardShouldPersistTaps="handled">
@@ -218,6 +228,7 @@ const [notice,setNotice]=useState('');
 const [busy,setBusy]=useState(false);
 const [loading,setLoading]=useState(false);
 const [db,setDb]=useState(blankData);
+const [connectionIssue,setConnectionIssue]=useState(false);
 const [myProfile,setMyProfile]=useState(null);
 const [verification,setVerification]=useState(null);
 const [membership,setMembership]=useState(null);
@@ -248,9 +259,8 @@ const me=session?.user?.id;
 const photoTarget=detailFamily||(tab==='profile'?me:null);
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
-const chatSendingRef=useRef(false);
 const loadSeq=useRef(0);
-const eventActionRef=useRef(false);
+const actionGate=useRef(createActionGate());
 const inbox=useNotificationCenter(me);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return null;
@@ -259,13 +269,13 @@ const stillCurrent=()=>isCurrentRequest(accountRef.current,me,loadSeq.current,se
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
-supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE}),
- supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),
-supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE}),
-supabase.from('blocks').select('*').limit(200),
-supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('ff_organizations').select('*').eq('owner_id',me).order('created_at',{ascending:false}).limit(50),
+retryRead(()=>supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE}),{isCurrent:stillCurrent}),
+ retryRead(()=>supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),{isCurrent:stillCurrent}),
+retryRead(()=>supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE}),{isCurrent:stillCurrent}),
+retryRead(()=>supabase.from('blocks').select('*').limit(200),{isCurrent:stillCurrent}),
+retryRead(()=>supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),{isCurrent:stillCurrent}),
+retryRead(()=>supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),{isCurrent:stillCurrent}),
+retryRead(()=>supabase.from('ff_organizations').select('*').eq('owner_id',me).order('created_at',{ascending:false}).limit(50),{isCurrent:stillCurrent}),
 ]);
 if(!stillCurrent())return null;
 const firstError=queries.find(x=>x.error)?.error;
@@ -276,14 +286,14 @@ const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.r
 // Preserve only the currently open conversation if it falls outside the newest contact page.
  const pinnedContactId=selectedContactRef.current;
  const pinnedContact=pinnedContactId&&!(contacts.data||[]).some(c=>c.id===pinnedContactId)
-   ? await supabase.from('contact_requests').select('*').eq('id',pinnedContactId).maybeSingle()
+   ? await retryRead(()=>supabase.from('contact_requests').select('*').eq('id',pinnedContactId).maybeSingle(),{isCurrent:stillCurrent})
    : {data:null,error:null};
  if(pinnedContact.error)throw pinnedContact.error;
  if(!stillCurrent())return null;
  const allContacts=appendUniqueRows(contacts.data||[],pinnedContact.data?[pinnedContact.data]:[]);
  const linkedUserIds=[...new Set([...contactUserIds,...(pinnedContact.data?[pinnedContact.data.sender_id===me?pinnedContact.data.recipient_id:pinnedContact.data.sender_id]:[])])];
  const linkedProfiles=linkedUserIds.length
-  ? await supabase.from('profiles').select('*').in('user_id',linkedUserIds)
+  ? await retryRead(()=>supabase.from('profiles').select('*').in('user_id',linkedUserIds),{isCurrent:stillCurrent})
   : {data:[],error:null};
 if(linkedProfiles.error)throw linkedProfiles.error;
 if(!stillCurrent())return null;
@@ -296,9 +306,15 @@ setDb(old=>!stillCurrent()?old:({profiles:appendUniqueRows(profileRow?[profileRo
 events:old.events,eventRequests:old.eventRequests,photos:old.photos,blocks:blocks.data||[],
 listings:old.listings,marketPhotos:old.marketPhotos,marketFavorites:[],organizations:ownOrganizations.data||[],partnerEvents:old.partnerEvents}));
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
-setError('');
+setError('');setConnectionIssue(false);
 return {contacts:contacts.data||[],listings:[]};
-} catch(e){if(stillCurrent())setError(humanError(e));return null;}
+} catch(e){
+   if(stillCurrent()){
+     setConnectionIssue(isTransientFailure(e));
+     setError(isTransientFailure(e)?'':humanError(e));
+   }
+   return null;
+ }
 finally{if(stillCurrent())setLoading(false);}
 },[me]);
 async function loadMoreFamilies(){
@@ -306,7 +322,10 @@ async function loadMoreFamilies(){
  const requestedDuringLoad=loadSeq.current;
  setDiscoverLoadingMore(true);
  try {
-  const {data,error:e}=await supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE,...discoverCursor});
+  const {data,error:e}=await retryRead(
+   ()=>supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE,...discoverCursor}),
+   {isCurrent:()=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)}
+  );
   if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
   if(e)throw e;
   setDb(old=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)
@@ -321,10 +340,16 @@ async function loadMoreContacts(){
  const requestedDuringLoad=loadSeq.current;
  setContactsLoadingMore(true);
  try {
-  const {data,error:e}=await supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE,...contactsCursor});
+  const {data,error:e}=await retryRead(
+   ()=>supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE,...contactsCursor}),
+   {isCurrent:()=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)}
+  );
   if(e)throw e;
   const ids=[...new Set((data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
-  const names=ids.length?await supabase.from('profiles').select('*').in('user_id',ids):{data:[],error:null};
+  const names=ids.length?await retryRead(
+     ()=>supabase.from('profiles').select('*').in('user_id',ids),
+     {isCurrent:()=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)}
+   ):{data:[],error:null};
   if(names.error)throw names.error;
   if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
   setDb(old=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)
@@ -363,7 +388,8 @@ useEffect(()=>{
   setDiscoverCursor(null);setDiscoverMore(false);setDiscoverLoadingMore(false);
   setContactsCursor(null);setContactsMore(false);setContactsLoadingMore(false);
   loadSeq.current++; // Invalidate in-flight queries even before the next account load.
-  setBusy(false);setLoading(false);setError('');setNotice(''); // Never carry messages across accounts.
+  actionGate.current.reset();
+  setBusy(false);setLoading(false);setError('');setNotice('');setConnectionIssue(false); // Never carry messages across accounts.
   setReportTarget(null);setReportDetails('');
 },[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
@@ -373,8 +399,8 @@ useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPh
 async function prepareOwnListingPhotos(rows){
  const ids=rows.map(r=>r.id).filter(Boolean);
  const {data:extra,error:e}=ids.length
-   ? await supabase.from('ff_market_photos').select('*')
-      .in('listing_id',ids).order('slot',{ascending:true}).limit(ids.length*4)
+   ? await retryRead(()=>supabase.from('ff_market_photos').select('*')
+      .in('listing_id',ids).order('slot',{ascending:true}).limit(ids.length*4))
    : {data:[],error:null};
  if(e)throw e;
  const signed=await signPhotoPaths(supabase,'ff-market-photos',[
@@ -393,13 +419,19 @@ useEffect(()=>{
  setMarketOwnerBusy(!!me&&tab==='market');setMarketOwnerBusyMore(false);
  if(!me||tab!=='market')return()=>{alive=false;marketSeq.current++;};
  (async()=>{
-  const {data,error:e}=await supabase.rpc('ff_my_market_page',{p_limit:MARKET_OWNER_PAGE_SIZE});
+  const {data,error:e}=await retryRead(
+    ()=>supabase.rpc('ff_my_market_page',{p_limit:MARKET_OWNER_PAGE_SIZE}),
+    {isCurrent:()=>alive&&marketSeq.current===seq&&accountRef.current===me}
+  );
   if(e||!Array.isArray(data))throw e||new Error('Invalid owner listing page');
   let records=data;
   // A notification may open an older listing outside the first page.
   if(pinnedMarketListingId&&!data.some(row=>row.id===pinnedMarketListingId)){
-   const {data:pinned,error:pinnedError}=await supabase.from('ff_market_listings')
-     .select('*').eq('id',pinnedMarketListingId).eq('seller_id',me).maybeSingle();
+   const {data:pinned,error:pinnedError}=await retryRead(
+     ()=>supabase.from('ff_market_listings').select('*')
+        .eq('id',pinnedMarketListingId).eq('seller_id',me).maybeSingle(),
+     {isCurrent:()=>alive&&marketSeq.current===seq&&accountRef.current===me}
+   );
    if(pinnedError)throw pinnedError;
    if(pinned)records=[...data,pinned];
   }
@@ -419,9 +451,10 @@ async function loadMoreOwnListings(){
  if(!me||tab!=='market'||marketOwnerBusy||marketOwnerBusyMore||!marketOwnerHasMore||!marketOwnerCursor)return;
  const seq=marketSeq.current;setMarketOwnerBusyMore(true);setMarketOwnerError('');
  try{
-  const {data,error:e}=await supabase.rpc('ff_my_market_page',{
-    p_limit:MARKET_OWNER_PAGE_SIZE,...marketOwnerCursor
-  });
+  const {data,error:e}=await retryRead(
+     ()=>supabase.rpc('ff_my_market_page',{p_limit:MARKET_OWNER_PAGE_SIZE,...marketOwnerCursor}),
+     {isCurrent:()=>marketSeq.current===seq&&accountRef.current===me}
+   );
   if(e||!Array.isArray(data))throw e||new Error('Invalid owner listing page');
   const media=await prepareOwnListingPhotos(data);
   if(marketSeq.current!==seq||accountRef.current!==me)return;
@@ -450,8 +483,10 @@ useEffect(()=>{
  setPhotoBusy(!!me&&!!photoTarget);setPhotoBusyMore(false);
  if(!me||!photoTarget)return ()=>{live=false;photoSeq.current++;};
  (async()=>{
-   const {data,error:e}=await supabase.rpc('ff_profile_photos_page',
-     {p_owner_id:photoTarget,p_limit:PHOTO_PAGE_SIZE});
+   const {data,error:e}=await retryRead(
+     ()=>supabase.rpc('ff_profile_photos_page',{p_owner_id:photoTarget,p_limit:PHOTO_PAGE_SIZE}),
+     {isCurrent:()=>live&&photoSeq.current===seq&&accountRef.current===me}
+   );
    if(e||!Array.isArray(data))throw e||new Error('Invalid photo page');
    const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),1800);
    if(!live||photoSeq.current!==seq||accountRef.current!==me)return;
@@ -471,8 +506,10 @@ async function loadMorePhotos(){
  const seq=photoSeq.current;
  setPhotoBusyMore(true);
  try{
-   const {data,error:e}=await supabase.rpc('ff_profile_photos_page',
-     {p_owner_id:photoTarget,p_limit:PHOTO_PAGE_SIZE,...photoCursor});
+   const {data,error:e}=await retryRead(
+     ()=>supabase.rpc('ff_profile_photos_page',{p_owner_id:photoTarget,p_limit:PHOTO_PAGE_SIZE,...photoCursor}),
+     {isCurrent:()=>photoSeq.current===seq&&accountRef.current===me}
+   );
    if(e||!Array.isArray(data))throw e||new Error('Invalid photo page');
    const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),1800);
    if(accountRef.current!==me||photoSeq.current!==seq)return;
@@ -549,9 +586,11 @@ async function reviewMarketListing(listingId){
  return 'pending';
 }
 async function sendChatMessage(body,contactId){
- if(chatSendingRef.current||!contactId)return false;
+ if(!contactId)return false;
+ const ticket=actionGate.current.acquire();
+ if(ticket===null)return false;
  const actionOwner=me;
- chatSendingRef.current=true;setBusy(true);setError('');setNotice('');
+ setBusy(true);setError('');setNotice('');
  try{
  
   // Die Nachricht wird ausschliesslich von der authentifizierten Edge Function
@@ -566,28 +605,38 @@ async function sendChatMessage(body,contactId){
     if(status===403)throw new Error('Nachrichten sind fuer diesen Kontakt momentan nicht erlaubt.');
     if(status===429)throw new Error('Nachrichtenlimit erreicht. Bitte warte auf eine Antwort oder versuche es später erneut.');
     if(status===503)throw new Error('Die Sicherheitspruefung ist momentan nicht verfuegbar. Bitte spaeter erneut versuchen.');
+    if(isTransientFailure(sendError))throw new Error('Keine sichere Versandbestätigung erhalten. Bitte prüfe zuerst den Chatverlauf, bevor du die Nachricht erneut sendest.');
     throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
   }
   if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
- if(accountRef.current!==actionOwner)return false;
+ if(accountRef.current!==actionOwner||!actionGate.current.isActive(ticket))return false;
 
  setNotice('Nachricht gesendet.');
  return true;
- }catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
- finally{chatSendingRef.current=false;if(accountRef.current===actionOwner)setBusy(false);}
+ }catch(e){if(accountRef.current===actionOwner&&actionGate.current.isActive(ticket))setError(mutationError(e));return false;}
+ finally{
+   const active=actionGate.current.isActive(ticket);
+   actionGate.current.release(ticket);
+   if(active&&accountRef.current===actionOwner)setBusy(false);
+ }
 }
 // Events refresh their own cursor and request status; do not reload every app list.
 async function executeEvent(fn,success){
- if(eventActionRef.current)return false;
+ const ticket=actionGate.current.acquire();
+ if(ticket===null)return false;
  const actionOwner=me;
- eventActionRef.current=true;setBusy(true);setError('');setNotice('');
+ setBusy(true);setError('');setNotice('');
  try{
   await fn();
-  if(accountRef.current!==actionOwner)return false;
+  if(accountRef.current!==actionOwner||!actionGate.current.isActive(ticket))return false;
   if(success)setNotice(success);
   return true;
- }catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
- finally{eventActionRef.current=false;if(accountRef.current===actionOwner)setBusy(false);}
+ }catch(e){if(accountRef.current===actionOwner&&actionGate.current.isActive(ticket))setError(mutationError(e));return false;}
+ finally{
+   const active=actionGate.current.isActive(ticket);
+   actionGate.current.release(ticket);
+   if(active&&accountRef.current===actionOwner)setBusy(false);
+ }
 }
 async function executeMarket(fn,success){
  const ok=await executeEvent(fn,success);
@@ -596,19 +645,25 @@ async function executeMarket(fn,success){
 }
 async function execute(fn,success){
 if(busy)return false;
+const ticket=actionGate.current.acquire();
+if(ticket===null)return false;
 const actionOwner=me;
 setBusy(true);setError('');setNotice('');
 try{
  await fn();
- if(accountRef.current!==actionOwner)return false;
+ if(accountRef.current!==actionOwner||!actionGate.current.isActive(ticket))return false;
  if(success)setNotice(success);
  // The write already succeeded even if the follow-up refresh failed.
  // Never report a saved listing as unsaved: retrying might create duplicates.
  await load(true);
- return accountRef.current===actionOwner;
+ return accountRef.current===actionOwner&&actionGate.current.isActive(ticket);
 }
-catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
-finally{if(accountRef.current===actionOwner)setBusy(false);}
+catch(e){if(accountRef.current===actionOwner&&actionGate.current.isActive(ticket))setError(mutationError(e));return false;}
+finally{
+ const active=actionGate.current.isActive(ticket);
+ actionGate.current.release(ticket);
+ if(active&&accountRef.current===actionOwner)setBusy(false);
+}
 }
 function report(type,id){setReportDetails('');setReportTarget({type,id});}
 async function sendReport(){
@@ -754,6 +809,11 @@ return <SafeAreaView style={styles.screen}>
 {detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
 <Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
+{connectionIssue?<View accessibilityLiveRegion="polite" style={{paddingHorizontal:12,paddingTop:8}}>
+   <Info warning>Der Server ist vorübergehend nicht erreichbar. Einige Inhalte konnten nicht geladen werden.</Info>
+   <Button title={loading?'Verbindung wird geprüft …':'Daten erneut laden'}
+     disabled={loading} mode="outline" onPress={()=>load()}/>
+ </View>:null}
 {error?<Pressable accessibilityRole="button" accessibilityLabel={'Fehlermeldung schließen. '+error} accessibilityLiveRegion="assertive" onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
 {notice?<Pressable accessibilityRole="button" accessibilityLabel={'Hinweis schließen. '+notice} accessibilityLiveRegion="polite" onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
 {loading?<View style={{padding:4}}><ActivityIndicator color={C.accent}/></View>:null}
@@ -1080,6 +1140,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
   const [remoteHasMore,setRemoteHasMore]=useState(false);
   const [remoteBusy,setRemoteBusy]=useState(false);
   const [remoteError,setRemoteError]=useState('');
+  const [searchRetry,setSearchRetry]=useState(0);
   const [remotePhotoUrls,setRemotePhotoUrls]=useState({});
   const [remoteExtraPhotos,setRemoteExtraPhotos]=useState([]);
   const [remoteExtraUrls,setRemoteExtraUrls]=useState({});
@@ -1296,11 +1357,16 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
     if(searchPage===0){setRemoteListings([]);setRemoteHasMore(false);}
     const timer=setTimeout(async()=>{
       try{
-        const {data,error:e}=buyerFocus?await supabase.from('ff_market_listings').select('*').eq('id',buyerFocus).eq('moderation_status','approved'):await supabase.rpc('ff_market_search',{
-          p_query:query.trim().slice(0,160),p_category:filter,p_trade_type:tradeFilter,
-          p_min_cents:minimum,p_max_cents:maximum,p_favorites_only:onlyFavorites,
-          p_sort:sortBy,p_limit:40,p_offset:searchPage*40
-        });
+        const {data,error:e}=await retryRead(
+          ()=>buyerFocus?supabase.from('ff_market_listings').select('*')
+            .eq('id',buyerFocus).eq('moderation_status','approved')
+            :supabase.rpc('ff_market_search',{
+              p_query:query.trim().slice(0,160),p_category:filter,p_trade_type:tradeFilter,
+              p_min_cents:minimum,p_max_cents:maximum,p_favorites_only:onlyFavorites,
+              p_sort:sortBy,p_limit:40,p_offset:searchPage*40
+            }),
+          {isCurrent:()=>live&&seq===searchSeq.current}
+        );
         if(e)throw e;
         if(!Array.isArray(data))throw new Error('Ungültige Suchantwort');
         const records=(buyerFocus?data.map(listing=>({listing})):data).map(row=>({...row.listing,match_item:row.match_item||''}))
@@ -1345,7 +1411,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
       }
     },searchPage===0?320:0);
     return ()=>{live=false;clearTimeout(timer);};
-  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteRefresh,me,buyerFocus]);
+  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteRefresh,me,buyerFocus,searchRetry]);
   const filtered=serverSearchActive?remoteListings.filter(x=>!blocked(x.seller_id)):
     listings.filter(x=>
       ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
@@ -2121,7 +2187,9 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
         <Text style={styles.micro}>Neu und gebraucht</Text>
       </Row>
       {remoteBusy?<View style={{paddingVertical:12,flexDirection:'row',alignItems:'center'}}><ActivityIndicator color={C.accent}/><Text style={[styles.micro,{marginLeft:9}]}>Suche im gesamten Familienbasar …</Text></View>:null}
-      {remoteError?<Info warning>{remoteError}</Info>:null}
+      {remoteError?<><Info warning>{remoteError}</Info>
+        <Button title="Basarsuche erneut versuchen" mode="outline" disabled={remoteBusy}
+          onPress={()=>setSearchRetry(n=>n+1)}/></>:null}
       {serverSearchActive&&query.trim()&&!remoteBusy&&!remoteError?<Text style={[styles.micro,{marginBottom:12}]}>Auch einzelne Teile innerhalb eines Pakets werden gefunden. Größen und Farben sind Angaben, die Verkäufer prüfen müssen.</Text>:null}
       {onlyMine&&ownLoading?<View style={{paddingVertical:12}}><ActivityIndicator color={C.accent}/></View>:null}
       {onlyMine&&ownError?<><Info warning>{ownError}</Info><Button title="Eigene Anzeigen erneut laden" mode="outline" onPress={onRetryOwn}/></>:null}

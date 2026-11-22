@@ -194,3 +194,20 @@ Betreiberanleitung: `SUPABASE-FREE-BETRIEB.md`.
   Staging-Lasttests, Backups und Betriebsalarmierung.
 
 Technische Details: `TECHNISCHE-ZUVERLAESSIGKEIT.md`.
+
+## Phase 7 – Netzwerkfehler und doppelte Klicks (22.11.2026)
+
+- Einmaliger zusätzlicher Versuch nur für temporär fehlgeschlagene
+  **Leseanfragen**; niemals automatisches Wiederholen von
+  Login, Chatversand, Inseraterstellung oder anderen Schreibaktionen.
+- Konto-Start lädt nach Verbindungsfehler über eine sichtbare
+  Schaltfläche neu, Basarsuche besitzt einen eigenen Retry-Button.
+- Gemeinsame atomare Aktionssperre verhindert parallele
+  Schreibaufrufe bei schnellen Mehrfachklicks und trennt die Sperre
+  bei Kontowechsel. Sign-in ebenfalls mit unmittelbarer Sperre.
+- Bei unklarer Serverbestätigung wird auf das Risiko einer bereits
+  erfolgten Speicherung hingewiesen. **Noch keine Ende-zu-Ende-
+  Idempotenz** für alle Schreibpfade nach App-Neustarts.
+- Zusätzliche Unit- und statische Regressionstests im Native-CI.
+
+Details: `TECHNISCHE-ZUVERLAESSIGKEIT.md`.
