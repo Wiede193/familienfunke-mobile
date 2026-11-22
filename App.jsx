@@ -2464,6 +2464,8 @@ const focus=useFocusedEvent('events',focusId,me);
 const [events,setEvents]=useState([]);
 const [myRequests,setMyRequests]=useState([]);
 const [focusedRequest,setFocusedRequest]=useState(null);
+const [focusedRequestBusy,setFocusedRequestBusy]=useState(false);
+const [focusedRequestError,setFocusedRequestError]=useState(false);
 const [cursor,setCursor]=useState(null);
 const [hasMore,setHasMore]=useState(false);
 const [loading,setLoading]=useState(true);
@@ -2496,13 +2498,15 @@ useEffect(()=>{
 },[me,revision]);
 useEffect(()=>{
  let live=true;
- setFocusedRequest(null);
+ setFocusedRequest(null);setFocusedRequestError(false);
+ setFocusedRequestBusy(!!focusId&&!!focus.row?.id);
  if(focusId&&focus.row?.id){
    supabase.rpc('ff_my_event_requests',{p_event_ids:[focus.row.id]})
      .then(({data,error:e})=>{
        if(e)throw e;
        if(live)setFocusedRequest(Array.isArray(data)?data[0]||null:null);
-     }).catch(()=>{if(live)setFocusedRequest(null);});
+     }).catch(()=>{if(live){setFocusedRequest(null);setFocusedRequestError(true);}})
+     .finally(()=>{if(live)setFocusedRequestBusy(false);});
  }
  return()=>{live=false;};
 },[focusId,focus.row?.id,me,revision]);
@@ -2560,6 +2564,8 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
  <Text style={[styles.micro,{marginTop:10}]}>⌖ {e.region_label||'Region nach Absprache'} · max. {e.max_participants} Personen</Text>
  {e.moderation_status==='approved'&&new Date(e.ends_at)>new Date()?<CalendarEventButton userId={me} kind="family" id={e.id}/>:null}
  {self?<Info warning>{e.moderation_status==='pending'?'Dein Termin wartet auf Freigabe.':'Du organisierst diesen Termin.'}</Info>:
+ focusId&&focusedRequestBusy?<Info>Teilnahmestatus wird geladen …</Info>:
+ focusId&&focusedRequestError?<Info warning>Teilnahmestatus derzeit nicht verfügbar. Bitte den Termin erneut öffnen.</Info>:
  request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request.status==='requested'?'angefragt':request.status==='declined'?'abgelehnt':'zurückgezogen'}</Info>:
  <Button title="Teilnahme anfragen" disabled={busy||!active} small style={{marginTop:12}} onPress={()=>requestAndRefresh(e.id)}/>}
  {self?<EventPendingPanel eventId={e.id} me={me} busy={busy} profiles={profiles} replyEvent={replyEvent}/>:null}
