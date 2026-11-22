@@ -1,6 +1,6 @@
 // Strict, dependency-free official-event parser. Discovered items are NEVER auto-published.
-const allow=/\b(kinder|familien|familie|puppen(theater)?|märchen|maerchen|baby|eltern|kita|kindergarten|bastel(n|werkstatt)?|laternen|ferienprogramm|spielplatz|spiel(e|tag|fest)?|weihnachtsmarkt|adventsmarkt|weihnachtszauber|nikolaus|osterfest|drachenfest|tierpark|zoo|mitmach|familienlauf|kinderflohmarkt)\b/i;
-const deny=/\b(ausstellung|vernissage|galerie|fachvortrag|informationsforum|satire|kabarett|partynacht|cocktail|party\s*ab\s*18|ab\s*18|erotisch|wahlkampf|kunstmarkt)\b/i;
+const allow=/\b(?:kinder[\p{L}]*|familien[\p{L}]*|familie|puppen(theater)?|märchen|maerchen|baby|eltern|kita|kindergarten|bastel[\p{L}]*|laternen[\p{L}]*|ferienprogramm|spielplatz|spiele[\p{L}]*|weihnachtsmarkt|adventsmarkt|weihnachtszauber|nikolaus|osterfest|drachenfest|tierpark|zoo|mitmach[\p{L}]*|familienlauf|kinderflohmarkt)\b/iu;
+const deny=/\b(?:kunst)?ausstellung[\p{L}]*|\b(?:vernissage|galerie|fachvortrag|informationsforum|satire|kabarett|partynacht|cocktail|erotisch|wahlkampf|kunstmarkt)\b|\bab\s*18\b/iu;
 export const candidateFamilyEligible=(title,description='')=>{
  const t=String(title||'').normalize('NFC'),d=String(description||'').normalize('NFC');
  return t.trim().length>=4&&t.trim().length<=160&&!deny.test(t+' '+d)&&allow.test(t+' '+d.slice(0,250));
