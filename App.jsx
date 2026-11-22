@@ -2219,6 +2219,8 @@ const [olderLoading,setOlderLoading]=useState(false);
 const [chatError,setChatError]=useState('');
 const [refreshToken,setRefreshToken]=useState(0);
 const requestSeq=useRef(0);
+const chatScrollRef=useRef(null);
+const scrollToLatestRef=useRef(false);
 const contactId=contact?.id;
 useEffect(()=>{
   const seq=++requestSeq.current;
@@ -2229,6 +2231,7 @@ useEffect(()=>{
     .then(({data,error:e})=>{
       if(!live||requestSeq.current!==seq)return;
       if(e||!Array.isArray(data))throw e||new Error('Invalid chat page');
+      scrollToLatestRef.current=true;
       setMessages(data);setHasOlder(hasNextSocialPage(data));
     })
     .catch(()=>{if(live&&requestSeq.current===seq)setChatError('Gespräch konnte nicht geladen werden.');})
@@ -2244,6 +2247,7 @@ async function loadOlder(){
     const {data,error:e}=await supabase.rpc('ff_chat_page',{p_contact_id:contactId,p_limit:SOCIAL_PAGE_SIZE,...cursor});
     if(requestSeq.current!==seq)return;
     if(e||!Array.isArray(data))throw e||new Error('Invalid chat page');
+    scrollToLatestRef.current=false;
     setMessages(old=>appendUniqueRows(old,data));setHasOlder(hasNextSocialPage(data));
   }catch{if(requestSeq.current===seq)setChatError('Ältere Nachrichten konnten nicht geladen werden.');}
   finally{if(requestSeq.current===seq)setOlderLoading(false);}
@@ -2258,7 +2262,8 @@ const other=contact.sender_id===me?contact.recipient_id:contact.sender_id;
 const sorted=[...messages].reverse();
 return <View style={{flex:1}}>
 <Row style={styles.chatHeader}><Avatar name={nameOf(other)} size={38}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other)}</Text><Text style={styles.micro}>Privates Gespräch</Text></View><Button title="Blockieren" small mode="ghost" onPress={()=>onBlock(other)}/></Row>
-<ScrollView style={{flex:1}} contentContainerStyle={{padding:16}} keyboardShouldPersistTaps="handled">
+<ScrollView ref={chatScrollRef} style={{flex:1}} contentContainerStyle={{padding:16}} keyboardShouldPersistTaps="handled"
+onContentSizeChange={()=>{if(scrollToLatestRef.current){chatScrollRef.current?.scrollToEnd({animated:false});scrollToLatestRef.current=false;}}}>
 {chatLoading?<ActivityIndicator color={C.accent}/>:null}
 {chatError?<Info warning>{chatError}</Info>:null}
 {chatError&&messages.length===0?<Button title="Erneut versuchen" mode="outline" onPress={()=>setRefreshToken(x=>x+1)}/>:null}
