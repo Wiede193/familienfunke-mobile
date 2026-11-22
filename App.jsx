@@ -16,6 +16,8 @@ import { isCurrentRequest } from './RequestGeneration';
 import { createChatIntentRepository,uuidFromCrypto } from './ChatSendIntent';
 import { isTransientFailure, retryRead, createActionGate } from './NetworkResilience';
 import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
+import { visibleBlockTargets, mergeVisibleBlockFlags } from './BlockPages';
+import BlockedAccountsPanel from './BlockedAccountsPanel';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WelcomeIntro from './WelcomeIntro';
@@ -276,6 +278,7 @@ const me=session?.user?.id;
 const photoTarget=detailFamily||(tab==='profile'?me:null);
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
+const detailFamilyRef=useRef(detailFamily);detailFamilyRef.current=detailFamily;
 const loadSeq=useRef(0);
 const actionGate=useRef(createActionGate());
 const inbox=useNotificationCenter(me);
@@ -289,7 +292,6 @@ const queries=await Promise.all([
 retryRead(()=>supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE}),{isCurrent:stillCurrent}),
  retryRead(()=>supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),{isCurrent:stillCurrent}),
 retryRead(()=>supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE}),{isCurrent:stillCurrent}),
-retryRead(()=>supabase.from('blocks').select('*').limit(200),{isCurrent:stillCurrent}),
 retryRead(()=>supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),{isCurrent:stillCurrent}),
 retryRead(()=>supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),{isCurrent:stillCurrent}),
 retryRead(()=>supabase.from('ff_organizations').select('*').eq('owner_id',me).order('created_at',{ascending:false}).limit(50),{isCurrent:stillCurrent}),
@@ -297,7 +299,7 @@ retryRead(()=>supabase.from('ff_organizations').select('*').eq('owner_id',me).or
 if(!stillCurrent())return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,ownProfile,contacts,blocks,verificationRow,membershipRow,ownOrganizations]=queries;
+const [profiles,ownProfile,contacts,verificationRow,membershipRow,ownOrganizations]=queries;
 // Fetch contact display names separately; contacts may have hidden discovery profiles.
 const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
 // Preserve only the currently open conversation if it falls outside the newest contact page.
@@ -314,13 +316,21 @@ const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.r
   : {data:[],error:null};
 if(linkedProfiles.error)throw linkedProfiles.error;
 if(!stillCurrent())return null;
+const blockIds=visibleBlockTargets(profiles.data,contacts.data,me,pinnedContact.data,detailFamilyRef.current);
+const flags=blockIds.length?await retryRead(
+  ()=>supabase.rpc('ff_block_flags',{p_user_ids:blockIds}),
+  {isCurrent:stillCurrent}
+):{data:[],error:null};
+if(flags.error||!Array.isArray(flags.data))throw flags.error||new Error('Block flags unavailable');
+if(!stillCurrent())return null;
+const currentBlockFlags=mergeVisibleBlockFlags([],me,blockIds,flags.data);
 const profileRow=ownProfile.data||(profiles.data||[]).find(p=>p.user_id===me)||null;
 setDiscoverCursor(socialCursor(profiles.data,'user_id'));
 setDiscoverMore(hasNextSocialPage(profiles.data));
 setContactsCursor(socialCursor(contacts.data));
 setContactsMore(hasNextSocialPage(contacts.data));
 setDb(old=>!stillCurrent()?old:({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
-events:old.events,eventRequests:old.eventRequests,photos:old.photos,blocks:blocks.data||[],
+events:old.events,eventRequests:old.eventRequests,photos:old.photos,blocks:currentBlockFlags,
 listings:old.listings,marketPhotos:old.marketPhotos,marketFavorites:[],organizations:ownOrganizations.data||[],partnerEvents:old.partnerEvents}));
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');setConnectionIssue(false);
@@ -345,8 +355,16 @@ async function loadMoreFamilies(){
   );
   if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
   if(e)throw e;
+  const ids=visibleBlockTargets(data,[],me);
+  const flags=ids.length?await retryRead(
+    ()=>supabase.rpc('ff_block_flags',{p_user_ids:ids}),
+    {isCurrent:()=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)}
+  ):{data:[],error:null};
+  if(flags.error||!Array.isArray(flags.data))throw flags.error||new Error('Block flags unavailable');
+  if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
   setDb(old=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)
-    ? {...old,profiles:appendUniqueRows(old.profiles,data||[],'user_id')}:old);
+    ? {...old,profiles:appendUniqueRows(old.profiles,data||[],'user_id'),
+      blocks:mergeVisibleBlockFlags(old.blocks,me,ids,flags.data)}:old);
   setDiscoverCursor(socialCursor(data,'user_id'));
   setDiscoverMore(hasNextSocialPage(data));
  }catch(e){if(isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))setError('Weitere Familien konnten nicht geladen werden. Bitte erneut versuchen.');}
@@ -368,10 +386,17 @@ async function loadMoreContacts(){
      {isCurrent:()=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)}
    ):{data:[],error:null};
   if(names.error)throw names.error;
+  const idsToCheck=visibleBlockTargets([],data,me);
+  const flags=idsToCheck.length?await retryRead(
+    ()=>supabase.rpc('ff_block_flags',{p_user_ids:idsToCheck}),
+    {isCurrent:()=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)}
+  ):{data:[],error:null};
+  if(flags.error||!Array.isArray(flags.data))throw flags.error||new Error('Block flags unavailable');
   if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
   setDb(old=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)
     ? {...old,contacts:appendUniqueRows(old.contacts,data||[]),
-    profiles:appendUniqueRows(old.profiles,names.data||[],'user_id')}:old);
+    profiles:appendUniqueRows(old.profiles,names.data||[],'user_id'),
+    blocks:mergeVisibleBlockFlags(old.blocks,me,idsToCheck,flags.data)}:old);
   setContactsCursor(socialCursor(data));
   setContactsMore(hasNextSocialPage(data));
  }catch(e){if(isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))setError('Weitere Kontakte konnten nicht geladen werden. Bitte erneut versuchen.');}
