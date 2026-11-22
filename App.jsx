@@ -599,8 +599,10 @@ try{
  await fn();
  if(accountRef.current!==actionOwner)return false;
  if(success)setNotice(success);
- const refreshed=await load(true);
- return accountRef.current===actionOwner&&!!refreshed;
+ // The write already succeeded even if the follow-up refresh failed.
+ // Never report a saved listing as unsaved: retrying might create duplicates.
+ await load(true);
+ return accountRef.current===actionOwner;
 }
 catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
 finally{if(accountRef.current===actionOwner)setBusy(false);}
