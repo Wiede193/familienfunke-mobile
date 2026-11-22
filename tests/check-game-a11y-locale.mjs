@@ -45,3 +45,7 @@ for(const term of ['chessStatus(game,chessCheck(game),language)','chessPieceName
 assert.match(board,/accessibilityLabel=\{coord\(i\)/);
 assert.match(classic,/accessibilityLiveRegion="polite"/);
 assert.match(board,/accessibilityLiveRegion="polite"/);
+
+// Avoid shadowing the locale translator in tile callbacks (correct-word announcement).
+assert.doesNotMatch(classic,/game\.tiles\.map\(t=>/);
+assert.match(classic,/game\.tiles\.map\(tile=>/);
