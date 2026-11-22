@@ -375,7 +375,7 @@ useEffect(()=>{
  setDb(old=>({...old,photos:[]}));
  setPhotosUrls({});
  setPhotoCursor(null);setPhotoHasMore(false);setPhotoLoadError('');
- setPhotoBusy(!!me&&!!photoTarget);
+ setPhotoBusy(!!me&&!!photoTarget);setPhotoBusyMore(false);
  if(!me||!photoTarget)return ()=>{live=false;photoSeq.current++;};
  (async()=>{
    const {data,error:e}=await supabase.rpc('ff_profile_photos_page',
@@ -650,7 +650,7 @@ return <SafeAreaView style={styles.screen}>
 <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined} keyboardVerticalOffset={0}>
 {detailFamily?<FamilyDetail p={db.profiles.find(p=>p.user_id===detailFamily)}
 imageUrl={photosUrls[photoOf(detailFamily)?.id]} photos={db.photos.filter(p=>p.owner_id===detailFamily&&p.moderation_status==='approved')}
-photosUrls={photosUrls} photoBusy={photoBusy} photoBusyMore={photoBusyMore} photoHasMore={photoHasMore} photoLoadError={photoLoadError} loadMorePhotos={loadMorePhotos}
+photosUrls={photosUrls} photoBusy={photoBusy} photoBusyMore={photoBusyMore} photoHasMore={photoHasMore} photoLoadError={photoLoadError} loadMorePhotos={loadMorePhotos} retryPhotos={()=>setPhotoEpoch(n=>n+1)}
 active={active} disabled={busy} blocked={blocked(detailFamily)}
 connection={db.contacts.find(c=>c.sender_id===detailFamily||c.recipient_id===detailFamily)}
 onContact={()=>sendRequest(detailFamily)} onBlock={()=>blockUser(detailFamily)} onUnblock={()=>unblockUser(detailFamily)}
@@ -759,7 +759,7 @@ replyEvent={(id,requester,status)=>executeEvent(async()=>assertResult(await supa
 reportEvent={(id)=>report('event',id)}/>:
 <ProfileScreen profile={myProfile} verification={verification} membership={membership} active={active}
 photos={ownPhotos} photosUrls={photosUrls} busy={busy}
- photoBusy={photoBusy} photoBusyMore={photoBusyMore} photoHasMore={photoHasMore} photoLoadError={photoLoadError} loadMorePhotos={loadMorePhotos}
+ photoBusy={photoBusy} photoBusyMore={photoBusyMore} photoHasMore={photoHasMore} photoLoadError={photoLoadError} loadMorePhotos={loadMorePhotos} retryPhotos={()=>setPhotoEpoch(n=>n+1)}
 save={(value)=>execute(async()=>{
   await moderateTextOrThrow([value.display_name,value.region_label,value.about]);
   assertResult(await supabase.from('profiles').update(value).eq('user_id',me));
@@ -2242,7 +2242,7 @@ mode==='cards'?<>
 <Text style={[styles.micro,{marginTop:17,textAlign:'center'}]}>Die Suche berücksichtigt bisher geladene Familien. Falls du nichts Passendes siehst, lade weitere Ergebnisse. „Meine Region“ nutzt freiwillige Regionsnamen und bekannte Landkreis-Zuordnungen, keine Kilometerentfernungen. Exakte Standorte werden nicht abgefragt.</Text>
 </ScrollView>;
 }
-function FamilyDetail({p,photos,photosUrls,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
+function FamilyDetail({p,photos,photosUrls,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
 if(!p)return <Blank title="Profil nicht verfügbar" body="Das Profil kann verborgen oder gesperrt worden sein."/>;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <Card style={{alignItems:'center',paddingTop:26}}><Avatar name={p.display_name} size={88} uri={photosUrls?.[photos?.[0]?.id]}/><Text style={[styles.h,{marginTop:12,textAlign:'center'}]}>{p.display_name}</Text><Text style={styles.sub}>⌖ {p.region_label||'Grobe Region nicht angegeben'}</Text><Text style={[styles.body,{textAlign:'center',marginTop:14}]}>{p.about||'Noch keine Beschreibung'}</Text>
@@ -2252,7 +2252,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <Row style={{marginTop:12}}>{blocked?<Button title="Entsperren" mode="outline" small onPress={onUnblock}/>:<Button title="Blockieren" mode="outline" small onPress={onBlock}/>}<Button title="Melden" mode="ghost" small onPress={onReport}/></Row>
 </Card>
 {photoBusy?<ActivityIndicator color={C.accent}/>:null}
-{photoLoadError?<Info warning>{photoLoadError}</Info>:null}
+{photoLoadError?<><Info warning>{photoLoadError}</Info><Button title="Fotos erneut laden" mode="outline" onPress={retryPhotos}/></>:null}
 {photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image accessibilityLabel={photo.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
 {photoHasMore?<Button title={photoBusyMore?'Weitere Bilder werden geladen …':'Weitere Familienbilder laden'} disabled={photoBusyMore} mode="outline" onPress={loadMorePhotos}/>:null}
 </ScrollView>;
@@ -2413,7 +2413,7 @@ useEffect(()=>{
  const seq=++seqRef.current;
  if(!open)return()=>{seqRef.current++;};
  let live=true;
- setLoading(true);setRows([]);setHasMore(false);setCursor(null);setError('');
+ setLoading(true);setLoadingMore(false);setRows([]);setHasMore(false);setCursor(null);setError('');
  (async()=>{
   const {data,error:e}=await supabase.rpc('ff_event_pending_page',
     {p_event_id:eventId,p_limit:EVENT_PAGE_SIZE});
@@ -2482,7 +2482,7 @@ async function ownRequestsFor(rows){
 }
 useEffect(()=>{
  const seq=++seqRef.current;let live=true;
- setEvents([]);setMyRequests([]);setHasMore(false);setCursor(null);setLoading(true);setLoadError('');
+ setEvents([]);setMyRequests([]);setHasMore(false);setCursor(null);setLoading(true);setLoadingMore(false);setLoadError('');
  (async()=>{
   const {data,error:e}=await supabase.rpc('ff_events_page',{p_limit:EVENT_PAGE_SIZE});
   if(e||!Array.isArray(data))throw e||new Error('Ungültige Veranstaltungsliste');
@@ -2569,7 +2569,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 {!focusId&&hasMore?<Button title={loadingMore?'Weitere Veranstaltungen werden geladen …':'Weitere Veranstaltungen laden'} mode="outline" disabled={loadingMore} onPress={loadMoreEvents}/>:null}
 </ScrollView>;
 }
-function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
+function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
 const [form,setForm]=useState(blankProfile);
 const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
@@ -2664,7 +2664,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
   Nach der Fotoauswahl kannst du eine Beschreibung ergänzen und beides zusammen einreichen.
 </Text>}
 {photoBusy?<ActivityIndicator color={C.accent}/>:null}
-{photoLoadError?<Info warning>{photoLoadError}</Info>:null}
+{photoLoadError?<><Info warning>{photoLoadError}</Info><Button title="Fotos erneut laden" mode="outline" onPress={retryPhotos}/></>:null}
 <View style={[styles.photoGrid,{marginTop:15}]}>{photos.map(p=><Card key={p.id} style={styles.photoCard}>
 {photosUrls[p.id]?<Image accessibilityLabel={p.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
 <Text style={styles.micro} numberOfLines={2}>{p.caption||'Profilbild'}</Text><Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'Freigegeben':p.moderation_status==='pending'?'In Prüfung':'Abgelehnt'}</Text>
