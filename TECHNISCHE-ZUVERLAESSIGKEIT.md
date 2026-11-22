@@ -105,3 +105,92 @@ wechselndem Mobilfunk, gezielte Server-Idempotenz für Chatnachrichten
 und Kontaktanfragen, vollständige Blocklisten-Paginierung und
 verlässliche Überwachung der Antwortzeiten. Die Änderung ist
 keine Lasttest-Freigabe.
+
+
+## Phase 8 – Idempotente Chats und kontrollierte Kontaktaktionen
+
+- **Server erkennt wiederholte Nachrichten:** Der bestehende
+  `messages.id`-Primärschlüssel dient jetzt als dauerhaft eindeutige
+  Sende-ID. Neue Clients übermitteln pro beabsichtigter Nachricht die
+  gleiche UUIDv4, auch nach einem unklaren Serverergebnis.
+  `send-message` (Edge Function v7) prüft den authentifizierten Absender,
+  freigegebenen Kontakt, Blockierungen, Verifizierung und Kontostatus,
+  bevor eine bereits gespeicherte Nachricht zurückgeliefert wird.
+  **Kontakt, Absender und Originaltext müssen exakt übereinstimmen.**
+  Andernfalls wird die UUID mit HTTP 409 abgelehnt.
+- **Keine Duplikate bei gleichzeitigem Senden:** Der eindeutige
+  `messages.id`-Primärschlüssel schützt auch bei zwei parallelen
+  Edge-Anfragen. Der Server behandelt auch einen bereits erfolgreich
+  gespeicherten Versuch, der im vorgeschalteten Nachrichtenkontingent-
+  Trigger hängenbleibt. Eine Wiederholung speichert nichts neu,
+  löst keine zweite Push-/Neuigkeiten-Benachrichtigung aus und
+  benötigt bei früh erkanntem Duplikat keine erneute KI-Moderation.
+  Neue Nachrichten bleiben vollständig moderationspflichtig.
+- **Nach Neustart wiedererkennbar:** `ChatSendIntent.js` speichert vor
+  dem Versand nur die UUID, einen SHA-256-Fingerabdruck des
+  konten-/kontaktbezogenen Texts und einen Zeitstempel in AsyncStorage,
+  **niemals den Text selbst**. Wird derselbe Text nach einem unklaren
+  Ergebnis erneut gesendet, benutzt die App innerhalb von sieben
+  Tagen dieselbe ID. Nach bestätigter Speicherung wird die Vormerkung
+  gelöscht, sodass identischer Text später bewusst neu gesendet werden kann.
+  Fehlschlag der lokalen Speicherung verhindert den Versand.
+- **UUID-Generator:** Wenn das Gerät die sichere
+  `crypto.randomUUID`- oder `crypto.getRandomValues`-API
+  bereitstellt, wird sie verwendet. Andernfalls holt die
+  App eine UUIDv4 über `ff_message_request_id` aus der
+  authentifizierten Datenbank. Keine unsicheren Math.random-IDs.
+- **Kontakte:** Die Datenbank hatte bereits den eindeutigen Index
+  `contact_requests_one_per_pair_idx` für ein ungeordnetes Familienpaar.
+  Die App hatte allerdings keine direkten INSERT-/UPDATE-Rechte mehr.
+  Diese wurden **nicht** geöffnet. Stattdessen delegieren zwei öffentliche
+  `SECURITY INVOKER`-RPCs an streng geprüfte, separat geschützte
+  Funktionen in `ff_contact_internal`.
+  Die Funktionen erzwingen die angemeldete Person, erlaubte Beziehungen,
+  Verifizierung/Blockierung und die bestehenden Status-/Swipe-Regeln.
+  Ein wiederholter Antrag für dasselbe Paar oder dieselbe
+  Statusänderung erzeugt keine zweite Kontaktaktion.
+- **Bereits endgültig abgelehnte oder zurückgezogene Kontaktanfragen:**
+  Der bestehende Paar-Index verhindert derzeit neue Anträge
+  desselben Paars auch nach `declined` oder `cancelled`.
+  Die App zeigt dafür eine verständliche Fehlermeldung; eine
+  Reaktivierung ist eine separate Produktentscheidung.
+
+### Berechtigungsprüfungen
+
+- `anon` darf weder die drei neuen öffentlichen RPCs
+  noch die beiden internen Funktionen ausführen.
+- `authenticated` darf die geprüften RPCs ausführen,
+  erhält aber weiterhin **kein** direktes INSERT/UPDATE
+  auf `public.contact_requests` oder `public.messages`.
+- Die öffentlichen RPCs verwenden `SECURITY INVOKER`,
+  interne privilegierte Funktionen liegen in einem
+  **nicht** via Data API exponierten gesonderten Schema.
+- Die bestehenden Security Advisors haben unverändert
+  37 warnende ausführbare Security-Definer-Funktionen,
+  eine Passwort-Leak-Schutzwarnung und 31 Informationsmeldungen.
+- Backend-Migration und neue Edge-Funktion wurden live
+  angewendet; Anonyme Zugriffsrechte und Sende-ID-Generator
+  wurden per SQL geprüft. Ein vollständiger echter Chat-End-to-End-
+  Test mit zwei freigegebenen Testkonten **steht noch aus**.
+
+### Versions- und Rolloutgrenzen
+
+- Die vorherige App-Version **ohne** `request_id` wird vom
+  neuen Chat-Endpunkt weiterhin unterstützt, aber ihre
+  Wiederholungen sind noch nicht idempotent.
+- Es gibt weiterhin keine Offline-Versandwarteschlange und
+  **keine** automatischen Wiederholungen von Schreibvorgängen.
+  Nutzer müssen eine unbestätigte Nachricht manuell erneut auslösen.
+- Die lokale gespeicherte Sende-ID schützt nur den jeweiligen
+  Account auf diesem Gerät. Zwei verschiedene Geräte können
+  dieselbe beabsichtigte Nachricht mit unterschiedlichen IDs
+  absenden; genau-diese-Absicht geräteübergreifend zu erkennen
+  braucht ein zusätzliches gemeinsames Protokoll.
+- Für reale Freigabe: Offline-/Neustart-Test, Netzabbruch direkt
+  nach erfolgreichem INSERT, parallele Edge-Aufrufe, Moderation
+  und bestehendes Fünf-Nachrichten-Limit mit synthetischen
+  Testkonten im separaten Staging prüfen.
+
+Tests: `npm run check:chat-idempotency`.
+Backend: `database/ff_chat_contact_idempotency_20261122.sql`,
+`supabase/functions/send-message/index.ts`.
