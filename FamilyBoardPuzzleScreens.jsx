@@ -52,7 +52,7 @@ export function ChessGame(){
   <Text accessibilityLiveRegion="polite" style={s.heading}>{status}</Text>
   <Board board={game.board} selected={selected} moves={moves} last={game.last} disabled={!!game.result||!!promotion} onTap={tap}
    language={language} label={p=>chessPieceName(p,language)} render={p=><Text style={s.piece}>{pieces[p]||''}</Text>}/>
-  {promotion?<View style={s.note}><Text style={s.heading}>{t("Bauernumwandlung")}</Text><View style={s.wrap}>{['q','r','b','n'].map(p=><Action key={p} onPress={()=>{if(pending.current)finish(pending.current.from,pending.current.to,p);}}{language==='en'?({q:'Queen',r:'Rook',b:'Bishop',n:'Knight'})[p]:names[p]}</Action>)}</View></View>:null}
+  {promotion?<View style={s.note}><Text style={s.heading}>{t("Bauernumwandlung")}</Text><View style={s.wrap}>{['q','r','b','n'].map(p=><Action key={p} onPress={()=>{if(pending.current)finish(pending.current.from,pending.current.to,p);}}>{language==='en'?({q:'Queen',r:'Rook',b:'Bishop',n:'Knight'})[p]:names[p]}</Action>)}</View></View>:null}
   <Text style={s.muted}>{t("Freizeitregeln ohne Uhr: dreifache Wiederholung und 50-Züge-Regel gelten automatisch als Remis. Das Brett lässt sich seitlich scrollen.")}</Text>
   <Action onPress={reset}>{t("Neue Partie")}</Action>
  </View>;
