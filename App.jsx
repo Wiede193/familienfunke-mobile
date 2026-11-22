@@ -10,6 +10,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { signPhotoPaths } from './SignedPhotoUrls';
+import { EVENT_PAGE_SIZE, PHOTO_PAGE_SIZE, ascendingEventCursor, descendingRowCursor, hasFullPage } from './EventPhotoPages';
 import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -221,6 +222,13 @@ const [membership,setMembership]=useState(null);
 const [photosUrls,setPhotosUrls]=useState({});
 const [marketPhotoUrls,setMarketPhotoUrls]=useState({});
 const [marketExtraPhotoUrls,setMarketExtraPhotoUrls]=useState({});
+const [photoCursor,setPhotoCursor]=useState(null);
+const [photoHasMore,setPhotoHasMore]=useState(false);
+const [photoBusy,setPhotoBusy]=useState(false);
+const [photoBusyMore,setPhotoBusyMore]=useState(false);
+const [photoLoadError,setPhotoLoadError]=useState('');
+const [photoEpoch,setPhotoEpoch]=useState(0);
+const photoSeq=useRef(0);
 const [discoverCursor,setDiscoverCursor]=useState(null);
 const [discoverMore,setDiscoverMore]=useState(false);
 const [discoverLoadingMore,setDiscoverLoadingMore]=useState(false);
@@ -228,6 +236,7 @@ const [contactsCursor,setContactsCursor]=useState(null);
 const [contactsMore,setContactsMore]=useState(false);
 const [contactsLoadingMore,setContactsLoadingMore]=useState(false);
 const me=session?.user?.id;
+const photoTarget=detailFamily||(tab==='profile'?me:null);
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
 const chatSendingRef=useRef(false);
@@ -240,9 +249,6 @@ const queries=await Promise.all([
 supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE}),
  supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),
 supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE}),
-supabase.from('events').select('*').gt('ends_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(150),
-supabase.from('event_requests').select('*').limit(200),
-supabase.from('profile_photos').select('*').order('created_at',{ascending:false}).limit(100),
 supabase.from('blocks').select('*').limit(200),
 supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
@@ -254,7 +260,7 @@ supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOSt
 if(accountRef.current!==me)return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,ownProfile,contacts,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
+const [profiles,ownProfile,contacts,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
  const visibleListingIds=(listings.data||[]).map(row=>row.id);
  const marketPhotos=visibleListingIds.length
    ? await supabase.from('ff_market_photos').select('*').in('listing_id',visibleListingIds).order('slot',{ascending:true}).limit(800)
@@ -282,15 +288,12 @@ setDiscoverCursor(socialCursor(profiles.data,'user_id'));
 setDiscoverMore(hasNextSocialPage(profiles.data));
 setContactsCursor(socialCursor(contacts.data));
 setContactsMore(hasNextSocialPage(contacts.data));
-setDb({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
-events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],
-listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
+setDb(old=>({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
+events:old.events,eventRequests:old.eventRequests,photos:old.photos,blocks:blocks.data||[],
+listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]}));
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');
-const profileSigned=await signPhotoPaths(supabase,'familienfunke-photos',(photos.data||[]).map(row=>row.storage_path),1800);
- if(accountRef.current!==me)return null;
- setPhotosUrls(Object.fromEntries((photos.data||[]).map(row=>[row.id,profileSigned[row.storage_path]||null])));
- const marketSigned=await signPhotoPaths(supabase,'ff-market-photos',[
+const marketSigned=await signPhotoPaths(supabase,'ff-market-photos',[
    ...(listings.data||[]).map(row=>row.photo_path),
    ...(marketPhotos.data||[]).map(row=>row.photo_path),
  ],600);
@@ -356,10 +359,67 @@ useEffect(()=>{
   setMarketIntent(null);setOutingDraft(null);setCalendarSeed(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
   setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
   setPhotosUrls({});setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
+  setPhotoCursor(null);setPhotoHasMore(false);setPhotoLoadError('');
   setDiscoverCursor(null);setDiscoverMore(false);setDiscoverLoadingMore(false);
   setContactsCursor(null);setContactsMore(false);setContactsLoadingMore(false);
 },[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
+
+// Only the currently viewed adult's photos are requested. Existing photo RLS
+// permits own uploads and approved images of established contacts; never cache
+// cross-account signed links after a logout or profile change.
+useEffect(()=>{
+ const seq=++photoSeq.current;
+ let live=true;
+ setDb(old=>({...old,photos:[]}));
+ setPhotosUrls({});
+ setPhotoCursor(null);setPhotoHasMore(false);setPhotoLoadError('');
+ setPhotoBusy(!!me&&!!photoTarget);
+ if(!me||!photoTarget)return ()=>{live=false;photoSeq.current++;};
+ (async()=>{
+   const {data,error:e}=await supabase.rpc('ff_profile_photos_page',
+     {p_owner_id:photoTarget,p_limit:PHOTO_PAGE_SIZE});
+   if(e||!Array.isArray(data))throw e||new Error('Invalid photo page');
+   const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),1800);
+   if(!live||photoSeq.current!==seq||accountRef.current!==me)return;
+   setDb(old=>({...old,photos:data}));
+   setPhotosUrls(Object.fromEntries(data.map(row=>[row.id,signed[row.storage_path]||null])));
+   setPhotoCursor(descendingRowCursor(data));
+   setPhotoHasMore(hasFullPage(data,PHOTO_PAGE_SIZE));
+ })().catch(()=>{
+   if(live&&photoSeq.current===seq&&accountRef.current===me)setPhotoLoadError('Fotos konnten nicht geladen werden. Bitte erneut versuchen.');
+ }).finally(()=>{
+   if(live&&photoSeq.current===seq&&accountRef.current===me)setPhotoBusy(false);
+ });
+ return ()=>{live=false;photoSeq.current++;};
+},[me,photoTarget,photoEpoch]);
+async function loadMorePhotos(){
+ if(!me||!photoTarget||!photoHasMore||!photoCursor||photoBusy||photoBusyMore)return;
+ const seq=photoSeq.current;
+ setPhotoBusyMore(true);
+ try{
+   const {data,error:e}=await supabase.rpc('ff_profile_photos_page',
+     {p_owner_id:photoTarget,p_limit:PHOTO_PAGE_SIZE,...photoCursor});
+   if(e||!Array.isArray(data))throw e||new Error('Invalid photo page');
+   const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),1800);
+   if(accountRef.current!==me||photoSeq.current!==seq)return;
+   setDb(old=>({...old,photos:appendUniqueRows(old.photos,data)}));
+   setPhotosUrls(old=>({...old,...Object.fromEntries(data.map(row=>[row.id,signed[row.storage_path]||null]))}));
+   setPhotoCursor(descendingRowCursor(data));
+   setPhotoHasMore(hasFullPage(data,PHOTO_PAGE_SIZE));
+   setPhotoLoadError('');
+ }catch{
+   if(accountRef.current===me&&photoSeq.current===seq)setPhotoLoadError('Weitere Fotos konnten nicht geladen werden.');
+ }finally{
+   if(accountRef.current===me&&photoSeq.current===seq)setPhotoBusyMore(false);
+ }
+}
+async function executePhoto(fn,success){
+ const ok=await execute(fn,success);
+ if(ok)setPhotoEpoch(x=>x+1);
+ return ok;
+}
+
 // Einmalige Begrüßung je Konto auf diesem Gerät. Ein erneuter Aufruf unter „Mehr“ ist jederzeit möglich.
 useEffect(()=>{
   let valid=true;
@@ -691,8 +751,8 @@ save={(value)=>execute(async()=>{
   await moderateTextOrThrow([value.display_name,value.region_label,value.about]);
   assertResult(await supabase.from('profiles').update(value).eq('user_id',me));
 },'Profil gespeichert. Textänderungen benötigen eine neue Freigabe.')}
-uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,execute)}
-reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,execute)}
+uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,executePhoto)}
+reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,executePhoto)}
 blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
 </KeyboardAvoidingView>
