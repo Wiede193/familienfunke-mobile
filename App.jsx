@@ -357,6 +357,76 @@ useEffect(()=>{
 },[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
 
+// Seller listings are private and no longer part of the app-start fanout.
+// Fetch just the first 30 when the Basar opens, then page by seller and tuple cursor.
+async function prepareOwnListingPhotos(rows){
+ const ids=rows.map(r=>r.id).filter(Boolean);
+ const {data:extra,error:e}=ids.length
+   ? await supabase.from('ff_market_photos').select('*')
+      .in('listing_id',ids).order('slot',{ascending:true}).limit(ids.length*4)
+   : {data:[],error:null};
+ if(e)throw e;
+ const signed=await signPhotoPaths(supabase,'ff-market-photos',[
+    ...rows.map(r=>r.photo_path),...(extra||[]).map(p=>p.photo_path)
+ ],600);
+ return {extra:extra||[],
+   main:Object.fromEntries(rows.filter(r=>r.photo_path).map(r=>[r.id,signed[r.photo_path]||null])),
+   links:Object.fromEntries((extra||[]).map(r=>[r.photo_path,signed[r.photo_path]||null]))};
+}
+const pinnedMarketListingId=marketIntent?.type==='inboxListing'?marketIntent.id:null;
+useEffect(()=>{
+ let alive=true;const seq=++marketSeq.current;
+ setDb(old=>({...old,listings:[],marketPhotos:[]}));
+ setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
+ setMarketOwnerCursor(null);setMarketOwnerHasMore(false);setMarketOwnerError('');
+ setMarketOwnerBusy(!!me&&tab==='market');setMarketOwnerBusyMore(false);
+ if(!me||tab!=='market')return()=>{alive=false;marketSeq.current++;};
+ (async()=>{
+  const {data,error:e}=await supabase.rpc('ff_my_market_page',{p_limit:MARKET_OWNER_PAGE_SIZE});
+  if(e||!Array.isArray(data))throw e||new Error('Invalid owner listing page');
+  let records=data;
+  // A notification may open an older listing outside the first page.
+  if(pinnedMarketListingId&&!data.some(row=>row.id===pinnedMarketListingId)){
+   const {data:pinned,error:pinnedError}=await supabase.from('ff_market_listings')
+     .select('*').eq('id',pinnedMarketListingId).eq('seller_id',me).maybeSingle();
+   if(pinnedError)throw pinnedError;
+   if(pinned)records=[...data,pinned];
+  }
+  const media=await prepareOwnListingPhotos(records);
+  if(!alive||marketSeq.current!==seq||accountRef.current!==me)return;
+  setDb(old=>({...old,listings:records,marketPhotos:media.extra}));
+  setMarketPhotoUrls(media.main);setMarketExtraPhotoUrls(media.links);
+  setMarketOwnerCursor(marketCursor(data));setMarketOwnerHasMore(hasMarketPage(data));
+ })().catch(()=>{
+  if(alive&&marketSeq.current===seq&&accountRef.current===me)setMarketOwnerError('Eigene Anzeigen konnten nicht geladen werden. Bitte erneut versuchen.');
+ }).finally(()=>{
+  if(alive&&marketSeq.current===seq&&accountRef.current===me)setMarketOwnerBusy(false);
+ });
+ return()=>{alive=false;marketSeq.current++;};
+},[me,tab,marketEpoch,pinnedMarketListingId]);
+async function loadMoreOwnListings(){
+ if(!me||tab!=='market'||marketOwnerBusy||marketOwnerBusyMore||!marketOwnerHasMore||!marketOwnerCursor)return;
+ const seq=marketSeq.current;setMarketOwnerBusyMore(true);setMarketOwnerError('');
+ try{
+  const {data,error:e}=await supabase.rpc('ff_my_market_page',{
+    p_limit:MARKET_OWNER_PAGE_SIZE,...marketOwnerCursor
+  });
+  if(e||!Array.isArray(data))throw e||new Error('Invalid owner listing page');
+  const media=await prepareOwnListingPhotos(data);
+  if(marketSeq.current!==seq||accountRef.current!==me)return;
+  setDb(old=>({...old,listings:appendUniqueRows(old.listings,data),
+    marketPhotos:appendUniqueRows(old.marketPhotos,media.extra,'photo_path')}));
+  setMarketPhotoUrls(old=>({...old,...media.main}));
+  setMarketExtraPhotoUrls(old=>({...old,...media.links}));
+  setMarketOwnerCursor(marketCursor(data));setMarketOwnerHasMore(hasMarketPage(data));
+ }catch{
+  if(marketSeq.current===seq&&accountRef.current===me)setMarketOwnerError('Weitere Anzeigen konnten nicht geladen werden.');
+ }finally{
+  if(marketSeq.current===seq&&accountRef.current===me)setMarketOwnerBusyMore(false);
+ }
+}
+
+
 // Only the currently viewed adult's photos are requested. Existing photo RLS
 // permits own uploads and approved images of established contacts; never cache
 // cross-account signed links after a logout or profile change.
@@ -502,6 +572,11 @@ async function executeEvent(fn,success){
   return true;
  }catch(e){setError(humanError(e));return false;}
  finally{eventActionRef.current=false;setBusy(false);}
+}
+async function executeMarket(fn,success){
+ const ok=await executeEvent(fn,success);
+ if(ok)setMarketEpoch(n=>n+1);
+ return ok;
 }
 async function execute(fn,success){
 if(busy)return;
@@ -662,8 +737,10 @@ tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
 tab==='savedSearches'?<SavedMarketSearches key={me} userId={me} onSearch={row=>{setMarketIntent({type:'savedSearch',row,returnTab:'savedSearches'});setTab('market');}} onBrowse={()=>{setMarketIntent(null);setTab('market');}}/>:
 tab==='market'?<MarketScreen key={me} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} listings={db.listings} me={me} active={active} busy={busy}
+ ownLoading={marketOwnerBusy} ownLoadingMore={marketOwnerBusyMore} ownHasMore={marketOwnerHasMore}
+ ownError={marketOwnerError} onLoadMoreOwn={loadMoreOwnListings} onRetryOwn={()=>setMarketEpoch(n=>n+1)}
 organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} favorites={db.marketFavorites} contacts={db.contacts}
-createListing={(v,assets,stableId)=>execute(async()=>{
+createListing={(v,assets,stableId)=>executeMarket(async()=>{
  // Basar-Texte nicht wegen einzelner Wörter vorab blockieren.
  // Die verpflichtende Inhalts- und Produktprüfung findet auf dem Server statt.
  const {data:inserted,error:insertError}=await supabase.from('ff_market_listings').insert({...v,seller_id:me,...(stableId?{id:stableId}:{})}).select('id').single();
@@ -683,11 +760,11 @@ createListing={(v,assets,stableId)=>execute(async()=>{
  }
  await reviewMarketListing(inserted.id);
 })}
-addPendingPhotos={(listingId,assets)=>execute(async()=>{
+addPendingPhotos={(listingId,assets)=>executeMarket(async()=>{
  await uploadMarketPhotos(listingId,assets,me);
  await reviewMarketListing(listingId);
 })}
-editListing={(listingId,v,assets)=>execute(async()=>{
+editListing={(listingId,v,assets)=>executeMarket(async()=>{
  const {data,error:e}=await supabase.rpc('ff_market_edit_listing',{
    p_listing_id:listingId,p_title:v.title,p_description:v.description,
    p_category:v.category,p_item_condition:v.item_condition,
@@ -701,12 +778,12 @@ editListing={(listingId,v,assets)=>execute(async()=>{
  }
  await reviewMarketListing(listingId);
 })}
-toggleFavorite={(listingId,isFavorite)=>execute(async()=>{
+toggleFavorite={(listingId,isFavorite)=>executeEvent(async()=>{
  if(isFavorite)assertResult(await supabase.from('ff_market_favorites').delete().eq('user_id',me).eq('listing_id',listingId));
  else assertResult(await supabase.from('ff_market_favorites').insert({user_id:me,listing_id:listingId}));
 },isFavorite?'Aus der Merkliste entfernt.':'In deiner Merkliste gespeichert.')}
-markListingSold={(id)=>execute(async()=>{const {data,error:e}=await supabase.rpc('ff_market_mark_sold',{p_listing_id:id});if(e)throw e;if(data!==true)throw new Error('Das Inserat konnte nicht abgeschlossen werden. Bitte aktualisiere den Basar.');},'Angebot abgeschlossen. Es ist für andere nicht mehr sichtbar.')}
-retryReview={(id)=>execute(async()=>{
+markListingSold={(id)=>executeMarket(async()=>{const {data,error:e}=await supabase.rpc('ff_market_mark_sold',{p_listing_id:id});if(e)throw e;if(data!==true)throw new Error('Das Inserat konnte nicht abgeschlossen werden. Bitte aktualisiere den Basar.');},'Angebot abgeschlossen. Es ist für andere nicht mehr sichtbar.')}
+retryReview={(id)=>executeMarket(async()=>{
  const ownPending=db.listings.some(x=>x.id===id&&x.seller_id===me&&x.moderation_status==='pending');
  if(!ownPending)throw new Error('Nur eine eigene, noch nicht veröffentlichte Anzeige kann erneut geprüft werden.');
  await reviewMarketListing(id);
