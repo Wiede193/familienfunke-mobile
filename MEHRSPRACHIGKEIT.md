@@ -19,3 +19,6 @@ Neuigkeiten, Preisalarmtexte, Push-Einstellungen, Familienkalender und Ausflugsp
 
 ## Ausbaustufe 5 – Karte und Wegweiser
 Die Navigation der Familienkarte und die Wegweiser-Statussteuerung sind jetzt teilweise englisch. Fachinformationen und Original-Ortsbeschreibungen bleiben bewusst deutsch mit entsprechendem Hinweis. Unveränderte Geocoding-Grenzen, Zugriffsrechte, Fachinhalte, stabile IDs und lokale Fortschrittsdaten. Weitere Karten-Metadaten und die Einbettungsoberfläche werden noch vervollständigt.
+
+## Ausbaustufe 6 – Spiele und Quiz
+45 lokal gespeicherte englische Fragen: je fünf für jede Kombination aus drei Altersstufen und den Bereichen Natur, Allgemeinwissen und Logik. Englisch verwendet einen eigenen Pool und acht übersetzte Aktivitäten; Deutsch behält den vorhandenen Pool. Die Quiz-Auswahl und das Screenreader-Feedback wechseln mit der Sprache, ohne Antworthistorie zu speichern. Sprachabhängige Wort- und Kreuzworträtsel bleiben auf Deutsch und werden in der Auswahl entsprechend gekennzeichnet. Die Mini-Spiele und Klassiker werden bei der Oberfläche separat weiter lokalisiert.
