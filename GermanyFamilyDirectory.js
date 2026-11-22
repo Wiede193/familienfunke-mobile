@@ -24,13 +24,13 @@ export const GERMANY_FAMILY_RESOURCES=[
  {id:'bundesportal',title:"Bundesportal: zuständige Behörde und Verwaltungsleistung finden",description:"Amtliche Suchplattform. Zuständigkeiten und Formulare für die konkrete Gemeinde bzw. das Bundesland erst nach Ortsauswahl prüfen.",url:'https://verwaltung.bund.de/'},
  {id:'elterngeld',title:"Elterngeld: Informationen und regional zuständige Stelle",description:"Für die Bewilligung sind Landes- und Kommunalstellen zuständig. Die örtliche Zuordnung und das für das Geburtsdatum geltende Formular prüfen.",url:'https://familienportal.de/familienportal/familienleistungen/elterngeld'},
  {id:'kindergeld',title:"Kindergeld und Familienkasse",description:"Leistungen, Anträge und Familienkassen-Suche der Bundesagentur für Arbeit.",url:'https://www.arbeitsagentur.de/familie-und-kinder'},
- {id:'kita',title:"Kindertagesbetreuung: Rechtsanspruch und Wege zur Platzsuche",description:"Bundesrechtlichen Anspruch, Landesregeln, kommunale Vergabe und mögliche Kita-Assistenz unterscheiden; keine allgemeine bundesweite Anmeldefrist behaupten.",url:'https://familienportal.de/familienportal/lebenslagen/kinderbetreuung'},
+ {id:'kita',title:"Kindertagesbetreuung: Rechtsanspruch und Wege zur Platzsuche",description:"Bundesrechtlichen Anspruch, Landesregeln, kommunale Vergabe und mögliche Kita-Assistenz unterscheiden; keine allgemeine bundesweite Anmeldefrist behaupten.",url:'https://familienportal.de/familienportal/lebenslagen/ausbildung-beruf/kinderbetreuung'},
  {id:'eutb',title:"EUTB: Ergänzende unabhängige Teilhabeberatung",description:"Kostenlose unabhängige Beratung für Menschen mit (drohender) Behinderung und Angehörige; regionale Beratungsangebote nach Ort suchen.",url:'https://www.teilhabeberatung.de/beratung/beratungsangebote-der-eutb'},
  {id:'teilhabe',title:"Leistungen zur Rehabilitation und Teilhabe",description:"Zuständigkeit von Jugendamt, Eingliederungshilfeträger, Krankenkasse und Pflegekasse nach Leistung auseinanderhalten.",url:'https://www.bmas.de/DE/Soziales/Teilhabe-und-Inklusion/Rehabilitation-und-Teilhabe/rehabilitation-und-teilhabe.html'},
  {id:'reisen-fuer-alle',title:"Reisen für Alle: geprüfte Barrierefreiheitsangaben",description:"Bundesweites Verzeichnis geprüfter Merkmale, keine pauschale Garantie. Filter für Mobilität, Sehen, Hören und kognitive Bedarfe.",url:'https://reisen-fuer-alle.de/uebersicht-angebote/'},
 ];
 const fold=value=>String(value||'').normalize('NFD')
- .replace(/[\\u0300-\\u036f]/g,'').replace(/ß/g,'ss').toLowerCase().trim();
+ .replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss').toLowerCase().trim();
 // Kein Standortzugriff, keine Speicherung einer Landesauswahl.
 export function findGermanyFamilyStates(query='',limit=16){
  const q=fold(query);
