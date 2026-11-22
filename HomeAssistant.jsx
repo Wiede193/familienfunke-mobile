@@ -319,6 +319,18 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       <View style={[s.featuredGrid,singleColumn&&{flexDirection:'column'}]}>
         {featured.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query="" compact={!singleColumn}/>)}
       </View>
+      <Pressable accessibilityRole="button" accessibilityState={{expanded:showAll}} onPress={()=>setShowAll(v=>!v)} style={s.allAction}>
+        <Text style={s.allActionLabel}>{showAll?'Weniger Bereiche anzeigen':'Alle Bereiche entdecken'}</Text><Text style={s.allActionLabel}>{showAll?'⌃':'⌄'}</Text>
+      </Pressable>
+      {showAll?moreRoutes.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query=""/>):null}
+      <Pressable accessibilityRole="button" accessibilityLabel="Familienquiz und Spielideen öffnen" onPress={()=>onNavigate('play')} style={s.outingCard}>
+        <View style={{flex:1}}><Text style={s.outingTitle}>Familienzeit</Text><Text style={s.outingSubtitle}>Eine kurze Quizrunde oder eine Idee zum gemeinsamen Spielen.</Text><Text style={s.outingLink}>Quiz & Spielideen öffnen ›</Text></View>
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Persönlichen Familienausflug planen" onPress={()=>onNavigate('outing')} style={s.outingCard}>
+        <View style={{flex:1}}><Text style={s.outingTitle}>Familienausflug planen</Text><Text style={s.outingSubtitle}>Passende Ziele nach Alter, Budget und Entfernung.</Text><Text style={s.outingLink}>Ausflugsplaner öffnen ›</Text></View>
+      </Pressable>
+    </View>:null}
+    {!needle?<View style={s.section}>
       <View style={s.personalSection}>
         <FamilySectionTitle title={region?'Ideen für eure Region':'Ausflüge zum Entdecken'}
           subtitle={region?'Aus der Familienkarte, nach eurer Region und euren Interessen sortiert':'Redaktionell ausgewählte Orte aus der Familienkarte'}
@@ -345,7 +357,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
             icon="compass" actionLabel="Familienkarte ansehen"
             onAction={()=>onNavigate('map')} compact/>:null}
       </View>
-      <View style={s.personalSection}>
+      {active?<View style={s.personalSection}>
         <FamilySectionTitle title="Frisch im Familienbasar"
           subtitle="Nur tatsächlich freigegebene Angebote"
           actionLabel="Zum Basar" onAction={()=>onNavigate('market')}/>
@@ -374,7 +386,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
              icon="bag" actionLabel="Familienbasar entdecken"
              onAction={()=>onNavigate('market')} compact/>}
       </View>
-      {active?<View style={s.personalSection}>
+      <View style={s.personalSection}>
         <FamilySectionTitle title="Demnächst gemeinsam"
           subtitle="Bevorstehende Familientreffen und Veranstaltungen"
           actionLabel="Alle Termine" onAction={()=>onNavigate('events')}/>
@@ -401,17 +413,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
          <FamilyEmptyState title="Noch keine anstehenden Termine"
            description="Bis neue Veranstaltungen freigegeben werden, findet ihr im Ausflugsplaner weitere Ideen."
            icon="calendar" actionLabel="Ausflugsplaner öffnen" onAction={()=>onNavigate('outing')} compact/>}
-      </View>:null}
-      <Pressable accessibilityRole="button" accessibilityState={{expanded:showAll}} onPress={()=>setShowAll(v=>!v)} style={s.allAction}>
-        <Text style={s.allActionLabel}>{showAll?'Weniger Bereiche anzeigen':'Alle Bereiche entdecken'}</Text><Text style={s.allActionLabel}>{showAll?'⌃':'⌄'}</Text>
-      </Pressable>
-      {showAll?moreRoutes.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query=""/>):null}
-      <Pressable accessibilityRole="button" accessibilityLabel="Familienquiz und Spielideen öffnen" onPress={()=>onNavigate('play')} style={s.outingCard}>
-        <View style={{flex:1}}><Text style={s.outingTitle}>Familienzeit</Text><Text style={s.outingSubtitle}>Eine kurze Quizrunde oder eine Idee zum gemeinsamen Spielen.</Text><Text style={s.outingLink}>Quiz & Spielideen öffnen ›</Text></View>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Persönlichen Familienausflug planen" onPress={()=>onNavigate('outing')} style={s.outingCard}>
-        <View style={{flex:1}}><Text style={s.outingTitle}>Familienausflug planen</Text><Text style={s.outingSubtitle}>Passende Ziele nach Alter, Budget und Entfernung.</Text><Text style={s.outingLink}>Ausflugsplaner öffnen ›</Text></View>
-      </Pressable>
+      </View>:null}:null}
     </View>:null}
     {!needle?<View style={s.section}>
       <Text style={s.sectionTitle}>Du könntest fragen</Text>
