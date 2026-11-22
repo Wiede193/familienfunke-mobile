@@ -119,7 +119,7 @@ export const BRANDENBURG_FAMILY_PLACES=[
   description:'Erlebnisbad mit Unterwasser-Einblicken in die Pinguinwelt. Zugänge zu Becken und Umkleiden vorab erfragen.',
   info_url:'https://www.spreewelten.de/',
   accessibility:unknown('https://www.spreewelten.de/')
- }
+ },
  {
   id:'bb-ziegeleipark-mildenberg',title:'Ziegeleipark Mildenberg',
   category:'outing',region_label:'Zehdenick · Oberhavel',
