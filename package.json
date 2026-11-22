@@ -33,7 +33,8 @@
     "check:social": "node tests/check-social-pages.mjs && node tests/check-social-app.mjs",
     "check:event-photo-pages": "node tests/check-event-photo-pages.mjs && node tests/check-event-photo-app.mjs",
     "check:market-partners": "node tests/check-market-partner-pages.mjs && node tests/check-market-partner-app.mjs",
-    "check:ops": "node --test tests/check-staging-load.mjs && node tests/check-ops-readiness.mjs"
+    "check:ops": "node --test tests/check-staging-load.mjs && node tests/check-ops-readiness.mjs",
+    "check:data-flow": "node tests/check-request-generation.mjs && node tests/check-app-data-flows.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

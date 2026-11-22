@@ -173,3 +173,24 @@ Lasttests, Prüfung im realen Mobilgerät und ausreichende Infrastruktur.**
   Datensätze im Millionenbereich und p95-Ermittlung bleiben offen.
 
 Betreiberanleitung: `SUPABASE-FREE-BETRIEB.md`.
+
+## Phase 6 – Zuverlässige Aktualisierungen (22.11.2026)
+
+- Das Öffnen einer Neuigkeit löst keinen allgemeinen Startabruf mehr aus.
+  Ausschließlich die gewählte Benachrichtigung und ihr RLS-sichtbares
+  Ziel werden gelesen; Anzeigenamen werden optional nachgeladen.
+- Globale Datenladungen nutzen jetzt Konto-ID und eine monotone
+  Request-Generation; veraltete Ergebnisse derselben Session werden
+  verworfen. Auch das Nachladen von Familien und Kontakten prüft,
+  ob zwischenzeitlich eine neue Aktualisierung gestartet wurde.
+- Beim Kontowechsel werden alte Fehlermeldungen, Hinweise und
+  noch nicht abgeschickte Meldetexte gelöscht.
+- Nicht mehr erforderliche allgemeine Reloads nach Fotobeiträgen,
+  Meldungen, Passwortwechsel, neuen Orten und Partneraktionen entfernt.
+- Für bereits bestätigte Schreiboperationen wird ein später fehlgeschlagener
+  Leserefresh nicht fälschlich als Schreibfehler dargestellt.
+- Zusätzliche Regressionstests in CI. **Nicht ersetzt:** Echte
+  Gerätetests bei Netzwerkwechsel, Integrationstests mit zwei Konten,
+  Staging-Lasttests, Backups und Betriebsalarmierung.
+
+Technische Details: `TECHNISCHE-ZUVERLAESSIGKEIT.md`.

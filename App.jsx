@@ -12,6 +12,7 @@ import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { signPhotoPaths } from './SignedPhotoUrls';
 import { EVENT_PAGE_SIZE, PHOTO_PAGE_SIZE, ascendingEventCursor, descendingRowCursor, hasFullPage } from './EventPhotoPages';
 import { MARKET_OWNER_PAGE_SIZE, PARTNER_PAGE_SIZE, marketCursor, partnerEventCursor, hasMarketPage } from './MarketPartnerPages';
+import { isCurrentRequest } from './RequestGeneration';
 import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -248,10 +249,13 @@ const photoTarget=detailFamily||(tab==='profile'?me:null);
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
 const chatSendingRef=useRef(false);
+const loadSeq=useRef(0);
 const eventActionRef=useRef(false);
 const inbox=useNotificationCenter(me);
 const load=useCallback(async(silent=false)=>{
-if(!me||!supabase)return;
+if(!me||!supabase)return null;
+const seq=++loadSeq.current;
+const stillCurrent=()=>isCurrentRequest(accountRef.current,me,loadSeq.current,seq);
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
@@ -263,7 +267,7 @@ supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('ff_organizations').select('*').eq('owner_id',me).order('created_at',{ascending:false}).limit(50),
 ]);
-if(accountRef.current!==me)return null;
+if(!stillCurrent())return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
 const [profiles,ownProfile,contacts,blocks,verificationRow,membershipRow,ownOrganizations]=queries;
@@ -275,43 +279,46 @@ const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.r
    ? await supabase.from('contact_requests').select('*').eq('id',pinnedContactId).maybeSingle()
    : {data:null,error:null};
  if(pinnedContact.error)throw pinnedContact.error;
- if(accountRef.current!==me)return null;
+ if(!stillCurrent())return null;
  const allContacts=appendUniqueRows(contacts.data||[],pinnedContact.data?[pinnedContact.data]:[]);
  const linkedUserIds=[...new Set([...contactUserIds,...(pinnedContact.data?[pinnedContact.data.sender_id===me?pinnedContact.data.recipient_id:pinnedContact.data.sender_id]:[])])];
  const linkedProfiles=linkedUserIds.length
   ? await supabase.from('profiles').select('*').in('user_id',linkedUserIds)
   : {data:[],error:null};
 if(linkedProfiles.error)throw linkedProfiles.error;
-if(accountRef.current!==me)return null;
+if(!stillCurrent())return null;
 const profileRow=ownProfile.data||(profiles.data||[]).find(p=>p.user_id===me)||null;
 setDiscoverCursor(socialCursor(profiles.data,'user_id'));
 setDiscoverMore(hasNextSocialPage(profiles.data));
 setContactsCursor(socialCursor(contacts.data));
 setContactsMore(hasNextSocialPage(contacts.data));
-setDb(old=>({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
+setDb(old=>!stillCurrent()?old:({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
 events:old.events,eventRequests:old.eventRequests,photos:old.photos,blocks:blocks.data||[],
 listings:old.listings,marketPhotos:old.marketPhotos,marketFavorites:[],organizations:ownOrganizations.data||[],partnerEvents:old.partnerEvents}));
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');
 return {contacts:contacts.data||[],listings:[]};
-} catch(e){if(accountRef.current===me)setError(humanError(e));return null;}
-finally{if(accountRef.current===me)setLoading(false);}
+} catch(e){if(stillCurrent())setError(humanError(e));return null;}
+finally{if(stillCurrent())setLoading(false);}
 },[me]);
 async function loadMoreFamilies(){
  if(!me||discoverLoadingMore||!discoverMore||!discoverCursor)return;
+ const requestedDuringLoad=loadSeq.current;
  setDiscoverLoadingMore(true);
  try {
   const {data,error:e}=await supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE,...discoverCursor});
-  if(accountRef.current!==me)return;
+  if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
   if(e)throw e;
-  setDb(old=>({...old,profiles:appendUniqueRows(old.profiles,data||[],'user_id')}));
+  setDb(old=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)
+    ? {...old,profiles:appendUniqueRows(old.profiles,data||[],'user_id')}:old);
   setDiscoverCursor(socialCursor(data,'user_id'));
   setDiscoverMore(hasNextSocialPage(data));
- }catch(e){if(accountRef.current===me)setError('Weitere Familien konnten nicht geladen werden. Bitte erneut versuchen.');}
+ }catch(e){if(isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))setError('Weitere Familien konnten nicht geladen werden. Bitte erneut versuchen.');}
  finally{if(accountRef.current===me)setDiscoverLoadingMore(false);}
 }
 async function loadMoreContacts(){
  if(!me||contactsLoadingMore||!contactsMore||!contactsCursor)return;
+ const requestedDuringLoad=loadSeq.current;
  setContactsLoadingMore(true);
  try {
   const {data,error:e}=await supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE,...contactsCursor});
@@ -319,12 +326,13 @@ async function loadMoreContacts(){
   const ids=[...new Set((data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
   const names=ids.length?await supabase.from('profiles').select('*').in('user_id',ids):{data:[],error:null};
   if(names.error)throw names.error;
-  if(accountRef.current!==me)return;
-  setDb(old=>({...old,contacts:appendUniqueRows(old.contacts,data||[]),
-    profiles:appendUniqueRows(old.profiles,names.data||[],'user_id')}));
+  if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
+  setDb(old=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)
+    ? {...old,contacts:appendUniqueRows(old.contacts,data||[]),
+    profiles:appendUniqueRows(old.profiles,names.data||[],'user_id')}:old);
   setContactsCursor(socialCursor(data));
   setContactsMore(hasNextSocialPage(data));
- }catch(e){if(accountRef.current===me)setError('Weitere Kontakte konnten nicht geladen werden. Bitte erneut versuchen.');}
+ }catch(e){if(isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))setError('Weitere Kontakte konnten nicht geladen werden. Bitte erneut versuchen.');}
  finally{if(accountRef.current===me)setContactsLoadingMore(false);}
 }
 useEffect(()=>{
@@ -354,6 +362,9 @@ useEffect(()=>{
   setPhotoCursor(null);setPhotoHasMore(false);setPhotoLoadError('');
   setDiscoverCursor(null);setDiscoverMore(false);setDiscoverLoadingMore(false);
   setContactsCursor(null);setContactsMore(false);setContactsLoadingMore(false);
+  loadSeq.current++; // Invalidate in-flight queries even before the next account load.
+  setBusy(false);setLoading(false);setError('');setNotice(''); // Never carry messages across accounts.
+  setReportTarget(null);setReportDetails('');
 },[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
 
@@ -477,7 +488,7 @@ async function loadMorePhotos(){
  }
 }
 async function executePhoto(fn,success){
- const ok=await execute(fn,success);
+ const ok=await executeEvent(fn,success);
  if(ok)setPhotoEpoch(x=>x+1);
  return ok;
 }
@@ -539,6 +550,7 @@ async function reviewMarketListing(listingId){
 }
 async function sendChatMessage(body,contactId){
  if(chatSendingRef.current||!contactId)return false;
+ const actionOwner=me;
  chatSendingRef.current=true;setBusy(true);setError('');setNotice('');
  try{
  
@@ -557,21 +569,25 @@ async function sendChatMessage(body,contactId){
     throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
   }
   if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
+ if(accountRef.current!==actionOwner)return false;
 
  setNotice('Nachricht gesendet.');
  return true;
- }catch(e){setError(humanError(e));return false;}
- finally{chatSendingRef.current=false;setBusy(false);}
+ }catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
+ finally{chatSendingRef.current=false;if(accountRef.current===actionOwner)setBusy(false);}
 }
 // Events refresh their own cursor and request status; do not reload every app list.
 async function executeEvent(fn,success){
  if(eventActionRef.current)return false;
+ const actionOwner=me;
  eventActionRef.current=true;setBusy(true);setError('');setNotice('');
  try{
-  await fn();if(success)setNotice(success);
+  await fn();
+  if(accountRef.current!==actionOwner)return false;
+  if(success)setNotice(success);
   return true;
- }catch(e){setError(humanError(e));return false;}
- finally{eventActionRef.current=false;setBusy(false);}
+ }catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
+ finally{eventActionRef.current=false;if(accountRef.current===actionOwner)setBusy(false);}
 }
 async function executeMarket(fn,success){
  const ok=await executeEvent(fn,success);
@@ -579,16 +595,25 @@ async function executeMarket(fn,success){
  return ok;
 }
 async function execute(fn,success){
-if(busy)return;
+if(busy)return false;
+const actionOwner=me;
 setBusy(true);setError('');setNotice('');
-try{await fn();if(success)setNotice(success);await load(true);return true;}
-catch(e){setError(humanError(e));return false;}
-finally{setBusy(false);}
+try{
+ await fn();
+ if(accountRef.current!==actionOwner)return false;
+ if(success)setNotice(success);
+ // The write already succeeded even if the follow-up refresh failed.
+ // Never report a saved listing as unsaved: retrying might create duplicates.
+ await load(true);
+ return accountRef.current===actionOwner;
+}
+catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
+finally{if(accountRef.current===actionOwner)setBusy(false);}
 }
 function report(type,id){setReportDetails('');setReportTarget({type,id});}
 async function sendReport(){
 if(!reportTarget||reportDetails.trim().length<10)return setError('Bitte den Vorfall mit mindestens 10 Zeichen beschreiben.');
-const ok=await execute(async()=>assertResult(await supabase.from('reports').insert({reporter_id:me,subject_type:reportTarget.type,subject_id:reportTarget.id,details:reportDetails.trim()})),'Danke. Deine Meldung wurde gespeichert.');
+const ok=await executeEvent(async()=>assertResult(await supabase.from('reports').insert({reporter_id:me,subject_type:reportTarget.type,subject_id:reportTarget.id,details:reportDetails.trim()})),'Danke. Deine Meldung wurde gespeichert.');
 if(ok){setReportTarget(null);setReportDetails('');}
 }
 async function sendRequest(uid){await execute(async()=>assertResult(await supabase.from('contact_requests').insert({sender_id:me,recipient_id:uid})),'Kontaktanfrage verschickt.');}
@@ -602,60 +627,79 @@ Alert.alert('Kontakt blockieren?','Die Person kann dir dann keine neuen Nachrich
 async function unblockUser(uid){await execute(async()=>assertResult(await supabase.from('blocks').delete().eq('blocker_id',me).eq('blocked_id',uid)),'Blockierung aufgehoben.');}
 async function changePassword(password){
 if(password.length<12)throw new Error('Das Passwort braucht mindestens 12 Zeichen.');
-return execute(async()=>assertResult(await supabase.auth.updateUser({password})),'Passwort geändert.');
+return executeEvent(async()=>assertResult(await supabase.auth.updateUser({password})),'Passwort geändert.');
 }
 function openInbox(){
   if(tab!=='inbox')setInboxReturnTab(tab==='push'?'more':tab);
   setDetailFamily(null);setSelectedContact(null);setShowInfo(false);
   setMarketIntent(null);setFocusContactId(null);setTab('inbox');inbox.refresh();
 }
+// Opening one notification must resolve only that destination, not refresh every tab.
+// A missing/deleted target leaves the current screen intact.
 async function openInboxEvent(event){
-  try{
+ const owner=me;
+ if(!owner||!event?.id)return false;
+ try{
    const {data:row,error:e}=await supabase.from('ff_notifications')
     .select('id,kind,contact_id,listing_id,listing_status').eq('id',event.id).eq('user_id',me).maybeSingle();
-   if(accountRef.current!==me)return false;
+   if(accountRef.current!==owner)return false;
    if(e)throw e;
    if(!row){setNotice('Diese Neuigkeit ist nicht mehr verfügbar.');inbox.refresh();return false;}
-   const fresh=await load(true);
-   if(!fresh||accountRef.current!==me)return false;
-   setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);
-   setExtraReturnTab('inbox');
    if(row.kind==='search'||row.kind==='price'){
-     const {data:listing,error}=await supabase.from('ff_market_listings').select('id').eq('id',row.listing_id).eq('moderation_status','approved').neq('seller_id',me).maybeSingle();
-     if(accountRef.current!==me)return false;
-     if(error||!listing){setNotice('Dieses Angebot ist nicht mehr verfügbar.');return false;}
+     if(!row.listing_id){setNotice('Dieses Angebot ist nicht mehr verfügbar.');return false;}
+     const {data:listing,error:listingError}=await supabase.from('ff_market_listings')
+       .select('id').eq('id',row.listing_id).eq('moderation_status','approved')
+       .neq('seller_id',owner).maybeSingle();
+     if(accountRef.current!==owner)return false;
+     if(listingError)throw listingError;
+     if(!listing){setNotice('Dieses Angebot ist nicht mehr verfügbar.');return false;}
+     setDetailFamily(null);setSelectedContact(null);setShowInfo(false);
+     setExtraReturnTab('inbox');
      setMarketIntent({type:'buyerListing',id:listing.id,returnTab:'inbox'});setTab('market');
    }else if(row.kind==='market'){
-     let listing=fresh.listings.find(x=>x.id===row.listing_id&&x.seller_id===me);
-     if(!listing){
-       const {data,error}=await supabase.from('ff_market_listings').select('*').eq('id',row.listing_id).eq('seller_id',me).maybeSingle();
-       if(accountRef.current!==me)return false;
-       if(error)throw error;
-       listing=data;
-       if(listing)setDb(old=>({...old,listings:[listing,...old.listings.filter(x=>x.id!==listing.id)]}));
-     }
+     if(!row.listing_id){setNotice('Die Anzeige ist nicht mehr verfügbar.');return false;}
+     const {data:listing,error:listingError}=await supabase.from('ff_market_listings')
+       .select('id').eq('id',row.listing_id).eq('seller_id',owner).maybeSingle();
+     if(accountRef.current!==owner)return false;
+     if(listingError)throw listingError;
      if(!listing){setNotice('Die Anzeige ist nicht mehr verfügbar.');return false;}
+     // The market screen will fetch the exact older listing, including photos.
+     setDetailFamily(null);setSelectedContact(null);setShowInfo(false);
+     setExtraReturnTab('inbox');
      setMarketIntent({type:'inboxListing',id:listing.id});setTab('market');
    }else{
-     let contact=fresh.contacts.find(c=>c.id===row.contact_id&&(c.sender_id===me||c.recipient_id===me));
-     if(!contact){
-       const {data:older,error:contactError}=await supabase.from('contact_requests')
-         .select('*').eq('id',row.contact_id).maybeSingle();
-       if(contactError)throw contactError;
-       if(accountRef.current!==me)return false;
-       if(older&&(older.sender_id===me||older.recipient_id===me)){
-         contact=older;setDb(old=>({...old,contacts:appendUniqueRows([older],old.contacts)}));
-       }
+     if(!row.contact_id){setNotice('Der Kontakt ist nicht mehr verfügbar.');return false;}
+     const {data:older,error:contactError}=await supabase.from('contact_requests')
+       .select('*').eq('id',row.contact_id).maybeSingle();
+     if(accountRef.current!==owner)return false;
+     if(contactError)throw contactError;
+     if(!older||(older.sender_id!==owner&&older.recipient_id!==owner)){
+       setNotice('Der Kontakt ist nicht mehr verfügbar.');return false;
      }
-     if(!contact){setNotice('Der Kontakt ist nicht mehr verfügbar.');return false;}
-     if(row.kind==='message'&&contact.status==='accepted'){
-       setChatReturnTab('inbox');setSelectedContact(contact.id);setTab('chat');
+     // The exact authorized contact may be outside the first 40-item page.
+     setDb(old=>({...old,contacts:appendUniqueRows([older],old.contacts)}));
+     // The contact is sufficient to navigate. A slow or blocked display-name
+     // lookup must not delay opening the actual conversation.
+     const counterpart=older.sender_id===owner?older.recipient_id:older.sender_id;
+     supabase.from('profiles').select('*').eq('user_id',counterpart).maybeSingle()
+       .then(({data:linked,error:profileError})=>{
+         if(profileError||!linked||accountRef.current!==owner)return;
+         setDb(old=>accountRef.current===owner
+           ? {...old,profiles:appendUniqueRows(old.profiles,[linked],'user_id')}:old);
+       }).catch(()=>{});
+     setDetailFamily(null);setSelectedContact(null);setShowInfo(false);
+     setMarketIntent(null);setExtraReturnTab('inbox');
+     if(row.kind==='message'&&older.status==='accepted'){
+       setChatReturnTab('inbox');setSelectedContact(older.id);setTab('chat');
      }else{
-       setFocusContactId(contact.id);setTab('contacts');
+       setFocusContactId(older.id);setTab('contacts');
      }
    }
    return true;
-  }catch(e){if(accountRef.current===me)setNotice('Neuigkeit konnte nicht geöffnet werden. Bitte erneut versuchen.');return false;}
+ }catch(e){
+   if(accountRef.current===owner)setNotice('Neuigkeit konnte nicht geöffnet werden. Bitte erneut versuchen.');
+   return false;
+ }
 }
 function navigateFromHome(id,marketQuery='',placeId=null){
   const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar','play'];
@@ -731,7 +775,7 @@ tab==='play'?<FamilyPlayScreen key={me}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
 tab==='outing'?<FamilyOutingScreen key={me} onCalendar={planCalendarPlace} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
 tab==='guide'?<FamilyGuideScreen userId={me} regionLabel={myProfile?.region_label}/>:
-tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={active} entryPlaceId={mapIntent?.id} addPlace={(v)=>execute(async()=>{
+tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={active} entryPlaceId={mapIntent?.id} addPlace={(v)=>executeEvent(async()=>{
  await moderateTextOrThrow([v.title,v.description,v.region_label]);
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
@@ -791,11 +835,14 @@ retryReview={(id)=>executeMarket(async()=>{
 onContact={sendRequest} onChat={(cid)=>{setChatReturnTab('market');setSelectedContact(cid);setTab('chat');}} nameOf={findName} blocked={blocked}/>:
 tab==='partners'?<PartnersScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='partners'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} organizations={db.organizations}
 me={me} active={active} busy={busy}
-applyOrg={(v)=>execute(async()=>{
+applyOrg={(v)=>executeEvent(async()=>{
  await moderateTextOrThrow([v.name,v.description,v.region_label]);
- assertResult(await supabase.from('ff_organizations').insert({...v,owner_id:me}));
+ const {data:org,error:orgError}=await supabase.from('ff_organizations')
+   .insert({...v,owner_id:me}).select('*').single();
+ if(orgError)throw orgError;
+ if(accountRef.current===me)setDb(old=>({...old,organizations:appendUniqueRows([org],old.organizations)}));
 },'Partneranfrage gespeichert. Die Einrichtung wird vor Freigabe geprüft.')}
-createPartnerEvent={(v)=>execute(async()=>{
+createPartnerEvent={(v)=>executeEvent(async()=>{
  await moderateTextOrThrow([v.title,v.description,v.region_label]);
  assertResult(await supabase.from('ff_partner_events').insert({...v,creator_id:me}));
 },'Veranstaltung eingereicht. Sie erscheint nach Freigabe.')}

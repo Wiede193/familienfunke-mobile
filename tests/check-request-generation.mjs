@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../RequestGeneration.js',import.meta.url),'utf8');
+const {isCurrentRequest}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+assert.equal(isCurrentRequest('u1','u1',3,3),true,'Latest request for the active account may commit');
+assert.equal(isCurrentRequest('u1','u1',4,3),false,'Old same-account reply must be discarded');
+assert.equal(isCurrentRequest('u2','u1',3,3),false,'Old account response must be discarded');
+assert.equal(isCurrentRequest(null,'u1',3,3),false,'Logout invalidates old account');
+assert.equal(isCurrentRequest('u1',null,3,3),false,'Do not apply unauthenticated request');
+assert.equal(isCurrentRequest('u1','u1',3,2),false,'Page from an older reset must be discarded');
+assert.equal(isCurrentRequest('u1','u1',0,0),true,'Initial scoped generation is valid');
+assert.equal(isCurrentRequest('u1','u1',NaN,NaN),false,'Nonnumeric generation cannot match');
+console.log('Account and request generation guards verified.');

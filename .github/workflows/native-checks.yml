@@ -71,6 +71,8 @@ jobs:
         run: npm run check:market-partners
       - name: Supabase-Free-Monitoring und gesperrte Produktionslasttests prüfen
         run: npm run check:ops
+      - name: Nebenläufige Antworten und zielgerichtete App-Aktualisierung prüfen
+        run: npm run check:data-flow
       - name: KI-Freigabe und Fehlerbehandlung prüfen
         run: npm run check:market-auto-review
       - name: Automatische Wiederholung und Moderationsausnahmen prüfen
