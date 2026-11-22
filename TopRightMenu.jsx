@@ -1,6 +1,7 @@
-import React from 'react';
+import React,{useState} from 'react';
 import {Modal,Pressable,SafeAreaView,ScrollView,StyleSheet,Text,View} from 'react-native';
-import {FAMILY_COLORS as C} from './FamilyTheme';
+import {FAMILY_COLORS as C,FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
+import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 
 export const MENU_GROUPS=[
  {title:'Mein Familienfunke',items:[
@@ -30,47 +31,106 @@ export const MENU_GROUPS=[
 ];
 export const MORE_ITEMS=MENU_GROUPS.flatMap(g=>g.items).filter(([id])=>!['info','refresh','more'].includes(id));
 
-export function MenuIcon(){
- return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.icon}>
-  {[0,1,2].map(i=><View key={i} style={s.line}/>)}
- </View>;
-}
+export function MenuIcon(){return <FamilyIcon name="menu" size={25} color={C.ink}/>;}
+const QUICK_ITEMS=[
+  ['profile','Mein Profil','users'],
+  ['chat','Nachrichten','message'],
+  ['inbox','Neuigkeiten','bell'],
+  ['market','Familienbasar','bag']
+];
 export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}){
- return <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
+ const [expanded,setExpanded]=useState(null);
+ return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
   <SafeAreaView style={s.shade}>
    <Pressable accessible={false} importantForAccessibility="no" onPress={onClose} style={StyleSheet.absoluteFill}/>
    <View accessibilityViewIsModal style={s.panel}>
     <View style={s.header}>
-     <Text accessibilityRole="header" style={s.title}>Menü</Text>
-     <Pressable accessibilityRole="button" accessibilityLabel="Menü schließen" onPress={onClose} style={s.close}><Text style={s.closeText}>×</Text></Pressable>
+     <View style={{flex:1}}>
+       <Text accessibilityRole="header" style={s.title}>Dein Familienfunke</Text>
+       <Text style={s.headerSub}>Schnell finden, was ihr braucht</Text>
+     </View>
+     <Pressable accessibilityRole="button" accessibilityLabel="Menü schließen"
+       onPress={onClose} style={s.close}><FamilyIcon name="close" size={21}/></Pressable>
     </View>
     <ScrollView style={s.scroll} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-     {MENU_GROUPS.map(group=><View key={group.title}>
-      <Text accessibilityRole="header" style={s.group}>{group.title}</Text>
-      {group.items.map(([id,icon,title,subtitle])=>{
-       const selected=id===activeTab;
-       return <Pressable key={id} accessibilityRole="button" accessibilityLabel={title+(id==='inbox'&&unread>0?', '+unread+' ungelesen':'')} accessibilityState={{selected}}
-        onPress={()=>onSelect(id)} style={[s.item,selected&&s.selected]}>
-        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.glyphWrap}><Text style={s.glyph}>{icon}</Text></View>
-        <View style={{flex:1,minWidth:0}}>
-         <Text style={s.name}>{title}</Text><Text style={s.subtitle}>{subtitle}</Text>
-         {id==='inbox'&&unread>0?<Text style={s.unread}>{unread} ungelesen</Text>:null}
-        </View><Text accessibilityElementsHidden importantForAccessibility="no" style={s.arrow}>›</Text>
-       </Pressable>;
+      <Text style={s.group}>Schnellzugriff</Text>
+      <View style={s.quickGrid}>
+        {QUICK_ITEMS.map(([id,title,icon])=><Pressable key={id} accessibilityRole="button"
+          accessibilityLabel={title+(id==='inbox'&&unread>0?', '+unread+' ungelesen':'')}
+          accessibilityState={{selected:id===activeTab}}
+          style={({pressed})=>[s.quick,activeTab===id&&s.quickActive,pressed&&s.pressed]}
+          onPress={()=>onSelect(id)}>
+          <View style={s.quickIcon}><FamilyIcon name={icon} size={23}/></View>
+          <Text style={s.quickTitle}>{title}</Text>
+          {id==='inbox'&&unread>0?<Text style={s.unread}>{unread} neu</Text>:null}
+        </Pressable>)}
+      </View>
+      <Text style={[s.group,{marginTop:22}]}>Alle Bereiche</Text>
+      {MENU_GROUPS.map(group=>{
+        const open=expanded===group.title;
+        return <View key={group.title} style={s.groupCard}>
+          <Pressable accessibilityRole="button"
+            accessibilityLabel={group.title+' '+(open?'einklappen':'ausklappen')}
+            accessibilityState={{expanded:open}} onPress={()=>setExpanded(open?null:group.title)}
+            style={s.groupRow}>
+            <Text style={s.groupTitle}>{group.title}</Text>
+            <Text style={s.groupCount}>{group.items.length} Bereiche</Text>
+            <FamilyIcon name={open?'chevron-up':'chevron-down'} size={19}/>
+          </Pressable>
+          {open?group.items.map(([id,glyph,title,subtitle])=>{
+            const selected=id===activeTab;
+            return <Pressable key={id} accessibilityRole="button"
+              accessibilityLabel={title+(id==='inbox'&&unread>0?', '+unread+' ungelesen':'')}
+              accessibilityState={{selected}} onPress={()=>onSelect(id)}
+              style={({pressed})=>[s.item,selected&&s.selected,pressed&&s.pressed]}>
+              <View style={s.glyphWrap}><FamilyIcon name={FAMILY_ROUTE_ICONS[id]||'compass'} size={20}/></View>
+              <View style={{flex:1,minWidth:0}}>
+                <Text style={s.name}>{title}</Text>
+                <Text style={s.subtitle}>{subtitle}</Text>
+                {id==='inbox'&&unread>0?<Text style={s.unread}>{unread} ungelesen</Text>:null}
+              </View>
+              <FamilyIcon name="chevron-right" size={19}/>
+            </Pressable>;
+          }):null}
+        </View>;
       })}
-     </View>)}
     </ScrollView>
    </View>
   </SafeAreaView>
  </Modal>;
 }
 const s=StyleSheet.create({
- shade:{flex:1,backgroundColor:'#253D4373',alignItems:'flex-end',paddingHorizontal:12,paddingBottom:12},
- panel:{width:'100%',maxWidth:360,flexShrink:1,minHeight:0,backgroundColor:C.paper,borderRadius:22,marginTop:10,overflow:'hidden',borderWidth:1,borderColor:C.line},
- header:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',padding:14,borderBottomWidth:1,borderBottomColor:C.line},
- title:{fontSize:23,fontWeight:'900',color:C.ink},close:{minWidth:44,minHeight:44,justifyContent:'center',alignItems:'center',backgroundColor:C.sunPale,borderRadius:14},closeText:{fontSize:27,color:C.ink},
- scroll:{flexShrink:1},content:{padding:12,paddingBottom:20},group:{fontSize:14,fontWeight:'900',color:C.accentDark,marginTop:12,marginBottom:6,paddingHorizontal:7},
- item:{flexDirection:'row',gap:10,alignItems:'center',minHeight:58,padding:10,borderRadius:13},selected:{backgroundColor:C.sunPale},glyphWrap:{width:34,height:34,alignItems:'center',justifyContent:'center',backgroundColor:C.mint,borderRadius:11},
- glyph:{fontSize:20,color:C.accentDark},name:{fontSize:15,fontWeight:'800',color:C.ink},subtitle:{fontSize:12,lineHeight:17,color:C.muted,marginTop:3},unread:{color:C.accentDark,fontWeight:'800',fontSize:12,marginTop:4},arrow:{color:C.accentDark,fontSize:22},
- icon:{width:25,height:25,justifyContent:'center',gap:5},line:{height:2.5,width:23,borderRadius:2,backgroundColor:C.ink}
+ shade:{flex:1,backgroundColor:'#253D4373',alignItems:'flex-end',paddingHorizontal:10,paddingBottom:10},
+ panel:{width:'100%',maxWidth:380,maxHeight:'96%',flexShrink:1,backgroundColor:C.paper,
+   borderRadius:24,marginTop:8,overflow:'hidden',borderWidth:1,borderColor:C.line},
+ header:{flexDirection:'row',alignItems:'center',gap:12,padding:20,
+   borderBottomWidth:1,borderBottomColor:C.line},
+ title:{fontSize:T.title,fontWeight:'800',color:C.ink},
+ headerSub:{fontSize:T.small,color:C.muted,marginTop:4},
+ close:{minWidth:S.touch,minHeight:S.touch,justifyContent:'center',alignItems:'center',
+   backgroundColor:C.sunPale,borderRadius:14},
+ scroll:{flexShrink:1},content:{padding:16,paddingBottom:28},
+ group:{fontSize:T.small,fontWeight:'800',color:C.accentDark,marginBottom:10,paddingHorizontal:3},
+ quickGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:10},
+ quick:{width:'48%',minHeight:101,backgroundColor:C.bg,borderWidth:1,borderColor:C.line,
+   borderRadius:17,padding:13,gap:8,justifyContent:'space-between'},
+ quickActive:{backgroundColor:C.sunPale,borderColor:C.sun},
+ quickIcon:{width:36,height:36,borderRadius:12,backgroundColor:C.paper,
+   justifyContent:'center',alignItems:'center'},
+ quickTitle:{fontSize:T.small,fontWeight:'800',color:C.ink},
+ groupCard:{borderRadius:16,borderWidth:1,borderColor:C.line,marginBottom:9,
+   overflow:'hidden',backgroundColor:C.paper},
+ groupRow:{flexDirection:'row',alignItems:'center',padding:14,minHeight:54,gap:8,
+   backgroundColor:C.bg},
+ groupTitle:{fontSize:T.body,fontWeight:'800',color:C.ink,flex:1},
+ groupCount:{color:C.muted,fontSize:11},
+ item:{flexDirection:'row',gap:10,alignItems:'center',minHeight:63,padding:12,
+   borderTopWidth:1,borderTopColor:C.line},
+ selected:{backgroundColor:C.sunPale},
+ glyphWrap:{width:36,height:36,alignItems:'center',justifyContent:'center',
+   backgroundColor:C.mint,borderRadius:11},
+ name:{fontSize:14,fontWeight:'700',color:C.ink},
+ subtitle:{fontSize:T.meta,lineHeight:17,color:C.muted,marginTop:3},
+ unread:{color:C.accentDark,fontWeight:'800',fontSize:11},
+ pressed:{opacity:0.72}
 });
