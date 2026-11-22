@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {Alert,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View,useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import OfficialFamilyEvents from './OfficialFamilyEvents';
 import {dayKey,monthDays,moveMonth,entryDay,entryTime,compareEntries,calendarFields} from './CalendarDates';
 
 async function verifyAccount(userId){
@@ -38,7 +39,7 @@ const LABELS={personal:'Privater Termin',outing:'Geplanter Ausflug',family:'Fami
 const monthLabel=m=>new Date(Number(m.slice(0,4)),Number(m.slice(5))-1,1,12).toLocaleDateString('de-DE',{month:'long',year:'numeric'});
 export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
  const today=dayKey(new Date()),[month,setMonth]=useState(today.slice(0,7)),[chosen,setChosen]=useState(today);
- const [form,setForm]=useState(()=>seed?emptyForm(today,seed):null),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
+ const [form,setForm]=useState(()=>seed?emptyForm(today,seed):null),[rows,setRows]=useState([]),[officialEvents,setOfficialEvents]=useState([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const seq=useRef(0),alive=useRef(true),lock=useRef(false),scroll=useRef(null);
  const {width,fontScale}=useWindowDimensions();
  async function refresh(){
@@ -118,20 +119,22 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
    {width>=376&&fontScale<1.5?<><View style={s.week}>{['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=><Text key={d} style={[s.sub,s.weekDay]}>{d}</Text>)}</View>
     <View style={s.week}>{monthDays(month).map((day,i)=>{
      const count=monthRows.filter(r=>entryDay(r)===day).length;
-     return day?<Pressable key={day} accessibilityRole="button" accessibilityLabel={day+', '+count+' Termine'} accessibilityState={{selected:day===chosen}}
-      onPress={()=>setChosen(day)} style={[s.day,day===chosen&&s.selected]}><Text style={[s.dayText,day===chosen&&{color:C.white}]}>{Number(day.slice(-2))}</Text>{count>0?<View style={[s.dot,day===chosen&&{backgroundColor:C.white}]}/>:null}</Pressable>:<View key={'blank'+i} style={s.day}/>;
+     const publicCount=officialEvents.filter(e=>e.start_date<=day&&e.end_date>=day).length;
+     return day?<Pressable key={day} accessibilityRole="button" accessibilityLabel={day+', '+count+' private Termine und '+publicCount+' offizielle Familienveranstaltungen'} accessibilityState={{selected:day===chosen}}
+      onPress={()=>setChosen(day)} style={[s.day,day===chosen&&s.selected]}><Text style={[s.dayText,day===chosen&&{color:C.white}]}>{Number(day.slice(-2))}</Text>{count>0?<View style={[s.dot,day===chosen&&{backgroundColor:C.white}]}/>:null}{publicCount>0?<View style={[s.dot,{backgroundColor:'#D88D15'},day===chosen&&{backgroundColor:C.white}]}/>:null}</Pressable>:<View key={'blank'+i} style={s.day}/>;
     })}</View></>:<Text style={s.sub}>Bei großer Schrift werden die Termine als Monatsliste angezeigt.</Text>}
    <Action secondary onPress={()=>{setMonth(today.slice(0,7));setChosen(today);}}>Heute</Action>
   </View>
   {notice?<Text accessibilityLiveRegion="assertive" style={s.text}>{notice}</Text>:null}
   <Action secondary disabled={loading} onPress={refresh}>{loading?'Kalender wird geladen …':'Aktualisieren'}</Action>
   <Text accessibilityRole="header" style={s.heading}>{chosen}</Text>
-  {selectedRows.length?selectedRows.map(render):!loading?<Text style={s.text}>An diesem Tag ist kein Termin eingetragen.</Text>:null}
+  {selectedRows.length?selectedRows.map(render):!loading?<Text style={s.text}>An diesem Tag ist kein privater Termin eingetragen. Offizielle Veranstaltungen erkennst du an einem zusätzlichen Kalendermarker und findest du unten.</Text>:null}
   <Action secondary onPress={()=>openForm(emptyForm(chosen,null))}>Termin für diesen Tag anlegen</Action>
   <Text accessibilityRole="header" style={s.heading}>Weitere Termine im Monat</Text>
   {monthRows.filter(r=>entryDay(r)!==chosen).map(render)}
   {!monthRows.length&&!loading?<Text style={s.text}>Noch keine Termine in diesem Monat.</Text>:null}
   {unavailable.length?<><Text accessibilityRole="header" style={s.heading}>Nicht verfügbare Veranstaltungen</Text>{unavailable.map(render)}</>:null}
+  <OfficialFamilyEvents userId={userId} month={month} compact onSaved={refresh} onEventsLoaded={setOfficialEvents}/>
   <Text style={s.sub}>Veranstaltung merken ist keine Teilnahmebestätigung. Erinnerungen, Serientermine und gemeinsame Kalender sind noch nicht verfügbar.</Text>
  </ScrollView>;
 }
