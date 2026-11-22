@@ -347,6 +347,7 @@ return ()=>{alive=false;listener.subscription.unsubscribe();};
 useEffect(()=>{
   loadSeq.current++; // Invalidate in-flight queries even before the next account load.
   setBusy(false);setLoading(false);setError('');setNotice(''); // Never carry messages across accounts.
+  setReportTarget(null);setReportDetails('');
   setTab('home');
   setMenuOpen(false);
   setSelectedContact(null);
@@ -546,6 +547,7 @@ async function reviewMarketListing(listingId){
 }
 async function sendChatMessage(body,contactId){
  if(chatSendingRef.current||!contactId)return false;
+ const actionOwner=me;
  chatSendingRef.current=true;setBusy(true);setError('');setNotice('');
  try{
  
@@ -564,21 +566,25 @@ async function sendChatMessage(body,contactId){
     throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
   }
   if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
+ if(accountRef.current!==actionOwner)return false;
 
  setNotice('Nachricht gesendet.');
  return true;
- }catch(e){setError(humanError(e));return false;}
- finally{chatSendingRef.current=false;setBusy(false);}
+ }catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
+ finally{chatSendingRef.current=false;if(accountRef.current===actionOwner)setBusy(false);}
 }
 // Events refresh their own cursor and request status; do not reload every app list.
 async function executeEvent(fn,success){
  if(eventActionRef.current)return false;
+ const actionOwner=me;
  eventActionRef.current=true;setBusy(true);setError('');setNotice('');
  try{
-  await fn();if(success)setNotice(success);
+  await fn();
+  if(accountRef.current!==actionOwner)return false;
+  if(success)setNotice(success);
   return true;
- }catch(e){setError(humanError(e));return false;}
- finally{eventActionRef.current=false;setBusy(false);}
+ }catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
+ finally{eventActionRef.current=false;if(accountRef.current===actionOwner)setBusy(false);}
 }
 async function executeMarket(fn,success){
  const ok=await executeEvent(fn,success);
@@ -586,11 +592,18 @@ async function executeMarket(fn,success){
  return ok;
 }
 async function execute(fn,success){
-if(busy)return;
+if(busy)return false;
+const actionOwner=me;
 setBusy(true);setError('');setNotice('');
-try{await fn();if(success)setNotice(success);await load(true);return true;}
-catch(e){setError(humanError(e));return false;}
-finally{setBusy(false);}
+try{
+ await fn();
+ if(accountRef.current!==actionOwner)return false;
+ if(success)setNotice(success);
+ const refreshed=await load(true);
+ return accountRef.current===actionOwner&&!!refreshed;
+}
+catch(e){if(accountRef.current===actionOwner)setError(humanError(e));return false;}
+finally{if(accountRef.current===actionOwner)setBusy(false);}
 }
 function report(type,id){setReportDetails('');setReportTarget({type,id});}
 async function sendReport(){
