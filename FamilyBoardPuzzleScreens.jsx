@@ -143,8 +143,8 @@ export function PictureGame({level}){
   <Text accessibilityRole="header" style={s.title}>{t("Bilderpuzzle")}</Text>
   <Text style={s.text}>{t("Tippe zwei Bildteile nacheinander an, um sie zu tauschen. Stelle das Motiv wieder her.")}</Text>
   <View style={s.wrap}>{[2,3,4].map(n=><Action key={n} active={n===game.n} onPress={()=>reset(n,game.sceneId)}>{n*n} {language==='en'?'pieces':'Teile'}</Action>)}</View>
-  <View style={s.wrap}>{PICTURE_SCENES.map(x=><Action key={x.id} active={x.id===scene.id} onPress={()=>reset(game.n,x.id)}{t(x.title)}</Action>)}</View>
-  <Action active={show} onPress={()=>setShow(v=>!v)}{t(show?'Vorlage ausblenden':'Vorlage anzeigen')}</Action>
+  <View style={s.wrap}>{PICTURE_SCENES.map(x=><Action key={x.id} active={x.id===scene.id} onPress={()=>reset(game.n,x.id)}>{t(x.title)}</Action>)}</View>
+  <Action active={show} onPress={()=>setShow(v=>!v)}>{t(show?'Vorlage ausblenden':'Vorlage anzeigen')}</Action>
   {show?<View accessible accessibilityLabel={t('Vorlage: ')+t(scene.title)}><PixelTile pixels={scene.pixels} size={120}/></View>:null}
   <ScrollView horizontal><View style={{width:game.n*(tile+4),flexDirection:'row',flexWrap:'wrap'}}>{game.order.map((id,i)=><Pressable key={i}
    accessibilityRole="button" accessibilityLabel={pictureTileLabel(i+1,id+1,language)} accessibilityState={{selected:i===selected,disabled:done}} disabled={done} onPress={()=>tap(i)}
