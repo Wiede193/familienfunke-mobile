@@ -12,6 +12,7 @@ import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { signPhotoPaths } from './SignedPhotoUrls';
 import { EVENT_PAGE_SIZE, PHOTO_PAGE_SIZE, ascendingEventCursor, descendingRowCursor, hasFullPage } from './EventPhotoPages';
 import { MARKET_OWNER_PAGE_SIZE, PARTNER_PAGE_SIZE, marketCursor, partnerEventCursor, hasMarketPage } from './MarketPartnerPages';
+import { isCurrentRequest } from './RequestGeneration';
 import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -254,7 +255,7 @@ const inbox=useNotificationCenter(me);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return null;
 const seq=++loadSeq.current;
-const stillCurrent=()=>accountRef.current===me&&loadSeq.current===seq;
+const stillCurrent=()=>isCurrentRequest(accountRef.current,me,loadSeq.current,seq);
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
@@ -306,12 +307,13 @@ async function loadMoreFamilies(){
  setDiscoverLoadingMore(true);
  try {
   const {data,error:e}=await supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE,...discoverCursor});
-  if(accountRef.current!==me||loadSeq.current!==requestedDuringLoad)return;
+  if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
   if(e)throw e;
-  setDb(old=>({...old,profiles:appendUniqueRows(old.profiles,data||[],'user_id')}));
+  setDb(old=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)
+    ? {...old,profiles:appendUniqueRows(old.profiles,data||[],'user_id')}:old);
   setDiscoverCursor(socialCursor(data,'user_id'));
   setDiscoverMore(hasNextSocialPage(data));
- }catch(e){if(accountRef.current===me&&loadSeq.current===requestedDuringLoad)setError('Weitere Familien konnten nicht geladen werden. Bitte erneut versuchen.');}
+ }catch(e){if(isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))setError('Weitere Familien konnten nicht geladen werden. Bitte erneut versuchen.');}
  finally{if(accountRef.current===me)setDiscoverLoadingMore(false);}
 }
 async function loadMoreContacts(){
@@ -324,12 +326,13 @@ async function loadMoreContacts(){
   const ids=[...new Set((data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
   const names=ids.length?await supabase.from('profiles').select('*').in('user_id',ids):{data:[],error:null};
   if(names.error)throw names.error;
-  if(accountRef.current!==me||loadSeq.current!==requestedDuringLoad)return;
-  setDb(old=>({...old,contacts:appendUniqueRows(old.contacts,data||[]),
-    profiles:appendUniqueRows(old.profiles,names.data||[],'user_id')}));
+  if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
+  setDb(old=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)
+    ? {...old,contacts:appendUniqueRows(old.contacts,data||[]),
+    profiles:appendUniqueRows(old.profiles,names.data||[],'user_id')}:old);
   setContactsCursor(socialCursor(data));
   setContactsMore(hasNextSocialPage(data));
- }catch(e){if(accountRef.current===me&&loadSeq.current===requestedDuringLoad)setError('Weitere Kontakte konnten nicht geladen werden. Bitte erneut versuchen.');}
+ }catch(e){if(isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))setError('Weitere Kontakte konnten nicht geladen werden. Bitte erneut versuchen.');}
  finally{if(accountRef.current===me)setContactsLoadingMore(false);}
 }
 useEffect(()=>{
