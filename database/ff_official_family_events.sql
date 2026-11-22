@@ -38,4 +38,4 @@ grant select on public.ff_official_family_events to authenticated;
 grant all on public.ff_official_family_events to service_role;
 drop policy if exists ff_official_family_events_read on public.ff_official_family_events;
 create policy ff_official_family_events_read on public.ff_official_family_events
- for select to authenticated using (published and end_date >= current_date)
+ for select to authenticated using (published and end_date >= current_date);
