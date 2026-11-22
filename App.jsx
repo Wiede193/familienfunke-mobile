@@ -2201,11 +2201,29 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 </ScrollView>;
 }
 function ChatList({contacts,me,nameOf,onChat,blocked,hasMore,loadingMore,onLoadMore}){
+const [previews,setPreviews]=useState({});
+const idsKey=contacts.map(c=>c.id).join(',');
+useEffect(()=>{
+  let live=true;
+  const ids=idsKey?idsKey.split(','):[];
+  if(!me||!ids.length){setPreviews({});return()=>{live=false;};}
+  (async()=>{
+    const next={};
+    // Fetch previews only when this overview is open, never on app startup.
+    for(let index=0;index<ids.length;index+=50){
+      const {data,error:e}=await supabase.rpc('ff_chat_previews',{p_contact_ids:ids.slice(index,index+50)});
+      if(e)throw e;
+      for(const row of data||[])if(row?.contact_id)next[row.contact_id]=row.body;
+    }
+    if(live)setPreviews(next);
+  })().catch(()=>{if(live)setPreviews({});});
+  return()=>{live=false;};
+},[me,idsKey]);
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
 {contacts.length===0?<Blank title="Noch keine Gespräche" body="Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben."/>:
 contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;return <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={'Gespräch mit '+nameOf(uid)+' öffnen'} onPress={()=>onChat(c.id)}>
-<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':'Unterhaltung öffnen'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
+<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':previews[c.id]||'Noch keine Nachrichten'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
 </Pressable>;})}
 {hasMore?<View style={{marginTop:13}}><Button title={loadingMore?'Kontakte werden geladen …':'Weitere Gespräche anzeigen'} disabled={loadingMore} mode="outline" onPress={onLoadMore}/></View>:null}
 </ScrollView>;
