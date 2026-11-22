@@ -348,10 +348,10 @@ return ()=>{alive=false;listener.subscription.unsubscribe();};
 },[]);
 // Nach jeder Anmeldung startet Familienfunke auf der KI-Startseite – auch nach Kontowechsel.
 useEffect(()=>{
+  setTab('home');
   loadSeq.current++; // Invalidate in-flight queries even before the next account load.
   setBusy(false);setLoading(false);setError('');setNotice(''); // Never carry messages across accounts.
   setReportTarget(null);setReportDetails('');
-  setTab('home');
   setMenuOpen(false);
   setSelectedContact(null);
   setDetailFamily(null);
