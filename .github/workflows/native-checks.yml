@@ -63,6 +63,8 @@ jobs:
         run: npm run check:market-search
       - name: Belastbare Fotoabfragen und Galeriebegrenzungen prüfen
         run: npm run check:scale
+      - name: Geschützte soziale Seitenabfragen und Chatverläufe prüfen
+        run: npm run check:social
       - name: KI-Freigabe und Fehlerbehandlung prüfen
         run: npm run check:market-auto-review
       - name: Automatische Wiederholung und Moderationsausnahmen prüfen

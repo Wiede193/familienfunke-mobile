@@ -10,6 +10,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { signPhotoPaths } from './SignedPhotoUrls';
+import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WelcomeIntro from './WelcomeIntro';
@@ -220,18 +221,25 @@ const [membership,setMembership]=useState(null);
 const [photosUrls,setPhotosUrls]=useState({});
 const [marketPhotoUrls,setMarketPhotoUrls]=useState({});
 const [marketExtraPhotoUrls,setMarketExtraPhotoUrls]=useState({});
+const [discoverCursor,setDiscoverCursor]=useState(null);
+const [discoverMore,setDiscoverMore]=useState(false);
+const [discoverLoadingMore,setDiscoverLoadingMore]=useState(false);
+const [contactsCursor,setContactsCursor]=useState(null);
+const [contactsMore,setContactsMore]=useState(false);
+const [contactsLoadingMore,setContactsLoadingMore]=useState(false);
 const me=session?.user?.id;
 const accountRef=useRef(me);accountRef.current=me;
+const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
+const chatSendingRef=useRef(false);
 const inbox=useNotificationCenter(me);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
-supabase.from('profiles').select('*').eq('is_discoverable',true).eq('moderation_status','approved').order('created_at',{ascending:false}).limit(150),
+supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE}),
  supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('contact_requests').select('*').order('created_at',{ascending:false}).limit(200),
-supabase.from('messages').select('*').order('created_at',{ascending:false}).limit(300),
+supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE}),
 supabase.from('events').select('*').gt('ends_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(150),
 supabase.from('event_requests').select('*').limit(200),
 supabase.from('profile_photos').select('*').order('created_at',{ascending:false}).limit(100),
@@ -246,15 +254,35 @@ supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOSt
 if(accountRef.current!==me)return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,ownProfile,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
+const [profiles,ownProfile,contacts,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
  const visibleListingIds=(listings.data||[]).map(row=>row.id);
  const marketPhotos=visibleListingIds.length
    ? await supabase.from('ff_market_photos').select('*').in('listing_id',visibleListingIds).order('slot',{ascending:true}).limit(800)
    : {data:[],error:null};
  if(marketPhotos.error)throw marketPhotos.error;
  if(accountRef.current!==me)return null;
-const profileRow=ownProfile.data||profiles.data.find(p=>p.user_id===me)||null;
-setDb({profiles:profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),contacts:contacts.data||[],messages:messages.data||[],
+// Fetch contact display names separately; contacts may have hidden discovery profiles.
+const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
+// Preserve only the currently open conversation if it falls outside the newest contact page.
+ const pinnedContactId=selectedContactRef.current;
+ const pinnedContact=pinnedContactId&&!(contacts.data||[]).some(c=>c.id===pinnedContactId)
+   ? await supabase.from('contact_requests').select('*').eq('id',pinnedContactId).maybeSingle()
+   : {data:null,error:null};
+ if(pinnedContact.error)throw pinnedContact.error;
+ if(accountRef.current!==me)return null;
+ const allContacts=appendUniqueRows(contacts.data||[],pinnedContact.data?[pinnedContact.data]:[]);
+ const linkedUserIds=[...new Set([...contactUserIds,...(pinnedContact.data?[pinnedContact.data.sender_id===me?pinnedContact.data.recipient_id:pinnedContact.data.sender_id]:[])])];
+ const linkedProfiles=linkedUserIds.length
+  ? await supabase.from('profiles').select('*').in('user_id',linkedUserIds)
+  : {data:[],error:null};
+if(linkedProfiles.error)throw linkedProfiles.error;
+if(accountRef.current!==me)return null;
+const profileRow=ownProfile.data||(profiles.data||[]).find(p=>p.user_id===me)||null;
+setDiscoverCursor(socialCursor(profiles.data,'user_id'));
+setDiscoverMore(hasNextSocialPage(profiles.data));
+setContactsCursor(socialCursor(contacts.data));
+setContactsMore(hasNextSocialPage(contacts.data));
+setDb({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
 events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],
 listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
@@ -275,6 +303,36 @@ return {contacts:contacts.data||[],listings:listings.data||[]};
 } catch(e){if(accountRef.current===me)setError(humanError(e));return null;}
 finally{if(accountRef.current===me)setLoading(false);}
 },[me]);
+async function loadMoreFamilies(){
+ if(!me||discoverLoadingMore||!discoverMore||!discoverCursor)return;
+ setDiscoverLoadingMore(true);
+ try {
+  const {data,error:e}=await supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE,...discoverCursor});
+  if(accountRef.current!==me)return;
+  if(e)throw e;
+  setDb(old=>({...old,profiles:appendUniqueRows(old.profiles,data||[],'user_id')}));
+  setDiscoverCursor(socialCursor(data,'user_id'));
+  setDiscoverMore(hasNextSocialPage(data));
+ }catch(e){if(accountRef.current===me)setError('Weitere Familien konnten nicht geladen werden. Bitte erneut versuchen.');}
+ finally{if(accountRef.current===me)setDiscoverLoadingMore(false);}
+}
+async function loadMoreContacts(){
+ if(!me||contactsLoadingMore||!contactsMore||!contactsCursor)return;
+ setContactsLoadingMore(true);
+ try {
+  const {data,error:e}=await supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE,...contactsCursor});
+  if(e)throw e;
+  const ids=[...new Set((data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
+  const names=ids.length?await supabase.from('profiles').select('*').in('user_id',ids):{data:[],error:null};
+  if(names.error)throw names.error;
+  if(accountRef.current!==me)return;
+  setDb(old=>({...old,contacts:appendUniqueRows(old.contacts,data||[]),
+    profiles:appendUniqueRows(old.profiles,names.data||[],'user_id')}));
+  setContactsCursor(socialCursor(data));
+  setContactsMore(hasNextSocialPage(data));
+ }catch(e){if(accountRef.current===me)setError('Weitere Kontakte konnten nicht geladen werden. Bitte erneut versuchen.');}
+ finally{if(accountRef.current===me)setContactsLoadingMore(false);}
+}
 useEffect(()=>{
 if(!supabase){setSession(null);return;}
 let alive=true;
@@ -298,6 +356,8 @@ useEffect(()=>{
   setMarketIntent(null);setOutingDraft(null);setCalendarSeed(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
   setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
   setPhotosUrls({});setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
+  setDiscoverCursor(null);setDiscoverMore(false);setDiscoverLoadingMore(false);
+  setContactsCursor(null);setContactsMore(false);setContactsLoadingMore(false);
 },[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
 // Einmalige Begrüßung je Konto auf diesem Gerät. Ein erneuter Aufruf unter „Mehr“ ist jederzeit möglich.
@@ -354,6 +414,32 @@ async function reviewMarketListing(listingId){
  }
  setNotice('Die Anzeige ist gespeichert, aber noch nicht veröffentlicht. Die KI-Prüfung kann unter „Meine“ erneut gestartet werden.');
  return 'pending';
+}
+async function sendChatMessage(body,contactId){
+ if(chatSendingRef.current||!contactId)return false;
+ chatSendingRef.current=true;setBusy(true);setError('');setNotice('');
+ try{
+ 
+  // Die Nachricht wird ausschliesslich von der authentifizierten Edge Function
+  // geprueft und gespeichert. Kein direkter INSERT in public.messages mehr.
+  const {data, error:sendError} = await supabase.functions.invoke('send-message', {
+    body: {contact_id:contactId, body},
+  });
+  if(sendError){
+    const status = sendError.context?.status;
+    if(status===422)throw new Error('Diese Nachricht wurde wegen unserer Inhaltsregeln zurueckgehalten. Bitte formuliere sie anders.');
+    if(status===401)throw new Error('Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.');
+    if(status===403)throw new Error('Nachrichten sind fuer diesen Kontakt momentan nicht erlaubt.');
+    if(status===429)throw new Error('Nachrichtenlimit erreicht. Bitte warte auf eine Antwort oder versuche es später erneut.');
+    if(status===503)throw new Error('Die Sicherheitspruefung ist momentan nicht verfuegbar. Bitte spaeter erneut versuchen.');
+    throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
+  }
+  if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
+
+ setNotice('Nachricht gesendet.');
+ return true;
+ }catch(e){setError(humanError(e));return false;}
+ finally{chatSendingRef.current=false;setBusy(false);}
 }
 async function execute(fn,success){
 if(busy)return;
@@ -414,7 +500,16 @@ async function openInboxEvent(event){
      if(!listing){setNotice('Die Anzeige ist nicht mehr verfügbar.');return false;}
      setMarketIntent({type:'inboxListing',id:listing.id});setTab('market');
    }else{
-     const contact=fresh.contacts.find(c=>c.id===row.contact_id&&(c.sender_id===me||c.recipient_id===me));
+     let contact=fresh.contacts.find(c=>c.id===row.contact_id&&(c.sender_id===me||c.recipient_id===me));
+     if(!contact){
+       const {data:older,error:contactError}=await supabase.from('contact_requests')
+         .select('*').eq('id',row.contact_id).maybeSingle();
+       if(contactError)throw contactError;
+       if(accountRef.current!==me)return false;
+       if(older&&(older.sender_id===me||older.recipient_id===me)){
+         contact=older;setDb(old=>({...old,contacts:appendUniqueRows([older],old.contacts)}));
+       }
+     }
      if(!contact){setNotice('Der Kontakt ist nicht mehr verfügbar.');return false;}
      if(row.kind==='message'&&contact.status==='accepted'){
        setChatReturnTab('inbox');setSelectedContact(contact.id);setTab('chat');
@@ -489,24 +584,8 @@ connection={db.contacts.find(c=>c.sender_id===detailFamily||c.recipient_id===det
 onContact={()=>sendRequest(detailFamily)} onBlock={()=>blockUser(detailFamily)} onUnblock={()=>unblockUser(detailFamily)}
 onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setChatReturnTab('discover');setDetailFamily(null);setSelectedContact(cid);setTab('chat');}}/>:
 selectedContact?<ChatScreen contact={accepted.find(c=>c.id===selectedContact)} me={me} nameOf={findName}
-messages={db.messages.filter(m=>m.contact_id===selectedContact)} disabled={busy} blocked={blocked}
-send={(body)=>execute(async()=>{
-  // Die Nachricht wird ausschliesslich von der authentifizierten Edge Function
-  // geprueft und gespeichert. Kein direkter INSERT in public.messages mehr.
-  const {data, error:sendError} = await supabase.functions.invoke('send-message', {
-    body: {contact_id:selectedContact, body},
-  });
-  if(sendError){
-    const status = sendError.context?.status;
-    if(status===422)throw new Error('Diese Nachricht wurde wegen unserer Inhaltsregeln zurueckgehalten. Bitte formuliere sie anders.');
-    if(status===401)throw new Error('Deine Anmeldung ist abgelaufen. Bitte melde dich erneut an.');
-    if(status===403)throw new Error('Nachrichten sind fuer diesen Kontakt momentan nicht erlaubt.');
-    if(status===429)throw new Error('Nachrichtenlimit erreicht. Bitte warte auf eine Antwort oder versuche es später erneut.');
-    if(status===503)throw new Error('Die Sicherheitspruefung ist momentan nicht verfuegbar. Bitte spaeter erneut versuchen.');
-    throw new Error('Die Nachricht konnte nicht gesendet werden. Bitte versuche es erneut.');
-  }
-  if(!data?.message?.id)throw new Error('Keine eindeutige Bestaetigung vom Nachrichtenserver erhalten.');
-},'Nachricht gesendet.')}
+disabled={busy} blocked={blocked}
+send={(body)=>sendChatMessage(body,selectedContact)}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
 tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome}/>:
@@ -588,13 +667,15 @@ tab==='help'?<TechnicalHelpScreen/>:
 tab==='push'?<PushSettings key={me} userId={me} active={active}/>:
 tab==='inbox'?<NotificationCenterScreen key={me} inbox={inbox} active={active} onOpen={openInboxEvent} onSettings={()=>{setExtraReturnTab('inbox');setTab('push');}}/>:
 tab==='discover'?<DiscoverScreen matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
+ hasMore={discoverMore} loadingMore={discoverLoadingMore} onLoadMore={loadMoreFamilies}
 myProfile={myProfile} verification={verification} membership={membership}
 showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked}/>:
 tab==='contacts'?<ContactsScreen focusId={focusContactId} pending={pending} accepted={accepted} me={me} nameOf={findName}
+ hasMore={contactsMore} loadingMore={contactsLoadingMore} onLoadMore={loadMoreContacts}
 respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onUnblock={unblockUser}
 onChat={(id)=>{setChatReturnTab('contacts');setSelectedContact(id);setTab('chat');}}/>:
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
-onChat={(id)=>{setChatReturnTab('chat');setSelectedContact(id);}} messages={db.messages}/>:
+onChat={(id)=>{setChatReturnTab('chat');setSelectedContact(id);}} hasMore={contactsMore} loadingMore={contactsLoadingMore} onLoadMore={loadMoreContacts}/>:
 tab==='events'?<EventsScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='events'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
 profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
 createEvent={(event)=>execute(async()=>{
@@ -2017,7 +2098,7 @@ function InclusionScreen(){
   </ScrollView>;
 }
 
-function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked}) {
+function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked,hasMore,loadingMore,onLoadMore}) {
 const [query,setQuery]=useState('');
 const [interest,setInterest]=useState('Alle');
 const [onlyRegion,setOnlyRegion]=useState(false);
@@ -2071,7 +2152,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </Row>
 </View>
 <Row style={{justifyContent:'space-between',marginBottom:14,marginTop:5}}>
-<Text style={[styles.micro,{fontWeight:'800'}]}>{filtered.length} {filtered.length===1?'Familie':'Familien'} gefunden</Text>
+<Text style={[styles.micro,{fontWeight:'800'}]}>{filtered.length} {filtered.length===1?'Familie':'Familien'} in geladenen Ergebnissen</Text>
 <Row><Chip text="Karten" selected={mode==='cards'} onPress={()=>setMode('cards')}/><Chip text="Liste" selected={mode==='list'} onPress={()=>setMode('list')}/></Row>
 </Row>
 {!active?<Blank title="Zunächst Freigabe abwarten" body="Sobald das Konto geprüft ist, erscheinen freigegebene Familienprofile."/>:
@@ -2084,7 +2165,8 @@ mode==='cards'?<>
 <Button title="Nächste Familie →" mode="outline" disabled={index===filtered.length-1} style={{flex:1}} onPress={()=>setCardIndex(index+1)}/>
 </Row>
 </>:filtered.map(p=>familyCard(p))}
-<Text style={[styles.micro,{marginTop:17,textAlign:'center'}]}>„Meine Region“ nutzt freiwillige Regionsnamen und bekannte Landkreis-Zuordnungen, keine Kilometerentfernungen. Exakte Standorte werden nicht abgefragt.</Text>
+{hasMore?<View style={{marginTop:14}}><Button title={loadingMore?'Weitere Familien werden geladen …':'Weitere Familien laden'} disabled={loadingMore} mode="outline" onPress={onLoadMore}/></View>:null}
+<Text style={[styles.micro,{marginTop:17,textAlign:'center'}]}>Die Suche berücksichtigt bisher geladene Familien. Falls du nichts Passendes siehst, lade weitere Ergebnisse. „Meine Region“ nutzt freiwillige Regionsnamen und bekannte Landkreis-Zuordnungen, keine Kilometerentfernungen. Exakte Standorte werden nicht abgefragt.</Text>
 </ScrollView>;
 }
 function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
@@ -2099,7 +2181,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 {photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image accessibilityLabel={photo.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
 </ScrollView>;
 }
-function ContactsScreen({focusId,pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat}){
+function ContactsScreen({focusId,pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat,hasMore,loadingMore,onLoadMore}){
 pending=[...pending].sort((a,b)=>Number(b.id===focusId)-Number(a.id===focusId));
 accepted=[...accepted].sort((a,b)=>Number(b.id===focusId)-Number(a.id===focusId));
 const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
@@ -2115,27 +2197,97 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text style={styles.micro}>{blocked(uid)?'Blockiert':'Kontakt bestätigt'}</Text></View></Row>
 <Row style={{marginTop:12}}><Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>{blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:<Button title="Blockieren" small mode="outline" onPress={()=>onBlock(uid)}/>}</Row>
 </Card>;})}
+{hasMore?<View style={{marginTop:13}}><Button title={loadingMore?'Kontakte werden geladen …':'Weitere Kontakte laden'} mode="outline" disabled={loadingMore} onPress={onLoadMore}/></View>:null}
 </ScrollView>;
 }
-function ChatList({contacts,me,nameOf,messages,onChat,blocked}){
+function ChatList({contacts,me,nameOf,onChat,blocked,hasMore,loadingMore,onLoadMore}){
+const [previews,setPreviews]=useState({});
+const idsKey=contacts.map(c=>c.id).join(',');
+useEffect(()=>{
+  let live=true;
+  const ids=idsKey?idsKey.split(','):[];
+  if(!me||!ids.length){setPreviews({});return()=>{live=false;};}
+  (async()=>{
+    const next={};
+    // Fetch previews only when this overview is open, never on app startup.
+    for(let index=0;index<ids.length;index+=50){
+      const {data,error:e}=await supabase.rpc('ff_chat_previews',{p_contact_ids:ids.slice(index,index+50)});
+      if(e)throw e;
+      for(const row of data||[])if(row?.contact_id)next[row.contact_id]=row.body;
+    }
+    if(live)setPreviews(next);
+  })().catch(()=>{if(live)setPreviews({});});
+  return()=>{live=false;};
+},[me,idsKey]);
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
 {contacts.length===0?<Blank title="Noch keine Gespräche" body="Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben."/>:
-contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;const last=messages.filter(m=>m.contact_id===c.id)[0];return <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={'Gespräch mit '+nameOf(uid)+' öffnen'} onPress={()=>onChat(c.id)}>
-<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':last?.body||'Noch keine Nachrichten'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
+contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;return <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={'Gespräch mit '+nameOf(uid)+' öffnen'} onPress={()=>onChat(c.id)}>
+<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':previews[c.id]||'Noch keine Nachrichten'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
 </Pressable>;})}
+{hasMore?<View style={{marginTop:13}}><Button title={loadingMore?'Kontakte werden geladen …':'Weitere Gespräche anzeigen'} disabled={loadingMore} mode="outline" onPress={onLoadMore}/></View>:null}
 </ScrollView>;
 }
-function ChatScreen({contact,me,nameOf,messages,disabled,blocked,send,onReport,onBlock}) {
+function ChatScreen({contact,me,nameOf,disabled,blocked,send,onReport,onBlock}) {
 const [text,setText]=useState('');
+const [messages,setMessages]=useState([]);
+const [hasOlder,setHasOlder]=useState(false);
+const [chatLoading,setChatLoading]=useState(false);
+const [olderLoading,setOlderLoading]=useState(false);
+const [chatError,setChatError]=useState('');
+const [refreshToken,setRefreshToken]=useState(0);
+const requestSeq=useRef(0);
+const chatScrollRef=useRef(null);
+const scrollToLatestRef=useRef(false);
+const contactId=contact?.id;
+useEffect(()=>{
+  const seq=++requestSeq.current;
+  if(!contactId){setMessages([]);setHasOlder(false);setChatLoading(false);return;}
+  let live=true;
+  setMessages([]);setHasOlder(false);setChatError('');setChatLoading(true);
+  supabase.rpc('ff_chat_page',{p_contact_id:contactId,p_limit:SOCIAL_PAGE_SIZE})
+    .then(({data,error:e})=>{
+      if(!live||requestSeq.current!==seq)return;
+      if(e||!Array.isArray(data))throw e||new Error('Invalid chat page');
+      scrollToLatestRef.current=true;
+      setMessages(data);setHasOlder(hasNextSocialPage(data));
+    })
+    .catch(()=>{if(live&&requestSeq.current===seq)setChatError('Gespräch konnte nicht geladen werden.');})
+    .finally(()=>{if(live&&requestSeq.current===seq)setChatLoading(false);});
+  return()=>{live=false;requestSeq.current++;};
+},[contactId,me,refreshToken]);
+async function loadOlder(){
+  const cursor=socialCursor(messages);
+  if(!contactId||!hasOlder||olderLoading||chatLoading||!cursor)return;
+  const seq=requestSeq.current;
+  setOlderLoading(true);setChatError('');
+  try{
+    const {data,error:e}=await supabase.rpc('ff_chat_page',{p_contact_id:contactId,p_limit:SOCIAL_PAGE_SIZE,...cursor});
+    if(requestSeq.current!==seq)return;
+    if(e||!Array.isArray(data))throw e||new Error('Invalid chat page');
+    scrollToLatestRef.current=false;
+    setMessages(old=>appendUniqueRows(old,data));setHasOlder(hasNextSocialPage(data));
+  }catch{if(requestSeq.current===seq)setChatError('Ältere Nachrichten konnten nicht geladen werden.');}
+  finally{if(requestSeq.current===seq)setOlderLoading(false);}
+}
+async function submit(){
+  const body=text.trim();if(!body)return;
+  const ok=await send(body);
+  if(ok){setText('');setRefreshToken(x=>x+1);}
+}
 if(!contact)return <Blank title="Gespräch nicht verfügbar" body="Kontakt ist nicht mehr bestätigt oder wurde verborgen."/>;
 const other=contact.sender_id===me?contact.recipient_id:contact.sender_id;
-const sorted=[...messages].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-async function submit(){const body=text.trim();if(!body)return; const ok=await send(body);if(ok)setText('');}
+const sorted=[...messages].reverse();
 return <View style={{flex:1}}>
 <Row style={styles.chatHeader}><Avatar name={nameOf(other)} size={38}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other)}</Text><Text style={styles.micro}>Privates Gespräch</Text></View><Button title="Blockieren" small mode="ghost" onPress={()=>onBlock(other)}/></Row>
-<ScrollView style={{flex:1}} contentContainerStyle={{padding:16}} keyboardShouldPersistTaps="handled">
-{sorted.length===0?<Blank title="Sag Hallo!" body="Hier beginnt euer privates Gespräch."/>:sorted.map(m=><View key={m.id} style={[styles.bubble,m.sender_id===me?styles.mine:styles.theirs]}>
+<ScrollView ref={chatScrollRef} style={{flex:1}} contentContainerStyle={{padding:16}} keyboardShouldPersistTaps="handled"
+onContentSizeChange={()=>{if(scrollToLatestRef.current){chatScrollRef.current?.scrollToEnd({animated:false});scrollToLatestRef.current=false;}}}>
+{chatLoading?<ActivityIndicator color={C.accent}/>:null}
+{chatError?<Info warning>{chatError}</Info>:null}
+{chatError&&messages.length===0?<Button title="Erneut versuchen" mode="outline" onPress={()=>setRefreshToken(x=>x+1)}/>:null}
+{hasOlder?<Button title={olderLoading?'Ältere Nachrichten werden geladen …':'Ältere Nachrichten laden'} mode="outline" disabled={olderLoading||chatLoading} onPress={loadOlder}/>:null}
+{!chatLoading&&messages.length===0&&!chatError?<Blank title="Sag Hallo!" body="Hier beginnt euer privates Gespräch."/>:
+sorted.map(m=><View key={m.id} style={[styles.bubble,m.sender_id===me?styles.mine:styles.theirs]}>
 <Text style={[styles.bubbleText,m.sender_id===me&&{color:C.white}]}>{m.body}</Text>
 <Row style={{justifyContent:'space-between',marginTop:7}}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>{formatDate(m.created_at)}</Text><Pressable accessibilityRole="button" accessibilityLabel={'Nachricht vom '+formatDate(m.created_at)+' melden'} hitSlop={10} onPress={()=>onReport(m.id)}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>Melden</Text></Pressable></Row>
 </View>)}
