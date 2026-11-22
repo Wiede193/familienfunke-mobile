@@ -346,6 +346,7 @@ return ()=>{alive=false;listener.subscription.unsubscribe();};
 // Nach jeder Anmeldung startet Familienfunke auf der KI-Startseite – auch nach Kontowechsel.
 useEffect(()=>{
   loadSeq.current++; // Invalidate in-flight queries even before the next account load.
+  setBusy(false);setLoading(false);setError('');setNotice(''); // Never carry messages across accounts.
   setTab('home');
   setMenuOpen(false);
   setSelectedContact(null);
@@ -483,7 +484,7 @@ async function loadMorePhotos(){
  }
 }
 async function executePhoto(fn,success){
- const ok=await execute(fn,success);
+ const ok=await executeEvent(fn,success);
  if(ok)setPhotoEpoch(x=>x+1);
  return ok;
 }
@@ -594,7 +595,7 @@ finally{setBusy(false);}
 function report(type,id){setReportDetails('');setReportTarget({type,id});}
 async function sendReport(){
 if(!reportTarget||reportDetails.trim().length<10)return setError('Bitte den Vorfall mit mindestens 10 Zeichen beschreiben.');
-const ok=await execute(async()=>assertResult(await supabase.from('reports').insert({reporter_id:me,subject_type:reportTarget.type,subject_id:reportTarget.id,details:reportDetails.trim()})),'Danke. Deine Meldung wurde gespeichert.');
+const ok=await executeEvent(async()=>assertResult(await supabase.from('reports').insert({reporter_id:me,subject_type:reportTarget.type,subject_id:reportTarget.id,details:reportDetails.trim()})),'Danke. Deine Meldung wurde gespeichert.');
 if(ok){setReportTarget(null);setReportDetails('');}
 }
 async function sendRequest(uid){await execute(async()=>assertResult(await supabase.from('contact_requests').insert({sender_id:me,recipient_id:uid})),'Kontaktanfrage verschickt.');}
@@ -608,7 +609,7 @@ Alert.alert('Kontakt blockieren?','Die Person kann dir dann keine neuen Nachrich
 async function unblockUser(uid){await execute(async()=>assertResult(await supabase.from('blocks').delete().eq('blocker_id',me).eq('blocked_id',uid)),'Blockierung aufgehoben.');}
 async function changePassword(password){
 if(password.length<12)throw new Error('Das Passwort braucht mindestens 12 Zeichen.');
-return execute(async()=>assertResult(await supabase.auth.updateUser({password})),'Passwort geändert.');
+return executeEvent(async()=>assertResult(await supabase.auth.updateUser({password})),'Passwort geändert.');
 }
 function openInbox(){
   if(tab!=='inbox')setInboxReturnTab(tab==='push'?'more':tab);
@@ -754,7 +755,7 @@ tab==='play'?<FamilyPlayScreen key={me}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
 tab==='outing'?<FamilyOutingScreen key={me} onCalendar={planCalendarPlace} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
 tab==='guide'?<FamilyGuideScreen userId={me} regionLabel={myProfile?.region_label}/>:
-tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={active} entryPlaceId={mapIntent?.id} addPlace={(v)=>execute(async()=>{
+tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={active} entryPlaceId={mapIntent?.id} addPlace={(v)=>executeEvent(async()=>{
  await moderateTextOrThrow([v.title,v.description,v.region_label]);
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
@@ -814,11 +815,14 @@ retryReview={(id)=>executeMarket(async()=>{
 onContact={sendRequest} onChat={(cid)=>{setChatReturnTab('market');setSelectedContact(cid);setTab('chat');}} nameOf={findName} blocked={blocked}/>:
 tab==='partners'?<PartnersScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='partners'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} organizations={db.organizations}
 me={me} active={active} busy={busy}
-applyOrg={(v)=>execute(async()=>{
+applyOrg={(v)=>executeEvent(async()=>{
  await moderateTextOrThrow([v.name,v.description,v.region_label]);
- assertResult(await supabase.from('ff_organizations').insert({...v,owner_id:me}));
+ const {data:org,error:orgError}=await supabase.from('ff_organizations')
+   .insert({...v,owner_id:me}).select('*').single();
+ if(orgError)throw orgError;
+ if(accountRef.current===me)setDb(old=>({...old,organizations:appendUniqueRows([org],old.organizations)}));
 },'Partneranfrage gespeichert. Die Einrichtung wird vor Freigabe geprüft.')}
-createPartnerEvent={(v)=>execute(async()=>{
+createPartnerEvent={(v)=>executeEvent(async()=>{
  await moderateTextOrThrow([v.title,v.description,v.region_label]);
  assertResult(await supabase.from('ff_partner_events').insert({...v,creator_id:me}));
 },'Veranstaltung eingereicht. Sie erscheint nach Freigabe.')}
