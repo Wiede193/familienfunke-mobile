@@ -2135,7 +2135,7 @@ function MarketSortSelect({value,onChange}){
   </View>;
 }
 
-function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,active,busy,applyOrg,createPartnerEvent,openInclusion}){
+function PartnersScreen({focusId,clearFocus,organizations,me,active,busy,applyOrg,createPartnerEvent,openInclusion}){
   const focus=useFocusedEvent('ff_partner_events',focusId,me);
   const [applying,setApplying]=useState(false);
   const [kind,setKind]=useState('kita');
@@ -2150,15 +2150,103 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
   const [eventRegion,setEventRegion]=useState('');
   const [eventDate,setEventDate]=useState('');
   const [eventTime,setEventTime]=useState('10:00');
+  const [publicOrgs,setPublicOrgs]=useState([]);
+  const [listedEvents,setListedEvents]=useState([]);
+  const [linkedOrgs,setLinkedOrgs]=useState([]);
+  const [orgCursor,setOrgCursor]=useState(null);
+  const [eventCursor,setEventCursor]=useState(null);
+  const [orgMore,setOrgMore]=useState(false);
+  const [eventMore,setEventMore]=useState(false);
+  const [orgBusy,setOrgBusy]=useState(false);
+  const [eventBusy,setEventBusy]=useState(false);
+  const [orgMoreBusy,setOrgMoreBusy]=useState(false);
+  const [eventMoreBusy,setEventMoreBusy]=useState(false);
+  const [partnerError,setPartnerError]=useState('');
+  const [partnerEpoch,setPartnerEpoch]=useState(0);
+  const partnerSeq=useRef(0);
+  async function getLinkedOrgs(events){
+    const ids=[...new Set((events||[]).map(e=>e.organization_id).filter(Boolean))];
+    if(!ids.length)return [];
+    const {data,error:e}=await supabase.from('ff_organizations').select('*').in('id',ids);
+    if(e)throw e;
+    return data||[];
+  }
+  useEffect(()=>{
+    let live=true;const seq=++partnerSeq.current;
+    setPublicOrgs([]);setListedEvents([]);setLinkedOrgs([]);
+    setOrgCursor(null);setEventCursor(null);setOrgMore(false);setEventMore(false);
+    setPartnerError('');
+    setOrgBusy(!focusId);setEventBusy(!focusId);
+    if(focusId)return()=>{live=false;partnerSeq.current++;};
+    (async()=>{
+      try{
+        const [orgRes,eventRes]=await Promise.all([
+          supabase.rpc('ff_partner_orgs_page',{p_limit:PARTNER_PAGE_SIZE}),
+          supabase.rpc('ff_partner_events_page',{p_limit:PARTNER_PAGE_SIZE}),
+        ]);
+        if(orgRes.error)throw orgRes.error;
+        if(eventRes.error)throw eventRes.error;
+        const orgData=orgRes.data||[],eventData=eventRes.data||[];
+        if(!Array.isArray(orgData)||!Array.isArray(eventData))throw new Error('Invalid partner page');
+        const extra=await getLinkedOrgs(eventData);
+        if(!live||seq!==partnerSeq.current)return;
+        setPublicOrgs(orgData);setListedEvents(eventData);setLinkedOrgs(extra);
+        setOrgCursor(marketCursor(orgData));setOrgMore(hasMarketPage(orgData,PARTNER_PAGE_SIZE));
+        setEventCursor(partnerEventCursor(eventData));setEventMore(hasMarketPage(eventData,PARTNER_PAGE_SIZE));
+      }catch{
+        if(live&&seq===partnerSeq.current)setPartnerError('Die Partnerwelt konnte nicht geladen werden. Bitte erneut versuchen.');
+      }finally{
+        if(live&&seq===partnerSeq.current){setOrgBusy(false);setEventBusy(false);}
+      }
+    })();
+    return()=>{live=false;partnerSeq.current++;};
+  },[me,focusId,partnerEpoch]);
+  useEffect(()=>{
+    let live=true;const organizationId=focus.row?.organization_id;
+    if(!focusId||!organizationId)return()=>{live=false;};
+    supabase.from('ff_organizations').select('*').eq('id',organizationId).maybeSingle()
+      .then(({data,error:e})=>{
+        if(e)throw e;
+        if(live&&data)setLinkedOrgs([data]);
+      }).catch(()=>{});
+    return()=>{live=false;};
+  },[focusId,focus.row?.organization_id,me]);
+  async function loadMorePartnerOrgs(){
+    if(!orgMore||!orgCursor||orgBusy||orgMoreBusy)return;
+    const seq=partnerSeq.current;setOrgMoreBusy(true);setPartnerError('');
+    try{
+      const {data,error:e}=await supabase.rpc('ff_partner_orgs_page',{p_limit:PARTNER_PAGE_SIZE,...orgCursor});
+      if(e||!Array.isArray(data))throw e||new Error('Invalid partner org page');
+      if(seq!==partnerSeq.current)return;
+      setPublicOrgs(old=>appendUniqueRows(old,data));
+      setOrgCursor(marketCursor(data));setOrgMore(hasMarketPage(data,PARTNER_PAGE_SIZE));
+    }catch{if(seq===partnerSeq.current)setPartnerError('Weitere Einrichtungen konnten nicht geladen werden.');}
+    finally{if(seq===partnerSeq.current)setOrgMoreBusy(false);}
+  }
+  async function loadMorePartnerEvents(){
+    if(!eventMore||!eventCursor||eventBusy||eventMoreBusy)return;
+    const seq=partnerSeq.current;setEventMoreBusy(true);setPartnerError('');
+    try{
+      const {data,error:e}=await supabase.rpc('ff_partner_events_page',{p_limit:PARTNER_PAGE_SIZE,...eventCursor});
+      if(e||!Array.isArray(data))throw e||new Error('Invalid partner event page');
+      const names=await getLinkedOrgs(data);
+      if(seq!==partnerSeq.current)return;
+      setListedEvents(old=>appendUniqueRows(old,data));
+      setLinkedOrgs(old=>appendUniqueRows(old,names));
+      setEventCursor(partnerEventCursor(data));setEventMore(hasMarketPage(data,PARTNER_PAGE_SIZE));
+    }catch{if(seq===partnerSeq.current)setPartnerError('Weitere Partnertermine konnten nicht geladen werden.');}
+    finally{if(seq===partnerSeq.current)setEventMoreBusy(false);}
+  }
   const mine=organizations.filter(o=>o.owner_id===me);
   const approvedMine=mine.filter(o=>o.status==='approved');
-  const shown=organizations.filter(o=>o.status==='approved'||o.owner_id===me);
-  const events=focusId?(focus.row?[focus.row]:[]):partnerEvents.filter(e=>new Date(e.starts_at)>new Date());
+  const allOrgs=appendUniqueRows(appendUniqueRows(organizations,publicOrgs),linkedOrgs);
+  const shown=appendUniqueRows(organizations,publicOrgs).filter(o=>o.status==='approved'||o.owner_id===me);
+  const events=focusId?(focus.row?[focus.row]:[]):listedEvents.filter(e=>new Date(e.starts_at)>new Date());
   async function apply(){
     if(!active||name.trim().length<3)return Alert.alert('Einrichtung','Bitte den Namen der Einrichtung angeben.');
     const ok=await applyOrg({kind,name:safeString(name,100),region_label:safeString(region,80),
        description:safeString(description,800),open_places:places});
-    if(ok){setApplying(false);setName('');setDescription('');setRegion('');setPlaces(false);}
+    if(ok){setApplying(false);setName('');setDescription('');setRegion('');setPlaces(false);setPartnerEpoch(n=>n+1);}
   }
   async function postEvent(){
     const start=givenDate(eventDate,eventTime);
@@ -2167,12 +2255,12 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
       return Alert.alert('Veranstaltung prüfen','Bitte Einrichtung, Titel und zukünftiges Datum korrekt eintragen.');
     const ok=await createPartnerEvent({organization_id:org.id,title:safeString(eventTitle,100),
        description:safeString(eventDesc,1000),region_label:safeString(eventRegion,80),starts_at:start.toISOString()});
-    if(ok){setEventForm(false);setEventTitle('');setEventDesc('');setEventDate('');}
+    if(ok){setEventForm(false);setEventTitle('');setEventDesc('');setEventDate('');setPartnerEpoch(n=>n+1);}
   }
   const renderEvent=e=><Card key={e.id} style={{marginBottom:12}}>
           <Text style={[styles.eyebrow,{marginBottom:7}]}>{formatDate(e.starts_at)}</Text>
           <Text style={styles.cardTitle}>{e.title}</Text>
-          <Text style={styles.micro}>{organizations.find(o=>o.id===e.organization_id)?.name||'Einrichtung'} · {e.region_label||'Ort auf Anfrage'}</Text>
+          <Text style={styles.micro}>{allOrgs.find(o=>o.id===e.organization_id)?.name||'Einrichtung'} · {e.region_label||'Ort auf Anfrage'}</Text>
           {e.description?<Text style={[styles.body,{marginTop:8}]}>{e.description}</Text>:null}
           {e.moderation_status==='approved'&&new Date(e.starts_at)>new Date()?<CalendarEventButton userId={me} kind="partner" id={e.id}/>:null}
           {e.creator_id===me&&e.moderation_status!=='approved'?<Text style={[styles.micro,{marginTop:10}]}>Für dich sichtbar · wartet auf Freigabe</Text>:null}
@@ -2205,7 +2293,9 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
       <Button title="Antrag kostenlos einreichen" disabled={busy||!active} onPress={apply}/>
     </Card>:null}
     <Text style={styles.sectionTitle}>Kitas und Partner</Text>
-    {shown.length===0?<Blank title="Partnerwelt im Aufbau" body="Nach Bestätigung der ersten Einrichtungen entstehen hier Kita-Profile, Vorstellungen und Veranstaltungen."/>:
+    {orgBusy?<ActivityIndicator color={C.accent}/>:null}
+    {partnerError?<><Info warning>{partnerError}</Info><Button title="Partnerwelt erneut laden" mode="outline" onPress={()=>setPartnerEpoch(n=>n+1)}/></>:null}
+    {shown.length===0?(orgBusy||partnerError?null:<Blank title="Partnerwelt im Aufbau" body="Nach Bestätigung der ersten Einrichtungen entstehen hier Kita-Profile, Vorstellungen und Veranstaltungen."/>):
        shown.map(o=><Card key={o.id} style={{marginBottom:12}}>
           <Row style={{alignItems:'flex-start'}}>
             <View style={{width:42,height:42,borderRadius:12,backgroundColor:C.sunny,alignItems:'center',justifyContent:'center'}}><Text style={{fontSize:21}}>✿</Text></View>
@@ -2221,6 +2311,7 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
           {o.status==='approved'&&o.open_places?<Text style={[styles.micro,{marginTop:9,color:C.accentDark,fontWeight:'800'}]}>Freie Plätze · Angabe der Einrichtung, bitte direkt erfragen</Text>:null}
           {o.owner_id===me&&o.status!=='approved'?<Text style={[styles.micro,{marginTop:11}]}>Dein Antrag ist nur für dich sichtbar. Freigabe ausstehend.</Text>:null}
        </Card>)}
+    {orgMore?<Button title={orgMoreBusy?'Weitere Einrichtungen werden geladen …':'Weitere Einrichtungen laden'} disabled={orgMoreBusy} mode="outline" onPress={loadMorePartnerOrgs}/>:null}
     {approvedMine.length>0?<Card style={{marginTop:6,marginBottom:13}}>
         <Text style={styles.sectionTitle}>Flohmarkt oder Kita-Veranstaltung ankündigen</Text>
         <Button title={eventForm?'Formular schließen':'＋ Partnerveranstaltung erstellen'} mode="outline" onPress={()=>setEventForm(v=>!v)}/>
@@ -2236,8 +2327,10 @@ function PartnersScreen({focusId,clearFocus,organizations,partnerEvents,me,activ
         </View>:null}
     </Card>:null}
     <Text style={[styles.sectionTitle,{marginTop:15}]}>Flohmärkte & Veranstaltungen</Text>
-    {events.length===0?(focusId?null:<Blank title="Noch keine Partnerveranstaltungen" body="Bestätigte Einrichtungen können hier ihre Flohmärkte und Termine bewerben."/>):
+    {eventBusy?<ActivityIndicator color={C.accent}/>:null}
+    {events.length===0?(eventBusy||partnerError?null:<Blank title="Noch keine Partnerveranstaltungen" body="Bestätigte Einrichtungen können hier ihre Flohmärkte und Termine bewerben."/>):
        events.map(renderEvent)}
+    {eventMore?<Button title={eventMoreBusy?'Weitere Termine werden geladen …':'Weitere Partnerveranstaltungen laden'} disabled={eventMoreBusy} mode="outline" onPress={loadMorePartnerEvents}/>:null}
     <View style={{marginTop:13}}><Button title="Inklusion und Familienunterstützung" mode="ghost" onPress={openInclusion}/></View>
   </ScrollView>;
 }
