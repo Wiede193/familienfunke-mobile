@@ -755,7 +755,13 @@ createEvent={(event)=>executeEvent(async()=>{
   assertResult(await supabase.from('events').insert({organizer_id:me,...event}));
 },'Termin eingereicht. Er wird vor Veröffentlichung geprüft.')}
 requestEvent={(id)=>executeEvent(async()=>assertResult(await supabase.from('event_requests').insert({event_id:id,requester_id:me})),'Teilnahme angefragt.')}
-replyEvent={(id,requester,status)=>executeEvent(async()=>assertResult(await supabase.from('event_requests').update({status}).eq('event_id',id).eq('requester_id',requester)),'Teilnahmestatus aktualisiert.')}
+replyEvent={(id,requester,status)=>executeEvent(async()=>{
+ const {data,error:e}=await supabase.from('event_requests')
+  .update({status}).eq('event_id',id).eq('requester_id',requester)
+  .select('event_id,status').single();
+ if(e)throw e;
+ if(data?.status!==status)throw new Error('Teilnahmeanfrage konnte nicht aktualisiert werden.');
+},'Teilnahmestatus aktualisiert.')}
 reportEvent={(id)=>report('event',id)}/>:
 <ProfileScreen profile={myProfile} verification={verification} membership={membership} active={active}
 photos={ownPhotos} photosUrls={photosUrls} busy={busy}
