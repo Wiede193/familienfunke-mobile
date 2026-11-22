@@ -146,3 +146,30 @@ Backend-RPCs mit `SECURITY INVOKER` und ausschließlich `authenticated`-EXECUTE
 sind im bestehenden Supabase-Projekt installiert. Der GitHub-Änderungssatz
 enthält Client-Code und Tests. **Keine Freigabe für einen viralen Launch ohne
 Lasttests, Prüfung im realen Mobilgerät und ausreichende Infrastruktur.**
+
+## Phase 5 – kostenlose Betriebsbasis und sichere Lasttests (22.11.2026)
+
+- Bestand geprüft: PostgreSQL 17.11, rund **16 MB** Datenbankgröße gegenüber
+  500 MB Free-Kontingent, **7** PostgreSQL-Verbindungen bei konfigurierten
+  60; 2 Profile und nur 2 eigene/fremde Inserate im Testbestand.
+  Daher weiterhin keinerlei Kapazitätsbeleg für Tausende Nutzer.
+- Die vier schon vorhandenen `pg_cron`-Aufgaben wurden ausgewertet:
+  **4.608 Ausführungen in 24 Stunden, 0 Fehler** in diesem Fenster.
+- Aktiviert: `private.ff_ops_snapshots` mit **stündlichen** technischen
+  Messpunkten über `pg_cron`, 14 Tagen Eigenretention und
+  **ohne personenbezogene Daten**. `private.ff_ops_latest_status`
+  erkennt Warn-/Kritischschwellen und veraltete Messungen. Keine Rechte
+  für `anon` oder `authenticated`; noch **kein** automatischer
+  Alarmversand an Betreiber.
+- Separates CLI-Programm `scripts/staging-readonly-load.mjs` für
+  gedrosselte Lese-Lasttests vorbereitet. Produktive Projekt-URL ist
+  **explizit verboten**, und der Test läuft nicht automatisch in CI.
+  Testprojekt, synthetische Freigabe-/Marktdaten und Zugangsdaten
+  fehlen weiterhin; es wurde **kein Produktions-Lasttest** durchgeführt.
+- Kostenpflichtige Supabase-Funktionen oder Plan-Upgrades wurden
+  **nicht** aktiviert. Der Free-Tarif bietet nach aktuellen Konditionen
+  keine automatischen Datenbankbackups. Echte Backup-Probe,
+  nachhaltige Fehlermeldungen, öffentliche Registrierung,
+  Datensätze im Millionenbereich und p95-Ermittlung bleiben offen.
+
+Betreiberanleitung: `SUPABASE-FREE-BETRIEB.md`.
