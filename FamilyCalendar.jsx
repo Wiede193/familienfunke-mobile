@@ -2,6 +2,7 @@ import React,{useEffect,useRef,useState} from 'react';
 import {Alert,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View,useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import OfficialFamilyEvents from './OfficialFamilyEvents';
 import {dayKey,monthDays,moveMonth,entryDay,entryTime,compareEntries,calendarFields} from './CalendarDates';
 
 async function verifyAccount(userId){
@@ -132,6 +133,7 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
   {monthRows.filter(r=>entryDay(r)!==chosen).map(render)}
   {!monthRows.length&&!loading?<Text style={s.text}>Noch keine Termine in diesem Monat.</Text>:null}
   {unavailable.length?<><Text accessibilityRole="header" style={s.heading}>Nicht verfügbare Veranstaltungen</Text>{unavailable.map(render)}</>:null}
+  <OfficialFamilyEvents userId={userId} month={month} compact onSaved={refresh}/>
   <Text style={s.sub}>Veranstaltung merken ist keine Teilnahmebestätigung. Erinnerungen, Serientermine und gemeinsame Kalender sind noch nicht verfügbar.</Text>
  </ScrollView>;
 }
