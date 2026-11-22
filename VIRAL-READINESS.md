@@ -235,3 +235,25 @@ Details: `TECHNISCHE-ZUVERLAESSIGKEIT.md`.
   parallelen wiederholten Aufrufen und Moderationsfehlern.
 
 Details: `TECHNISCHE-ZUVERLAESSIGKEIT.md`.
+
+## Phase 9 – Sicherheit bei umfangreichen Kontaktlisten (22.11.2026)
+
+- Feste `blocks.select('*').limit(200)`-Startabfrage entfernt.
+  Neue `ff_block_flags`-RPC prüft nur die jeweils aktuell angezeigten
+  Familien/Kontakte und ältere Kontakt-Deep-Links. Fehler beim
+  Statuscheck verhindern die Veröffentlichung einer neuen
+  Kontaktseite im Client statt eine nicht nachgewiesene
+  Freigabe vorzutäuschen.
+- Eigene Sperren lassen sich jetzt unter Konto & Sicherheit
+  über `ff_my_blocks_page` in Seiten à maximal 30 verwalten,
+  einschließlich stabiler Cursor und gezielter Wiederholung.
+- Kontaktverwaltung und Chatübersicht mit `FlatList`
+  virtualisiert; neuere Seiten laden nur fehlende Chat-Vorschauen
+  nach. Gesperrte Chats bleiben aus der Übersicht heraus unzugänglich.
+- Beide RPCs `SECURITY INVOKER`; `anon`-Ausführung verweigert.
+  Keine neue privilegierte Serverfunktion.
+- Weiter offen: Gerätetests mit vielen Kontakten/Sperren,
+  serverseitig durchsuchbare Kontakte, echtes Staging und
+  automatisierte Zwei-Konto-Ende-zu-Ende-Tests.
+
+Details: `TECHNISCHE-ZUVERLAESSIGKEIT.md`.

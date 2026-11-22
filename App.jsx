@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Linking,
+ActivityIndicator, Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Linking,
 Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, Modal, useWindowDimensions,
 StatusBar, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
@@ -16,6 +16,8 @@ import { isCurrentRequest } from './RequestGeneration';
 import { createChatIntentRepository,uuidFromCrypto } from './ChatSendIntent';
 import { isTransientFailure, retryRead, createActionGate } from './NetworkResilience';
 import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
+import { visibleBlockTargets, mergeVisibleBlockFlags } from './BlockPages';
+import BlockedAccountsPanel from './BlockedAccountsPanel';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WelcomeIntro from './WelcomeIntro';
@@ -276,6 +278,7 @@ const me=session?.user?.id;
 const photoTarget=detailFamily||(tab==='profile'?me:null);
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
+const detailFamilyRef=useRef(detailFamily);detailFamilyRef.current=detailFamily;
 const loadSeq=useRef(0);
 const actionGate=useRef(createActionGate());
 const inbox=useNotificationCenter(me);
@@ -289,7 +292,6 @@ const queries=await Promise.all([
 retryRead(()=>supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE}),{isCurrent:stillCurrent}),
  retryRead(()=>supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),{isCurrent:stillCurrent}),
 retryRead(()=>supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE}),{isCurrent:stillCurrent}),
-retryRead(()=>supabase.from('blocks').select('*').limit(200),{isCurrent:stillCurrent}),
 retryRead(()=>supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),{isCurrent:stillCurrent}),
 retryRead(()=>supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),{isCurrent:stillCurrent}),
 retryRead(()=>supabase.from('ff_organizations').select('*').eq('owner_id',me).order('created_at',{ascending:false}).limit(50),{isCurrent:stillCurrent}),
@@ -297,7 +299,7 @@ retryRead(()=>supabase.from('ff_organizations').select('*').eq('owner_id',me).or
 if(!stillCurrent())return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,ownProfile,contacts,blocks,verificationRow,membershipRow,ownOrganizations]=queries;
+const [profiles,ownProfile,contacts,verificationRow,membershipRow,ownOrganizations]=queries;
 // Fetch contact display names separately; contacts may have hidden discovery profiles.
 const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.recipient_id:c.sender_id).filter(Boolean))];
 // Preserve only the currently open conversation if it falls outside the newest contact page.
@@ -314,13 +316,21 @@ const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.r
   : {data:[],error:null};
 if(linkedProfiles.error)throw linkedProfiles.error;
 if(!stillCurrent())return null;
+const blockIds=visibleBlockTargets(profiles.data,contacts.data,me,pinnedContact.data,detailFamilyRef.current);
+const flags=blockIds.length?await retryRead(
+  ()=>supabase.rpc('ff_block_flags',{p_user_ids:blockIds}),
+  {isCurrent:stillCurrent}
+):{data:[],error:null};
+if(flags.error||!Array.isArray(flags.data))throw flags.error||new Error('Block flags unavailable');
+if(!stillCurrent())return null;
+const currentBlockFlags=mergeVisibleBlockFlags([],me,blockIds,flags.data);
 const profileRow=ownProfile.data||(profiles.data||[]).find(p=>p.user_id===me)||null;
 setDiscoverCursor(socialCursor(profiles.data,'user_id'));
 setDiscoverMore(hasNextSocialPage(profiles.data));
 setContactsCursor(socialCursor(contacts.data));
 setContactsMore(hasNextSocialPage(contacts.data));
 setDb(old=>!stillCurrent()?old:({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
-events:old.events,eventRequests:old.eventRequests,photos:old.photos,blocks:blocks.data||[],
+events:old.events,eventRequests:old.eventRequests,photos:old.photos,blocks:currentBlockFlags,
 listings:old.listings,marketPhotos:old.marketPhotos,marketFavorites:[],organizations:ownOrganizations.data||[],partnerEvents:old.partnerEvents}));
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');setConnectionIssue(false);
@@ -345,8 +355,16 @@ async function loadMoreFamilies(){
   );
   if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
   if(e)throw e;
+  const ids=visibleBlockTargets(data,[],me);
+  const flags=ids.length?await retryRead(
+    ()=>supabase.rpc('ff_block_flags',{p_user_ids:ids}),
+    {isCurrent:()=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)}
+  ):{data:[],error:null};
+  if(flags.error||!Array.isArray(flags.data))throw flags.error||new Error('Block flags unavailable');
+  if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
   setDb(old=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)
-    ? {...old,profiles:appendUniqueRows(old.profiles,data||[],'user_id')}:old);
+    ? {...old,profiles:appendUniqueRows(old.profiles,data||[],'user_id'),
+      blocks:mergeVisibleBlockFlags(old.blocks,me,ids,flags.data)}:old);
   setDiscoverCursor(socialCursor(data,'user_id'));
   setDiscoverMore(hasNextSocialPage(data));
  }catch(e){if(isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))setError('Weitere Familien konnten nicht geladen werden. Bitte erneut versuchen.');}
@@ -368,10 +386,17 @@ async function loadMoreContacts(){
      {isCurrent:()=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)}
    ):{data:[],error:null};
   if(names.error)throw names.error;
+  const idsToCheck=visibleBlockTargets([],data,me);
+  const flags=idsToCheck.length?await retryRead(
+    ()=>supabase.rpc('ff_block_flags',{p_user_ids:idsToCheck}),
+    {isCurrent:()=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)}
+  ):{data:[],error:null};
+  if(flags.error||!Array.isArray(flags.data))throw flags.error||new Error('Block flags unavailable');
   if(!isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))return;
   setDb(old=>isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad)
     ? {...old,contacts:appendUniqueRows(old.contacts,data||[]),
-    profiles:appendUniqueRows(old.profiles,names.data||[],'user_id')}:old);
+    profiles:appendUniqueRows(old.profiles,names.data||[],'user_id'),
+    blocks:mergeVisibleBlockFlags(old.blocks,me,idsToCheck,flags.data)}:old);
   setContactsCursor(socialCursor(data));
   setContactsMore(hasNextSocialPage(data));
  }catch(e){if(isCurrentRequest(accountRef.current,me,loadSeq.current,requestedDuringLoad))setError('Weitere Kontakte konnten nicht geladen werden. Bitte erneut versuchen.');}
@@ -712,7 +737,7 @@ Alert.alert('Kontakt blockieren?','Die Person kann dir dann keine neuen Nachrich
 {text:'Blockieren',style:'destructive',onPress:()=>execute(async()=>assertResult(await supabase.from('blocks').insert({blocker_id:me,blocked_id:uid})),'Kontakt blockiert.')},
 ]);
 }
-async function unblockUser(uid){await execute(async()=>assertResult(await supabase.from('blocks').delete().eq('blocker_id',me).eq('blocked_id',uid)),'Blockierung aufgehoben.');}
+async function unblockUser(uid){return execute(async()=>assertResult(await supabase.from('blocks').delete().eq('blocker_id',me).eq('blocked_id',uid)),'Blockierung aufgehoben.');}
 async function changePassword(password){
 if(password.length<12)throw new Error('Das Passwort braucht mindestens 12 Zeichen.');
 return executeEvent(async()=>assertResult(await supabase.auth.updateUser({password})),'Passwort geändert.');
@@ -765,10 +790,17 @@ async function openInboxEvent(event){
        setNotice('Der Kontakt ist nicht mehr verfügbar.');return false;
      }
      // The exact authorized contact may be outside the first 40-item page.
-     setDb(old=>({...old,contacts:appendUniqueRows([older],old.contacts)}));
+     // Check the server block status before showing the conversation.
+     const counterpart=older.sender_id===owner?older.recipient_id:older.sender_id;
+     const {data:flagRows,error:flagError}=await supabase.rpc('ff_block_flags',{p_user_ids:[counterpart]});
+     if(accountRef.current!==owner)return false;
+     if(flagError||!Array.isArray(flagRows))throw flagError||new Error('Block flags unavailable');
+     setDb(old=>accountRef.current===owner?({
+       ...old,contacts:appendUniqueRows([older],old.contacts),
+       blocks:mergeVisibleBlockFlags(old.blocks,owner,[counterpart],flagRows)
+     }):old);
      // The contact is sufficient to navigate. A slow or blocked display-name
      // lookup must not delay opening the actual conversation.
-     const counterpart=older.sender_id===owner?older.recipient_id:older.sender_id;
      supabase.from('profiles').select('*').eq('user_id',counterpart).maybeSingle()
        .then(({data:linked,error:profileError})=>{
          if(profileError||!linked||accountRef.current!==owner)return;
@@ -971,7 +1003,7 @@ replyEvent={(id,requester,status)=>executeEvent(async()=>{
  if(data?.status!==status)throw new Error('Teilnahmeanfrage konnte nicht aktualisiert werden.');
 },'Teilnahmestatus aktualisiert.')}
 reportEvent={(id)=>report('event',id)}/>:
-<ProfileScreen profile={myProfile} verification={verification} membership={membership} active={active}
+<ProfileScreen userId={me} profile={myProfile} verification={verification} membership={membership} active={active}
 photos={ownPhotos} photosUrls={photosUrls} busy={busy}
  photoBusy={photoBusy} photoBusyMore={photoBusyMore} photoHasMore={photoHasMore} photoLoadError={photoLoadError} loadMorePhotos={loadMorePhotos} retryPhotos={()=>setPhotoEpoch(n=>n+1)}
 save={(value)=>execute(async()=>{
@@ -2603,51 +2635,118 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 </ScrollView>;
 }
 function ContactsScreen({focusId,pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat,hasMore,loadingMore,onLoadMore}){
-pending=[...pending].sort((a,b)=>Number(b.id===focusId)-Number(a.id===focusId));
-accepted=[...accepted].sort((a,b)=>Number(b.id===focusId)-Number(a.id===focusId));
-const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-<H sub="Nachrichten sind erst nach gegenseitiger Bestätigung möglich.">Deine Kontakte</H>
-<Text style={styles.sectionTitle}>Offene Anfragen</Text>
-{pending.length===0?<Blank title="Keine offenen Anfragen" body="Neue Kontaktwünsche erscheinen hier."/>:pending.map(c=><Card key={c.id} style={{marginBottom:10,borderColor:c.id===focusId?C.accent:C.line,borderWidth:c.id===focusId?2:1}}>
-<Row><Avatar name={nameOf(other(c))}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other(c))}</Text><Text style={styles.micro}>{c.recipient_id===me?'Möchte dich kennenlernen':'Von dir angefragt'}</Text></View></Row>
-<Row style={{marginTop:13}}>{c.recipient_id===me?<><Button title="Annehmen" small disabled={disabled} onPress={()=>respond(c.id,'accepted')} style={{flex:1}}/><Button title="Ablehnen" mode="outline" small disabled={disabled} onPress={()=>respond(c.id,'declined')} style={{flex:1}}/></>:<Button title="Zurückziehen" small mode="outline" disabled={disabled} onPress={()=>respond(c.id,'cancelled')}/>}</Row>
-</Card>)}
-<Text style={styles.sectionTitle}>Bestätigte Kontakte</Text>
-{accepted.length===0?<Blank title="Noch keine Kontakte" body="Bestätigte Familien erscheinen hier."/>:accepted.map(c=>{const uid=other(c);return <Card key={c.id} style={{marginBottom:10,borderColor:c.id===focusId?C.accent:C.line,borderWidth:c.id===focusId?2:1}}>
-<Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text style={styles.micro}>{blocked(uid)?'Blockiert':'Kontakt bestätigt'}</Text></View></Row>
-<Row style={{marginTop:12}}><Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>{blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:<Button title="Blockieren" small mode="outline" onPress={()=>onBlock(uid)}/>}</Row>
-</Card>;})}
-{hasMore?<View style={{marginTop:13}}><Button title={loadingMore?'Kontakte werden geladen …':'Weitere Kontakte laden'} mode="outline" disabled={loadingMore} onPress={onLoadMore}/></View>:null}
-</ScrollView>;
+  const byFocus=(a,b)=>Number(b.id===focusId)-Number(a.id===focusId);
+  const waiting=[...pending].sort(byFocus);
+  const connected=[...accepted].sort(byFocus);
+  const other=c=>c.sender_id===me?c.recipient_id:c.sender_id;
+  const items=[
+    {kind:'header',key:'pending-header',title:'Offene Anfragen'},
+    ...waiting.map(row=>({kind:'pending',key:'pending-'+row.id,row})),
+    ...(!waiting.length?[{kind:'empty-pending',key:'no-pending'}]:[]),
+    {kind:'header',key:'accepted-header',title:'Bestätigte Kontakte'},
+    ...connected.map(row=>({kind:'accepted',key:'accepted-'+row.id,row})),
+    ...(!connected.length?[{kind:'empty-accepted',key:'no-accepted'}]:[])
+  ];
+  function renderContact({item}){
+    if(item.kind==='header')return <Text style={styles.sectionTitle}>{item.title}</Text>;
+    if(item.kind==='empty-pending')return <Blank title="Keine offenen Anfragen" body="Neue Kontaktwünsche erscheinen hier."/>;
+    if(item.kind==='empty-accepted')return <Blank title="Noch keine Kontakte" body="Bestätigte Familien erscheinen hier."/>;
+    const c=item.row,uid=other(c);
+    if(item.kind==='pending')return <Card style={{marginBottom:10,borderColor:c.id===focusId?C.accent:C.line,borderWidth:c.id===focusId?2:1}}>
+      <Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text>
+      <Text style={styles.micro}>{c.recipient_id===me?'Möchte dich kennenlernen':'Von dir angefragt'}</Text></View></Row>
+      <Row style={{marginTop:13}}>{c.recipient_id===me?<>
+        <Button title="Annehmen" small disabled={disabled} onPress={()=>respond(c.id,'accepted')} style={{flex:1}}/>
+        <Button title="Ablehnen" mode="outline" small disabled={disabled} onPress={()=>respond(c.id,'declined')} style={{flex:1}}/>
+      </>:<Button title="Zurückziehen" small mode="outline" disabled={disabled} onPress={()=>respond(c.id,'cancelled')}/>}</Row>
+    </Card>;
+    return <Card style={{marginBottom:10,borderColor:c.id===focusId?C.accent:C.line,borderWidth:c.id===focusId?2:1}}>
+      <Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text>
+      <Text style={styles.micro}>{blocked(uid)?'Blockiert':'Kontakt bestätigt'}</Text></View></Row>
+      <Row style={{marginTop:12}}>
+        <Button title="Nachrichten" small disabled={blocked(uid)} onPress={()=>onChat(c.id)} style={{flex:1}}/>
+        {blocked(uid)?<Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(uid)}/>:
+        <Button title="Blockieren" small mode="outline" onPress={()=>onBlock(uid)}/>}
+      </Row>
+    </Card>;
+  }
+  return <FlatList style={styles.scroll} contentContainerStyle={styles.content}
+    data={items} keyExtractor={item=>item.key} renderItem={renderContact}
+    initialNumToRender={12} maxToRenderPerBatch={12} windowSize={7}
+    keyboardShouldPersistTaps="handled"
+    ListHeaderComponent={<H sub="Nachrichten sind erst nach gegenseitiger Bestätigung möglich.">Deine Kontakte</H>}
+    ListFooterComponent={hasMore?<View style={{marginTop:13}}>
+      <Button title={loadingMore?'Kontakte werden geladen …':'Weitere Kontakte laden'}
+        mode="outline" disabled={loadingMore} onPress={onLoadMore}/>
+    </View>:null}/>;
 }
 function ChatList({contacts,me,nameOf,onChat,blocked,hasMore,loadingMore,onLoadMore}){
-const [previews,setPreviews]=useState({});
-const idsKey=contacts.map(c=>c.id).join(',');
-useEffect(()=>{
-  let live=true;
-  const ids=idsKey?idsKey.split(','):[];
-  if(!me||!ids.length){setPreviews({});return()=>{live=false;};}
-  (async()=>{
-    const next={};
-    // Fetch previews only when this overview is open, never on app startup.
-    for(let index=0;index<ids.length;index+=50){
-      const {data,error:e}=await supabase.rpc('ff_chat_previews',{p_contact_ids:ids.slice(index,index+50)});
-      if(e)throw e;
-      for(const row of data||[])if(row?.contact_id)next[row.contact_id]=row.body;
-    }
-    if(live)setPreviews(next);
-  })().catch(()=>{if(live)setPreviews({});});
-  return()=>{live=false;};
-},[me,idsKey]);
-return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-<H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
-{contacts.length===0?<Blank title="Noch keine Gespräche" body="Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben."/>:
-contacts.map(c=>{const uid=c.sender_id===me?c.recipient_id:c.sender_id;return <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={'Gespräch mit '+nameOf(uid)+' öffnen'} onPress={()=>onChat(c.id)}>
-<Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text><Text numberOfLines={1} style={styles.sub}>{blocked(uid)?'Kontakt blockiert':previews[c.id]||'Noch keine Nachrichten'}</Text></View><Text style={{fontSize:23,color:C.accent}}>›</Text></Row></Card>
-</Pressable>;})}
-{hasMore?<View style={{marginTop:13}}><Button title={loadingMore?'Kontakte werden geladen …':'Weitere Gespräche anzeigen'} disabled={loadingMore} mode="outline" onPress={onLoadMore}/></View>:null}
-</ScrollView>;
+  const [previews,setPreviews]=useState({});
+  const [previewError,setPreviewError]=useState('');
+  const [previewRetry,setPreviewRetry]=useState(0);
+  const alreadyLoaded=useRef(new Set());
+  const previewSeq=useRef(0);
+  const idsKey=contacts.map(c=>c.id).join(',');
+  useEffect(()=>{
+    alreadyLoaded.current=new Set();
+    setPreviews({});setPreviewError('');
+  },[me]);
+  useEffect(()=>{
+    const seq=++previewSeq.current;let live=true;
+    const ids=(idsKey?idsKey.split(','):[]).filter(id=>!alreadyLoaded.current.has(id));
+    if(!me||!ids.length)return()=>{live=false;previewSeq.current++;};
+    (async()=>{
+      // Load only previews added by new contacts; never refetch the entire
+      // previously loaded conversation list when a page is appended.
+      for(let index=0;index<ids.length;index+=50){
+        const batch=ids.slice(index,index+50);
+        const {data,error:e}=await retryRead(
+          ()=>supabase.rpc('ff_chat_previews',{p_contact_ids:batch}),
+          {isCurrent:()=>live&&previewSeq.current===seq}
+        );
+        if(e||!Array.isArray(data))throw e||new Error('Invalid chat preview page');
+        if(!live||previewSeq.current!==seq)return;
+        const patch={};
+        for(const row of data)if(row?.contact_id&&batch.includes(row.contact_id))patch[row.contact_id]=row.body;
+        batch.forEach(id=>alreadyLoaded.current.add(id));
+        setPreviews(old=>({...old,...patch}));
+      }
+      if(live&&previewSeq.current===seq)setPreviewError('');
+    })().catch(()=>{
+      if(live&&previewSeq.current===seq)setPreviewError('Die neuesten Nachrichten-Vorschauen konnten nicht geladen werden.');
+    });
+    return()=>{live=false;previewSeq.current++;};
+  },[me,idsKey,previewRetry]);
+
+  return <FlatList style={styles.scroll} contentContainerStyle={styles.content}
+    data={contacts} extraData={previews} keyExtractor={c=>c.id} initialNumToRender={12}
+    maxToRenderPerBatch={12} windowSize={7}
+    ListHeaderComponent={<>
+      <H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
+      {previewError?<View style={{marginBottom:12}}>
+        <Info warning>{previewError}</Info>
+        <Button title="Vorschauen erneut laden" mode="outline" onPress={()=>setPreviewRetry(n=>n+1)}/>
+      </View>:null}
+    </>}
+    ListEmptyComponent={<Blank title="Noch keine Gespräche" body="Sobald eine Kontaktanfrage angenommen wurde, kannst du eine Nachricht schreiben."/>}
+    renderItem={({item:c})=>{
+      const uid=c.sender_id===me?c.recipient_id:c.sender_id;
+      const isBlocked=blocked(uid);
+      return <Pressable accessibilityRole="button"
+        accessibilityLabel={'Gespräch mit '+nameOf(uid)+(isBlocked?' ist blockiert':' öffnen')}
+        accessibilityState={{disabled:isBlocked}} disabled={isBlocked}
+        key={c.id} onPress={()=>onChat(c.id)} style={isBlocked&&{opacity:0.65}}>
+        <Card style={{marginBottom:11}}><Row><Avatar name={nameOf(uid)}/>
+          <View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(uid)}</Text>
+            <Text numberOfLines={1} style={styles.sub}>{isBlocked?'Kontakt blockiert':previews[c.id]||'Noch keine Nachrichten'}</Text>
+          </View><Text style={{fontSize:23,color:C.accent}}>›</Text>
+        </Row></Card>
+      </Pressable>;
+    }}
+    ListFooterComponent={hasMore?<View style={{marginTop:13}}>
+      <Button title={loadingMore?'Kontakte werden geladen …':'Weitere Gespräche anzeigen'}
+        disabled={loadingMore} mode="outline" onPress={onLoadMore}/>
+    </View>:null}/>;
 }
 function ChatScreen({contact,me,nameOf,disabled,blocked,send,onReport,onBlock}) {
 const [text,setText]=useState('');
@@ -2920,7 +3019,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 {!focusId&&hasMore?<Button title={loadingMore?'Weitere Veranstaltungen werden geladen …':'Weitere Veranstaltungen laden'} mode="outline" disabled={loadingMore} onPress={loadMoreEvents}/>:null}
 </ScrollView>;
 }
-function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
+function ProfileScreen({userId,profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
 const [form,setForm]=useState(blankProfile);
 const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
@@ -3029,7 +3128,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Button title="Elternwissen öffnen" mode="outline" onPress={openInfo}/>
 <Text style={[styles.label,{marginTop:18}]}>Passwort ändern</Text><Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none"/>
 <Button title="Passwort ändern" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
-{blocks.length>0?<View style={{marginTop:18}}><Text style={styles.label}>Blockierte Konten</Text>{blocks.map(b=><Row key={b.blocked_id} style={{marginTop:7,justifyContent:'space-between'}}><Text style={styles.micro}>Konto …{b.blocked_id.slice(-7)}</Text><Button title="Entsperren" small mode="outline" onPress={()=>onUnblock(b.blocked_id)}/></Row>)}</View>:null}
+<BlockedAccountsPanel userId={userId} disabled={busy} onUnblock={onUnblock}/>
 <View style={{height:16}}/><Button title="Abmelden" mode="ghost" onPress={signOut}/>
 </Card>
 </>:null}

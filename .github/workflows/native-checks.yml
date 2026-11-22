@@ -77,6 +77,8 @@ jobs:
         run: npm run check:network
       - name: Dauerhafte Sende-IDs und sichere Kontaktserver prüfen
         run: npm run check:chat-idempotency
+      - name: Paginierte Blockierungen und große Kontaktlisten prüfen
+        run: npm run check:blocks
       - name: KI-Freigabe und Fehlerbehandlung prüfen
         run: npm run check:market-auto-review
       - name: Automatische Wiederholung und Moderationsausnahmen prüfen

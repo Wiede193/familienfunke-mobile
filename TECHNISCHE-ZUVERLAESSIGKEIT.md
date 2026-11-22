@@ -194,3 +194,54 @@ keine Lasttest-Freigabe.
 Tests: `npm run check:chat-idempotency`.
 Backend: `database/ff_chat_contact_idempotency_20261122.sql`,
 `supabase/functions/send-message/index.ts`.
+
+
+## Phase 9 – Blockierungen und große Kontaktlisten
+
+**Nachgewiesener Fehler:** Der App-Start hatte `blocks.select('*').limit(200)`.
+Bei mehr als 200 selbst blockierten Konten konnte die Oberfläche
+ältere Sperren fälschlich als aufgehoben anzeigen, obwohl
+die serverseitige Zugriffskontrolle sie weiterhin durchsetzte.
+
+- **Nur sichtbare Sperren abfragen:** `ff_block_flags(uuid[])`
+  prüft über PostgreSQL-RLS ausschließlich Blockierungen, die der
+  angemeldete Nutzer **selbst** gegenüber den aktuell dargestellten
+  Profilen/Kontakten gesetzt hat. Maximal 120 UUIDs pro Aufruf.
+  Die erste Seite (40 Familien plus 40 Kontakte und maximal wenige
+  explizit ausgewählte Personen), alle Folgeseiten und ältere
+  Benachrichtigungs-Kontakte prüfen den tatsächlichen Blockstatus
+  vor Darstellung. Ein fehlgeschlagener Block-Check verwirft die
+  betreffende neue Seite, statt „nicht blockiert“ zu raten.
+- **Alle eigenen Blockierungen verwalten:** Unter
+  Profil → Konto & Sicherheit erscheint eine separat **erst beim
+  Öffnen** geladene, chronologisch paginierte Liste.
+  `ff_my_blocks_page` liefert maximal 30 eigene Blockierungen pro
+  Aufruf, mit stabilem `created_at + blocked_id`-Cursor,
+  passendem Index und „Weitere blockierte Konten laden“.
+  Einzelne Entsperrungen werden nur bei bestätigtem Erfolg
+  durch erneute Serverabfrage übernommen. Es werden keine
+  Namen fremder blockierter Familien erzwungen.
+- **Sicherheit:** Beide RPCs sind `SECURITY INVOKER`,
+  erben die bestehenden Block-RLS-Policies und sind nur für
+  `authenticated` ausführbar; `anon` bekommt kein EXECUTE.
+  Es sind keine neuen direkt lesbaren Fremd-Benutzerdaten,
+  Security-Definer-Funktionen oder weitreichenden Tabellenrechte
+  hinzugekommen.
+- **Große Listen effizient:** Die Kontaktverwaltung und
+  Chatübersicht nutzen `FlatList` statt alle Kontakte mit
+  `ScrollView.map` sofort zu rendern. Die Anzahl zunächst
+  gerenderter Karten und die Render-Chunks sind begrenzt.
+  `ff_chat_previews` liest beim Nachladen nur neu hinzugekommene
+  Kontakt-IDs in 50er-Gruppen; alte Vorschauen werden im
+  geöffneten Bildschirm nicht erneut geladen.
+  Eine gesperrte Unterhaltung lässt sich in der Übersicht
+  nicht mehr öffnen.
+- **Tests:** `npm run check:blocks` validiert Cursor,
+  Flag-Ersetzung, Kontotrennung, RPC-Rechte, Deep-Link-Fälle,
+  virtuelle Listen und nur inkrementelles Laden.
+
+**Grenzen:** Die dynamischen Serverrechte verhindern Zugriffe,
+aber die App erfährt fremde Blockierungen nicht als eigene Sperrflags.
+Es fehlen echte Gerätetests mit mehreren hundert Kontakten und
+mehr als 200 Blockierungen. Für sehr große Gesamtlisten wäre
+weitergehende Suche und serverseitige Filterung sinnvoll.
