@@ -3,6 +3,7 @@ import {AccessibilityInfo,ActivityIndicator,Alert,Keyboard,Linking,Pressable,Scr
 import {WebView} from 'react-native-webview';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
+import {useFamilyLocale} from './FamilyLocale';
 import {CURATED_REGION,CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {NATIONAL_FAMILY_PLACES,NATIONAL_TYPES,NATIONAL_AREAS} from './FamilyMapNational';
 import {findFamilyMapLocations,mergeMapSearchResults} from './FamilyMapSearch';
@@ -114,6 +115,7 @@ function inGermany(lat,lon){
   return valid(lat)&&valid(lon)&&lat>=47&&lat<=55.2&&lon>=5.5&&lon<=15.6;
 }
 export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onCalendar}){
+ const {t,language}=useFamilyLocale();
   const map=useRef(null);
   const scroll=useRef(null);
   const mapOffset=useRef(0);
@@ -386,28 +388,29 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
     catch{Alert.alert('Karten-App nicht erreichbar','Der Kartendienst konnte nicht geöffnet werden. Bitte versuche es erneut.');}
   }
   return <ScrollView ref={scroll} style={styles.page} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-    <View style={styles.hero}><Text style={styles.eyebrow}>FAMILIENFUNKE ENTDECKT DEUTSCHLAND</Text>
-      <Text style={styles.title}>Familienkarte ♡</Text>
-      <Text style={styles.sub}>Spielplätze, Wickelmöglichkeiten in Restaurants und Cafés sowie Ausflugsziele – direkt auf der Karte entdecken.</Text>
+    {language==='en'?<Text style={styles.micro}>{t('Originalbeschreibungen derzeit auf Deutsch. Bitte Hinweise beim Anbieter prüfen.')}</Text>:null}
+    <View style={styles.hero}><Text style={styles.eyebrow}>{t("FAMILIENFUNKE ENTDECKT DEUTSCHLAND")}</Text>
+      <Text style={styles.title}>{t("Familienkarte ♡")}</Text>
+      <Text style={styles.sub}>{t("Spielplätze, Wickelmöglichkeiten in Restaurants und Cafés sowie Ausflugsziele – direkt auf der Karte entdecken.")}</Text>
     </View>
     <View style={styles.locationSearch}>
-      <Text accessibilityRole="header" style={styles.sectionNoMargin}>Ort oder Ausflugsziel suchen</Text>
+      <Text accessibilityRole="header" style={styles.sectionNoMargin}>{t("Ort oder Ausflugsziel suchen")}</Text>
       <Text style={[styles.micro,{marginTop:7,marginBottom:11}]}>
         Suche nach Orten, Postleitzahlen, Straßen und öffentlichen Adressen in ganz Deutschland. Familienfunke-Tipps erscheinen direkt beim Tippen.
       </Text>
-      <TextInput accessibilityLabel="Stadt oder Ausflugsziel suchen" accessibilityHint="Auch Postleitzahl, Straße und öffentliche Adresse möglich. Deutschlandweite Suche mit der Suchtaste starten."
+      <TextInput accessibilityLabel={t("Stadt oder Ausflugsziel suchen")} accessibilityHint="Auch Postleitzahl, Straße und öffentliche Adresse möglich. Deutschlandweite Suche mit der Suchtaste starten."
         value={placeQuery} onChangeText={changePlaceQuery}
-        style={styles.field} placeholder="z. B. 15230, Rathausplatz oder Berlin"
+        style={styles.field} placeholder={t("z. B. 15230, Rathausplatz oder Berlin")}
         placeholderTextColor={C.muted} maxLength={160}
         autoCorrect={false} returnKeyType="search" onSubmitEditing={searchGermany}/>
       <Text style={[styles.micro,{marginTop:9}]}>Mit „Deutschlandweit suchen“ wird nur dein Suchtext über unseren Server an Photon übermittelt. Bitte keine privaten Wohnadressen, Namen oder vertraulichen Angaben eingeben. Kein GPS-Zugriff.</Text>
       <Pressable accessibilityRole="button" accessibilityState={{disabled:geoStatus==='loading'||placeQuery.trim().length<3,busy:geoStatus==='loading'}}
         disabled={geoStatus==='loading'||placeQuery.trim().length<3} onPress={searchGermany}
         style={[styles.mainBtn,{minHeight:48,marginTop:10,opacity:geoStatus==='loading'||placeQuery.trim().length<3?0.5:1}]}>
-        <Text style={styles.mainBtnText}>{geoStatus==='loading'?'Deutschlandweite Suche läuft …':'Deutschlandweit suchen'}</Text>
+        <Text style={styles.mainBtnText}>{t(geoStatus==='loading'?'Deutschlandweite Suche läuft …':'Deutschlandweit suchen')}</Text>
       </Pressable>
       {placeQuery?<Pressable accessibilityRole="button" onPress={()=>changePlaceQuery('')} style={[styles.outlineBtn,{minHeight:44,marginTop:8}]}>
-        <Text style={styles.outlineText}>Suche zurücksetzen</Text>
+        <Text style={styles.outlineText}>{t("Suche zurücksetzen")}</Text>
       </Pressable>:null}
       {geoStatus==='quota'||geoStatus==='error'||geoStatus==='empty'?<Text accessibilityLiveRegion="polite" style={[styles.micro,{marginTop:9}]}>
         {geoStatus==='quota'?'Suchlimit erreicht oder Dienst ausgelastet. Bitte später erneut versuchen.':geoStatus==='error'?'Die deutschlandweite Suche ist gerade nicht erreichbar. Familienfunke-Tipps bleiben verfügbar.':'Keine weiteren Kartentreffer gefunden. Prüfe die Schreibweise oder ergänze die Stadt.'}
@@ -419,7 +422,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
        javaScriptEnabled domStorageEnabled scrollEnabled={false}
        style={styles.map} onMessage={onMapMessage} onError={()=>setMapError('Die Vektorkarte konnte nicht geladen werden.')}
        setSupportMultipleWindows={false} allowsInlineMediaPlayback/>
-      {!ready?<View pointerEvents="none" style={styles.mapLoading}><ActivityIndicator color={C.teal}/><Text style={styles.micro}>Vektorkarte laden …</Text></View>:null}
+      {!ready?<View pointerEvents="none" style={styles.mapLoading}><ActivityIndicator color={C.teal}/><Text style={styles.micro}>{t("Vektorkarte laden …")}</Text></View>:null}
       <View pointerEvents="none" style={styles.mapTag}><Text style={styles.mapTagText}>
         {placeQuery.trim().length>=2?'Suchtreffer auf der Karte: '+locationMatches.length:'Vektorkarte · Deutschland'}
       </Text></View>
@@ -427,27 +430,27 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
     {selectedSearchMatch?<View accessibilityLiveRegion="polite" style={styles.mapSelectedInfo}>
       <Text accessibilityRole="header" style={styles.selectedTitle}>{selectedSearchMatch.title}</Text>
       <Text style={styles.micro}>{selectedSearchMatch.subtitle}{ready?' · Auf der Karte hervorgehoben':''}</Text>
-      {selectedSearchMatch.source==='geocode'?<View><Text style={[styles.micro,{marginTop:8}]}>Externer Kartentreffer, keine geprüfte Familienfunke-Empfehlung. Adressdaten können unvollständig sein.</Text><Pressable accessibilityRole="link" onPress={()=>openDirections(selectedSearchMatch,'google')} style={[styles.minorBtn,{minHeight:44}]}><Text style={styles.minorBtnText}>Route in Google Maps öffnen ↗</Text></Pressable><Pressable accessibilityRole="link" onPress={()=>openDirections(selectedSearchMatch,'apple')} style={[styles.minorBtn,{minHeight:44}]}><Text style={styles.minorBtnText}>Route in Apple Karten öffnen ↗</Text></Pressable></View>:null}
+      {selectedSearchMatch.source==='geocode'?<View><Text style={[styles.micro,{marginTop:8}]}>{t("Externer Kartentreffer, keine geprüfte Familienfunke-Empfehlung. Adressdaten können unvollständig sein.")}</Text><Pressable accessibilityRole="link" onPress={()=>openDirections(selectedSearchMatch,'google')} style={[styles.minorBtn,{minHeight:44}]}><Text style={styles.minorBtnText}>{t("Route in Google Maps öffnen ↗")}</Text></Pressable><Pressable accessibilityRole="link" onPress={()=>openDirections(selectedSearchMatch,'apple')} style={[styles.minorBtn,{minHeight:44}]}><Text style={styles.minorBtnText}>{t("Route in Apple Karten öffnen ↗")}</Text></Pressable></View>:null}
       {(selectedSearchMatch.source==='city'||selectedSearchMatch.source==='geocode')?<Pressable accessibilityRole="button"
          accessibilityLabel={'Familienorte in der Umgebung von '+selectedSearchMatch.title+' laden'}
          accessibilityState={{disabled:loading}} disabled={loading}
          onPress={()=>searchNearMatch(selectedSearchMatch)}
          style={[styles.mainBtn,{marginTop:11}]}>
-         <Text style={styles.mainBtnText}>Familienorte in dieser Umgebung suchen</Text>
+         <Text style={styles.mainBtnText}>{t("Familienorte in dieser Umgebung suchen")}</Text>
        </Pressable>:null}
     </View>:null}
     {selected?<View style={styles.selectedCard}>
-      <Text style={styles.cardEyebrow}>{typeLabel(selected.category)} · {selected.source==='osm'?'OpenStreetMap':selected.source==='curated'?'Redaktioneller Ausflugstipp':selected.source==='national'?'Deutschlandweiter Ausflugstipp':selected.moderation_status==='pending'?'Dein Vorschlag in Prüfung':'Familien-Tipp'}</Text>
+      <Text style={styles.cardEyebrow}>{t(typeLabel(selected.category))} · {selected.source==='osm'?'OpenStreetMap':selected.source==='curated'?t('Redaktioneller Ausflugstipp'):selected.source==='national'?t('Deutschlandweiter Ausflugstipp'):selected.moderation_status==='pending'?'Dein Vorschlag in Prüfung':'Familien-Tipp'}</Text>
       <Text style={styles.selectedTitle}>{selected.title}</Text>
-      <Text style={styles.micro}>{selected.description||'Keine Beschreibung hinterlegt.'}</Text>
+      <Text style={styles.micro}>{selected.description||t('Keine Beschreibung hinterlegt.')}</Text>
       {selected.address?<Text style={[styles.micro,{marginTop:8}]}>⌖ {selected.address}</Text>:null}
       {['curated','national'].includes(selected.source)&&onCalendar?<Pressable accessibilityRole="button" accessibilityLabel="Ausflugsziel im Kalender einplanen" onPress={()=>onCalendar(selected)} style={{minHeight:44,padding:12,borderRadius:12,backgroundColor:'#E8F3E9',marginTop:10}}><Text style={{fontWeight:'800',color:'#075A60'}}>Im Kalender einplanen</Text></Pressable>:null}
       {selected.source==='national'?<Text style={[styles.micro,{marginTop:7}]}>Kategorie: {selected.kind_label} · {selected.state}</Text>:null}
       {['curated','national'].includes(selected.source)?<Text style={[styles.micro,{marginTop:8}]}>Recherchestand November 2026. Aktuelle Besuchsbedingungen beim Anbieter erfragen.</Text>:null}
       {selected.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(selected.info_url).catch(()=>{})}
-        style={styles.minorBtn}><Text style={styles.minorBtnText}>Offizielle Informationen öffnen ↗</Text></Pressable>:null}
-      {selected.has_changing_table?<Text style={styles.tagGood}>Wickelmöglichkeit angegeben</Text>:null}
-      <Text style={[styles.micro,{fontWeight:'800',color:C.ink,marginTop:17,marginBottom:10}]}>Route zu diesem Ort planen</Text>
+        style={styles.minorBtn}><Text style={styles.minorBtnText}>{t("Offizielle Informationen öffnen ↗")}</Text></Pressable>:null}
+      {selected.has_changing_table?<Text style={styles.tagGood}>{t("Wickelmöglichkeit angegeben")}</Text>:null}
+      <Text style={[styles.micro,{fontWeight:'800',color:C.ink,marginTop:17,marginBottom:10}]}>{t("Route zu diesem Ort planen")}</Text>
       <View style={styles.navigationRow}>
         <Pressable accessibilityRole="link" accessibilityLabel={'Route mit Google Maps zu '+selected.title}
           onPress={()=>openDirections(selected,'google')} style={styles.navigationGoogle}>
@@ -484,17 +487,17 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
         </View>:null}
 
     {placeQuery.trim().length>=2&&locationMatches.length>0?<Pressable accessibilityRole="button"
-      accessibilityLabel="Alle Suchtreffer auf der Karte anzeigen"
+      accessibilityLabel={t("Alle Suchtreffer auf der Karte anzeigen")}
       onPress={()=>map.current?.injectJavaScript(mapScript('fitSearchResults'))}
       style={[styles.outlineBtn,{marginTop:10,minHeight:46}]}>
-      <Text style={styles.outlineText}>Alle Suchtreffer auf der Karte anzeigen</Text>
+      <Text style={styles.outlineText}>{t("Alle Suchtreffer auf der Karte anzeigen")}</Text>
     </Pressable>:null}
     {mapError?<View accessibilityLiveRegion="polite" style={styles.warn}><Text style={styles.micro}>{mapError} Die Ortsliste kann weiterhin genutzt werden.</Text></View>:null}
     <Text style={[styles.micro,{marginTop:7}]}>Kartengrundlage: OpenFreeMap / OpenStreetMap. Adresssuche: Photon / © OpenStreetMap-Mitwirkende. Zum Navigieren die Karte verschieben und zoomen. Standortzugriff ist nicht nötig. Alle verfügbaren Orte sind zusätzlich als bedienbare Liste unter der Karte erreichbar.</Text>
     <View style={styles.curatedBox}>
       <View style={[styles.row,{justifyContent:'space-between',alignItems:'center',gap:10}]}>
         <View style={{flex:1}}>
-          <Text style={styles.curatedEyebrow}>AUSFLUGSTIPPS AUS DER REGION</Text>
+          <Text style={styles.curatedEyebrow}>{t("AUSFLUGSTIPPS AUS DER REGION")}</Text>
           <Text style={styles.curatedTitle}>{CURATED_REGION.name}</Text>
         </View>
         <Pressable accessibilityRole="button" onPress={showCuratedRegion} style={styles.curatedMapBtn}>
@@ -516,7 +519,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
           <Text style={styles.curatedPlaceTitle} numberOfLines={2}>{place.title}</Text>
           <Text style={styles.micro} numberOfLines={1}>⌖ {place.region_label}</Text>
           <Text style={[styles.micro,{marginTop:7,flex:1}]} numberOfLines={3}>{place.description}</Text>
-          <Text style={styles.curatedPlaceLink}>Auf der Karte ansehen  ›</Text>
+          <Text style={styles.curatedPlaceLink}>{t("Auf der Karte ansehen  ›")}</Text>
         </Pressable>)}
       </ScrollView>
       <Text style={[styles.micro,{marginTop:10}]}>Recherche: November 2026. Öffnungszeiten, Preise und Ausstattung bitte vor einem Besuch direkt prüfen.</Text>
@@ -524,10 +527,10 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
     <View style={styles.nationalBox}>
       <View style={[styles.row,{justifyContent:'space-between',gap:9,alignItems:'center'}]}>
         <View style={{flex:1}}>
-          <Text style={styles.curatedEyebrow}>DEUTSCHLANDWEIT ENTDECKEN</Text>
-          <Text style={styles.curatedTitle}>Die große Familien-Auswahl</Text>
+          <Text style={styles.curatedEyebrow}>{t("DEUTSCHLANDWEIT ENTDECKEN")}</Text>
+          <Text style={styles.curatedTitle}>{t("Die große Familien-Auswahl")}</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Alle bundesweiten Ziele auf der Karte anzeigen"
+        <Pressable accessibilityRole="button" accessibilityLabel={t("Alle bundesweiten Ziele auf der Karte anzeigen")}
           style={styles.curatedMapBtn} onPress={showAllGermany}>
           <Text style={styles.curatedMapBtnText}>⌖ Deutschland</Text>
         </Pressable>
@@ -535,21 +538,21 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
       <Text style={[styles.micro,{marginTop:8,marginBottom:11}]}>
         {NATIONAL_FAMILY_PLACES.length} recherchierte Familienziele: von Freizeitparks über Indoor-Spielwelten bis zu interaktiven Museen.
       </Text>
-      <Text style={styles.nationalLabel}>Was möchtet ihr unternehmen?</Text>
+      <Text style={styles.nationalLabel}>{t("Was möchtet ihr unternehmen?")}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:10}}>
-        {NATIONAL_TYPES.map(x=><Chip key={x.id} label={x.icon+' '+x.label}
+        {NATIONAL_TYPES.map(x=><Chip key={x.id} label={x.icon+' '+t(x.label)}
           selected={nationalType===x.id} onPress={()=>{setNationalType(x.id);setSelectedId(null);}}/>)}
       </ScrollView>
-      <Text style={[styles.nationalLabel,{marginTop:13}]}>Welche Region?</Text>
+      <Text style={[styles.nationalLabel,{marginTop:13}]}>{t("Welche Region?")}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:10}}>
-        {NATIONAL_AREAS.map(x=><Chip key={x.id} label={x.label}
+        {NATIONAL_AREAS.map(x=><Chip key={x.id} label={t(x.label)}
           selected={nationalArea===x.id} onPress={()=>{setNationalArea(x.id);setSelectedId(null);}}/>)}
       </ScrollView>
       <View style={[styles.row,{justifyContent:'space-between',marginTop:15,marginBottom:10}]}>
-        <Text style={styles.nationalCount}>{nationalShown.length} {nationalShown.length===1?'Ausflugsziel':'Ausflugsziele'}</Text>
+        <Text style={styles.nationalCount}>{nationalShown.length} {t(nationalShown.length===1?'Ausflugsziel':'Ausflugsziele')}</Text>
         {nationalShown.length<NATIONAL_FAMILY_PLACES.length?<Pressable accessibilityRole="button"
           onPress={()=>{setNationalType('all');setNationalArea('all');setSelectedId(null);}}>
-          <Text style={styles.nationalReset}>Filter löschen ×</Text>
+          <Text style={styles.nationalReset}>{t("Filter löschen ×")}</Text>
         </Pressable>:null}
       </View>
       {nationalShown.length===0?<Text style={styles.micro}>Für diese Auswahl ist noch kein Ort erfasst. Probiere eine andere Region oder Kategorie.</Text>:
@@ -570,73 +573,73 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
         </ScrollView>}
       <Text style={[styles.micro,{marginTop:12}]}>Recherchestand November 2026. Saison, Preise, Altersgrenzen und Öffnungszeiten bitte auf den verlinkten Anbieterseiten prüfen.</Text>
     </View>
-    <Text style={styles.section}>Stadt auswählen</Text>
+    <Text style={styles.section}>{t("Stadt auswählen")}</Text>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:15}}>
       {CENTERS.map(c=><Chip key={c.name} label={c.name} selected={false} onPress={()=>visit(c)}/>)}
     </ScrollView>
     <View style={[styles.row,{marginTop:12,gap:9,alignItems:'stretch'}]}>
       <Pressable accessibilityRole="button" disabled={loading} onPress={()=>loadAround()}
        style={[styles.mainBtn,{flex:1,opacity:loading?.6:1}]}>
-        <Text style={styles.mainBtnText}>{loading?'Orte werden gesucht …':'⌕  Hier nach Orten suchen'}</Text>
+        <Text style={styles.mainBtnText}>{t(loading?'Orte werden gesucht …':'⌕  Hier nach Orten suchen')}</Text>
       </Pressable>
       <Pressable accessibilityRole="button" onPress={()=>{setCenter({latitude:51.2,longitude:10.45,zoom:5.3});setOsm([]);
        if(ready)map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo(51.2,10.45,5.3);true;');}}
-       accessibilityLabel="Kartenausschnitt auf Deutschland zurücksetzen" style={styles.outlineBtn}><Text style={styles.outlineText}>DE</Text></Pressable>
+       accessibilityLabel={t("Kartenausschnitt auf Deutschland zurücksetzen")} style={styles.outlineBtn}><Text style={styles.outlineText}>DE</Text></Pressable>
     </View>
     {loading?<ActivityIndicator color={C.teal} style={{marginTop:9}}/>:null}
     {searchError?<View accessibilityLiveRegion="assertive" style={styles.warn}><Text style={styles.warnText}>{searchError}</Text></View>:null}
     {notice?<View accessibilityLiveRegion="polite" style={styles.tip}><Text style={styles.tipText}>{notice}</Text></View>:null}
-    <Text style={styles.section}>Was sucht ihr?</Text>
+    <Text style={styles.section}>{t("Was sucht ihr?")}</Text>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:15}}>
-      {TYPES.map(([id,label,icon])=><Chip key={id} label={icon+' '+label} selected={types===id} onPress={()=>{setTypes(id);setSelectedId(null);}}/>)}
+      {TYPES.map(([id,label,icon])=><Chip key={id} label={icon+' '+t(label)} selected={types===id} onPress={()=>{setTypes(id);setSelectedId(null);}}/>)}
     </ScrollView>
     <Text style={[styles.micro,{marginTop:12}]}>Orte aus OpenStreetMap sind nicht von Familienfunke überprüft. Ein Wickeltisch ist nur dann als vorhanden markiert, wenn die Quelle oder der Eintrag das ausdrücklich angibt.</Text>
     <View style={[styles.row,{justifyContent:'space-between',marginTop:24}]}>
-      <Text style={styles.sectionNoMargin}>Orte im Kartenausschnitt</Text>
+      <Text style={styles.sectionNoMargin}>{t("Orte im Kartenausschnitt")}</Text>
       <Text style={styles.micro}>{list.length} angezeigt</Text>
     </View>
-    {!list.length?<View style={styles.empty}><Text style={styles.emptyTitle}>Noch keine Orte in dieser Ansicht</Text>
+    {!list.length?<View style={styles.empty}><Text style={styles.emptyTitle}>{t("Noch keine Orte in dieser Ansicht")}</Text>
       <Text style={styles.micro}>Wähle eine Stadt, tippe auf „Hier nach Orten suchen“ oder trage einen neuen Ort ein.</Text>
     </View>:list.map(p=><Pressable key={p.id} accessibilityRole="button" accessibilityLabel={p.title+', '+typeLabel(p.category)+', Details öffnen'} onPress={()=>showPlace(p)} style={styles.placeRow}>
       <View style={styles.placeGlyph}><Text style={{fontSize:23,color:C.coral}}>{typeGlyph(p.category)}</Text></View>
-      <View style={{flex:1}}><Text style={styles.placeTitle}>{p.title}</Text><Text style={styles.micro}>{typeLabel(p.category)} · {p.source==='osm'?'OpenStreetMap':p.source==='curated'?'Recherchierter Ausflugstipp':p.source==='national'?(p.kind_label||'Deutschlandweiter Ausflugstipp'):p.moderation_status==='pending'?'Nur für dich · in Prüfung':'Familien-Tipp'}</Text></View><Text style={styles.chevron}>›</Text>
+      <View style={{flex:1}}><Text style={styles.placeTitle}>{p.title}</Text><Text style={styles.micro}>{t(typeLabel(p.category))} · {p.source==='osm'?'OpenStreetMap':p.source==='curated'?'Recherchierter Ausflugstipp':p.source==='national'?(p.kind_label||'Deutschlandweiter Ausflugstipp'):p.moderation_status==='pending'?'Nur für dich · in Prüfung':'Familien-Tipp'}</Text></View><Text style={styles.chevron}>›</Text>
     </Pressable>)}
     <View style={styles.suggestCard}>
-      <Text style={styles.sectionNoMargin}>Kennt ihr noch einen tollen Ort?</Text>
+      <Text style={styles.sectionNoMargin}>{t("Kennt ihr noch einen tollen Ort?")}</Text>
       <Text style={[styles.micro,{marginTop:7}]}>Ihr könnt öffentlich zugängliche Spielplätze, Wickelmöglichkeiten und Ausflugsorte vorschlagen. Jeder neue Eintrag wird vor Veröffentlichung geprüft.</Text>
       <Pressable accessibilityRole="button" accessibilityState={{expanded:openForm,disabled:!active}} disabled={!active} onPress={()=>{setOpenForm(v=>!v);setSearchError('');}}
-       style={[styles.mainBtn,{marginTop:13,opacity:active?1:0.45}]}><Text style={styles.mainBtnText}>{openForm?'Vorschlag schließen':'+ Familienort vorschlagen'}</Text></Pressable>
+       style={[styles.mainBtn,{marginTop:13,opacity:active?1:0.45}]}><Text style={styles.mainBtnText}>{t(openForm?'Vorschlag schließen':'+ Familienort vorschlagen')}</Text></Pressable>
       {!active?<Text style={[styles.micro,{marginTop:6}]}>Vorschläge sind nur mit freigegebenem Familienkonto möglich.</Text>:null}
       {openForm?<View style={styles.form}>
-        <Text style={styles.formTitle}>Öffentlichen Ort markieren</Text>
+        <Text style={styles.formTitle}>{t("Öffentlichen Ort markieren")}</Text>
         <Text style={styles.micro}>Wähle den öffentlichen Ort auf der Karte oder trage seine Koordinaten unten per Tastatur ein. Bitte keine privaten Wohnadressen oder Kinderstandorte eintragen.</Text>
-        <Text style={[styles.label,{marginTop:13}]}>Ort ohne Kartenberührung markieren</Text>
+        <Text style={[styles.label,{marginTop:13}]}>{t("Ort ohne Kartenberührung markieren")}</Text>
         <Text style={styles.micro}>Breiten- und Längengrad kannst du zum Beispiel aus einem Kartendienst kopieren. Komma und Punkt werden akzeptiert.</Text>
         <View style={[styles.row,{gap:9,alignItems:'flex-start'}]}>
-          <View style={{flex:1}}><Field label="Breitengrad" value={latitudeInput}
+          <View style={{flex:1}}><Field label={t("Breitengrad")} value={latitudeInput}
             onChange={v=>{setLatitudeInput(v);setDraftPoint(null);}} maxLength={16} placeholder="z. B. 52,36"/></View>
-          <View style={{flex:1}}><Field label="Längengrad" value={longitudeInput}
+          <View style={{flex:1}}><Field label={t("Längengrad")} value={longitudeInput}
             onChange={v=>{setLongitudeInput(v);setDraftPoint(null);}} maxLength={16} placeholder="z. B. 14,06"/></View>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Ort anhand der Koordinaten markieren"
+        <Pressable accessibilityRole="button" accessibilityLabel={t("Ort anhand der Koordinaten markieren")}
           onPress={markCoordinates} style={[styles.mainBtn,{marginTop:2}]}>
-          <Text style={styles.mainBtnText}>Koordinaten übernehmen</Text>
+          <Text style={styles.mainBtnText}>{t("Koordinaten übernehmen")}</Text>
         </Pressable>
         <Text accessibilityLiveRegion="polite" style={[styles.coordinate,{marginTop:10}]}>{draftPoint?'✓ Ort auf Karte markiert':'Noch kein Punkt ausgewählt'}</Text>
         {searchError?<Text accessibilityLiveRegion="assertive" style={[styles.warnText,{marginTop:9}]}>{searchError}</Text>:null}
-        <Field label="Name des Ortes" value={name} onChange={setName} maxLength={100} placeholder="z. B. Spielplatz am Stadtpark"/>
-        <Text style={[styles.label,{marginTop:13}]}>Art des Ortes</Text>
+        <Field label={t("Name des Ortes")} value={name} onChange={setName} maxLength={100} placeholder="z. B. Spielplatz am Stadtpark"/>
+        <Text style={[styles.label,{marginTop:13}]}>{t("Art des Ortes")}</Text>
         <View style={{flexDirection:'row',flexWrap:'wrap',gap:7}}>
-          {TYPES.filter(t=>t[0]!=='all').map(([id,label])=><Chip key={id} label={label} selected={category===id} onPress={()=>setCategory(id)}/>)}
+          {TYPES.filter(t=>t[0]!=='all').map(([id,label])=><Chip key={id} label={t(label)} selected={category===id} onPress={()=>setCategory(id)}/>)}
         </View>
-        <Field label="Stadt oder Region (freiwillig)" value={region} onChange={setRegion} maxLength={80} placeholder="z. B. Fürstenwalde"/>
-        <Field label="Was sollten Familien wissen?" value={description} onChange={setDescription} maxLength={600} multi placeholder="z. B. Schattenplätze, Zugang, Öffnungszeiten – nur wenn bekannt"/>
+        <Field label={t("Stadt oder Region (freiwillig)")} value={region} onChange={setRegion} maxLength={80} placeholder="z. B. Fürstenwalde"/>
+        <Field label={t("Was sollten Familien wissen?")} value={description} onChange={setDescription} maxLength={600} multi placeholder="z. B. Schattenplätze, Zugang, Öffnungszeiten – nur wenn bekannt"/>
         <View style={[styles.row,{justifyContent:'space-between',marginTop:16}]}>
-          <View style={{flex:1}}><Text style={styles.label}>Wickeltisch vorhanden?</Text><Text style={styles.micro}>Nur einschalten, wenn ihr euch sicher seid.</Text></View>
-          <Switch accessibilityLabel="Wickeltisch vorhanden" accessibilityRole="switch" value={changing} onValueChange={setChanging} trackColor={{true:C.teal}}/>
+          <View style={{flex:1}}><Text style={styles.label}>{t("Wickeltisch vorhanden?")}</Text><Text style={styles.micro}>Nur einschalten, wenn ihr euch sicher seid.</Text></View>
+          <Switch accessibilityLabel={t("Wickeltisch vorhanden")} accessibilityRole="switch" value={changing} onValueChange={setChanging} trackColor={{true:C.teal}}/>
         </View>
         <Pressable accessibilityRole="button" onPress={submitPlace} style={[styles.mainBtn,{marginTop:17}]}>
-          <Text style={styles.mainBtnText}>Ort zur Prüfung einreichen</Text>
+          <Text style={styles.mainBtnText}>{t("Ort zur Prüfung einreichen")}</Text>
         </Pressable>
       </View>:null}
       {pendingOwn.length?<Text style={[styles.micro,{marginTop:12}]}>{pendingOwn.length} {pendingOwn.length===1?'deiner Vorschläge wartet':'deiner Vorschläge warten'} auf Freigabe.</Text>:null}

@@ -16,3 +16,6 @@ Die von bestätigten Inseratdaten abgeleiteten Bildbeschreibungen sind nun auch 
 
 ## Ausbaustufe 4 – Familienalltag
 Neuigkeiten, Preisalarmtexte, Push-Einstellungen, Familienkalender und Ausflugsplaner DE/EN. Kalenderdatum wird lokal formatiert, die Eingabe bleibt eindeutig YYYY-MM-DD / HH:MM; Termine und Zeitzonenlogik unverändert. Preisbeträge bleiben EUR; Löschgrenzen, Kontoabfragen, Freigaben und Geräteberechtigungen unverändert. Ausflüge behalten Deutschland-Katalog, Ortsnamen, öffentliche Ziel-IDs, km und Budgetstufen; Originalbeschreibungen sind als deutsch gekennzeichnet. Flexible Ablauftexte in beiden Sprachen; keine neuen Reise-, Preis- oder Altersgarantien. Push-Transporttexte serverseitig bleiben deutsch, nicht aktiviert. Nutzerinhalte bleiben Original. Gerätetests und vollständiges CI ausstehend.
+
+## Ausbaustufe 5 – Karte und Wegweiser
+Die Navigation der Familienkarte und die Wegweiser-Statussteuerung sind jetzt teilweise englisch. Fachinformationen und Original-Ortsbeschreibungen bleiben bewusst deutsch mit entsprechendem Hinweis. Unveränderte Geocoding-Grenzen, Zugriffsrechte, Fachinhalte, stabile IDs und lokale Fortschrittsdaten. Weitere Karten-Metadaten und die Einbettungsoberfläche werden noch vervollständigt.
