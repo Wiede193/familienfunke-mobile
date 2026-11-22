@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const script=read('performance/k6/staging-reads.js');
+assert.match(script,/FF_CONFIRM_STAGING/);
+assert.match(script,/STAGING_READS_ONLY/);
+assert.match(script,/cycqdhjvbikrlzgliloo/,'Production project must be explicitly denied');
+assert.match(script,/FF_STAGING_SUPABASE_URL/);
+assert.match(script,/FF_STAGING_TEST_TOKENS/);
+assert.match(script,/tokens.length<2/);
+assert.match(script,/http\.batch\(/);
+assert.match(script,/\['GET',stagingUrl\+path,null/,'Only read operations are allowed');
+assert.doesNotMatch(script,/\b(?:http\.post|http\.put|http\.patch|http\.del|DELETE|INSERT|UPDATE|service_role|secret_key)\b/);
+assert.match(script,/vus:5/);
+assert.match(script,/duration:'45s'/);
+const readme=read('START-BELASTUNGSTEST.md');
+for(const need of ['Staging','37','Paginierung','Sicherung','Moderation','Öffentliche Registrierung','k6','Go/No-Go'])assert.ok(readme.includes(need));
+console.log('Staging-only smoke test is guarded against production and mutating requests');

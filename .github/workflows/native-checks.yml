@@ -38,6 +38,8 @@ jobs:
         run: node tests/check-family-rounds.mjs
       - name: Begrenzte Startabfragen bei gleichzeitigen Anmeldungen prüfen
         run: node tests/check-startup-concurrency.mjs
+      - name: Abgesichertes Staging-Lasttest-Skript prüfen
+        run: node tests/check-launch-readiness.mjs
       - name: KI-Startseite Navigation und Datenschutz prüfen
         run: npm run check:home
       - name: Kontobezogene Layout-Synchronisierung und RLS-Verträge prüfen
