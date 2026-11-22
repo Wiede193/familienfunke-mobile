@@ -27,7 +27,7 @@ assert.match(sql,/limit 100/);
 assert.match(sql,/when\(new.kind not in \('market','search'\)\)/);
 assert.match(sql,/where moderation_status='approved' on conflict do nothing/);
 assert.match(app,/Suche speichern/);
-assert.match(app,/saveMarketSearch\(\{query,category:filter,trade:tradeFilter,minPrice,maxPrice\}\)/);
+assert.match(app,/saveMarketSearch\(\{query:canonicalQuery,category:filter,trade:tradeFilter,minPrice,maxPrice\}\)/);
 assert.match(app,/entryIntent\?\.type==='savedSearch'/);
 assert.match(app,/setMinPrice\(row\.min_cents/);
 assert.match(app,/setMaxPrice\(row\.max_cents/);

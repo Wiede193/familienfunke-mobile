@@ -21,12 +21,37 @@ jobs:
           cache: npm
       - name: Abhängigkeiten installieren
         run: npm ci
-      - name: Expo-Paketversionen für den CI-Build abgleichen
-        run: npx expo install --fix
       - name: Expo-Paketversionen prüfen
         run: npx expo install --check
+      - name: Mehrsprachigkeit und unveränderte Funktions-IDs prüfen
+        run: |
+          node tests/check-locale.mjs
+          node tests/check-market-locale.mjs
+          node tests/check-family-life-locale.mjs
+          node tests/check-play-english.mjs
+          node tests/check-play-english-words.mjs
+          node tests/check-map-guide-play-locale.mjs
+          node tests/check-game-a11y-locale.mjs
+      - name: Regional personalisierte Startseite prüfen
+        run: node tests/check-home-highlights.mjs
+      - name: Familienrunden und sicheres Teilen prüfen
+        run: node tests/check-family-rounds.mjs
+      - name: Begrenzte Startabfragen bei gleichzeitigen Anmeldungen prüfen
+        run: node tests/check-startup-concurrency.mjs
+      - name: Abgesichertes Staging-Lasttest-Skript prüfen
+        run: node tests/check-launch-readiness.mjs
       - name: KI-Startseite Navigation und Datenschutz prüfen
         run: npm run check:home
+      - name: Kontobezogene Layout-Synchronisierung und RLS-Verträge prüfen
+        run: npm run check:layout-sync
+      - name: Entwürfe, Symbole, Statusmeldungen und Bildabrufe prüfen
+        run: npm run check:ux-resilience
+      - name: Datenschutz und Fallback der optionalen Spracheingabe prüfen
+        run: npm run check:voice
+      - name: Persönliche Startseite und Menüleiste prüfen
+        run: npm run check:layout
+      - name: Gemeinsame Bearbeitungs- und Löschaktionen prüfen
+        run: npm run check:actions
       - name: Einheitliches Farbdesign und Lesbarkeit prüfen
         run: npm run check:design
       - name: Barrierefreiheit für Navigation, Formulare und Screenreader prüfen

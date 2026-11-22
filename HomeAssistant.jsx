@@ -1,6 +1,11 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {AccessibilityInfo, ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
+import {useFamilyLocale} from './FamilyLocale';
+import {localizedRoutes,englishRouteMatches,formatServiceMoney} from './FamilyLocaleModel';
+import {marketSearchQuery} from './MarketLocaleSearch';
+import {confirmRemoval} from './FamilyActions';
+import FamilyVoiceSearch from './FamilyVoiceSearch';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
 
@@ -9,7 +14,8 @@ import {CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
 
 const C=FAMILY_COLORS;
-const FEATURED=['discover','map','market','box'];
+import {DEFAULT_HOME} from './FamilyLayoutModel';
+import HomeHighlights from './HomeHighlights';
 const SUGGESTIONS=['Spielplätze finden','Kinderjeans Größe 110','Profil bearbeiten','Wie beschäftige ich Kinder bei Regen?'];
 function SunMark(){
   return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.sunWrap}>
@@ -20,52 +26,55 @@ function SunMark(){
   </View>;
 }
 function AreaCard({route,onNavigate,query,compact=false}){
-  const productSearch=route.id==='market'&&looksLikeMarketProductQuery(query);
+  const {language}=useFamilyLocale();
+  const productSearch=route.id==='market'&&(looksLikeMarketProductQuery(query)||(language==='en'&&(englishRouteMatches(query,HOME_ROUTES)[0]?.id==='market'||looksLikeMarketProductQuery(marketSearchQuery(query,language)))));
   return <Pressable accessibilityRole="button"
-    accessibilityLabel={route.title+' öffnen'}
+    accessibilityLabel={language==='en'?'Open '+route.title:route.title+' öffnen'}
     onPress={()=>onNavigate(route.id,productSearch?query.trim():'')}
     style={({pressed})=>[compact?s.areaGrid:s.areaRow,pressed&&s.pressed]}>
     <View style={compact?s.areaGridAccent:s.areaAccent}/>
     <View style={{flex:1}}>
       <Text style={[s.areaTitle,compact&&{fontSize:15}]}>{route.title}</Text>
-      <Text style={s.areaSubtitle} numberOfLines={compact?3:2}>{route.subtitle}</Text>
+      <Text style={s.areaSubtitle}>{route.subtitle}</Text>
     </View>
     <Text style={s.areaArrow}>›</Text>
   </Pressable>;
 }
 function AssistantReply({entry,onNavigate}){
+  const {t,language}=useFamilyLocale();
   return <View accessibilityLiveRegion="polite" style={s.answerCard}>
-    <Text style={s.youLabel}>DEINE FRAGE</Text>
+    <Text style={s.youLabel}>{t("DEINE FRAGE")}</Text>
     <Text style={s.questionText}>{entry.question}</Text>
     <View style={s.answerDivider}/>
-    <Text style={s.assistantLabel}>FAMILIENFUNKE HILFT</Text>
+    <Text style={s.assistantLabel}>{t("FAMILIENFUNKE HILFT")}</Text>
     <Text style={s.answerText}>{entry.answer}</Text>
     {entry.searchQuery&&!entry.offersError&&Array.isArray(entry.offers)?
       <View style={s.offerGroup}>
-        <Text style={s.offerHeading}>Tatsächlich freigegebene Angebote</Text>
+        <Text style={s.offerHeading}>{t("Tatsächlich freigegebene Angebote")}</Text>
         {entry.offers.length?entry.offers.map(offer=>
           <Pressable key={offer.id} accessibilityRole="button"
-            accessibilityLabel={offer.title+' im Basar suchen'}
+            accessibilityLabel={language==='en'?'Search marketplace for '+offer.title:offer.title+' im Basar suchen'}
             onPress={()=>onNavigate('market',entry.searchQuery)}
             style={s.offerItem}>
             <Text style={s.offerTitle}>{offer.title}</Text>
-            {offer.matchItem?<Text style={s.mutedSmall}>Passender Artikel: {offer.matchItem}</Text>:null}
+            {offer.matchItem?<Text style={s.mutedSmall}>{t('Passender Artikel: ')}{offer.matchItem}</Text>:null}
             <Text style={s.offerPrice}>{offer.price}</Text>
           </Pressable>
-        ):<Text style={s.mutedSmall}>Für diese Suche gibt es momentan keine freigegebenen Treffer.</Text>}
+        ):<Text style={s.mutedSmall}>{t("Für diese Suche gibt es momentan keine freigegebenen Treffer.")}</Text>}
       </View>:null}
     {entry.searchQuery&&entry.offersError?
-      <Text style={[s.mutedSmall,{marginTop:12}]}>Treffer lassen sich gerade nicht laden. Die Suche im Basar ist weiterhin möglich.</Text>:null}
+      <Text style={[s.mutedSmall,{marginTop:12}]}>{t("Treffer lassen sich gerade nicht laden. Die Suche im Basar ist weiterhin möglich.")}</Text>:null}
     {entry.pageId?<Pressable accessibilityRole="button"
-      accessibilityLabel="Vorgeschlagenen App-Bereich öffnen"
+      accessibilityLabel={t("Vorgeschlagenen App-Bereich öffnen")}
       onPress={()=>onNavigate(entry.pageId,entry.pageId==='market'?entry.searchQuery||entry.question:'')}
       style={({pressed})=>[s.answerAction,pressed&&s.pressed]}>
-      <Text style={s.answerActionLabel}>{HOME_ROUTES.find(x=>x.id===entry.pageId)?.title||'Passenden Bereich öffnen'} ›</Text>
+      <Text style={s.answerActionLabel}>{t(HOME_ROUTES.find(x=>x.id===entry.pageId)?.title||'Passenden Bereich öffnen')} ›</Text>
       
     </Pressable>:null}
   </View>;
 }
-export default function HomeAssistant({onNavigate}){
+export default function HomeAssistant({onNavigate,tileIds=DEFAULT_HOME,onCustomize,highlights=null}){
+  const {t,language,locale}=useFamilyLocale();
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<360||fontScale>=1.5;
   const [question,setQuestion]=useState('');
@@ -77,21 +86,25 @@ export default function HomeAssistant({onNavigate}){
   const requestSeq=useRef(0),alive=useRef(true),pending=useRef(false);
   const [searchResult,setSearchResult]=useState(null);
   const [searchBusy,setSearchBusy]=useState(false);
+  const [voiceBusy,setVoiceBusy]=useState(false);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;requestSeq.current++;};},[]);
+  useEffect(()=>{requestSeq.current++;pending.current=false;setSearchResult(null);setSearchBusy(false);setBusy(false);setError('');},[language]);
   function updateQuestion(value){
     requestSeq.current++;pending.current=false;
     setQuestion(value);setSearchResult(null);setSearchBusy(false);setBusy(false);setError('');
   }
   const needle=question.trim();
-  const matches=findHomeRoutes(needle);
+  const englishMatches=language==='en'&&needle?englishRouteMatches(needle,HOME_ROUTES):[];
+  const aliasMarket=language==='en'&&englishMatches[0]?.id!=='sell'&&looksLikeMarketProductQuery(marketSearchQuery(needle,language));
+  const matches=localizedRoutes(language==='en'&&needle?[...(aliasMarket?HOME_ROUTES.filter(r=>r.id==='market'):[]),...englishMatches,...findHomeRoutes(needle)].filter((r,i,a)=>a.findIndex(x=>x.id===r.id)===i).slice(0,6):findHomeRoutes(needle),language);
   const places=needle.length>=2?findFamilyMapLocations(needle,{curated:CURATED_FAMILY_PLACES,national:NATIONAL_FAMILY_PLACES},4):[];
-  const marketIntent=looksLikeMarketProductQuery(needle)||matches[0]?.id==='market';
+  const marketIntent=(language!=='en'||englishMatches[0]?.id!=='sell')&&(looksLikeMarketProductQuery(needle)||matches[0]?.id==='market');
   const visibleSearch=searchResult?.query===needle?searchResult:null;
-  const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
-  const moreRoutes=HOME_ROUTES.filter(route=>!FEATURED.includes(route.id));
+  const featured=localizedRoutes(tileIds.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean),language);
+  const moreRoutes=localizedRoutes(HOME_ROUTES,language);
   async function askAssistant(){
     const prompt=needle.slice(0,600);
-    if(prompt.length<3||pending.current)return;
+    if(prompt.length<3||pending.current||voiceBusy)return;
     const request=++requestSeq.current;pending.current=true;Keyboard.dismiss();
     setBusy(true);setError('');
     try{
@@ -100,13 +113,13 @@ export default function HomeAssistant({onNavigate}){
         {role:'assistant',content:x.answer}
       ]);
       const {data,error:requestError}=await supabase.functions.invoke('ff-app-assistant',{
-        body:{question:prompt,history}
+        body:{question:prompt,history,language}
       });
       if(requestError||typeof data?.answer!=='string'||!data.answer.trim()){
         const code=requestError?.context?.status;
         throw new Error(code===429
-          ?'Das heutige KI-Kontingent ist aufgebraucht. Die direkte Seitensuche bleibt nutzbar.'
-          :'Die KI ist vorübergehend nicht erreichbar. Du kannst die App-Bereiche weiterhin direkt öffnen.');
+          ?t("Das heutige KI-Kontingent ist aufgebraucht. Die direkte Seitensuche bleibt nutzbar.")
+          :t("Die KI ist vorübergehend nicht erreichbar. Du kannst die App-Bereiche weiterhin direkt öffnen."));
       }
       const route=HOME_ROUTES.find(x=>x.id===data.page_id);
       const searchQuery=route?.id==='market'&&typeof data?.search_query==='string'
@@ -118,7 +131,7 @@ export default function HomeAssistant({onNavigate}){
       if(searchQuery){
         try{
           const {data:rows,error:queryError}=await supabase.rpc('ff_market_search',{
-            p_query:searchQuery,p_category:'Alle',p_trade_type:'all',
+            p_query:marketSearchQuery(searchQuery,language),p_category:'Alle',p_trade_type:'all',
             p_sort:'relevance',p_limit:3,p_offset:0
           });
           if(queryError||!Array.isArray(rows))offersError=true;
@@ -127,11 +140,9 @@ export default function HomeAssistant({onNavigate}){
               id:row.listing.id,
               title:String(row.listing.title||'').slice(0,100),
               matchItem:String(row.match_item||'').slice(0,150),
-              price:row.listing.trade_type==='gift'?'Zu verschenken'
-                :row.listing.trade_type==='swap'?'Tausch'
-                :(Number(row.listing.price_cents||0)/100).toLocaleString('de-DE',{
-                  style:'currency',currency:'EUR'
-                })
+              price:row.listing.trade_type==='gift'?t("Zu verschenken")
+                :row.listing.trade_type==='swap'?t("Tausch")
+                :formatServiceMoney(row.listing.price_cents,language)
             }));
         }catch{offersError=true;}
       }
@@ -141,13 +152,13 @@ export default function HomeAssistant({onNavigate}){
         pageId:route?.id||'',searchQuery,offers,offersError
       },...old].slice(0,6));
       scrollRef.current?.scrollTo({y:0,animated:false});
-      AccessibilityInfo.announceForAccessibility('Die KI-Antwort ist jetzt verfügbar.');
-    }catch(e){if(alive.current&&request===requestSeq.current)setError(e?.message||'Die KI ist gerade nicht erreichbar.');}
+      AccessibilityInfo.announceForAccessibility(t("Die KI-Antwort ist jetzt verfügbar."));
+    }catch(e){if(alive.current&&request===requestSeq.current)setError(e?.message||t("Die KI ist gerade nicht erreichbar."));}
     finally{if(alive.current&&request===requestSeq.current){pending.current=false;setBusy(false);}}
   }
   async function searchApp(){
     const query=needle;
-    if(query.length<2||pending.current)return;
+    if(query.length<2||pending.current||voiceBusy)return;
     Keyboard.dismiss();setError('');
     const request=++requestSeq.current;pending.current=true;setSearchBusy(true);
     try{
@@ -155,7 +166,7 @@ export default function HomeAssistant({onNavigate}){
       const [eventResponse,marketResponse]=await Promise.allSettled([
         supabase.rpc('ff_search_events',{p_query:query.slice(0,160)}),
         marketIntent?supabase.rpc('ff_market_search',{
-          p_query:query.slice(0,160),p_category:'Alle',p_trade_type:'all',
+          p_query:marketSearchQuery(query,language),p_category:'Alle',p_trade_type:'all',
           p_sort:'relevance',p_limit:5,p_offset:0
         }):Promise.resolve(null)
       ]);
@@ -167,12 +178,12 @@ export default function HomeAssistant({onNavigate}){
       const offersError=marketIntent&&(!marketData||!!marketData.error||!Array.isArray(marketData.data));
       const offers=marketIntent&&!offersError?marketData.data.filter(row=>row?.listing?.moderation_status==='approved').map(row=>({
         id:row.listing.id,title:String(row.listing.title||'').slice(0,100),
-        price:row.listing.trade_type==='gift'?'Zu verschenken':row.listing.trade_type==='swap'?'Tausch':
-          (Number(row.listing.price_cents||0)/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'})
+        price:row.listing.trade_type==='gift'?t("Zu verschenken"):row.listing.trade_type==='swap'?t("Tausch"):
+          formatServiceMoney(row.listing.price_cents,language)
       })):null;
       setSearchResult({query,offers,events,eventsError,offersError});
-      AccessibilityInfo.announceForAccessibility(events.length+' Veranstaltungstreffer und '+(offers?.length||0)+' Basar-Treffer in der Vorschau.');
-    }catch{if(alive.current&&request===requestSeq.current)setError('Die Online-Suche konnte nicht geladen werden. App-Bereiche und Katalogorte bleiben verfügbar.');}
+      AccessibilityInfo.announceForAccessibility(language==='en'?events.length+' events and '+(offers?.length||0)+' marketplace results in preview.':events.length+' Veranstaltungstreffer und '+(offers?.length||0)+' Basar-Treffer in der Vorschau.');
+    }catch{if(alive.current&&request===requestSeq.current)setError(t("Die Online-Suche konnte nicht geladen werden. App-Bereiche und Katalogorte bleiben verfügbar."));}
     finally{if(alive.current&&request===requestSeq.current){pending.current=false;setSearchBusy(false);}}
   }
   return <ScrollView ref={scrollRef} style={s.page} contentContainerStyle={s.content}
@@ -180,93 +191,91 @@ export default function HomeAssistant({onNavigate}){
     <View style={[s.searchCenter,!needle&&!conversation.length&&s.searchCenterIdle]}>
       <SunMark/>
       <Text accessibilityRole="header" style={s.wordmark}>Familienfunke<Text style={{color:C.coralDeep}}>.</Text></Text>
-      <Text style={s.tagline}>Finden. Fragen. Entdecken.</Text>
+      <Text style={s.tagline}>{t("Finden. Fragen. Entdecken.")}</Text>
       <View style={s.inputShell}>
         <Text accessibilityElementsHidden importantForAccessibility="no" style={s.searchGlyph}>⌕</Text>
-        <TextInput accessibilityLabel="Familienfunke durchsuchen oder eine KI-Frage eingeben"
-          style={s.input} value={question} onChangeText={updateQuestion} editable={!busy&&!searchBusy}
-          placeholder="Was möchtest du finden?"
+        <TextInput accessibilityLabel={t("Familienfunke durchsuchen oder eine KI-Frage eingeben")}
+          style={s.input} value={question} onChangeText={updateQuestion} editable={!busy&&!searchBusy&&!voiceBusy}
+          placeholder={t("Was möchtest du finden?")}
           placeholderTextColor={C.muted} maxLength={600}
           autoCapitalize="sentences" returnKeyType="search" onSubmitEditing={searchApp}/>
-        {needle?<Pressable accessibilityRole="button" accessibilityLabel="Eingabe löschen"
-          onPress={()=>updateQuestion('')} style={s.clear}><Text style={s.clearText}>×</Text></Pressable>:null}
+        {needle?<Pressable accessibilityRole="button" accessibilityLabel={t("Eingabe löschen")}
+          disabled={voiceBusy} accessibilityState={{disabled:voiceBusy}} onPress={()=>updateQuestion('')} style={s.clear}><Text style={s.clearText}>×</Text></Pressable>:null}
       </View>
       <View style={[s.searchActions,singleColumn&&{flexDirection:'column',alignItems:'stretch'}]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="In Familienfunke suchen"
-          accessibilityState={{disabled:busy||searchBusy||needle.length<2,busy:searchBusy}}
-          disabled={busy||searchBusy||needle.length<2} onPress={searchApp}
-          style={[s.directButton,(busy||searchBusy||needle.length<2)&&s.disabled]}>
-          <Text style={s.directLabel}>{searchBusy?'Suche läuft …':'Suchen'}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("In Familienfunke suchen")}
+          accessibilityState={{disabled:busy||searchBusy||voiceBusy||needle.length<2,busy:searchBusy}}
+          disabled={busy||searchBusy||voiceBusy||needle.length<2} onPress={searchApp}
+          style={[s.directButton,(busy||searchBusy||voiceBusy||needle.length<2)&&s.disabled]}>
+          <Text style={s.directLabel}>{searchBusy?t("Suche läuft …"):t("Suchen")}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="KI um Hilfe fragen"
-          accessibilityState={{disabled:busy||searchBusy||needle.length<3,busy}}
-          disabled={busy||searchBusy||needle.length<3} onPress={askAssistant}
-          style={[s.askButton,(busy||searchBusy||needle.length<3)&&s.disabled]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("KI um Hilfe fragen")}
+          accessibilityState={{disabled:busy||searchBusy||voiceBusy||needle.length<3,busy}}
+          disabled={busy||searchBusy||voiceBusy||needle.length<3} onPress={askAssistant}
+          style={[s.askButton,(busy||searchBusy||voiceBusy||needle.length<3)&&s.disabled]}>
           {busy?<ActivityIndicator color={C.white} style={{marginRight:8}}/>:null}
-          <Text style={s.askButtonLabel}>{busy?'KI antwortet …':'KI fragen'}</Text>
+          <Text style={s.askButtonLabel}>{busy?t("KI antwortet …"):t("KI fragen")}</Text>
         </Pressable>
       </View>
-      <Text style={s.searchHint}>App-Funktionen, Angebote, Orte und Veranstaltungen finden oder Fragen stellen.</Text>
+      <FamilyVoiceSearch disabled={busy||searchBusy} onText={updateQuestion} onBusyChange={setVoiceBusy}/>
+      <Text style={s.searchHint}>{t("App-Funktionen, Angebote, Orte und Veranstaltungen finden oder Fragen stellen. Du kannst auch über das Mikrofon deiner Tastatur diktieren, sofern dein Gerät dies unterstützt.")}</Text>
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
     </View>
     {needle?<View style={s.section}>
-      <Text accessibilityRole="header" style={s.sectionTitle}>Suchergebnisse</Text>
-      {matches.length?<><Text style={s.sectionSubtitle}>App-Bereiche</Text>
+      <Text accessibilityRole="header" style={s.sectionTitle}>{t("Suchergebnisse")}</Text>
+      {matches.length?<><Text style={s.sectionSubtitle}>{t("App-Bereiche")}</Text>
       {matches.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query={needle}/>)}</>:null}
-      {places.length?<><Text style={s.sectionSubtitle}>Orte aus der Familienkarte</Text>
-      {places.map(hit=><Pressable key={hit.id} accessibilityRole="button" accessibilityLabel={hit.title+' auf der Familienkarte öffnen'} onPress={()=>onNavigate('map','',hit.place.id)} style={s.areaRow}>
+      {places.length?<><Text style={s.sectionSubtitle}>{t("Orte aus der Familienkarte")}</Text>
+      {places.map(hit=><Pressable key={hit.id} accessibilityRole="button" accessibilityLabel={language==='en'?'Open '+hit.title+' on family map':hit.title+' auf der Familienkarte öffnen'} onPress={()=>onNavigate('map','',hit.place.id)} style={s.areaRow}>
         <View style={s.areaAccent}/><View style={{flex:1}}><Text style={s.areaTitle}>{hit.title}</Text><Text style={s.areaSubtitle}>{hit.subtitle}</Text></View><Text style={s.areaArrow}>›</Text>
       </Pressable>)}</>:null}
-      {visibleSearch?.eventsError?<Text style={s.mutedSmall}>Veranstaltungen konnten gerade nicht geladen werden.</Text>:null}
+      {visibleSearch?.eventsError?<Text style={s.mutedSmall}>{t("Veranstaltungen konnten gerade nicht geladen werden.")}</Text>:null}
       {visibleSearch?.events&&!visibleSearch.eventsError?<View style={s.offerGroup}>
-        <Text accessibilityRole="header" style={s.offerHeading}>Anstehende Veranstaltungen</Text>
-        {visibleSearch.events.length?visibleSearch.events.map(event=><Pressable key={event.kind+event.id} accessibilityRole="button" accessibilityLabel={event.title+' öffnen'} onPress={()=>onNavigate(event.kind==='family'?'events':'partners','',event.id)} style={s.offerItem}>
-          <Text style={s.offerTitle}>{event.title}</Text><Text style={s.mutedSmall}>{event.kind==='family'?'Familientreffen':'Partnerveranstaltung'} · {event.region_label||'Region nach Absprache'}</Text><Text style={s.offerPrice}>{new Date(event.starts_at).toLocaleString('de-DE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</Text>
-        </Pressable>):<Text style={s.mutedSmall}>Keine passenden bevorstehenden Veranstaltungen gefunden.</Text>}
+        <Text accessibilityRole="header" style={s.offerHeading}>{t("Anstehende Veranstaltungen")}</Text>
+        {visibleSearch.events.length?visibleSearch.events.map(event=><Pressable key={event.kind+event.id} accessibilityRole="button" accessibilityLabel={language==='en'?'Open '+event.title:event.title+' öffnen'} onPress={()=>onNavigate(event.kind==='family'?'events':'partners','',event.id)} style={s.offerItem}>
+          <Text style={s.offerTitle}>{event.title}</Text><Text style={s.mutedSmall}>{event.kind==='family'?t("Familientreffen"):t("Partnerveranstaltung")} · {event.region_label||t("Region nach Absprache")}</Text><Text style={s.offerPrice}>{new Date(event.starts_at).toLocaleString(locale,{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</Text>
+        </Pressable>):<Text style={s.mutedSmall}>{t("Keine passenden bevorstehenden Veranstaltungen gefunden.")}</Text>}
       </View>:null}
-      {visibleSearch?.offersError?<Text style={s.mutedSmall}>Basar-Treffer konnten gerade nicht geladen werden.</Text>:null}
+      {visibleSearch?.offersError?<Text style={s.mutedSmall}>{t("Basar-Treffer konnten gerade nicht geladen werden.")}</Text>:null}
       {visibleSearch?.offers?<View style={s.offerGroup}>
-        <Text style={s.offerHeading}>Freigegebene Basar-Angebote (Vorschau)</Text>
-        {visibleSearch.offers.length?visibleSearch.offers.map(offer=><Pressable key={offer.id} accessibilityRole="button" accessibilityLabel={offer.title+' im Basar suchen'} onPress={()=>onNavigate('market',needle)} style={s.offerItem}>
+        <Text style={s.offerHeading}>{t("Freigegebene Basar-Angebote (Vorschau)")}</Text>
+        {visibleSearch.offers.length?visibleSearch.offers.map(offer=><Pressable key={offer.id} accessibilityRole="button" accessibilityLabel={language==='en'?'Search marketplace for '+offer.title:offer.title+' im Basar suchen'} onPress={()=>onNavigate('market',needle)} style={s.offerItem}>
           <Text style={s.offerTitle}>{offer.title}</Text><Text style={s.offerPrice}>{offer.price}</Text>
-        </Pressable>):<Text style={s.mutedSmall}>Keine passenden freigegebenen Angebote gefunden.</Text>}
-        <Pressable accessibilityRole="button" onPress={()=>onNavigate('market',needle)} style={s.answerAction}><Text style={s.answerActionLabel}>Alle Basar-Ergebnisse ansehen ›</Text></Pressable>
+        </Pressable>):<Text style={s.mutedSmall}>{t("Keine passenden freigegebenen Angebote gefunden.")}</Text>}
+        <Pressable accessibilityRole="button" onPress={()=>onNavigate('market',needle)} style={s.answerAction}><Text style={s.answerActionLabel}>{t("Alle Basar-Ergebnisse ansehen ›")}</Text></Pressable>
       </View>:null}
-      {!matches.length&&!places.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Stelle deine Frage der KI oder ändere die Suche.</Text>:null}
-      {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>Tippe auf „Suchen“, um aktuelle Basar-Angebote und Termine abzurufen.</Text>:null}
+      {!matches.length&&!places.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>{t("Keine direkten Treffer. Stelle deine Frage der KI oder ändere die Suche.")}</Text>:null}
+      {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>{t("Tippe auf „Suchen“, um aktuelle Basar-Angebote und Termine abzurufen.")}</Text>:null}
     </View>:null}
     {conversation.length?<View style={s.section}>
       <View style={s.replyHeader}>
-        <Text style={s.sectionTitle}>Deine KI-Hilfe</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="KI-Verlauf in dieser Ansicht löschen"
-          onPress={()=>{requestSeq.current++;pending.current=false;setBusy(false);setSearchBusy(false);setConversation([]);}} style={s.clearHistory}>
-          <Text style={s.clearHistoryLabel}>Verlauf leeren</Text>
+        <Text style={s.sectionTitle}>{t("Deine KI-Hilfe")}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={t("KI-Verlauf in dieser Ansicht löschen")}
+          onPress={()=>confirmRemoval({translate:t,title:t("KI-Verlauf leeren?"),description:t("Die Fragen und Antworten in dieser Ansicht werden entfernt."),confirmLabel:t("Verlauf leeren"),onConfirm:()=>{requestSeq.current++;pending.current=false;setBusy(false);setSearchBusy(false);setConversation([]);}})} style={s.clearHistory}>
+          <Text style={s.clearHistoryLabel}>{t("Verlauf leeren")}</Text>
         </Pressable>
       </View>
       {conversation.map((entry,i)=><AssistantReply key={i+'-'+entry.question}
         entry={entry} onNavigate={onNavigate}/>)}
     </View>:null}
+    {!needle?<HomeHighlights data={highlights} onNavigate={onNavigate}/>:null}
     {!needle?<View style={s.section}>
-      <Text accessibilityRole="header" style={s.sectionTitle}>Direkt zu</Text>
+      <Text accessibilityRole="header" style={s.sectionTitle}>{t("Meine Startseite")}</Text>
+      <Pressable accessibilityRole="button" onPress={onCustomize} style={s.allAction}><Text style={s.allActionLabel}>{t("Startseite & Menü gestalten")}</Text><Text style={s.allActionLabel}>›</Text></Pressable>
+      {!featured.length?<Text style={s.sectionSubtitle}>{t("Du hast keine Kacheln ausgewählt. Füge jederzeit neue hinzu oder nutze die Suche.")}</Text>:null}
       <View style={[s.featuredGrid,singleColumn&&{flexDirection:'column'}]}>
         {featured.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query="" compact={!singleColumn}/>)}
       </View>
       <Pressable accessibilityRole="button" accessibilityState={{expanded:showAll}} onPress={()=>setShowAll(v=>!v)} style={s.allAction}>
-        <Text style={s.allActionLabel}>{showAll?'Weniger Bereiche anzeigen':'Alle Bereiche entdecken'}</Text><Text style={s.allActionLabel}>{showAll?'⌃':'⌄'}</Text>
+        <Text style={s.allActionLabel}>{showAll?t("Weniger Bereiche anzeigen"):t("Alle Bereiche entdecken")}</Text><Text style={s.allActionLabel}>{showAll?'⌃':'⌄'}</Text>
       </Pressable>
       {showAll?moreRoutes.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query=""/>):null}
-      <Pressable accessibilityRole="button" accessibilityLabel="Familienquiz und Spielideen öffnen" onPress={()=>onNavigate('play')} style={s.outingCard}>
-        <View style={{flex:1}}><Text style={s.outingTitle}>Familienzeit</Text><Text style={s.outingSubtitle}>Eine kurze Quizrunde oder eine Idee zum gemeinsamen Spielen.</Text><Text style={s.outingLink}>Quiz & Spielideen öffnen ›</Text></View>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Persönlichen Familienausflug planen" onPress={()=>onNavigate('outing')} style={s.outingCard}>
-        <View style={{flex:1}}><Text style={s.outingTitle}>Familienausflug planen</Text><Text style={s.outingSubtitle}>Passende Ziele nach Alter, Budget und Entfernung.</Text><Text style={s.outingLink}>Ausflugsplaner öffnen ›</Text></View>
-      </Pressable>
     </View>:null}
     {!needle?<View style={s.section}>
-      <Text style={s.sectionTitle}>Du könntest fragen</Text>
+      <Text style={s.sectionTitle}>{t("Du könntest fragen")}</Text>
       <View style={s.suggestionList}>
-        {SUGGESTIONS.map(topic=><Pressable key={topic} accessibilityRole="button"
-          accessibilityLabel={'Frage eingeben: '+topic}
+        {SUGGESTIONS.map(t).map(topic=><Pressable key={topic} accessibilityRole="button"
+          accessibilityLabel={t("Frage eingeben: ")+topic}
           onPress={()=>{updateQuestion(topic);scrollRef.current?.scrollTo({y:0,animated:false});}} style={({pressed})=>[s.suggestion,pressed&&s.pressed]}>
           <Text style={s.suggestionText}>{topic}</Text>
           <Text style={s.suggestionArrow}>›</Text>
@@ -274,9 +283,7 @@ export default function HomeAssistant({onNavigate}){
       </View>
     </View>:null}
     <Text style={s.disclaimer}>
-      Die KI erklärt Funktionen und beantwortet allgemeine Fragen. Sie liest keine privaten
-      Nachrichten, Kontakte oder Kontodaten und führt keine Käufe oder Kontoänderungen aus.
-      Bitte gib keine sensiblen Informationen ein.
+      {language==='en'?'AI explains features and answers general questions. It cannot read private messages, contacts or account data, or make purchases or account changes. Do not enter sensitive information.':'Die KI erklärt Funktionen und beantwortet allgemeine Fragen. Sie liest keine privaten Nachrichten, Kontakte oder Kontodaten und führt keine Käufe oder Kontoänderungen aus. Bitte gib keine sensiblen Informationen ein.'}
     </Text>
   </ScrollView>;
 }
@@ -300,7 +307,7 @@ const s=StyleSheet.create({
   inputShell:{width:'100%',maxWidth:680,flexDirection:'row',alignItems:'center',minHeight:58,borderWidth:1.5,
     borderColor:'#ADC6BE',borderRadius:30,backgroundColor:C.paper,paddingHorizontal:15},
   searchGlyph:{fontSize:29,color:C.tealDark,marginRight:7,marginTop:-5},
-  input:{flex:1,minHeight:51,paddingVertical:10,fontSize:15,color:C.ink},
+  input:{flex:1,minWidth:0,minHeight:51,paddingVertical:10,fontSize:16,color:C.ink},
   clear:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',paddingHorizontal:9,paddingVertical:5},
   clearText:{color:C.muted,fontSize:24},
   searchActions:{width:'100%',maxWidth:680,marginTop:14,flexDirection:'row',alignItems:'center',justifyContent:'center',flexWrap:'wrap',gap:10},
@@ -324,7 +331,7 @@ const s=StyleSheet.create({
     paddingHorizontal:15,paddingVertical:14,marginBottom:9,flexDirection:'row',alignItems:'center'},
   areaAccent:{width:5,height:39,borderRadius:4,backgroundColor:C.sun,marginRight:12},
   areaTitle:{color:C.ink,fontSize:15.5,fontWeight:'900',lineHeight:20},
-  areaSubtitle:{fontSize:12.5,lineHeight:18,color:C.muted,marginTop:5},
+  areaSubtitle:{fontSize:14,lineHeight:21,color:C.muted,marginTop:5},
   areaArrow:{fontSize:23,color:C.tealDark,alignSelf:'flex-end',marginLeft:6},
   allAction:{minHeight:47,flexDirection:'row',alignItems:'center',
     justifyContent:'space-between',paddingHorizontal:15,marginTop:12,
@@ -354,7 +361,7 @@ const s=StyleSheet.create({
   suggestionList:{gap:8,marginTop:9},
   suggestion:{minHeight:44,flexDirection:'row',alignItems:'center',justifyContent:'space-between',
     paddingHorizontal:15,borderWidth:1,borderColor:C.line,borderRadius:14,backgroundColor:C.paper},
-  suggestionText:{color:C.ink,fontSize:13.5,fontWeight:'700'},
+  suggestionText:{color:C.ink,fontSize:15,fontWeight:'700',flex:1,flexShrink:1},
   suggestionArrow:{fontSize:23,color:C.tealDark},
   disclaimer:{fontSize:11.5,lineHeight:18,color:C.muted,marginTop:1},
   outingCard:{backgroundColor:C.mint,borderColor:C.line,borderWidth:1,borderRadius:22,padding:16,marginTop:12,minHeight:48,flexDirection:'row',alignItems:'center'},

@@ -27,7 +27,7 @@ assert.match(ui,/if\(locked\.current\|\|stage/);
 assert.match(ui,/announceForAccessibility/);
 assert.match(ui,/Runde beenden/);
 assert.match(read('App.jsx'),/tab==='play'\?<FamilyPlayScreen key=\{me\}/);
-assert.match(read('HomeAssistant.jsx'),/onNavigate\('play'\)/);
+assert.match(read('FamilyLayoutModel.js'),/DEFAULT_HOME=.*'play'/);
 assert.match(read('TopRightMenu.jsx'),/\['play'/);
 console.log('Familienzeit: 144 Fragen, 24 Ideen, altersgerechte Runden, richtige Antwort nach Mischung und Offline-Spiel geprüft.');
 

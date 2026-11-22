@@ -33,3 +33,10 @@ export function calendarFields(form){
  if(title.length<2||title.length>100||note.length>500||!validDay(form.day)||!validTime(form.time))throw Error('Bitte Titel, Datum und Uhrzeit prüfen.');
  return {title,day:form.day,local_time:form.time||null,note};
 }
+
+// Format a civil calendar date without UTC parsing or timezone-dependent day shifts.
+export function displayCalendarDay(value,locale='de-DE'){
+ if(!validDay(value))return value||'–';
+ const [y,m,d]=value.split('-').map(Number);
+ return new Date(y,m-1,d,12).toLocaleDateString(locale,{day:'2-digit',month:'short',year:'numeric'});
+}

@@ -2,6 +2,7 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {FAMILY_COLORS} from './FamilyTheme';
+import {useFamilyLocale} from './FamilyLocale';
 import {VERIFIED_GUIDE_DETAILS, ODER_SPREE_GUIDE} from './FamilyGuideVerified';
 
 const P=FAMILY_COLORS;
@@ -78,6 +79,7 @@ const ALL_STEPS=PHASES.flatMap(phase=>phase.steps.map(step=>({...step,...(VERIFI
 const clampStatus=(value)=>STATUSES.some(s=>s.id===value)?value:'open';
 
 export default function FamilyGuideScreen({userId,regionLabel}){
+ const {t,language}=useFamilyLocale();
   const [statuses,setStatuses]=useState({});
   const [ready,setReady]=useState(false);
   const [phaseId,setPhaseId]=useState('pregnancy');
@@ -107,16 +109,16 @@ export default function FamilyGuideScreen({userId,regionLabel}){
   const pct=relevantCount?Math.round(doneCount/relevantCount*100):100;
   function setStatus(id,status){setStatuses(before=>({...before,[id]:clampStatus(status)}));}
   const openLink=(url)=>Linking.openURL(url).catch(()=>{});
-  if(!ready)return <View style={st.loading}><ActivityIndicator color={P.teal}/><Text style={st.small}>Deinen Wegweiser laden …</Text></View>;
+  if(!ready)return <View style={st.loading}><ActivityIndicator color={P.teal}/><Text style={st.small}>{t("Deinen Wegweiser laden …")}</Text></View>;
   if(activeStep){
     const source=activeStep.source||LINKS[activeStep.link];
     const localNote=showOderSpree?ODER_SPREE_GUIDE.steps[activeStep.id]:null;
     return <ScrollView style={st.page} contentContainerStyle={st.content}>
-      <Pressable accessibilityRole="button" onPress={()=>{setStepId(null);setPhaseId(activeStep.phaseId);}} style={st.back}><Text style={st.backText}>‹ Zurück zur Zeitleiste</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={()=>{setStepId(null);setPhaseId(activeStep.phaseId);}} style={st.back}><Text style={st.backText}>{t("‹ Zurück zur Zeitleiste")}</Text></Pressable>
       <View style={st.detailCard}>
-        <Text style={st.eyebrow}>{activeStep.phaseName}</Text>
-        <Text accessibilityRole="header" style={st.detailTitle}>{activeStep.title}</Text>
-        <View style={[st.tag,{backgroundColor:TYPES[activeStep.kind].bg,alignSelf:'flex-start'}]}><Text style={[st.tagText,{color:TYPES[activeStep.kind].color}]}>{TYPES[activeStep.kind].label}</Text></View>
+        <Text style={st.eyebrow}>{t(activeStep.phaseName)}</Text>
+        <Text accessibilityRole="header" style={st.detailTitle}>{activeStep.title}</Text>{language==='en'?<Text style={st.small}>{t('Fachinhalte derzeit auf Deutsch. Verbindliche medizinische und rechtliche Angaben bitte auf den offiziellen Seiten prüfen.')}</Text>:null}
+        <View style={[st.tag,{backgroundColor:TYPES[activeStep.kind].bg,alignSelf:'flex-start'}]}><Text style={[st.tagText,{color:TYPES[activeStep.kind].color}]}>{t(TYPES[activeStep.kind].label)}</Text></View>
         <Text style={[st.body,{marginTop:15}]}>{activeStep.intro}</Text>
         {activeStep.deadline?<View style={st.deadlineCard}>
           <Text style={st.deadlineLabel}>{activeStep.deadlineLabel}</Text>
@@ -124,7 +126,7 @@ export default function FamilyGuideScreen({userId,regionLabel}){
           <Text style={st.deadlineHint}>Diese Information bezieht sich auf die genannte Situation – sie ist nicht für jede Familie eine Pflicht zur Antragstellung.</Text>
         </View>:null}
         {localNote?<View style={st.localNotice}>
-          <Text style={st.question}>Hinweis für den Landkreis Oder-Spree</Text>
+          <Text style={st.question}>{t("Hinweis für den Landkreis Oder-Spree")}</Text>
           <Text style={st.body}>{localNote}</Text>
           {['parental_allowance','childcare_search','kita_application'].includes(activeStep.id)?<Pressable accessibilityRole="link" onPress={()=>openLink(ODER_SPREE_GUIDE.offices[activeStep.id==='parental_allowance'?0:1].url)}><Text style={st.localLink}>Zuständige Landkreis-Seite öffnen ↗</Text></Pressable>:null}
         </View>:null}
@@ -136,17 +138,17 @@ export default function FamilyGuideScreen({userId,regionLabel}){
           ['Welche Unterlagen?',activeStep.documents],
           ['Wovon hängt es ab?',activeStep.depends],
           ['Was folgt danach?',activeStep.next],
-        ].map(([question,answer])=><View key={question} style={st.detailSection}><Text style={st.question}>{question}</Text><Text style={st.body}>{answer}</Text></View>)}
+        ].map(([question,answer])=><View key={question} style={st.detailSection}><Text style={st.question}>{t(question)}</Text><Text style={st.body}>{answer}</Text></View>)}
         <View style={st.source}>
-          <Text style={st.question}>Quelle & Geltungsbereich</Text>
+          <Text style={st.question}>{t("Quelle & Geltungsbereich")}</Text>
           <Text style={st.small}>{source.label} · Deutschland. Zuständigkeiten und Verfahren können je nach Region abweichen.</Text>
           <Text style={[st.small,{marginTop:4}]}>{activeStep.source?'Quelle im November 2026 abgeglichen. Vor einem verbindlichen Antrag die aktuell gültigen Regeln auf der offiziellen Seite prüfen.':'Allgemeine Orientierung; einzelne Angaben wurden nicht als verbindliche Fristen geprüft.'}</Text>
           <Pressable accessibilityRole="link" onPress={()=>openLink(source.url)} style={st.sourceButton}><Text style={st.sourceButtonText}>Offizielle Informationsseite öffnen ↗</Text></Pressable>
         </View>
-        <Text style={[st.question,{marginTop:18}]}>Dein Stand</Text>
+        <Text style={[st.question,{marginTop:18}]}>{t("Dein Stand")}</Text>
         <View style={st.statusRow}>{STATUSES.map(s=><Pressable key={s.id} accessibilityRole="button" accessibilityState={{selected:(statuses[activeStep.id]||'open')===s.id}}
           onPress={()=>setStatus(activeStep.id,s.id)} style={[st.statusButton,(statuses[activeStep.id]||'open')===s.id&&st.statusSelected]}>
-          <Text style={[st.statusText,(statuses[activeStep.id]||'open')===s.id&&{color:P.paper}]}>{s.name}</Text>
+          <Text style={[st.statusText,(statuses[activeStep.id]||'open')===s.id&&{color:P.paper}]}>{t(s.name)}</Text>
         </Pressable>)}</View>
       </View>
       <View style={st.note}><Text style={st.noteText}>Diese Orientierung ersetzt keine individuelle medizinische, rechtliche oder steuerliche Beratung. Im Zweifel bitte die zuständige Stelle kontaktieren.</Text></View>
@@ -155,24 +157,24 @@ export default function FamilyGuideScreen({userId,regionLabel}){
   return <ScrollView style={st.page} contentContainerStyle={st.content}>
     <View style={st.hero}>
       <View style={st.sunDot}><Text style={st.sunSymbol}>♥</Text></View>
-      <Text style={st.eyebrow}>VON DER SCHWANGERSCHAFT BIS ZUM KITA-START</Text>
-      <Text accessibilityRole="header" style={st.heroTitle}>Familien-Wegweiser</Text>
-      <Text style={st.heroDescription}>Was steht wann an? Wir begleiten euch mit verständlichen Schritten – ohne unnötigen Druck.</Text>
+      <Text style={st.eyebrow}>{t("VON DER SCHWANGERSCHAFT BIS ZUM KITA-START")}</Text>
+      <Text accessibilityRole="header" style={st.heroTitle}>{t("Familien-Wegweiser")}</Text>
+      <Text style={st.heroDescription}>{t("Was steht wann an? Wir begleiten euch mit verständlichen Schritten – ohne unnötigen Druck.")}</Text>
       <Text style={st.region}>⌖ {regionLabel?.trim()?regionLabel.trim():'Deutschland'} · örtliche Regeln beachten</Text>
     </View>
     <View style={st.progressCard}>
-      <View style={st.flexRow}><View style={{flex:1}}><Text style={st.progressTitle}>Euer persönlicher Überblick</Text><Text style={st.small}>{doneCount} von {relevantCount} passenden Aufgaben erledigt</Text></View><Text style={st.progressNumber}>{pct}%</Text></View>
+      <View style={st.flexRow}><View style={{flex:1}}><Text style={st.progressTitle}>{t("Euer persönlicher Überblick")}</Text><Text style={st.small}>{doneCount} von {relevantCount} passenden Aufgaben erledigt</Text></View><Text style={st.progressNumber}>{pct}%</Text></View>
       <View style={st.progressTrack}><View style={[st.progressFill,{width:pct+'%'}]}/></View>
       <Text style={[st.small,{marginTop:9}]}>Nur eure Häkchen werden auf diesem Gerät für euer Konto gespeichert. Keine Schwangerschafts- oder Gesundheitsdaten erforderlich.</Text>
     </View>
     <View style={st.legend}>{[
       TYPES.recommended,TYPES.voluntary,TYPES.individual
-    ].map(t=><View key={t.short} style={[st.tag,{backgroundColor:t.bg}]}><Text style={[st.tagText,{color:t.color}]}>{t.short}</Text></View>)}</View>
+    ].map(tag=><View key={tag.short} style={[st.tag,{backgroundColor:tag.bg}]}><Text style={[st.tagText,{color:tag.color}]}>{t(tag.short)}</Text></View>)}</View>
     <View style={st.regionCard}>
-      <Text style={st.regionTitle}>Regionale Informationen</Text>
+      <Text style={st.regionTitle}>{t("Regionale Informationen")}</Text>
       <Text style={st.small}>Zusätzliche Ansprechpartner und Kita-Regeln für Brandenburg und den Landkreis Oder-Spree. Diese Auswahl ändert nichts an deinem Familienprofil.</Text>
       <Pressable accessibilityRole="button" accessibilityState={{expanded:showOderSpree}} onPress={()=>setShowOderSpree(value=>!value)} style={st.regionButton}>
-        <Text style={st.regionButtonText}>{showOderSpree?'Landkreis-Infos ausblenden':'Brandenburg / Oder-Spree anzeigen'}</Text>
+        <Text style={st.regionButtonText}>{t(showOderSpree?'Landkreis-Infos ausblenden':'Brandenburg / Oder-Spree anzeigen')}</Text>
       </Pressable>
       {showOderSpree?<View style={st.regionDetails}>
         <Text style={st.regionTitle}>{ODER_SPREE_GUIDE.title}</Text>
@@ -185,27 +187,27 @@ export default function FamilyGuideScreen({userId,regionLabel}){
         </View>)}
       </View>:null}
     </View>
-    <Text style={st.sectionHeading}>Eure Zeitleiste</Text>
+    <Text style={st.sectionHeading}>{t("Eure Zeitleiste")}</Text>
     {PHASES.map((p,index)=>{
       const selected=p.id===phaseId;
       const completed=p.steps.filter(s=>statuses[s.id]==='done').length;
       return <View key={p.id} style={st.phaseRow}>
         <View style={st.timelineRail}><View style={[st.circle,selected&&st.circleSelected]}><Text style={[st.circleLabel,selected&&{color:P.paper}]}>{index+1}</Text></View>{index<PHASES.length-1?<View style={st.railLine}/>:null}</View>
         <Pressable accessibilityRole="button" accessibilityState={{expanded:selected}} onPress={()=>setPhaseId(p.id)} style={[st.phaseCard,selected&&st.phaseCardSelected]}>
-          <View style={st.flexRow}><View style={{flex:1}}><Text style={st.eyebrow}>{p.period}</Text><Text style={st.phaseTitle}>{p.name}</Text></View><Text style={st.phaseGlyph}>{p.symbol}</Text></View>
+          <View style={st.flexRow}><View style={{flex:1}}><Text style={st.eyebrow}>{t(p.period)}</Text><Text style={st.phaseTitle}>{t(p.name)}</Text></View><Text style={st.phaseGlyph}>{p.symbol}</Text></View>
           <Text style={st.small}>{p.description}</Text>
-          <View style={[st.flexRow,{marginTop:10}]}><Text style={st.countText}>{completed} / {p.steps.length} erledigt</Text><Text style={st.openText}>{selected?'Schritte anzeigen ⌃':'Öffnen ›'}</Text></View>
+          <View style={[st.flexRow,{marginTop:10}]}><Text style={st.countText}>{completed} / {p.steps.length} erledigt</Text><Text style={st.openText}>{t(selected?'Schritte anzeigen ⌃':'Öffnen ›')}</Text></View>
         </Pressable>
       </View>;
     })}
     <View style={st.stepsBox}>
-      <Text style={st.sectionHeading}>{phase.name}: eure Schritte</Text>
+      <Text style={st.sectionHeading}>{t(phase.name)}: {language==='en'?'your steps':'eure Schritte'}</Text>
       <Text style={[st.small,{marginBottom:12}]}>Tippt auf einen Schritt für Zeitpunkt, Zuständigkeit, Unterlagen und weitere Hinweise.</Text>
       {phase.steps.map((step,index)=>{
         const status=statuses[step.id]||'open';
         return <Pressable key={step.id} accessibilityRole="button" onPress={()=>setStepId(step.id)} style={st.stepCard}>
           <View style={st.stepIcon}><Text style={st.stepIconText}>{status==='done'?'✓':String(index+1)}</Text></View>
-          <View style={{flex:1}}><Text style={st.stepTitle}>{step.title}</Text><Text style={st.small}>{TYPES[step.kind].short} · {STATUSES.find(x=>x.id===status)?.name}</Text></View><Text style={st.arrow}>›</Text>
+          <View style={{flex:1}}><Text style={st.stepTitle}>{step.title}</Text><Text style={st.small}>{t(TYPES[step.kind].short)} · {t(STATUSES.find(x=>x.id===status)?.name)}</Text></View><Text style={st.arrow}>›</Text>
         </Pressable>;
       })}
     </View>

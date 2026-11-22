@@ -1,0 +1,56 @@
+name: Optionale Sprachsuche nativ vorbereiten
+on:
+  pull_request:
+    paths:
+      - 'FamilyVoiceSearch.jsx'
+      - 'app.config.js'
+      - 'app.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/voice-native-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  speech:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+          cache: npm
+      - run: npm ci
+      - name: Festgeschriebene Expo-Paketversionen prüfen
+        run: npx expo install --check
+      - name: Aufgelöste Paketversion und Integrität prüfen
+        run: |
+          node -e "const p=require('./package-lock.json').packages['node_modules/expo-speech-recognition']; if(p.version!=='58.0.1'||!p.integrity?.startsWith('sha512-')||!p.resolved.startsWith('https://registry.npmjs.org/'))process.exit(1)"
+          npm run check:voice
+      - name: Native Projekte erzeugen (kein signierter App-Build)
+        run: npx expo prebuild --no-install --clean --platform all
+      - name: Mikrofonberechtigung kontrollieren
+        run: |
+          python3 - <<'PY'
+          import glob, plistlib, xml.etree.ElementTree as ET
+          android=ET.parse('android/app/src/main/AndroidManifest.xml').getroot()
+          ns='{http://schemas.android.com/apk/res/android}'
+          tools='{http://schemas.android.com/tools}'
+          audio=[e.attrib for e in android.findall('uses-permission') if e.get(ns+'name')=='android.permission.RECORD_AUDIO']
+          print('Android microphone permission:', audio)
+          assert any(e.get(tools+'node')!='remove' for e in audio), 'Android RECORD_AUDIO missing'
+          assert not any(e.get(tools+'node')=='remove' for e in audio), 'Android RECORD_AUDIO blocked by plugin'
+          plist=glob.glob('ios/*/Info.plist')[0]
+          with open(plist,'rb') as f: info=plistlib.load(f)
+          assert info.get('NSMicrophoneUsageDescription'), 'iOS microphone usage missing'
+          assert info.get('NSSpeechRecognitionUsageDescription'), 'iOS speech usage missing'
+          PY
+      - name: Lockfile-Kandidat zur Prüfung sichern
+        uses: actions/upload-artifact@v4
+        with:
+          name: speech-lockfile-candidate
+          path: |
+            package.json
+            package-lock.json
+          retention-days: 7

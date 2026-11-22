@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const src=readFileSync(new URL('../StartupQueryScheduler.js',import.meta.url),'utf8');
+const {runBoundedQueries}=await import('data:text/javascript;base64,'+Buffer.from(src).toString('base64'));
+let active=0,peak=0,finished=0;
+const jobs=Array.from({length:15},(_,i)=>async()=>{
+ active++;peak=Math.max(peak,active);
+ assert.ok(active<=4,'No more than 4 concurrent requests');
+ await Promise.resolve();await Promise.resolve();
+ active--;finished++;return {index:i,code:i%3===0?400:200};
+});
+const result=await runBoundedQueries(jobs,4);
+assert.equal(result.length,15);assert.deepEqual(result.map(x=>x.index),Array.from({length:15},(_,i)=>i));
+assert.equal(peak,4);assert.equal(finished,15);
+assert.deepEqual(await runBoundedQueries([],4),[]);
+assert.deepEqual(await runBoundedQueries([async()=>42],4),[42]);
+assert.deepEqual(await runBoundedQueries([async()=>2,async()=>1],1),[2,1]);
+await assert.rejects(runBoundedQueries([async()=>{throw new Error('offline');}],4),/offline/);
+await assert.rejects(runBoundedQueries([],0),RangeError);
+await assert.rejects(runBoundedQueries([Promise.resolve(1)],4),TypeError);
+const app=readFileSync(new URL('../App.jsx',import.meta.url),'utf8');
+const initial=app.slice(app.indexOf('const queries=await runBoundedQueries(['),app.indexOf('if(!current())return null;',app.indexOf('const queries=await runBoundedQueries([')));
+assert.equal((initial.match(/\(\)=>supabase\.from\(/g)||[]).length,15,'15 original startup requests must remain');
+assert.match(initial,/\],4\);/,'Startup batches maximum four concurrent requests');
+assert.match(app,/const firstError=queries\.find\(x=>x\.error\)\?\.error/,'PostgREST errors must propagate unchanged');
+assert.match(app,/const \[profiles,ownProfile,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketPhotos,marketFavorites,organizations,partnerEvents\]=queries/,'Result mapping unchanged');
+assert.match(app,/accountRef\.current===me&&loadSequence\.current===seq/,'Previous-account and stale result protection retained');
+console.log('Startup query scheduler: 15 lazy requests, peak concurrency 4, ordering and failure semantics passed');

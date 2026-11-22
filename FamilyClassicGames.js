@@ -90,9 +90,9 @@ export const WORDS=[
  ['school','PLANET','Er kreist um einen Stern.'],['school','RAKETE','Sie kann Raumfahrzeuge ins All bringen.'],['school','KOMPASS','Er hilft bei der Orientierung.'],['school','WOLKEN','Sie bestehen aus Tröpfchen oder Eiskristallen.'],['school','KROKODIL','Ein großes Reptil mit vielen Zähnen.'],['school','GIRAFFE','Sie hat einen besonders langen Hals.'],['school','KLAVIER','Ein Instrument mit Tasten und Saiten.'],['school','REGENBOGEN','Bunte Farben durch Licht und Wassertropfen.'],['school','BIBLIOTHEK','Dort kann man Bücher ausleihen.'],['school','IGEL','Ein kleines Stacheltier.'],['school','PIRAT','Eine Figur in Geschichten über Seeräuber.'],['school','WALD','Ein Gebiet mit vielen Bäumen.'],
  ['family','ATMOSPHÄRE','Die Gashülle eines Planeten.'],['family','GRAVITATION','Die Anziehung zwischen Massen.'],['family','GALAXIE','Eine große Ansammlung von Sternen.'],['family','FOTOSYNTHESE','Pflanzen nutzen Licht, um Zucker herzustellen.'],['family','KONDENSATION','Gasförmig wird flüssig.'],['family','PALINDROM','Ein Wort, das vorwärts und rückwärts gleich lesbar ist.'],['family','METAMORPHOSE','Verwandlung der Körpergestalt, etwa vom Insekt zur erwachsenen Form.'],['family','CHLOROPHYLL','Grüner Blattfarbstoff.'],['family','ARCHIPEL','Eine Inselgruppe.'],['family','EQUATOR','Gedachte Linie zwischen Nord- und Südhalbkugel; hier ohne Umlaut.'],['family','THERMOMETER','Damit misst man Temperatur.'],['family','KOORDINATEN','Zahlen, die eine Position beschreiben.']
 ].map(([level,word,hint],id)=>({id,level,word:word==='EQUATOR'?'ÄQUATOR':word,hint:word==='EQUATOR'?'Gedachte Linie zwischen Nord- und Südhalbkugel.':hint}));
-export function newWord(level,rng=Math.random,seen=[]){
- const pool=WORDS.filter(x=>x.level===level),fresh=pool.filter(x=>!seen.includes(x.id));
- const x=shuffle(fresh.length?fresh:pool,rng)[0]||WORDS[0];
+export function newWord(level,rng=Math.random,seen=[],dictionary=WORDS){
+ const pool=dictionary.filter(x=>x.level===level),fresh=pool.filter(x=>!seen.includes(x.id));
+ const x=shuffle(fresh.length?fresh:pool,rng)[0]||dictionary[0]||WORDS[0];
  let tiles=shuffle([...x.word].map((letter,id)=>({letter,id})),rng);
  if(tiles.map(t=>t.letter).join('')===x.word){
   const j=tiles.findIndex(t=>t.letter!==tiles[0].letter);

@@ -1,0 +1,36 @@
+# Mehrsprachigkeit – erste Ausbaustufe
+Deutsch und Englisch (Vorschau) mit zentralem Wörterbuch, Gerätepräferenz, Menü und Profilzugang. Automatisch über native Geräteeinstellungen bzw. Intl als Fallback; reale iOS-/Android-Tests erforderlich. Kein Sprachwechsel ändert den Standort, Zugriffsrechte, stabile IDs, Datenbankwerte, Währung oder Servicegebiet (Deutschland, EUR). Gerätebezogene Präferenz, keine Kontosynchronisierung. Keine automatische Übersetzung von Nachrichten oder Inseraten.
+Startseite, Navigation, Layouteditor und Sprachsuche sind modularisiert bzw. übersetzt. Englische Suchbegriffe können App-Funktionen lokal finden. Deutsche Artikeldaten und Ortskataloge bleiben unverändert; die volle mehrsprachige Inhaltssuche ist noch offen. Der KI-Sprachparameter ist serverseitig auf de/en begrenzt; die Edge Function muss nach Abnahme gesondert deployed werden.
+Noch offen: alle Fachansichten (Basar, Registrierung, Sicherheit, Kalender, Spiele/Quiz, Hilfe, Moderation, Push), Lokalisierung nativer Systemtexte, Zeit- und Zahlenformate in allen Ansichten, kontobezogene Sprachpräferenz, professionelle Übersetzungsprüfung, zusätzliche Sprachen und RTL. Keine internationale Länderfreischaltung. Sprachname und App-Marke bleiben Familienfunke.
+
+## Ausbaustufe 2
+Anmeldung, Regionsauswahl, Profil einschließlich Fotos und Sicherheitsoptionen sowie Kontaktliste und Chat-Bedienung wurden erweitert. Hobbys werden nur bei der Anzeige übersetzt; interne Werte bleiben unverändert. Private Nachrichten, Foto-Beschreibungen und Anzeigeinhalte werden nicht automatisch übersetzt. Backend-Fehler und Hilfeseiten können weiterhin deutsch sein. Eigenes Sprachsymbol und aktualisierte Regressionstests. Es gibt gegenwärtig nur Einladung/Login, keine frei zugängliche Registrierung.
+Bestätigungen für Kontaktanfragen, Blockieren und Profilfoto-Löschung sowie Meldedialoge verwenden die aktive Sprache; keine Änderung der Prüf- oder Schreiboperationen. Der gemeinsame Bestätigungs-Helper behält die deutsche Standardvariante, bis die weiteren Aufrufer übersetzt sind.
+
+## Ausbaustufe 3 – Familienbasar
+Deterministische englische Alias-Suche für bekannte Produkt- und Farbbegriffe. Basar, Startseite und gespeicherter Suchauftrag nutzen denselben kanonischen Suchbegriff; sichtbar bei Änderung. Unbekannte Begriffe, Zahlen und Marken werden nicht absichtlich übersetzt; keine generelle Übersetzung oder Größenumrechnung. Deutsch bleibt unverändert. Keine SQL-Migration, kein zusätzlicher KI-Aufruf. Echte Katalog- und Gerätetests bleiben notwendig. Deutschsprachige Bestandsangebote sind das primäre Ziel, englische Freitexte können zunächst fehlen.
+
+Basar: Oberfläche für Browsing, Filter, Sortierung, Einzelanzeige, Artikel-Steckbrief, Details, Suchaufträge und Preisalarme erweitert. Übersetzte Zustände und Kategorien sind reine Anzeige; DB-Enums und die deutschsprachige Steckbrief-Kodierung bleiben gleich. Fortgeschrittener Kistenmodus, einzelne Fehler-/Screenreader-Texte und KI-Fotovorschläge bleiben teils deutsch; echte Gerätetests ausstehend.
+
+Die von bestätigten Inseratdaten abgeleiteten Bildbeschreibungen sind nun auch englisch verfügbar, ohne Verkäufertexte zu verändern oder Bildinhalte zu erfinden. Weiterleitung englischer Produktmerkmale von der Startseite ergänzt; Verkaufsintention bleibt getrennt von Käufersuche.
+
+## Ausbaustufe 4 – Familienalltag
+Neuigkeiten, Preisalarmtexte, Push-Einstellungen, Familienkalender und Ausflugsplaner DE/EN. Kalenderdatum wird lokal formatiert, die Eingabe bleibt eindeutig YYYY-MM-DD / HH:MM; Termine und Zeitzonenlogik unverändert. Preisbeträge bleiben EUR; Löschgrenzen, Kontoabfragen, Freigaben und Geräteberechtigungen unverändert. Ausflüge behalten Deutschland-Katalog, Ortsnamen, öffentliche Ziel-IDs, km und Budgetstufen; Originalbeschreibungen sind als deutsch gekennzeichnet. Flexible Ablauftexte in beiden Sprachen; keine neuen Reise-, Preis- oder Altersgarantien. Push-Transporttexte serverseitig bleiben deutsch, nicht aktiviert. Nutzerinhalte bleiben Original. Gerätetests und vollständiges CI ausstehend.
+
+## Ausbaustufe 5 – Karte und Wegweiser
+Die Navigation der Familienkarte und die Wegweiser-Statussteuerung sind jetzt teilweise englisch. Fachinformationen und Original-Ortsbeschreibungen bleiben bewusst deutsch mit entsprechendem Hinweis. Unveränderte Geocoding-Grenzen, Zugriffsrechte, Fachinhalte, stabile IDs und lokale Fortschrittsdaten. Weitere Karten-Metadaten und die Einbettungsoberfläche werden noch vervollständigt.
+
+## Ausbaustufe 6 – Spiele und Quiz
+45 lokal gespeicherte englische Fragen: je fünf für jede Kombination aus drei Altersstufen und den Bereichen Natur, Allgemeinwissen und Logik. Englisch verwendet einen eigenen Pool und acht übersetzte Aktivitäten; Deutsch behält den vorhandenen Pool. Die Quiz-Auswahl und das Screenreader-Feedback wechseln mit der Sprache, ohne Antworthistorie zu speichern. Sprachabhängige Wort- und Kreuzworträtsel bleiben auf Deutsch und werden in der Auswahl entsprechend gekennzeichnet. Die Mini-Spiele und Klassiker werden bei der Oberfläche separat weiter lokalisiert.
+
+Die Karten-/Karten-Screenreader-Tests prüfen jetzt dynamische lokalisierte Labels. Spielkarten-Navigation und Ergebnisanzeige der Quiz-Auswahl verwenden die aktive Sprache.
+
+Mini-Spiele (Paare, Drei gewinnt, Zahlenfolgen) haben jetzt englische Beschriftungen und bekannte Regel-/Screenreader-Texte. Zahlenfolgen-Erklärungen werden nur für drei exakt bekannte Vorlagen übersetzt, Mathematik unverändert.
+
+Weitere Spielbildschirme: Standardanleitungen und Hauptaktionen der Klassiker und Brettspiele sind englisch. Deutsche Wörter-/Kreuzworträtsel werden ausdrücklich gekennzeichnet; Lösungen bleiben original. Einzelne dynamische Spielstandsmeldungen, Schachfigur-Namen und Screenreader-Texte benötigen noch vollständige Lokalisierung. Keine Änderungen der Spielalgorithmen.
+
+## Dynamische Spielansagen und Barrierefreiheit
+Für Brettspiele, Sudoku, Solitär und Bilderpuzzle werden jetzt wichtige Live-Statusmeldungen, Feldkoordinaten, Figuren, Kartenfarben/Ränge und Bedienelemente in der gewählten Sprache angesagt. Die Schach-Engine liefert weiterhin unveränderte deutsche Ergebnis-Codes; nur deren Darstellung wird übersetzt. Spielregeln, Spielzustand und Lösungsdaten bleiben unverändert. Wörter und Kreuzworträtsel bleiben inhaltlich deutsch. Manuelle VoiceOver-/TalkBack-Tests stehen weiterhin aus.
+
+## Ausbaustufe 7 – eigenständige englische Wort-Rätsel
+Die bisher deutschsprachigen Wort-/Kreuzworträtsel besitzen nun eigene geprüfte englische Daten: 36 Wörterrätsel (12 je Altersstufe) und neun Kreuzworträtsel (je drei pro Altersstufe mit je vier Hinweisen). Beim Sprachwechsel werden Wort-/Kreuzwort-Runden sprachabhängig neu gestartet; deutsche Lösungen und Hinweise bleiben unverändert. Es werden keine englischen Fragen durch eine Online-KI übersetzt. Die deutschen Standard-Pools und ihre Identifikatoren bleiben bestehen, Englisch nutzt getrennte IDs. Die früheren Hinweise zur ausschließlich deutschen Verfügbarkeit sind überholt. Neue CI-Tests prüfen alle 36 Wörterlösungen, alle neun englischen Kreuzwortgitter und die bisherigen neun deutschen Gitter. Reale Smartphone- und Screenreader-Abnahme weiterhin offen.

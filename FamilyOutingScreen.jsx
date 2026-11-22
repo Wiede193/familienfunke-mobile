@@ -2,6 +2,7 @@ import React,{useRef,useState,useEffect} from 'react';
 import {ActivityIndicator,AccessibilityInfo,Linking,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import {useFamilyLocale} from './FamilyLocale';
 import {CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
 import {ORIGINS,AGES,RADII,BUDGETS,INTERESTS,DURATIONS,localOrigins,remoteOrigins,selectOutings,orderOutings,planSteps} from './FamilyOutingPlan';
@@ -13,16 +14,18 @@ function Action({children,onPress,disabled=false,secondary=false}){
  style={[s.button,secondary&&s.secondary,disabled&&{opacity:.5}]}><Text style={[s.buttonText,secondary&&{color:C.accentDark}]}>{children}</Text></Pressable>;
 }
 function Pick({title,items,selected,onChange}){
+ const {t}=useFamilyLocale();
  return <View style={s.group}>
   <Text accessibilityRole="header" style={s.label}>{title}</Text>
   <View style={s.chips}>{items.map(([value,label])=>{
    const active=Array.isArray(selected)?selected.includes(value):selected===value;
-   return <Pressable key={String(value)} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{selected:active}}
-    onPress={()=>onChange(value)} style={[s.chip,active&&s.active]}><Text style={[s.chipText,active&&{color:C.white}]}>{label}</Text></Pressable>;
+   return <Pressable key={String(value)} accessibilityRole="button" accessibilityLabel={t(label)} accessibilityState={{selected:active}}
+    onPress={()=>onChange(value)} style={[s.chip,active&&s.active]}><Text style={[s.chipText,active&&{color:C.white}]}>{t(label)}</Text></Pressable>;
   })}</View>
  </View>;
 }
 export default function FamilyOutingScreen({draft,onSave,onMap,onCalendar}){
+ const {t,language}=useFamilyLocale();
  const [form,setForm]=useState(()=>draft||initial);
  const [remote,setRemote]=useState([]),[looking,setLooking]=useState(false),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const current=useRef(form);const seq=useRef(0),alive=useRef(true),locked=useRef(false);
@@ -63,60 +66,61 @@ export default function FamilyOutingScreen({draft,onSave,onMap,onCalendar}){
    }
    if(!alive.current||request!==seq.current)return;
    save({...snapshot,result:{ids:selected.map(p=>p.id),mode,candidateCount:candidates.length}});
-   AccessibilityInfo.announceForAccessibility(selected.length?selected.length+' Ausflugsvorschläge verfügbar.':'Keine passenden Katalogziele gefunden.');
+   AccessibilityInfo.announceForAccessibility(selected.length?(language==='en'?selected.length+' outing suggestions available.':selected.length+' Ausflugsvorschläge verfügbar.'):t('Keine passenden Katalogziele gefunden.'));
   }finally{if(alive.current&&request===seq.current){locked.current=false;setBusy(false);}}
  }
  const local=form.origin?[]:localOrigins(form.query);
  const candidates=form.result?selectOutings(form.origin,CATALOG,form.prefs):[];
  const results=form.result?orderOutings(candidates,form.result.ids):[];
  return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}>
-  <View style={s.hero}><Text accessibilityRole="header" style={s.title}>Euer nächster Familienausflug</Text>
-   <Text style={s.text}>Wählt eure Wünsche. Die KI sortiert vorhandene Ausflugsziele passend zu eurem Familienalltag.</Text>
+  <View style={s.hero}><Text accessibilityRole="header" style={s.title}>{t("Euer nächster Familienausflug")}</Text>
+   <Text style={s.text}>{t("Wählt eure Wünsche. Die KI sortiert vorhandene Ausflugsziele passend zu eurem Familienalltag.")}</Text>
   </View>
   <View style={s.card}>
-   <Text accessibilityRole="header" style={s.heading}>1. Wo startet ihr?</Text>
-   <Text style={s.muted}>Stadt oder Gemeinde, keine genaue Wohnadresse. Keine GPS-Freigabe.</Text>
-   <TextInput accessibilityLabel="Ausgangsort eingeben" value={form.query} maxLength={90} autoCorrect={false} returnKeyType="search"
+   <Text accessibilityRole="header" style={s.heading}>{t("1. Wo startet ihr?")}</Text>
+   <Text style={s.muted}>{t("Stadt oder Gemeinde, keine genaue Wohnadresse. Keine GPS-Freigabe.")}</Text>
+   <TextInput accessibilityLabel={t("Ausgangsort eingeben")} value={form.query} maxLength={90} autoCorrect={false} returnKeyType="search"
     onChangeText={query=>{setRemote([]);change({...current.current,query,origin:null});}} onSubmitEditing={searchOrigin}
-    placeholder="z. B. Frankfurt (Oder)" placeholderTextColor={C.muted} style={s.input}/>
-   {form.origin?<Text style={s.selectedOrigin}>Ausgewählt: {form.origin.title}</Text>:<>
+    placeholder={t("z. B. Frankfurt (Oder)")} placeholderTextColor={C.muted} style={s.input}/>
+   {form.origin?<Text style={s.selectedOrigin}>{t('Ausgewählt: ')}{form.origin.title}</Text>:<>
     {!form.query.trim()?<View style={s.chips}>{ORIGINS.slice(0,6).map(origin=><Action key={origin.title} secondary onPress={()=>chooseOrigin(origin)}>{origin.title}</Action>)}</View>:null}
-    {[...local,...remote.filter(p=>!local.some(x=>x.title===p.title))].map((origin,i)=><Pressable accessibilityRole="button" accessibilityLabel={origin.title+' als Ausgangsort wählen'} key={origin.title+i} onPress={()=>chooseOrigin(origin)} style={s.origin}>
+    {[...local,...remote.filter(p=>!local.some(x=>x.title===p.title))].map((origin,i)=><Pressable accessibilityRole="button" accessibilityLabel={language==='en'?'Choose '+origin.title+' as starting town':origin.title+' als Ausgangsort wählen'} key={origin.title+i} onPress={()=>chooseOrigin(origin)} style={s.origin}>
      <Text style={s.label}>{origin.title}</Text>{origin.subtitle?<Text style={s.muted}>{origin.subtitle}</Text>:null}</Pressable>)}
-    <Action secondary disabled={looking||busy||form.query.trim().length<3} onPress={searchOrigin}>{looking?'Ortssuche läuft …':'Deutschlandweit Ort suchen'}</Action>
-    <Text style={s.muted}>Nur beim Start der externen Ortssuche wird der Suchtext an Photon/OpenStreetMap übermittelt. Keine privaten Adressen eingeben.</Text>
+    <Action secondary disabled={looking||busy||form.query.trim().length<3} onPress={searchOrigin}>{looking?t("Ortssuche läuft …"):t("Deutschlandweit Ort suchen")}</Action>
+    <Text style={s.muted}>{t("Nur beim Start der externen Ortssuche wird der Suchtext an Photon/OpenStreetMap übermittelt. Keine privaten Adressen eingeben.")}</Text>
    </>}
   </View>
   <View style={s.card}>
-   <Text accessibilityRole="header" style={s.heading}>2. Was passt zu euch?</Text>
-   <Pick title="Alter der Kinder (mehrere möglich)" items={AGES} selected={form.prefs.ages} onChange={v=>pref('ages',form.prefs.ages.includes(v)?form.prefs.ages.filter(x=>x!==v):[...form.prefs.ages,v])}/>
-   <Pick title="Umkreis in Luftlinie" items={RADII.map(x=>[x,x+' km'])} selected={form.prefs.radius} onChange={v=>pref('radius',v)}/>
-   <Pick title="Gesamtbudget für den Ausflug" items={BUDGETS.map(x=>[x,x===0?'0 €':'bis '+x+' €'])} selected={form.prefs.budget} onChange={v=>pref('budget',v)}/>
-   <Pick title="Was möchtet ihr erleben?" items={INTERESTS} selected={form.prefs.interest} onChange={v=>pref('interest',v)}/>
-   <Pick title="Wie viel Zeit habt ihr?" items={DURATIONS} selected={form.prefs.duration} onChange={v=>pref('duration',v)}/>
-   <Text style={s.muted}>Das sind Wünsche, keine Preis- oder Altersgarantie. Bei 0 € werden nur mögliche öffentliche Natur- und Spielziele berücksichtigt. Die KI erhält nur Altersgruppen, Budget, Interesse, Dauer und öffentliche Zielkandidaten, nicht eure Kontodaten oder Ausgangskoordinaten.</Text>
-   <Action disabled={busy||looking||!form.origin||!form.prefs.ages.length} onPress={()=>generate(true)}>{busy?'Ausflug wird geplant …':'Ausflug mit KI planen'}</Action>
-   <Action secondary disabled={busy||looking||!form.origin||!form.prefs.ages.length} onPress={()=>generate(false)}>Ohne KI passende Ziele finden</Action>
+   <Text accessibilityRole="header" style={s.heading}>{t("2. Was passt zu euch?")}</Text>
+   <Pick title={t("Alter der Kinder (mehrere möglich)")} items={AGES} selected={form.prefs.ages} onChange={v=>pref('ages',form.prefs.ages.includes(v)?form.prefs.ages.filter(x=>x!==v):[...form.prefs.ages,v])}/>
+   <Pick title={t("Umkreis in Luftlinie")} items={RADII.map(x=>[x,x+' km'])} selected={form.prefs.radius} onChange={v=>pref('radius',v)}/>
+   <Pick title={t("Gesamtbudget für den Ausflug")} items={BUDGETS.map(x=>[x,language==='en'?(x===0?'€0':'up to €'+x):(x===0?'0 €':'bis '+x+' €')])} selected={form.prefs.budget} onChange={v=>pref('budget',v)}/>
+   <Pick title={t("Was möchtet ihr erleben?")} items={INTERESTS} selected={form.prefs.interest} onChange={v=>pref('interest',v)}/>
+   <Pick title={t("Wie viel Zeit habt ihr?")} items={DURATIONS} selected={form.prefs.duration} onChange={v=>pref('duration',v)}/>
+   <Text style={s.muted}>{t("Das sind Wünsche, keine Preis- oder Altersgarantie. Bei 0 € werden nur mögliche öffentliche Natur- und Spielziele berücksichtigt. Die KI erhält nur Altersgruppen, Budget, Interesse, Dauer und öffentliche Zielkandidaten, nicht eure Kontodaten oder Ausgangskoordinaten.")}</Text>
+   <Action disabled={busy||looking||!form.origin||!form.prefs.ages.length} onPress={()=>generate(true)}>{busy?t("Ausflug wird geplant …"):t("Ausflug mit KI planen")}</Action>
+   <Action secondary disabled={busy||looking||!form.origin||!form.prefs.ages.length} onPress={()=>generate(false)}>{t("Ohne KI passende Ziele finden")}</Action>
   </View>
-  {notice?<Text accessibilityLiveRegion="polite" style={s.note}>{notice}</Text>:null}
+  {notice?<Text accessibilityLiveRegion="polite" style={s.note}>{t(notice)}</Text>:null}
   {busy?<ActivityIndicator color={C.accent}/>:null}
   {form.result?<View style={s.card}>
-   <Text accessibilityRole="header" style={s.heading}>{form.result.mode==='ai'?'Eure KI-Auswahl':'Passende Ziele aus dem Katalog'}</Text>
-   <Text style={s.muted}>{form.result.candidateCount} passende Katalogziele im gewählten Radius; bis zu drei Vorschläge. Keine Live-Prüfung von Wetter, Öffnungszeiten, Fahrzeiten oder Preisen.</Text>
-   {!results.length?<Text style={s.note}>Der bisherige Ausflugskatalog enthält keine passenden Ziele. Erweitert den Radius, ändert das Interesse oder Budget oder nutzt die Familienkarte.</Text>:null}
+   <Text accessibilityRole="header" style={s.heading}>{form.result.mode==='ai'?t("Eure KI-Auswahl"):t("Passende Ziele aus dem Katalog")}</Text>
+   <Text style={s.muted}>{form.result.candidateCount} {t('passende Katalogziele im gewählten Radius; bis zu drei Vorschläge. Keine Live-Prüfung von Wetter, Öffnungszeiten, Fahrzeiten oder Preisen.')}</Text>
+   {!results.length?<Text style={s.note}>{t("Der bisherige Ausflugskatalog enthält keine passenden Ziele. Erweitert den Radius, ändert das Interesse oder Budget oder nutzt die Familienkarte.")}</Text>:null}
    {results.length>0?<>
-    <Text style={s.note}>Gesamtbudget: {form.prefs.budget} €. Eintritt, Anfahrt und Verpflegung sind nicht berechnet. Kein Ziel ist als budgetkonform bestätigt.</Text>
+    <Text style={s.note}>{t('Gesamtbudget: ')}{language==='en'?'€'+form.prefs.budget:form.prefs.budget+' €'}. {t('Eintritt, Anfahrt und Verpflegung sind nicht berechnet. Kein Ziel ist als budgetkonform bestätigt.')}</Text>
     {results.map((p,i)=><View style={s.destination} key={p.id}>
       <Text accessibilityRole="header" style={s.heading}>{i+1}. {p.title}</Text>
-      <Text style={s.muted}>{p.region_label} · ca. {Math.round(p.km)} km Luftlinie</Text>
+      <Text style={s.muted}>{p.region_label} · {language==='en'?'approx.':'ca.'} {Math.round(p.km)} km {language==='en'?'straight-line':'Luftlinie'}</Text>
+      {language==='en'&&p.description?<Text style={s.muted}>{t('Katalogbeschreibung auf Deutsch')}</Text>:null}
       <Text style={s.text}>{p.description}</Text>
-      {p.lowCostLead?<Text style={s.muted}>Öffentliches Natur-/Spielziel als möglicher Spartipp. Aktuelle Kosten und Zugang prüfen.</Text>:null}
-      <Action secondary onPress={()=>onMap(p.id)}>Auf Familienkarte ansehen</Action>
-      <Action secondary onPress={()=>onCalendar(p)}>Im Kalender einplanen</Action>
-      {p.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(p.info_url).catch(()=>setNotice('Betreiberseite konnte nicht geöffnet werden.'))} style={s.link}><Text style={s.linkText}>Aktuelle Besuchsinfos beim Betreiber prüfen ↗</Text></Pressable>:null}
+      {p.lowCostLead?<Text style={s.muted}>{t("Öffentliches Natur-/Spielziel als möglicher Spartipp. Aktuelle Kosten und Zugang prüfen.")}</Text>:null}
+      <Action secondary onPress={()=>onMap(p.id)}>{t("Auf Familienkarte ansehen")}</Action>
+      <Action secondary onPress={()=>onCalendar(p)}>{t("Im Kalender einplanen")}</Action>
+      {p.info_url?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(p.info_url).catch(()=>setNotice('Betreiberseite konnte nicht geöffnet werden.'))} style={s.link}><Text style={s.linkText}>{t("Aktuelle Besuchsinfos beim Betreiber prüfen ↗")}</Text></Pressable>:null}
     </View>)}
-    <Text accessibilityRole="header" style={s.heading}>Flexibler Ablauf</Text>
-    {planSteps(form.prefs.duration,results,form.prefs.ages).map(step=><Text key={step} style={s.text}>{step}</Text>)}
+    <Text accessibilityRole="header" style={s.heading}>{t("Flexibler Ablauf")}</Text>
+    {planSteps(form.prefs.duration,results,form.prefs.ages,language).map(step=><Text key={step} style={s.text}>{step}</Text>)}
    </>:null}
   </View>:null}
  </ScrollView>;

@@ -16,7 +16,7 @@ assert.match(client,/requestPermissionsAsync/);
 assert.match(client,/getExpoPushTokenAsync\(\{projectId:PROJECT_ID\}\)/);
 assert.match(client,/await disablePush\(userId\);\s*const \{error\}=await supabase\.auth\.signOut/);
 assert.match(client,/ff_push_unregister/);
-assert.match(screen,/accessibilityLabel=\{label\}/);
+assert.match(screen,/accessibilityLabel=\{t\(label\)\}/);
 assert.match(screen,/status&&!status\.delivery_ready/);
 assert.match(app,/tab==='push'\?<PushSettings/);
 assert.match(app,/signOutWithPush\(me\)/);

@@ -39,7 +39,7 @@ assert.ok(findHomeRoutes('Datenschutz').some(x=>x.id==='profile'),'Privacy setti
 
 const home=readFileSync(new URL('../HomeAssistant.jsx',import.meta.url),'utf8');
 assert.match(home,/function SunMark\(/,'Hero must use simple illustrated sun, not generic AI stock imagery');
-assert.match(home,/FEATURED=\['discover','map','market','box'\]/,'Four clear family activities');
+assert.match(home,/tileIds=DEFAULT_HOME/,'Home uses configurable shortcuts');
 assert.match(home,/ref=\{scrollRef\}/,'Suggestions must return to the input');
 assert.match(home,/showAll\?moreRoutes\.map/,'The user must reach all real app areas');
 assert.match(home,/onSubmitEditing=\{searchApp\}/,'Search keyboard must submit ordinary search, not charge AI');

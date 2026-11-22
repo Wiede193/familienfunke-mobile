@@ -15,7 +15,7 @@ const sql=readFileSync(new URL('../database/ff_market_search_index.sql',import.m
 const ai=readFileSync(new URL('../supabase/functions/ff-app-assistant/index.ts',import.meta.url),'utf8');
 assert.match(app,/const serverSearchActive=!onlyMine/,'Buyer catalog must be fully server-paginated');
 assert.match(app,/supabase\.rpc\('ff_market_search'/,'Search must call secure server endpoint');
-assert.match(app,/p_query:query\.trim\(\)/,'Search input must reach the DB');
+assert.match(app,/p_query:canonicalQuery/,'Search input must reach the DB');
 assert.match(app,/p_offset:searchPage\*40/,'Results must be paginated');
 assert.match(app,/Passender Artikel:/,'Show which package item matched');
 assert.match(app,/entryIntent\?\.type!=='search'/,'Allow AI home to open the prefilled bazaar search');

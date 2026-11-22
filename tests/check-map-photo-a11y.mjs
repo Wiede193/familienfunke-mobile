@@ -45,12 +45,12 @@ assert.equal(findFamilyMapLocations('?',inventory).length,0);
 
 const map=read('FamilyMap.jsx'),app=read('App.jsx');
 assert.match(map,/findFamilyMapLocations\(placeQuery/,'Map must use indexed local place search');
-assert.match(map,/accessibilityLabel="Stadt oder Ausflugsziel suchen"/);
+assert.match(map,/accessibilityLabel=\{t\("Stadt oder Ausflugsziel suchen"\)\}/);
 assert.match(map,/onPress=\{\(\)=>selectSearchedLocation\(match\)\}/,
   'Every map result needs an accessible selection action');
 assert.match(map,/if\(match.source==='city'\)visit/,'City selection must recenter map');
 assert.match(map,/else showPlace\(match.place\)/,'Place selection must open details');
-assert.match(app,/marketPhotoAlt\(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length\)/);
+assert.match(app,/marketPhotoAlt\(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length,t\)/);
 assert.match(app,/Bildbeschreibung aus Artikelangaben/);
 assert.match(app,/Einzelne Fotos wurden nicht gesondert beschrieben/);
 console.log('Barrierefreie Artikeldaten und lokale Ortssuche: Verhalten und Datenschutz geprüft.');

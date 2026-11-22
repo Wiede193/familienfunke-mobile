@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const load=p=>import('data:text/javascript;base64,'+Buffer.from(read(p)).toString('base64'));
+const m=await load('FamilyLocaleModel.js'),nav=await load('HomeNavigation.js');
+assert.equal(m.resolveLanguage('auto','en_US'),'en');
+assert.equal(m.resolveLanguage('auto','pl-PL'),'de');
+assert.equal(m.resolveLanguage('de','en-GB'),'de');
+assert.equal(m.normalizeLanguage('invalid'),'auto');
+assert.equal(m.translate('en','Menü'),'Menu');
+assert.equal(m.translate('en','untranslated'), 'untranslated');
+assert.deepEqual(m.localizedRoutes(nav.HOME_ROUTES,'en').map(x=>x.id),nav.HOME_PAGE_IDS);
+for(const r of nav.HOME_ROUTES){assert.ok(Object.hasOwn(m.EN,r.title));assert.ok(Object.hasOwn(m.EN,r.subtitle));}
+for(const [q,id] of [['find playgrounds','map'],['sell stroller','sell'],['buy jeans','market'],['edit profile','profile'],['calendar','calendar'],['private messages','chat'],['notification settings','push'],['sudoku','play']])assert.equal(m.englishRouteMatches(q,nav.HOME_ROUTES)[0]?.id,id,q);
+assert.equal(m.SERVICE_REGION,'DE');assert.equal(m.SERVICE_CURRENCY,'EUR');
+assert.match(m.formatServiceMoney(500,'en'),/€/);
+assert.match(read('FamilyLocale.jsx'),/AsyncStorage.setItem\(KEY,value\)/);
+assert.match(read('App.jsx'),/FamilyLocaleProvider/);
+assert.match(read('HomeAssistant.jsx'),/body:\{question:prompt,history,language\}/);
+assert.match(read('FamilyVoiceSearch.jsx'),/lang:locale,requiresOnDeviceRecognition:true/);
+assert.match(read('supabase/functions/ff-app-assistant/index.ts'),/\.language==="en"\?"en":"de"/);
+console.log('Locale defaults, translations, stable routes, English discovery, EUR and language allowlist checked');
+
+assert.equal(m.translate('en','Anmelden'),'Sign in');
+assert.equal(m.translate('en','Privatsphäre & Sichtbarkeit'),'Privacy & visibility');
+assert.equal(m.translate('en','Senden'),'Send');
+assert.ok(read('App.jsx').includes('text={t(i)} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}'));
+assert.ok(read('App.jsx').includes('{m.body}'));

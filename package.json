@@ -28,21 +28,27 @@
     "check:saved-searches": "node tests/check-saved-market-searches.mjs",
     "check:price-alerts": "node tests/check-market-price-alerts.mjs",
     "check:calendar": "node tests/check-family-calendar.mjs",
-    "check:play": "node tests/check-family-play.mjs"
+    "check:play": "node tests/check-family-play.mjs",
+    "check:layout": "node tests/check-family-layout.mjs",
+    "check:actions": "node tests/check-family-actions.mjs",
+    "check:voice": "node tests/check-family-voice.mjs",
+    "check:ux-resilience": "node tests/check-ux-resilience.mjs",
+    "check:layout-sync": "node tests/check-layout-sync.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@supabase/supabase-js": "^2.80.0",
-    "expo": "~58.0.0",
-    "expo-file-system": "~58.0.13",
+    "expo": "~58.0.26",
+    "expo-file-system": "~58.0.14",
     "expo-image-manipulator": "~58.0.16",
     "expo-image-picker": "~58.0.10",
+    "expo-notifications": "~58.1.9",
+    "expo-speech-recognition": "58.0.1",
     "expo-status-bar": "~58.0.5",
     "react": "19.3.0",
     "react-native": "0.88.1",
     "react-native-url-polyfill": "^2.0.0",
-    "react-native-webview": "14.0.1",
-    "expo-notifications": "~58.1.9"
+    "react-native-webview": "14.0.1"
   },
   "devDependencies": {
     "babel-preset-expo": "~58.0.0"

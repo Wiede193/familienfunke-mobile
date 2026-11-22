@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const read=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
-const app=read('App.jsx');
+const app=read('App.jsx')+'\n'+read('FamilyUI.jsx')+'\n'+read('FamilyAppStyles.js')+'\n'+read('FamilyContactsScreen.jsx');
 const home=read('HomeAssistant.jsx');
 const map=read('FamilyMap.jsx');
 const guide=read('FamilyGuide.jsx');
 const intro=read('WelcomeIntro.jsx');
 const help=read('AboutAndHelp.jsx');
+const menu=read('TopRightMenu.jsx');
 
 // These checks are regression guards, NOT an automated accessibility certification.
 assert.doesNotMatch(intro,/setTimeout\(|15000|AccessibilityInfo\.isScreenReaderEnabled/,
@@ -21,21 +22,21 @@ assert.match(app,/accessibilityLabel=\{accessibilityLabel\|\|title\}/,
   'Buttons including symbol buttons need a meaningful name');
 assert.match(app,/function Chip\([\s\S]{0,200}if\(!onPress\)return <View/,
   'Static chips must not be announced as disabled buttons');
-assert.match(app,/accessibilityLabel="Stadt oder Landkreis suchen"/,
+assert.match(app,/accessibilityLabel=\{t\("Stadt oder Landkreis suchen"\)\}/,
   'Region picker input needs an accessible name');
 assert.match(app,/accessibilityState=\{\{expanded:open\}\}/,
   'Region picker must announce expanded state');
-assert.match(app,/accessibilityLabel="Private Nachricht schreiben"/,
+assert.match(app,/accessibilityLabel=\{t\("Private Nachricht schreiben"\)\}/,
   'Chat composer must have a label');
-assert.match(app,/accessibilityLabel=\{'Gespräch mit '/,
+assert.match(app,/accessibilityLabel=\{language==='en'\?'Open conversation with /,
   'Contacts should announce the action');
 assert.match(app,/accessibilityLabel="Nur Familien aus meiner Region anzeigen"/,
   'Region filter switch needs an explicit label');
 assert.match(app,/accessibilityLabel="Nur Familien mit gemeinsamen Hobbys anzeigen"/,
   'Interest filter switch needs an explicit label');
-assert.match(app,/accessibilityLabel="Familienprofil für andere Familien sichtbar"/,
+assert.match(app,/accessibilityLabel=\{t\("Familienprofil für andere Familien sichtbar"\)\}/,
   'Privacy switch needs an explicit label');
-assert.match(app,/accessibilityLiveRegion="assertive"/,
+assert.match(read('FamilyStatus.jsx'),/accessibilityLiveRegion=\{error\?'assertive':'polite'\}/,
   'Errors should be announced when they appear');
 assert.match(app,/accessibilityViewIsModal style=\{styles\.modalShade\}/,
   'Report dialog should isolate its contents');
@@ -68,7 +69,7 @@ assert.match(map,/function markCoordinates\(\)/,
   'Keyboard coordinates must be actionable');
 assert.match(map,/inGermany\(latitude,longitude\)/,
   'Accessible coordinates must be validated');
-assert.match(map,/accessibilityLabel="Wickeltisch vorhanden"/,
+assert.match(map,/accessibilityLabel=\{t\("Wickeltisch vorhanden"\)\}/,
   'Map switches require names');
 assert.doesNotMatch(map,/multi&&\{height:85/,
   'Map multiline fields should grow with text');
@@ -77,4 +78,8 @@ assert.match(guide,/accessibilityRole="header"/,
   'Guide should expose headings');
 assert.match(help,/accessibilityLiveRegion="polite"/,
   'FAQ result count should be announced');
+assert.match(app,/profileSections:\{flexDirection:'row',flexWrap:'wrap'/,'Profile sections should wrap rather than hide horizontally');
+assert.match(app,/profileSectionButton:\{minHeight:48,minWidth:48/,'Profile actions require large touch targets');
+assert.match(home,/<Text style=\{s.areaSubtitle\}>\{route.subtitle\}<\/Text>/,'Home route descriptions must not be truncated');
+assert.match(menu,/subtitle:\{fontSize:14,lineHeight:21/,'Menu descriptions should be readable');
 console.log('Barrierefreiheit: kritische Funktions- und UI-Verträge geprüft. Geräteprüfung bleibt erforderlich.');

@@ -2,7 +2,12 @@ import React,{useEffect,useRef,useState} from 'react';
 import {Alert,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View,useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
-import {dayKey,monthDays,moveMonth,entryDay,entryTime,compareEntries,calendarFields} from './CalendarDates';
+import {useFamilyLocale} from './FamilyLocale';
+import {confirmRemoval} from './FamilyActions';
+import FamilyActionButton from './FamilyActionButton';
+import {useSessionDraft} from './FamilySessionDrafts';
+import FamilyStatus from './FamilyStatus';
+import {dayKey,monthDays,moveMonth,entryDay,entryTime,compareEntries,calendarFields,displayCalendarDay} from './CalendarDates';
 
 async function verifyAccount(userId){
  const {data,error}=await supabase.auth.getSession();
@@ -17,17 +22,18 @@ export async function rememberCalendarEvent(userId,kind,id){
  return 'saved';
 }
 export function CalendarEventButton({userId,kind,id}){
+ const {t}=useFamilyLocale();
  const [busy,setBusy]=useState(false);
  const lock=useRef(false);
  async function save(){
   if(lock.current)return;lock.current=true;setBusy(true);
   try{
    const result=await rememberCalendarEvent(userId,kind,id);
-   Alert.alert(result==='already'?'Bereits im Kalender':'Im Kalender gemerkt','Dieser Eintrag ist privat. Eine Teilnahme wird dadurch nicht bestätigt.');
-  }catch(e){Alert.alert('Kalender',e.message);}
+   Alert.alert(result==='already'?t('Bereits im Kalender'):t('Im Kalender gemerkt'),t('Dieser Eintrag ist privat. Eine Teilnahme wird dadurch nicht bestätigt.'));
+  }catch(e){Alert.alert(t('Kalender'),t(e.message));}
   finally{lock.current=false;setBusy(false);}
  }
- return <Action disabled={busy} secondary onPress={save}>{busy?'Wird gemerkt …':'Im Kalender merken'}</Action>;
+ return <Action disabled={busy} secondary onPress={save}>{busy?t('Wird gemerkt …'):t('Im Kalender merken')}</Action>;
 }
 function Action({children,onPress,disabled=false,secondary=false}){
  return <Pressable accessibilityRole="button" accessibilityState={{disabled}} disabled={disabled} onPress={onPress}
@@ -35,10 +41,11 @@ function Action({children,onPress,disabled=false,secondary=false}){
 }
 const emptyForm=(day,seed)=>({title:seed?.title||'',note:'',day,time:'',kind:seed?'outing':'personal',place_id:seed?.id||null,id:null});
 const LABELS={personal:'Privater Termin',outing:'Geplanter Ausflug',family:'Familientreffen · gemerkt',partner:'Partnerveranstaltung · gemerkt'};
-const monthLabel=m=>new Date(Number(m.slice(0,4)),Number(m.slice(5))-1,1,12).toLocaleDateString('de-DE',{month:'long',year:'numeric'});
-export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
+const monthLabel=(m,locale)=>new Date(Number(m.slice(0,4)),Number(m.slice(5))-1,1,12) .toLocaleDateString(locale,{month:'long',year:'numeric'});
+export default function FamilyCalendar({userId,drafts,seed,onOpenEvent,onOpenPlace}){
+ const {t,language,locale}=useFamilyLocale();
  const today=dayKey(new Date()),[month,setMonth]=useState(today.slice(0,7)),[chosen,setChosen]=useState(today);
- const [form,setForm]=useState(()=>seed?emptyForm(today,seed):null),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
+ const [form,setForm,resetForm]=useSessionDraft(drafts,'calendar',seed?emptyForm(today,seed):null),[rows,setRows]=useState([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const seq=useRef(0),alive=useRef(true),lock=useRef(false),scroll=useRef(null);
  const {width,fontScale}=useWindowDimensions();
  async function refresh(){
@@ -56,7 +63,7 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
   return()=>{alive.current=false;seq.current++;sub.remove();};
  },[userId]);
  function changeMonth(delta){const next=moveMonth(month,delta);if(next<'1900-01'||next>'2100-12')return;setMonth(next);setChosen(next+'-01');}
- function openForm(value){setForm(value);scroll.current?.scrollTo({y:0,animated:false});}
+ function openForm(value){const apply=()=>{setForm(value);scroll.current?.scrollTo({y:0,animated:false});};if(form)confirmRemoval({translate:t,title:'Anderen Termin bearbeiten?',description:'Der bisherige ungespeicherte Entwurf wird ersetzt.',confirmLabel:'Entwurf ersetzen',onConfirm:apply});else apply();}
  function change(k,v){setForm(old=>({...old,[k]:v}));}
  async function save(){
   if(lock.current||!form)return;lock.current=true;setBusy(true);
@@ -67,22 +74,20 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
     await supabase.from('ff_personal_calendar').insert({...fields,user_id:userId,kind:form.kind,place_id:form.place_id}).select('id').single();
    if(response.error||!response.data?.id)throw Error('Speichern nicht möglich. Bitte Verbindung und Kalenderlimit prüfen.');
    if(alive.current){setChosen(fields.day);setMonth(fields.day.slice(0,7));setForm(null);await refresh();}
-  }catch(e){if(alive.current)Alert.alert('Kalender',e.message);}
+  }catch(e){if(alive.current)Alert.alert(t('Kalender'),t(e.message));}
   finally{lock.current=false;if(alive.current)setBusy(false);}
  }
  function remove(row){
-  Alert.alert('Kalendereintrag löschen?','Nur dein Kalendereintrag wird entfernt. Eine Veranstaltung oder Teilnahme bleibt unverändert.',[
-   {text:'Abbrechen',style:'cancel'},{text:'Löschen',style:'destructive',onPress:async()=>{
+  confirmRemoval({translate:t,title:'Kalendereintrag löschen?',description:'Nur dein Kalendereintrag wird entfernt. Eine Veranstaltung oder Teilnahme bleibt unverändert.',onConfirm:async()=>{
     if(lock.current)return;lock.current=true;setBusy(true);
     try{
      await verifyAccount(userId);
      const {data,error}=await supabase.from('ff_personal_calendar').delete().eq('id',row.id).eq('user_id',userId).select('id');
      if(error||data?.length!==1)throw Error();
      if(alive.current){if(form?.id===row.id)setForm(null);await refresh();}
-    }catch{if(alive.current)Alert.alert('Kalender','Eintrag konnte nicht gelöscht werden.');}
+    }catch{if(alive.current)Alert.alert(t('Kalender'),t('Eintrag konnte nicht gelöscht werden.'));}
     finally{lock.current=false;if(alive.current)setBusy(false);}
-   }}
-  ]);
+   }});
  }
  const monthRows=rows.filter(r=>entryDay(r)?.startsWith(month)).sort(compareEntries);
  const unavailable=rows.filter(r=>!r.available);
@@ -90,49 +95,53 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
  function render(row){
   const linked=['family','partner'].includes(row.kind);
   return <View key={row.id} style={s.card}>
-   <View style={s.line}><View style={{flex:1}}><Text style={s.sub}>{LABELS[row.kind]}</Text>
-   <Text style={s.heading}>{row.available?row.title:'Veranstaltung nicht verfügbar'}</Text>
-   {row.available?<Text style={s.text}>{entryDay(row)}{entryTime(row)?' · '+entryTime(row)+' Uhr':' · Ganztägig'}{row.region_label?' · '+row.region_label:''}</Text>:<Text style={s.text}>Der Termin ist nicht mehr sichtbar oder wurde nicht freigegeben.</Text>}</View>
-   <Pressable accessibilityRole="button" accessibilityLabel={(row.title||'Kalendereintrag')+' löschen'} disabled={busy} onPress={()=>remove(row)} style={s.close}><Text style={s.x}>×</Text></Pressable></View>
+   <View style={s.line}><View style={{flex:1}}><Text style={s.sub}>{t(LABELS[row.kind])}</Text>
+   <Text style={s.heading}>{row.available?row.title:t('Veranstaltung nicht verfügbar')}</Text>
+   {row.available?<Text style={s.text}>{displayCalendarDay(entryDay(row),locale)}{entryTime(row)?' · '+entryTime(row)+(language==='de'?' Uhr':''):' · '+t('Ganztägig')}{row.region_label?' · '+row.region_label:''}</Text>:<Text style={s.text}>{t("Der Termin ist nicht mehr sichtbar oder wurde nicht freigegeben.")}</Text>}</View>
+   </View>
    {row.note?<Text style={s.text}>{row.note}</Text>:null}
-   {!linked?<Action secondary disabled={busy} onPress={()=>openForm({id:row.id,title:row.title,note:row.note,day:row.day,time:entryTime(row),kind:row.kind,place_id:row.place_id})}>Bearbeiten</Action>:null}
-   {linked&&row.available&&new Date(row.starts_at)>new Date()?<Action secondary onPress={()=>onOpenEvent(row.kind,row.source_id)}>Veranstaltung öffnen</Action>:null}
-   {row.kind==='outing'&&row.place_id?<Action secondary onPress={()=>onOpenPlace(row.place_id)}>Ausflugsziel öffnen</Action>:null}
+   <View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>
+   {!linked?<FamilyActionButton title={t("Bearbeiten")} accessibilityLabel={t('Bearbeiten')+': '+(row.title||t('Kalendereintrag'))} disabled={busy} onPress={()=>openForm({id:row.id,title:row.title,note:row.note,day:row.day,time:entryTime(row),kind:row.kind,place_id:row.place_id})}/>:null}
+   <FamilyActionButton title={t("Löschen")} accessibilityLabel={t('Löschen')+': '+(row.title||t('Kalendereintrag'))} destructive disabled={busy} onPress={()=>remove(row)}/>
+   </View>
+   {linked&&row.available&&new Date(row.starts_at)>new Date()?<Action secondary onPress={()=>onOpenEvent(row.kind,row.source_id)}>{t("Veranstaltung öffnen")}</Action>:null}
+   {row.kind==='outing'&&row.place_id?<Action secondary onPress={()=>onOpenPlace(row.place_id)}>{t("Ausflugsziel öffnen")}</Action>:null}
   </View>;
  }
  return <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}>
-  <View style={s.hero}><Text accessibilityRole="header" style={s.title}>Mein Familienkalender</Text><Text style={s.text}>Private Termine, Ausflüge und gemerkte Veranstaltungen. Nur dein Konto sieht deine Kalendereinträge.</Text></View>
-  <Action onPress={()=>openForm(emptyForm(chosen,null))}>＋ Privaten Termin anlegen</Action>
+  <View style={s.hero}><Text accessibilityRole="header" style={s.title}>{t("Mein Familienkalender")}</Text><Text style={s.text}>{t("Private Termine, Ausflüge und gemerkte Veranstaltungen. Nur dein Konto sieht deine Kalendereinträge.")}</Text></View>
+  <Action onPress={()=>openForm(emptyForm(chosen,null))}>{t("＋ Privaten Termin anlegen")}</Action>
   {form?<View style={s.card}>
-   <Text accessibilityRole="header" style={s.heading}>{form.id?'Termin bearbeiten':form.kind==='outing'?'Ausflug einplanen':'Neuer privater Termin'}</Text>
-   <Text style={s.sub}>Titel</Text><TextInput accessibilityLabel="Termintitel" style={s.input} value={form.title} maxLength={100} onChangeText={v=>change('title',v)}/>
-   <Text style={s.sub}>Datum (JJJJ-MM-TT)</Text><TextInput accessibilityLabel="Datum" style={s.input} value={form.day} maxLength={10} placeholder="2026-12-05" onChangeText={v=>change('day',v)}/>
-   <Text style={s.sub}>Uhrzeit (optional, HH:MM)</Text><TextInput accessibilityLabel="Uhrzeit" style={s.input} value={form.time} maxLength={5} placeholder="10:00" onChangeText={v=>change('time',v)}/>
-   <Text style={s.sub}>Private Notiz (optional)</Text><TextInput accessibilityLabel="Private Notiz" multiline maxLength={500} style={[s.input,{minHeight:80,textAlignVertical:'top'}]} value={form.note} onChangeText={v=>change('note',v)}/>
-   <Action disabled={busy} onPress={save}>{busy?'Wird gespeichert …':'Termin speichern'}</Action><Action secondary disabled={busy} onPress={()=>setForm(null)}>Abbrechen</Action>
+   <Text accessibilityRole="header" style={s.heading}>{form.id?t("Termin bearbeiten"):form.kind==='outing'?t("Ausflug einplanen"):t("Neuer privater Termin")}</Text>
+   <Text style={s.sub}>{t("Entwurf bleibt während dieser App-Sitzung erhalten. Erst „Termin speichern“ übernimmt ihn in den Kalender.")}</Text>
+   <Text style={s.sub}>{t("Titel")}</Text><TextInput accessibilityLabel={t("Termintitel")} style={s.input} value={form.title} maxLength={100} onChangeText={v=>change('title',v)}/>
+   <Text style={s.sub}>{t("Datum (JJJJ-MM-TT)")}</Text><TextInput accessibilityLabel={t("Datum")} style={s.input} value={form.day} maxLength={10} placeholder="2026-12-05" onChangeText={v=>change('day',v)}/>
+   <Text style={s.sub}>{t("Uhrzeit (optional, HH:MM)")}</Text><TextInput accessibilityLabel={t("Uhrzeit")} style={s.input} value={form.time} maxLength={5} placeholder="10:00" onChangeText={v=>change('time',v)}/>
+   <Text style={s.sub}>{t("Private Notiz (optional)")}</Text><TextInput accessibilityLabel={t("Private Notiz")} multiline maxLength={500} style={[s.input,{minHeight:80,textAlignVertical:'top'}]} value={form.note} onChangeText={v=>change('note',v)}/>
+   <Action disabled={busy} onPress={save}>{busy?t("Wird gespeichert …"):t("Termin speichern")}</Action><Action secondary disabled={busy} onPress={()=>confirmRemoval({translate:t,title:'Terminentwurf verwerfen?',description:'Nicht gespeicherte Angaben gehen verloren.',confirmLabel:'Verwerfen',onConfirm:()=>resetForm(null)})}>{t("Abbrechen")}</Action>
   </View>:null}
   <View style={s.card}>
-   <View style={s.line}><Pressable accessibilityRole="button" accessibilityLabel="Vorheriger Monat" onPress={()=>changeMonth(-1)} style={s.close}><Text style={s.x}>‹</Text></Pressable>
-    <Text accessibilityRole="header" style={[s.heading,{flex:1,textAlign:'center'}]}>{monthLabel(month)}</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel="Nächster Monat" onPress={()=>changeMonth(1)} style={s.close}><Text style={s.x}>›</Text></Pressable></View>
-   {width>=376&&fontScale<1.5?<><View style={s.week}>{['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=><Text key={d} style={[s.sub,s.weekDay]}>{d}</Text>)}</View>
+   <View style={s.line}><Pressable accessibilityRole="button" accessibilityLabel={t("Vorheriger Monat")} onPress={()=>changeMonth(-1)} style={s.close}><Text style={s.x}>‹</Text></Pressable>
+    <Text accessibilityRole="header" style={[s.heading,{flex:1,textAlign:'center'}]}>{monthLabel(month,locale)}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={t("Nächster Monat")} onPress={()=>changeMonth(1)} style={s.close}><Text style={s.x}>›</Text></Pressable></View>
+   {width>=376&&fontScale<1.5?<><View style={s.week}>{['Mo','Di','Mi','Do','Fr','Sa','So'].map(d=><Text key={d} style={[s.sub,s.weekDay]}>{t(d)}</Text>)}</View>
     <View style={s.week}>{monthDays(month).map((day,i)=>{
      const count=monthRows.filter(r=>entryDay(r)===day).length;
-     return day?<Pressable key={day} accessibilityRole="button" accessibilityLabel={day+', '+count+' Termine'} accessibilityState={{selected:day===chosen}}
+     return day?<Pressable key={day} accessibilityRole="button" accessibilityLabel={displayCalendarDay(day,locale)+', '+count+(language==='en'?(count===1?' appointment':' appointments'):' Termine')} accessibilityState={{selected:day===chosen}}
       onPress={()=>setChosen(day)} style={[s.day,day===chosen&&s.selected]}><Text style={[s.dayText,day===chosen&&{color:C.white}]}>{Number(day.slice(-2))}</Text>{count>0?<View style={[s.dot,day===chosen&&{backgroundColor:C.white}]}/>:null}</Pressable>:<View key={'blank'+i} style={s.day}/>;
-    })}</View></>:<Text style={s.sub}>Bei großer Schrift werden die Termine als Monatsliste angezeigt.</Text>}
-   <Action secondary onPress={()=>{setMonth(today.slice(0,7));setChosen(today);}}>Heute</Action>
+    })}</View></>:<Text style={s.sub}>{t("Bei großer Schrift werden die Termine als Monatsliste angezeigt.")}</Text>}
+   <Action secondary onPress={()=>{setMonth(today.slice(0,7));setChosen(today);}}>{t("Heute")}</Action>
   </View>
-  {notice?<Text accessibilityLiveRegion="assertive" style={s.text}>{notice}</Text>:null}
-  <Action secondary disabled={loading} onPress={refresh}>{loading?'Kalender wird geladen …':'Aktualisieren'}</Action>
-  <Text accessibilityRole="header" style={s.heading}>{chosen}</Text>
-  {selectedRows.length?selectedRows.map(render):!loading?<Text style={s.text}>An diesem Tag ist kein Termin eingetragen.</Text>:null}
-  <Action secondary onPress={()=>openForm(emptyForm(chosen,null))}>Termin für diesen Tag anlegen</Action>
-  <Text accessibilityRole="header" style={s.heading}>Weitere Termine im Monat</Text>
+  {notice?<Text accessibilityLiveRegion="assertive" style={s.text}>{t(notice)}</Text>:null}
+  <Action secondary disabled={loading} onPress={refresh}>{loading?t("Kalender wird geladen …"):t("Aktualisieren")}</Action>
+  <Text accessibilityRole="header" style={s.heading}>{displayCalendarDay(chosen,locale)}</Text>
+  {selectedRows.length?selectedRows.map(render):!loading?<Text style={s.text}>{t("An diesem Tag ist kein Termin eingetragen.")}</Text>:null}
+  <Action secondary onPress={()=>openForm(emptyForm(chosen,null))}>{t("Termin für diesen Tag anlegen")}</Action>
+  <Text accessibilityRole="header" style={s.heading}>{t("Weitere Termine im Monat")}</Text>
   {monthRows.filter(r=>entryDay(r)!==chosen).map(render)}
-  {!monthRows.length&&!loading?<Text style={s.text}>Noch keine Termine in diesem Monat.</Text>:null}
-  {unavailable.length?<><Text accessibilityRole="header" style={s.heading}>Nicht verfügbare Veranstaltungen</Text>{unavailable.map(render)}</>:null}
-  <Text style={s.sub}>Veranstaltung merken ist keine Teilnahmebestätigung. Erinnerungen, Serientermine und gemeinsame Kalender sind noch nicht verfügbar.</Text>
+  {!monthRows.length&&!loading?<Text style={s.text}>{t("Noch keine Termine in diesem Monat.")}</Text>:null}
+  {unavailable.length?<><Text accessibilityRole="header" style={s.heading}>{t("Nicht verfügbare Veranstaltungen")}</Text>{unavailable.map(render)}</>:null}
+  <Text style={s.sub}>{t("Veranstaltung merken ist keine Teilnahmebestätigung. Erinnerungen, Serientermine und gemeinsame Kalender sind noch nicht verfügbar.")}</Text>
  </ScrollView>;
 }
 const s=StyleSheet.create({page:{padding:16,paddingBottom:36,gap:12,backgroundColor:C.bg},hero:{padding:18,backgroundColor:C.sun,borderRadius:22,gap:8},title:{fontSize:25,fontWeight:'900',color:C.ink},heading:{fontSize:18,fontWeight:'800',color:C.ink},text:{fontSize:15,lineHeight:22,color:C.ink},sub:{fontSize:13,lineHeight:19,color:C.muted},card:{backgroundColor:C.paper,borderRadius:19,padding:14,borderWidth:1,borderColor:C.line,gap:10},line:{flexDirection:'row',alignItems:'center',gap:8},close:{minWidth:44,minHeight:44,borderRadius:12,alignItems:'center',justifyContent:'center',backgroundColor:C.sunPale},x:{fontSize:26,color:C.ink},input:{minHeight:48,borderWidth:1,borderColor:C.line,borderRadius:12,padding:11,fontSize:16,color:C.ink},action:{minHeight:48,justifyContent:'center',alignItems:'center',padding:12,backgroundColor:C.accentDark,borderRadius:14},secondary:{backgroundColor:C.mint},actionText:{fontSize:15,fontWeight:'800',color:C.white,textAlign:'center'},week:{flexDirection:'row',flexWrap:'wrap'},weekDay:{width:'14.2857%',textAlign:'center'},day:{width:'14.2857%',minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:12},dayText:{fontSize:15,color:C.ink,fontWeight:'700'},selected:{backgroundColor:C.accentDark},dot:{width:6,height:6,borderRadius:3,backgroundColor:C.accentDark,marginTop:3}});
