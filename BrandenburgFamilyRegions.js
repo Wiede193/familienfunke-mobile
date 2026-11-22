@@ -1,7 +1,7 @@
 // Public family-service directory for Brandenburg, researched 22 Nov 2026.
 // Official service links only. No guessed staff names, dates or phone numbers.
-// For uncovered districts we link to the state's official authority directory;
-// "directory-only" is intentionally NOT equivalent to a verified local form.
+// For service categories not verified locally we link to the state's official authority directory;
+// Coverage 'verified' means at least one specific official local service was researched; it does not mean all local services and forms are verified.
 export const REGIONAL_DIRECTORY_URL=
  'https://service.brandenburg.de/service/de/adressen/kommunalverzeichnis/';
 export const PARENTAL_OFFICES_URL=
@@ -70,18 +70,42 @@ export const BRANDENBURG_REGIONS=[
  {id:'cottbus',name:'Cottbus / Chóśebuz · kreisfreie Stadt',aliases:['Cottbus','Chóśebuz'],coverage:'verified',offices:[
    office('parental_allowance','Elterngeldstelle Cottbus','Jugendamt der Stadt Cottbus; aktuelle Zuständigkeiten, Ansprechpartner und Antragsinformationen stehen auf der offiziellen Seite.','https://cottbus.de/verwaltung/gb-1/dz-1-1/fb-51-jugendamt-2/elterngeld/')
  ]},
- {id:'potsdam',name:'Potsdam · kreisfreie Stadt',aliases:['Potsdam','Landeshauptstadt Potsdam'],coverage:'directory',offices:[
-   office('childcare_search','Kita-Rechtsanspruch Potsdam','Offizielle Leistungsbeschreibung mit Verweis auf das Kita-Portal der Landeshauptstadt.','https://verwaltung.brandenburg.de/verwalt/de/detail/?bus_areaId=10821&bus_id=109433075&bus_lng=de_DE&bus_type=pst')
+ {id:'potsdam',name:'Potsdam · kreisfreie Stadt',aliases:['Potsdam','Landeshauptstadt Potsdam'],coverage:'verified',offices:[
+   office('parental_allowance','Elterngeldstelle Potsdam','Amtliche Leistungsbeschreibung im Potsdamer Serviceportal mit Antragsunterlagen und Hinweisen zur Zuständigkeit.','https://serviceportal.dikom-bb.de/landeshauptstadt-potsdam/zentrale-dienstleistung/3619_elterngeld-beantragen'),
+   office('childcare_search','Kita-Rechtsanspruch Potsdam','Amtliche Leistungsbeschreibung mit Verweis auf das kommunale Kita-Portal. Anmeldung und Bedarfsprüfung getrennt beachten.','https://verwaltung.brandenburg.de/verwalt/de/detail/?bus_areaId=10821&bus_id=109433075&bus_lng=de_DE&bus_type=pst')
  ]},
- {id:'brandenburg-havel',name:'Brandenburg an der Havel · kreisfreie Stadt',aliases:['Brandenburg an der Havel'],coverage:'directory',offices:[]},
- {id:'elbe-elster',name:'Landkreis Elbe-Elster',aliases:['Elbe-Elster','Herzberg (Elster)','Finsterwalde','Elsterwerda'],coverage:'directory',offices:[]},
- {id:'havelland',name:'Landkreis Havelland',aliases:['Havelland','Rathenow','Falkensee','Nauen'],coverage:'directory',offices:[]},
- {id:'oberhavel',name:'Landkreis Oberhavel',aliases:['Oberhavel','Oranienburg','Hennigsdorf','Zehdenick'],coverage:'directory',offices:[]},
- {id:'oberspreewald-lausitz',name:'Landkreis Oberspreewald-Lausitz',aliases:['Oberspreewald-Lausitz','Senftenberg','Lübbenau','Calau'],coverage:'directory',offices:[]},
- {id:'ostprignitz-ruppin',name:'Landkreis Ostprignitz-Ruppin',aliases:['Ostprignitz-Ruppin','Neuruppin','Wittstock','Rheinsberg'],coverage:'directory',offices:[]},
- {id:'potsdam-mittelmark',name:'Landkreis Potsdam-Mittelmark',aliases:['Potsdam-Mittelmark','Bad Belzig','Werder (Havel)','Teltow'],coverage:'directory',offices:[]},
- {id:'prignitz',name:'Landkreis Prignitz',aliases:['Prignitz','Perleberg','Wittenberge'],coverage:'directory',offices:[]},
- {id:'teltow-flaeming',name:'Landkreis Teltow-Fläming',aliases:['Teltow-Fläming','Luckenwalde','Ludwigsfelde','Zossen'],coverage:'directory',offices:[]}
+ {id:'brandenburg-havel',name:'Brandenburg an der Havel · kreisfreie Stadt',aliases:['Brandenburg an der Havel'],coverage:'verified',offices:[
+   office('parental_allowance','Elterngeldstelle Brandenburg an der Havel','Städtisches Serviceportal mit Antragsformular, erforderlichen Nachweisen und Einreichungswegen; aktuelle Hinweise vor Abgabe lesen.','https://service.stadt-brandenburg.de/dienstleistungen/-/egov-bis-detail/dienstleistung/5715/show')
+ ]},
+ {id:'elbe-elster',name:'Landkreis Elbe-Elster',aliases:['Elbe-Elster','Herzberg (Elster)','Finsterwalde','Elsterwerda'],coverage:'verified',offices:[
+   office('parental_allowance','Elterngeldstelle Elbe-Elster','Sozialamt des Landkreises: Beratung, Zuständigkeit und aktuelle Hinweise zum Elterngeld-Antrag.','https://www.lkee.de/Service-Verwaltung/Kreisverwaltung/Sozialamt/B%C3%BCrgerservice/Elterngeld/'),
+   office('parental_forms','Onlinedienste für Familien Elbe-Elster','Kommunale Übersicht der Onlinedienste. Bitte kontrollieren, ob zusätzlich Ausdruck und Unterschrift notwendig sind.','https://www.lkee.de/Service-Verwaltung/Online-Dienste/%C3%9Cbersicht-Online-Dienste/OD-Familie-Kind/')
+ ]},
+ {id:'havelland',name:'Landkreis Havelland',aliases:['Havelland','Rathenow','Falkensee','Nauen'],coverage:'verified',offices:[
+   office('parental_allowance','Elterngeld Landkreis Havelland','Amtliche Leistungsbeschreibung; Abgabe im Fachamt oder bei den Bürgerservicebüros möglich. Digitale und schriftliche Schritte prüfen.','https://www.havelland.de/buergerservice/anliegen-a-z/einzelansicht/anliegen/elterngeld'),
+   office('parental_forms','Familienformulare Havelland','Anträge und Merkblätter des Jugendamtes, darunter Elterngeld. Je nach Geburtsdatum die richtige Fassung wählen.','https://www.havelland.de/arbeit-leben/familie/formulare/')
+ ]},
+ {id:'oberhavel',name:'Landkreis Oberhavel',aliases:['Oberhavel','Oranienburg','Hennigsdorf','Zehdenick'],coverage:'verified',offices:[
+   office('parental_allowance','Elterngeldstelle Oberhavel','Offizielle Informations- und Formularseite der Elterngeldstelle des Landkreises.','https://www.oberhavel.de/B%C3%BCrgerservice/Kinder-Jugend-Familie/Elterngeld')
+ ]},
+ {id:'oberspreewald-lausitz',name:'Landkreis Oberspreewald-Lausitz',aliases:['Oberspreewald-Lausitz','Senftenberg','Lübbenau','Calau'],coverage:'verified',offices:[
+   office('parental_allowance','Elterngeld Oberspreewald-Lausitz','Amtlicher Leistungsservice mit Nachweisen und Antragsinformationen, einschließlich geburtsdatumsabhängiger Formulare.','https://www.osl-online.de/dienstleistung/anzeigen/id/100036807/elterngeld-beantragen.html'),
+   office('parental_forms','Formularservice Oberspreewald-Lausitz','Amtliche Formularsammlung, darunter Anträge zum Elterngeld für verschiedene Geburtszeiträume.','https://www.osl-online.de/dienstleistung/formulare/')
+ ]},
+ {id:'ostprignitz-ruppin',name:'Landkreis Ostprignitz-Ruppin',aliases:['Ostprignitz-Ruppin','Neuruppin','Wittstock','Rheinsberg'],coverage:'verified',offices:[
+   office('parental_allowance','Elterngeld Ostprignitz-Ruppin','Offizielle Dienstleistungsbeschreibung des Landkreises mit Informationen zur Antragstellung.','https://www.ostprignitz-ruppin.de/Verwaltung/Dienstleistungen/Elterngeld.php?FID=3039.298.1&ModID=10')
+ ]},
+ {id:'potsdam-mittelmark',name:'Landkreis Potsdam-Mittelmark',aliases:['Potsdam-Mittelmark','Bad Belzig','Werder (Havel)','Teltow'],coverage:'verified',offices:[
+   office('parental_allowance','Elterngeld Potsdam-Mittelmark','Leistungsservice des Landkreises mit Zuständigkeits- und Antragsinformationen.','https://www.potsdam-mittelmark.de/de/ihr-buergerservice/leistungen-a-z/kinder-jugend-familie/elterngeld-beantragen-11253'),
+   office('childcare_search','Kinder, Jugend und Familie Potsdam-Mittelmark','Amtliche Übersicht der lokalen Familienleistungen und zuständigen Verwaltungsangebote.','https://www.potsdam-mittelmark.de/de/ihr-buergerservice/leistungen-a-z/kinder-jugend-familie')
+ ]},
+ {id:'prignitz',name:'Landkreis Prignitz',aliases:['Prignitz','Perleberg','Wittenberge'],coverage:'verified',offices:[
+   office('parental_allowance','Elterngeldstelle Prignitz','Offizieller Landkreisservice: Der online vorbereitete Antrag muss laut Landkreis aktuell ausgedruckt, unterschrieben und übermittelt werden.','https://landkreis-prignitz.de/de/wBuergerservice/dienstleistungen/Elterngeld.php')
+ ]},
+ {id:'teltow-flaeming',name:'Landkreis Teltow-Fläming',aliases:['Teltow-Fläming','Luckenwalde','Ludwigsfelde','Zossen'],coverage:'verified',offices:[
+   office('parental_allowance','Elterngeld Teltow-Fläming','Amtliche Leistungsbeschreibung zur Beantragung; die zuständige Elterngeldstelle nennt fehlende Unterlagen.','https://www.teltow-flaeming.de/was-erledige-ich-wo/dienstleistungen/details/elterngeld'),
+   office('parental_forms','Antragsformulare Teltow-Fläming','Offizieller Formularservice für Elterngeld und weitere familienbezogene Leistungen. Formstand prüfen.','https://www.teltow-flaeming.de/formulare?dezernat=55')
+ ]},
 ].map(region=>({
  ...region,
  verified_at:'2026-11-22',

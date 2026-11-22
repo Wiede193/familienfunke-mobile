@@ -119,7 +119,97 @@ export const BRANDENBURG_FAMILY_PLACES=[
   description:'Erlebnisbad mit Unterwasser-Einblicken in die Pinguinwelt. Zugänge zu Becken und Umkleiden vorab erfragen.',
   info_url:'https://www.spreewelten.de/',
   accessibility:unknown('https://www.spreewelten.de/')
- }
+ },
+ {
+  id:'bb-ziegeleipark-mildenberg',title:'Ziegeleipark Mildenberg',
+  category:'outing',region_label:'Zehdenick · Oberhavel',
+  address:'Ziegelei 10, 16792 Zehdenick OT Mildenberg, Deutschland',
+  latitude:53.03667157,longitude:13.30444336,
+  description:'Industrie- und Erlebnismuseum mit Ziegeleibahn, Mitmachangeboten, Abenteuerspielplatz und Außengelände. Saison und Führungen vorab prüfen.',
+  info_url:'https://www.ziegeleipark.de/',
+  accessibility:documented('Der Betreiber dokumentiert zahlreiche, aber nicht flächendeckende Zugangsmerkmale einschließlich barrierefreiem Besucherzentrum und WC.','Rampe zum Besucherzentrum, drei ausgewiesene Parkplätze und Ausleihe von Mobilitätshilfen laut Betreiber. Verschiedene Bahnfahrten nach vorheriger Rücksprache möglich.','Historisches Gelände mit unebenen Wegen, Gleisen und Treppen; Obergeschoss nur per Treppe erreichbar. Nicht jeder E-Rollstuhl passt in die Bahn.','https://www.ziegeleipark.de/barrierefreiheit','Teilweise tastbare Objekte und Brailleschrift am Geländemodell; keine durchgehende Blindenleitung oder Induktionsschleife laut Betreiber.')
+ },
+ {
+  id:'bb-naturtherme-templin',title:'NaturThermeTemplin',
+  category:'outing',region_label:'Templin · Uckermark',
+  address:'Dargersdorfer Straße 121, 17268 Templin, Deutschland',
+  latitude:53.10269506,longitude:13.52539301,
+  description:'Familienbad mit Wellenbecken, Rutschen und warmem Thermalwasser. Eintritts- und Zugangsregeln für einzelne Becken vorher prüfen.',
+  info_url:'https://www.naturthermetemplin.de/',
+  accessibility:unknown('https://www.naturthermetemplin.de/')
+ },
+ {
+  id:'bb-biosphaere-potsdam',title:'Biosphäre Potsdam',
+  category:'outing',region_label:'Potsdam · kreisfreie Stadt',
+  address:'Georg-Hermann-Allee 99, 14469 Potsdam, Deutschland',
+  latitude:52.418837,longitude:13.049441,
+  description:'Tropische Naturerlebniswelt mit Pflanzen, Tieren und Lernangeboten; für Familien auch bei schlechtem Wetter geeignet.',
+  info_url:'https://www.biosphaere-potsdam.de/',
+  accessibility:unknown('https://www.biosphaere-potsdam.de/')
+ },
+ {
+  id:'bb-baumkronenpfad-beelitz',title:'Baumkronenpfad Beelitz-Heilstätten',
+  category:'outing',region_label:'Beelitz · Potsdam-Mittelmark',
+  address:'Straße nach Fichtenwalde 13, 14547 Beelitz-Heilstätten, Deutschland (keine Navigationsadresse)',
+  latitude:52.26824384,longitude:12.91524763,
+  description:'Baumkronenpfad und Aussichtsturm im historischen Heilstättengelände. Standortmarkierung ist im Besucher-/Parkbereich; Anreisebeschilderung beachten.',
+  info_url:'https://baumundzeit.de/',
+  accessibility:documented('Der Baumkronenpfad und seine Aussichtsplattform sind laut Betreiber per Aufzug erreichbar.','Stufenloser Eingang und Aufzug zum etwa 700 Meter langen Pfad; ebene Bohlen, Steigungen unter sechs Prozent, Sitzgelegenheiten und ausgewiesene Parkplätze.','Nicht alle Gebäudeführungen barrierefrei; historische Waldwege teilweise mit Rindenmulch, Schiebehilfe möglicherweise erforderlich.','https://baumundzeit.de/barrierefreiheit/','Nach Betreiberangabe derzeit keine ausgebildeten Gebärdensprach-Guides; individuelle Kommunikationsmöglichkeiten vorher abklären.')
+ },
+ {
+  id:'bb-optikpark-rathenow',title:'Optikpark Rathenow',
+  category:'outing',region_label:'Rathenow · Havelland',
+  address:'Schwedendamm 9, 14712 Rathenow, Deutschland',
+  latitude:52.605889,longitude:12.326657,
+  description:'Saisonal geöffneter Themenpark rund um Farben, Optik und Bewegung auf der Havelinsel. Saison, Veranstaltungen und Eintritt beachten.',
+  info_url:'https://optikpark-rathenow.de/',
+  accessibility:unknown('https://optikpark-rathenow.de/')
+ },
+ {
+  id:'bb-tierpark-cottbus',title:'Tierpark Cottbus',
+  category:'outing',region_label:'Cottbus / Chóśebuz · kreisfreie Stadt',
+  address:'Kiekebuscher Straße 5, 03042 Cottbus, Deutschland',
+  latitude:51.74317,longitude:14.35034,
+  description:'Zoologischer Garten mit heimischen und exotischen Tierarten und Familienwegen. Tierfütterungen und Sonderprogramme aktuell prüfen.',
+  info_url:'https://www.tierparkcottbus.de/',
+  accessibility:unknown('https://www.tierparkcottbus.de/')
+ },
+ {
+  id:'bb-besucherbergwerk-f60',title:'Besucherbergwerk F60',
+  category:'outing',region_label:'Lichterfeld · Elbe-Elster',
+  address:'Bergheider Straße 4, 03238 Lichterfeld, Deutschland',
+  latitude:51.58632,longitude:13.7773,
+  description:'Technikdenkmal und Besucherbergwerk an der ehemaligen Abraumförderbrücke. Führungen und altersabhängige bzw. körperliche Teilnahmebedingungen vorher prüfen.',
+  info_url:'https://www.f60.de/',
+  accessibility:unknown('https://www.f60.de/')
+ },
+ {
+  id:'bb-kreismuseum-oranienburg',title:'Kreismuseum Oranienburg',
+  category:'outing',region_label:'Oranienburg · Oberhavel',
+  address:'Schloßplatz 1, 16515 Oranienburg, Deutschland',
+  latitude:52.75489264,longitude:13.23709846,
+  description:'Museum im Schloss Oranienburg zur Regionalgeschichte, Kunst und Technik; Führungen für verschiedene Altersgruppen.',
+  info_url:'https://www.oberhavel.de/Freizeit-und-Tourismus/Kultur/Kreismuseum/',
+  accessibility:unknown('https://www.oberhavel.de/Freizeit-und-Tourismus/Kultur/Kreismuseum/')
+ },
+ {
+  id:'bb-schloss-doberlug-erlebnisreich',title:'erlebnisREICH Naturpark im Schloss Doberlug',
+  category:'outing',region_label:'Doberlug-Kirchhain · Elbe-Elster',
+  address:'Schlossplatz 1, 03253 Doberlug-Kirchhain, Deutschland',
+  latitude:51.6101232,longitude:13.5456605,
+  description:'Interaktive Naturpark-Ausstellung mit Bewegungsangeboten im Außenbereich des Schlosses, zum Lernen und Spielen.',
+  info_url:'https://www.natur-brandenburg.de/themen/sehenswertes/besucherinformationszentrum-erlebnisreich-naturpark/',
+  accessibility:unknown('https://www.natur-brandenburg.de/themen/sehenswertes/besucherinformationszentrum-erlebnisreich-naturpark/')
+ },
+ {
+  id:'bb-sielmann-forum-gross-schauen',title:'Sielmann-Forum „Eintauchen und Abheben“',
+  category:'outing',region_label:'Groß Schauen · Oder-Spree',
+  address:'Groß Schauener Hauptstraße 31, 15859 Storkow OT Groß Schauen, Deutschland',
+  latitude:52.23586869,longitude:13.8858068,
+  description:'Interaktive Ausstellung über Wasser, Luft und Ufer mit Tasten und Ausprobieren, dazu ein Naturlehrpfad. Ausstellung und Außenweg getrennt betrachten.',
+  info_url:'https://www.natur-brandenburg.de/themen/ausflugsziele-erlebnisse/eintauchen-und-abheben/',
+  accessibility:unknown('https://www.natur-brandenburg.de/themen/ausflugsziele-erlebnisse/eintauchen-und-abheben/')
+ },
 ].map(place=>({
  ...place,source:'curated',
  source_label:'Brandenburg · Redaktionell recherchiert',
