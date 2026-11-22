@@ -374,6 +374,85 @@ export const NATIONAL_FAMILY_PLACES=[
     "info_url": "https://universum-bremen.de/",
     "osm_key": "osm-node-1184474195"
   }
+,
+{
+  "id": "national-dynamikum-pirmasens",
+  "title": "Dynamikum Science Center",
+  "region_label": "Pirmasens",
+  "state": "Rheinland-Pfalz",
+  "area": "west",
+  "kind": "museum",
+  "category": "outing",
+  "address": "Fröhnstraße 8, 66954 Pirmasens, Deutschland",
+  "latitude": 49.20195,
+  "longitude": 7.59872,
+  "description": "Interaktives Wissenschaftszentrum zu Bewegung, Technik und Physik. Laut Betreiber nur teilweise barrierefrei; vor dem Besuch individuelle Zugänge klären.",
+  "info_url": "https://dynamikum.de/besuch-planen/",
+  "osm_key": "osm-node-303597886",
+  "accessibility": {
+    "status": "documented",
+    "summary": "Der Betreiber nennt eine Kennzeichnung „Barrierefreiheit geprüft“ mit teilweiser Barrierefreiheit für Gäste mit Gehbehinderung und Rollstuhlnutzung.",
+    "mobility": "Teilweise barrierefrei für Gäste mit Gehbehinderung und Rollstuhl. Exakte Routen, Aufzüge und Exponate bei der Einrichtung erfragen.",
+    "sensory": "Keine ausreichend geprüften Einzelangaben zu Hör-, Seh- oder kognitiven Angeboten.",
+    "limitations": "Teilweise barrierefrei bedeutet nicht, dass alle Mitmachstationen und Räume erreichbar sind.",
+    "source_url": "https://dynamikum.de/besuch-planen/",
+    "checked": "2026-11-22"
+  }
+},
+{
+  "id": "national-gondwana-schiffweiler",
+  "title": "GONDWANA – Das Praehistorium",
+  "region_label": "Schiffweiler / Landsweiler-Reden",
+  "state": "Saarland",
+  "area": "west",
+  "kind": "museum",
+  "category": "outing",
+  "address": "Bildstockstraße, 66578 Schiffweiler, Deutschland",
+  "latitude": 49.35,
+  "longitude": 7.11783,
+  "description": "Erlebniswelt zur Erd- und Menschheitsgeschichte mit Dinosaurier- und Filmvorführungen. Lautstärke und individuelle Anforderungen vorab erfragen.",
+  "info_url": "https://gondwana-das-praehistorium.de/",
+  "osm_key": "osm-way-1277874450"
+},
+{
+  "id": "national-jahrtausendturm-magdeburg",
+  "title": "Jahrtausendturm im Elbauenpark",
+  "region_label": "Magdeburg",
+  "state": "Sachsen-Anhalt",
+  "area": "east",
+  "kind": "museum",
+  "category": "outing",
+  "address": "Tessenowstraße 5a, 39114 Magdeburg, Deutschland",
+  "latitude": 52.13882,
+  "longitude": 11.66642,
+  "description": "Experimentier- und Geschichtsausstellung im großen Holzturm. Für Menschen mit Rollstuhl und Kinderwagen ist laut Betreiber nur die Ebene 0 eingeschränkt nutzbar.",
+  "info_url": "https://www.elbauenpark.de/de/attraktion/jahrtausendturm/",
+  "osm_key": "osm-way-29064020",
+  "accessibility": {
+    "status": "documented",
+    "summary": "Offizieller Elbauenpark weist auf erhebliche Zugangsbeschränkungen im Turm hin; kein durchgehend barrierefreies Ausflugsziel.",
+    "mobility": "Laut Betreiber ist für Rollstuhlnutzende und Kinderwagen nur die Ebene 0, der Kuppelsaal, eingeschränkt zugänglich.",
+    "sensory": "Die konkreten Hör-, Seh- und Kommunikationsangebote sind nicht hinreichend geprüft.",
+    "limitations": "Weitere Geschosse und der Aussichtsturm dürfen nicht als mit Rollstuhl oder Kinderwagen erreichbar dargestellt werden.",
+    "source_url": "https://www.elbauenpark.de/de/besucherinfos/",
+    "checked": "2026-11-22"
+  }
+},
+{
+  "id": "national-explorata-zella-mehlis",
+  "title": "eXplorata-Mitmachwelt",
+  "region_label": "Zella-Mehlis",
+  "state": "Thüringen",
+  "area": "east",
+  "kind": "museum",
+  "category": "outing",
+  "address": "Forstgasse 29, 98544 Zella-Mehlis, Deutschland",
+  "latitude": 50.653104,
+  "longitude": 10.667809,
+  "description": "Interaktive Experimentierstationen zu Wahrnehmung und Physik für Kinder und Erwachsene. Zugangsdetails sind noch nicht separat verifiziert.",
+  "info_url": "https://www.explorata.de/",
+  "osm_key": "osm-way-308263555"
+}
 ].map(p=>({
   ...p,
   source:'national',
