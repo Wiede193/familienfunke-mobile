@@ -13,6 +13,7 @@ import { signPhotoPaths } from './SignedPhotoUrls';
 import { EVENT_PAGE_SIZE, PHOTO_PAGE_SIZE, ascendingEventCursor, descendingRowCursor, hasFullPage } from './EventPhotoPages';
 import { MARKET_OWNER_PAGE_SIZE, PARTNER_PAGE_SIZE, marketCursor, partnerEventCursor, hasMarketPage } from './MarketPartnerPages';
 import { isCurrentRequest } from './RequestGeneration';
+import { isTransientFailure, retryRead, createActionGate } from './NetworkResilience';
 import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -65,8 +66,12 @@ const msg = errorMessage(e);
 if (/invalid login credentials/i.test(msg)) return 'E-Mail oder Passwort stimmen nicht. Bitte prüfe deine Zugangsdaten.';
 if (/email not confirmed/i.test(msg)) return 'Deine E-Mail-Adresse ist noch nicht bestätigt.';
 if (/row-level security|permission denied|policy/i.test(msg)) return 'Diese Aktion ist noch nicht freigegeben oder durch die Sicherheitsregeln gesperrt.';
+if (isTransientFailure(e)) return 'Die Verbindung zum Server ist vorübergehend gestört. Bitte prüfe dein Internet und versuche es später erneut.';
 return msg;
 };
+const mutationError = error => isTransientFailure(error)
+  ? 'Die Serverantwort ist ausgeblieben. Die Aktion könnte trotzdem gespeichert worden sein. Bitte prüfe zuerst den aktuellen Stand, bevor du sie erneut ausführst.'
+  : humanError(error);
 /**
  * Erste Integrationsstufe: Texte vor dem Speichern über die authentifizierte
  * Supabase Edge Function prüfen. Fehler führen dazu, dass nichts gespeichert wird.
@@ -218,6 +223,7 @@ const [notice,setNotice]=useState('');
 const [busy,setBusy]=useState(false);
 const [loading,setLoading]=useState(false);
 const [db,setDb]=useState(blankData);
+const [connectionIssue,setConnectionIssue]=useState(false);
 const [myProfile,setMyProfile]=useState(null);
 const [verification,setVerification]=useState(null);
 const [membership,setMembership]=useState(null);
@@ -251,6 +257,7 @@ const selectedContactRef=useRef(selectedContact);selectedContactRef.current=sele
 const chatSendingRef=useRef(false);
 const loadSeq=useRef(0);
 const eventActionRef=useRef(false);
+const actionGate=useRef(createActionGate());
 const inbox=useNotificationCenter(me);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return null;
@@ -259,13 +266,13 @@ const stillCurrent=()=>isCurrentRequest(accountRef.current,me,loadSeq.current,se
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
-supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE}),
- supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),
-supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE}),
-supabase.from('blocks').select('*').limit(200),
-supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('ff_organizations').select('*').eq('owner_id',me).order('created_at',{ascending:false}).limit(50),
+retryRead(()=>supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE}),{isCurrent:stillCurrent}),
+ retryRead(()=>supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),{isCurrent:stillCurrent}),
+retryRead(()=>supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE}),{isCurrent:stillCurrent}),
+retryRead(()=>supabase.from('blocks').select('*').limit(200),{isCurrent:stillCurrent}),
+retryRead(()=>supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),{isCurrent:stillCurrent}),
+retryRead(()=>supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),{isCurrent:stillCurrent}),
+retryRead(()=>supabase.from('ff_organizations').select('*').eq('owner_id',me).order('created_at',{ascending:false}).limit(50),{isCurrent:stillCurrent}),
 ]);
 if(!stillCurrent())return null;
 const firstError=queries.find(x=>x.error)?.error;
@@ -276,14 +283,14 @@ const contactUserIds=[...new Set((contacts.data||[]).map(c=>c.sender_id===me?c.r
 // Preserve only the currently open conversation if it falls outside the newest contact page.
  const pinnedContactId=selectedContactRef.current;
  const pinnedContact=pinnedContactId&&!(contacts.data||[]).some(c=>c.id===pinnedContactId)
-   ? await supabase.from('contact_requests').select('*').eq('id',pinnedContactId).maybeSingle()
+   ? await retryRead(()=>supabase.from('contact_requests').select('*').eq('id',pinnedContactId).maybeSingle(),{isCurrent:stillCurrent})
    : {data:null,error:null};
  if(pinnedContact.error)throw pinnedContact.error;
  if(!stillCurrent())return null;
  const allContacts=appendUniqueRows(contacts.data||[],pinnedContact.data?[pinnedContact.data]:[]);
  const linkedUserIds=[...new Set([...contactUserIds,...(pinnedContact.data?[pinnedContact.data.sender_id===me?pinnedContact.data.recipient_id:pinnedContact.data.sender_id]:[])])];
  const linkedProfiles=linkedUserIds.length
-  ? await supabase.from('profiles').select('*').in('user_id',linkedUserIds)
+  ? await retryRead(()=>supabase.from('profiles').select('*').in('user_id',linkedUserIds),{isCurrent:stillCurrent})
   : {data:[],error:null};
 if(linkedProfiles.error)throw linkedProfiles.error;
 if(!stillCurrent())return null;
@@ -296,9 +303,15 @@ setDb(old=>!stillCurrent()?old:({profiles:appendUniqueRows(profileRow?[profileRo
 events:old.events,eventRequests:old.eventRequests,photos:old.photos,blocks:blocks.data||[],
 listings:old.listings,marketPhotos:old.marketPhotos,marketFavorites:[],organizations:ownOrganizations.data||[],partnerEvents:old.partnerEvents}));
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
-setError('');
+setError('');setConnectionIssue(false);
 return {contacts:contacts.data||[],listings:[]};
-} catch(e){if(stillCurrent())setError(humanError(e));return null;}
+} catch(e){
+   if(stillCurrent()){
+     setConnectionIssue(isTransientFailure(e));
+     setError(isTransientFailure(e)?'':humanError(e));
+   }
+   return null;
+ }
 finally{if(stillCurrent())setLoading(false);}
 },[me]);
 async function loadMoreFamilies(){
@@ -363,7 +376,8 @@ useEffect(()=>{
   setDiscoverCursor(null);setDiscoverMore(false);setDiscoverLoadingMore(false);
   setContactsCursor(null);setContactsMore(false);setContactsLoadingMore(false);
   loadSeq.current++; // Invalidate in-flight queries even before the next account load.
-  setBusy(false);setLoading(false);setError('');setNotice(''); // Never carry messages across accounts.
+  actionGate.current.reset();chatSendingRef.current=false;eventActionRef.current=false;
+  setBusy(false);setLoading(false);setError('');setNotice('');setConnectionIssue(false); // Never carry messages across accounts.
   setReportTarget(null);setReportDetails('');
 },[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
