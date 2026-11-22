@@ -26,6 +26,7 @@ import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 import {FamilyEmptyState,FamilySkeleton} from './FamilyFeedback';
 import FamilyGuideScreen from './FamilyGuide';
+import InclusionKnowledgeScreen from './InclusionKnowledgeScreen';
 import HomeAssistant from './HomeAssistant';
 import FamilyCalendar,{CalendarEventButton} from './FamilyCalendar';
 import FamilyPlayScreen from './FamilyPlayScreen';
@@ -979,7 +980,7 @@ createPartnerEvent={(v)=>executeEvent(async()=>{
 },'Veranstaltung eingereicht. Sie erscheint nach Freigabe.')}
 openInclusion={()=>{setExtraReturnTab(tab);setTab('inclusion');}}/>:
 tab==='more'?<MoreScreen navigate={selectMenuItem} openInfo={()=>setShowInfo(true)} openWelcome={()=>setShowWelcome(true)}/>:
-tab==='inclusion'?<InclusionScreen/>:
+tab==='inclusion'?<InclusionScreen regionLabel={myProfile?.region_label} onOpenMap={()=>{setExtraReturnTab('inclusion');setTab('map');}}/>:
 tab==='aboutApp'?<AboutFamilienfunkeScreen/>:
 tab==='help'?<TechnicalHelpScreen/>:
 tab==='push'?<PushSettings key={me} userId={me} active={active}/>:
@@ -2567,26 +2568,8 @@ function MoreScreen({navigate,openInfo,openWelcome}){
     <Button title="Elternwissen & hilfreiche Links" mode="outline" onPress={openInfo}/>
   </ScrollView>;
 }
-function InclusionScreen(){
-  return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-    <H sub="Gemeinsam dazugehören. Mit eigenen Bedürfnissen, Stärken und Erfahrungen.">Familien & Inklusion</H>
-    <Info>{SECTION_MESSAGES.inclusion}</Info>
-    <Card style={{marginBottom:14}}>
-      <Text style={styles.sectionTitle}>Hier hat jede Familie ihren Platz</Text>
-      <Text style={styles.body}>Familien mit behinderten Kindern, Eltern mit Behinderung und alle, die sich für Inklusion interessieren, sollen sich hier willkommen fühlen – ohne Etiketten, Pflichtangaben oder medizinische Nachweise.</Text>
-    </Card>
-    <Card style={{marginBottom:14}}>
-      <Text style={styles.cardTitle}>Geschützter Austausch ist in Vorbereitung</Text>
-      <Text style={styles.sub}>Für spätere freiwillige Gruppen planen wir einen geschützten Zugang, klare Gruppenregeln sowie Melde- und Moderationsmöglichkeiten. Noch gibt es hier keine geschlossenen Chats. Es werden auch keine Angaben über Behinderungen gespeichert.</Text>
-    </Card>
-    <Card style={{marginBottom:14}}>
-      <Text style={styles.cardTitle}>Barrierefreiheit ist keine Sonderfunktion</Text>
-      <Text style={styles.sub}>Gute Lesbarkeit, ausreichend große Bedienelemente, verständliche Sprache und Unterstützung der Bedienungshilfen sollen in der gesamten App gelten. Dieser erste Bereich ist keine Zertifizierung der App als barrierefrei.</Text>
-    </Card>
-    <Card><Text style={styles.cardTitle}>Gemeinsame Freizeit</Text>
-      <Text style={styles.sub}>Später können Veranstaltungen freiwillige Informationen zu Zugänglichkeit, Ruhezonen, Rollstuhlzugang und Unterstützungsangeboten enthalten. Diese Angaben sollen Veranstalter bereitstellen, ohne Gesundheitsdaten der Familien abzufragen.</Text>
-    </Card>
-  </ScrollView>;
+function InclusionScreen({regionLabel,onOpenMap}){
+ return <InclusionKnowledgeScreen regionLabel={regionLabel} onOpenMap={onOpenMap}/>;
 }
 
 function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked,hasMore,loadingMore,onLoadMore}) {
