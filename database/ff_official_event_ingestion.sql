@@ -79,7 +79,7 @@ insert into private.ff_official_sync_runtime(singleton,token)
 
 -- Only the Edge Function's service client can verify the cron-only bearer token.
 create or replace function public.ff_official_sync_authorized(p_token text)
-returns boolean language sql stable security invoker set search_path='' as $$
+returns boolean language sql stable security definer set search_path='' as $
  select coalesce(length(p_token)=64 and exists(
   select 1 from private.ff_official_sync_runtime
    where singleton=true and
