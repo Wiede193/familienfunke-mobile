@@ -65,6 +65,8 @@ jobs:
         run: npm run check:scale
       - name: Geschützte soziale Seitenabfragen und Chatverläufe prüfen
         run: npm run check:social
+      - name: Seitenweise Veranstaltungen und private Profilfotos prüfen
+        run: npm run check:event-photo-pages
       - name: KI-Freigabe und Fehlerbehandlung prüfen
         run: npm run check:market-auto-review
       - name: Automatische Wiederholung und Moderationsausnahmen prüfen

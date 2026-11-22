@@ -10,6 +10,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { signPhotoPaths } from './SignedPhotoUrls';
+import { EVENT_PAGE_SIZE, PHOTO_PAGE_SIZE, ascendingEventCursor, descendingRowCursor, hasFullPage } from './EventPhotoPages';
 import { SOCIAL_PAGE_SIZE, socialCursor, hasNextSocialPage, appendUniqueRows } from './SocialPages';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -221,6 +222,13 @@ const [membership,setMembership]=useState(null);
 const [photosUrls,setPhotosUrls]=useState({});
 const [marketPhotoUrls,setMarketPhotoUrls]=useState({});
 const [marketExtraPhotoUrls,setMarketExtraPhotoUrls]=useState({});
+const [photoCursor,setPhotoCursor]=useState(null);
+const [photoHasMore,setPhotoHasMore]=useState(false);
+const [photoBusy,setPhotoBusy]=useState(false);
+const [photoBusyMore,setPhotoBusyMore]=useState(false);
+const [photoLoadError,setPhotoLoadError]=useState('');
+const [photoEpoch,setPhotoEpoch]=useState(0);
+const photoSeq=useRef(0);
 const [discoverCursor,setDiscoverCursor]=useState(null);
 const [discoverMore,setDiscoverMore]=useState(false);
 const [discoverLoadingMore,setDiscoverLoadingMore]=useState(false);
@@ -228,9 +236,11 @@ const [contactsCursor,setContactsCursor]=useState(null);
 const [contactsMore,setContactsMore]=useState(false);
 const [contactsLoadingMore,setContactsLoadingMore]=useState(false);
 const me=session?.user?.id;
+const photoTarget=detailFamily||(tab==='profile'?me:null);
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
 const chatSendingRef=useRef(false);
+const eventActionRef=useRef(false);
 const inbox=useNotificationCenter(me);
 const load=useCallback(async(silent=false)=>{
 if(!me||!supabase)return;
@@ -240,9 +250,6 @@ const queries=await Promise.all([
 supabase.rpc('ff_discover_page',{p_limit:SOCIAL_PAGE_SIZE}),
  supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),
 supabase.rpc('ff_contacts_page',{p_limit:SOCIAL_PAGE_SIZE}),
-supabase.from('events').select('*').gt('ends_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(150),
-supabase.from('event_requests').select('*').limit(200),
-supabase.from('profile_photos').select('*').order('created_at',{ascending:false}).limit(100),
 supabase.from('blocks').select('*').limit(200),
 supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
@@ -254,7 +261,7 @@ supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOSt
 if(accountRef.current!==me)return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,ownProfile,contacts,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
+const [profiles,ownProfile,contacts,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
  const visibleListingIds=(listings.data||[]).map(row=>row.id);
  const marketPhotos=visibleListingIds.length
    ? await supabase.from('ff_market_photos').select('*').in('listing_id',visibleListingIds).order('slot',{ascending:true}).limit(800)
@@ -282,15 +289,12 @@ setDiscoverCursor(socialCursor(profiles.data,'user_id'));
 setDiscoverMore(hasNextSocialPage(profiles.data));
 setContactsCursor(socialCursor(contacts.data));
 setContactsMore(hasNextSocialPage(contacts.data));
-setDb({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
-events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],
-listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
+setDb(old=>({profiles:appendUniqueRows(profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),linkedProfiles.data||[],'user_id'),contacts:allContacts,messages:[],
+events:old.events,eventRequests:old.eventRequests,photos:old.photos,blocks:blocks.data||[],
+listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]}));
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');
-const profileSigned=await signPhotoPaths(supabase,'familienfunke-photos',(photos.data||[]).map(row=>row.storage_path),1800);
- if(accountRef.current!==me)return null;
- setPhotosUrls(Object.fromEntries((photos.data||[]).map(row=>[row.id,profileSigned[row.storage_path]||null])));
- const marketSigned=await signPhotoPaths(supabase,'ff-market-photos',[
+const marketSigned=await signPhotoPaths(supabase,'ff-market-photos',[
    ...(listings.data||[]).map(row=>row.photo_path),
    ...(marketPhotos.data||[]).map(row=>row.photo_path),
  ],600);
@@ -356,10 +360,67 @@ useEffect(()=>{
   setMarketIntent(null);setOutingDraft(null);setCalendarSeed(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
   setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
   setPhotosUrls({});setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
+  setPhotoCursor(null);setPhotoHasMore(false);setPhotoLoadError('');
   setDiscoverCursor(null);setDiscoverMore(false);setDiscoverLoadingMore(false);
   setContactsCursor(null);setContactsMore(false);setContactsLoadingMore(false);
 },[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
+
+// Only the currently viewed adult's photos are requested. Existing photo RLS
+// permits own uploads and approved images of established contacts; never cache
+// cross-account signed links after a logout or profile change.
+useEffect(()=>{
+ const seq=++photoSeq.current;
+ let live=true;
+ setDb(old=>({...old,photos:[]}));
+ setPhotosUrls({});
+ setPhotoCursor(null);setPhotoHasMore(false);setPhotoLoadError('');
+ setPhotoBusy(!!me&&!!photoTarget);setPhotoBusyMore(false);
+ if(!me||!photoTarget)return ()=>{live=false;photoSeq.current++;};
+ (async()=>{
+   const {data,error:e}=await supabase.rpc('ff_profile_photos_page',
+     {p_owner_id:photoTarget,p_limit:PHOTO_PAGE_SIZE});
+   if(e||!Array.isArray(data))throw e||new Error('Invalid photo page');
+   const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),1800);
+   if(!live||photoSeq.current!==seq||accountRef.current!==me)return;
+   setDb(old=>({...old,photos:data}));
+   setPhotosUrls(Object.fromEntries(data.map(row=>[row.id,signed[row.storage_path]||null])));
+   setPhotoCursor(descendingRowCursor(data));
+   setPhotoHasMore(hasFullPage(data,PHOTO_PAGE_SIZE));
+ })().catch(()=>{
+   if(live&&photoSeq.current===seq&&accountRef.current===me)setPhotoLoadError('Fotos konnten nicht geladen werden. Bitte erneut versuchen.');
+ }).finally(()=>{
+   if(live&&photoSeq.current===seq&&accountRef.current===me)setPhotoBusy(false);
+ });
+ return ()=>{live=false;photoSeq.current++;};
+},[me,photoTarget,photoEpoch]);
+async function loadMorePhotos(){
+ if(!me||!photoTarget||!photoHasMore||!photoCursor||photoBusy||photoBusyMore)return;
+ const seq=photoSeq.current;
+ setPhotoBusyMore(true);
+ try{
+   const {data,error:e}=await supabase.rpc('ff_profile_photos_page',
+     {p_owner_id:photoTarget,p_limit:PHOTO_PAGE_SIZE,...photoCursor});
+   if(e||!Array.isArray(data))throw e||new Error('Invalid photo page');
+   const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),1800);
+   if(accountRef.current!==me||photoSeq.current!==seq)return;
+   setDb(old=>({...old,photos:appendUniqueRows(old.photos,data)}));
+   setPhotosUrls(old=>({...old,...Object.fromEntries(data.map(row=>[row.id,signed[row.storage_path]||null]))}));
+   setPhotoCursor(descendingRowCursor(data));
+   setPhotoHasMore(hasFullPage(data,PHOTO_PAGE_SIZE));
+   setPhotoLoadError('');
+ }catch{
+   if(accountRef.current===me&&photoSeq.current===seq)setPhotoLoadError('Weitere Fotos konnten nicht geladen werden.');
+ }finally{
+   if(accountRef.current===me&&photoSeq.current===seq)setPhotoBusyMore(false);
+ }
+}
+async function executePhoto(fn,success){
+ const ok=await execute(fn,success);
+ if(ok)setPhotoEpoch(x=>x+1);
+ return ok;
+}
+
 // Einmalige Begrüßung je Konto auf diesem Gerät. Ein erneuter Aufruf unter „Mehr“ ist jederzeit möglich.
 useEffect(()=>{
   let valid=true;
@@ -440,6 +501,16 @@ async function sendChatMessage(body,contactId){
  return true;
  }catch(e){setError(humanError(e));return false;}
  finally{chatSendingRef.current=false;setBusy(false);}
+}
+// Events refresh their own cursor and request status; do not reload every app list.
+async function executeEvent(fn,success){
+ if(eventActionRef.current)return false;
+ eventActionRef.current=true;setBusy(true);setError('');setNotice('');
+ try{
+  await fn();if(success)setNotice(success);
+  return true;
+ }catch(e){setError(humanError(e));return false;}
+ finally{eventActionRef.current=false;setBusy(false);}
 }
 async function execute(fn,success){
 if(busy)return;
@@ -579,7 +650,8 @@ return <SafeAreaView style={styles.screen}>
 <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined} keyboardVerticalOffset={0}>
 {detailFamily?<FamilyDetail p={db.profiles.find(p=>p.user_id===detailFamily)}
 imageUrl={photosUrls[photoOf(detailFamily)?.id]} photos={db.photos.filter(p=>p.owner_id===detailFamily&&p.moderation_status==='approved')}
-photosUrls={photosUrls} active={active} disabled={busy} blocked={blocked(detailFamily)}
+photosUrls={photosUrls} photoBusy={photoBusy} photoBusyMore={photoBusyMore} photoHasMore={photoHasMore} photoLoadError={photoLoadError} loadMorePhotos={loadMorePhotos} retryPhotos={()=>setPhotoEpoch(n=>n+1)}
+active={active} disabled={busy} blocked={blocked(detailFamily)}
 connection={db.contacts.find(c=>c.sender_id===detailFamily||c.recipient_id===detailFamily)}
 onContact={()=>sendRequest(detailFamily)} onBlock={()=>blockUser(detailFamily)} onUnblock={()=>unblockUser(detailFamily)}
 onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setChatReturnTab('discover');setDetailFamily(null);setSelectedContact(cid);setTab('chat');}}/>:
@@ -676,23 +748,30 @@ respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onU
 onChat={(id)=>{setChatReturnTab('contacts');setSelectedContact(id);setTab('chat');}}/>:
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
 onChat={(id)=>{setChatReturnTab('chat');setSelectedContact(id);}} hasMore={contactsMore} loadingMore={contactsLoadingMore} onLoadMore={loadMoreContacts}/>:
-tab==='events'?<EventsScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='events'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} events={db.events} eventRequests={db.eventRequests} me={me} active={active} busy={busy}
+tab==='events'?<EventsScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='events'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} me={me} active={active} busy={busy}
 profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
-createEvent={(event)=>execute(async()=>{
+createEvent={(event)=>executeEvent(async()=>{
   await moderateTextOrThrow([event.title,event.description,event.region_label]);
   assertResult(await supabase.from('events').insert({organizer_id:me,...event}));
 },'Termin eingereicht. Er wird vor Veröffentlichung geprüft.')}
-requestEvent={(id)=>execute(async()=>assertResult(await supabase.from('event_requests').insert({event_id:id,requester_id:me})),'Teilnahme angefragt.')}
-replyEvent={(id,requester,status)=>execute(async()=>assertResult(await supabase.from('event_requests').update({status}).eq('event_id',id).eq('requester_id',requester)),'Teilnahmestatus aktualisiert.')}
+requestEvent={(id)=>executeEvent(async()=>assertResult(await supabase.from('event_requests').insert({event_id:id,requester_id:me})),'Teilnahme angefragt.')}
+replyEvent={(id,requester,status)=>executeEvent(async()=>{
+ const {data,error:e}=await supabase.from('event_requests')
+  .update({status}).eq('event_id',id).eq('requester_id',requester)
+  .select('event_id,status').single();
+ if(e)throw e;
+ if(data?.status!==status)throw new Error('Teilnahmeanfrage konnte nicht aktualisiert werden.');
+},'Teilnahmestatus aktualisiert.')}
 reportEvent={(id)=>report('event',id)}/>:
 <ProfileScreen profile={myProfile} verification={verification} membership={membership} active={active}
 photos={ownPhotos} photosUrls={photosUrls} busy={busy}
+ photoBusy={photoBusy} photoBusyMore={photoBusyMore} photoHasMore={photoHasMore} photoLoadError={photoLoadError} loadMorePhotos={loadMorePhotos} retryPhotos={()=>setPhotoEpoch(n=>n+1)}
 save={(value)=>execute(async()=>{
   await moderateTextOrThrow([value.display_name,value.region_label,value.about]);
   assertResult(await supabase.from('profiles').update(value).eq('user_id',me));
 },'Profil gespeichert. Textänderungen benötigen eine neue Freigabe.')}
-uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,execute)}
-reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,execute)}
+uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,executePhoto)}
+reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,executePhoto)}
 blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
 </KeyboardAvoidingView>
@@ -2169,7 +2248,7 @@ mode==='cards'?<>
 <Text style={[styles.micro,{marginTop:17,textAlign:'center'}]}>Die Suche berücksichtigt bisher geladene Familien. Falls du nichts Passendes siehst, lade weitere Ergebnisse. „Meine Region“ nutzt freiwillige Regionsnamen und bekannte Landkreis-Zuordnungen, keine Kilometerentfernungen. Exakte Standorte werden nicht abgefragt.</Text>
 </ScrollView>;
 }
-function FamilyDetail({p,photos,photosUrls,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
+function FamilyDetail({p,photos,photosUrls,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,active,disabled,blocked,connection,onContact,onBlock,onUnblock,onReport,onChat}){
 if(!p)return <Blank title="Profil nicht verfügbar" body="Das Profil kann verborgen oder gesperrt worden sein."/>;
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 <Card style={{alignItems:'center',paddingTop:26}}><Avatar name={p.display_name} size={88} uri={photosUrls?.[photos?.[0]?.id]}/><Text style={[styles.h,{marginTop:12,textAlign:'center'}]}>{p.display_name}</Text><Text style={styles.sub}>⌖ {p.region_label||'Grobe Region nicht angegeben'}</Text><Text style={[styles.body,{textAlign:'center',marginTop:14}]}>{p.about||'Noch keine Beschreibung'}</Text>
@@ -2178,7 +2257,10 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 !blocked&&active?<Button title={connection?'Kontaktanfrage vorhanden':'Kontakt anfragen'} disabled={disabled||!!connection} onPress={onContact}/>:null}
 <Row style={{marginTop:12}}>{blocked?<Button title="Entsperren" mode="outline" small onPress={onUnblock}/>:<Button title="Blockieren" mode="outline" small onPress={onBlock}/>}<Button title="Melden" mode="ghost" small onPress={onReport}/></Row>
 </Card>
+{photoBusy?<ActivityIndicator color={C.accent}/>:null}
+{photoLoadError?<><Info warning>{photoLoadError}</Info><Button title="Fotos erneut laden" mode="outline" onPress={retryPhotos}/></>:null}
 {photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image accessibilityLabel={photo.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
+{photoHasMore?<Button title={photoBusyMore?'Weitere Bilder werden geladen …':'Weitere Familienbilder laden'} disabled={photoBusyMore} mode="outline" onPress={loadMorePhotos}/>:null}
 </ScrollView>;
 }
 function ContactsScreen({focusId,pending,accepted,me,nameOf,respond,blocked,disabled,onBlock,onUnblock,onChat,hasMore,loadingMore,onLoadMore}){
@@ -2323,17 +2405,141 @@ function FocusedEventStatus({focus,clearFocus}){
   {focus.status==='error'?<><Info warning>Veranstaltung konnte nicht geladen werden.</Info><Button title="Erneut versuchen" mode="outline" onPress={focus.retry}/></>:null}
  </View>;
 }
-function EventsScreen({focusId,clearFocus,events,eventRequests,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
+function EventPendingPanel({eventId,me,busy,profiles,replyEvent}){
+const [open,setOpen]=useState(false);
+const [rows,setRows]=useState([]);
+const [cursor,setCursor]=useState(null);
+const [hasMore,setHasMore]=useState(false);
+const [loading,setLoading]=useState(false);
+const [loadingMore,setLoadingMore]=useState(false);
+const [error,setError]=useState('');
+const [revision,setRevision]=useState(0);
+const seqRef=useRef(0);
+useEffect(()=>{
+ const seq=++seqRef.current;
+ if(!open)return()=>{seqRef.current++;};
+ let live=true;
+ setLoading(true);setLoadingMore(false);setRows([]);setHasMore(false);setCursor(null);setError('');
+ (async()=>{
+  const {data,error:e}=await supabase.rpc('ff_event_pending_page',
+    {p_event_id:eventId,p_limit:EVENT_PAGE_SIZE});
+  if(e||!Array.isArray(data))throw e||new Error('Ungültige Antwort');
+  if(!live||seqRef.current!==seq)return;
+  setRows(data);setCursor(descendingRowCursor(data,'requester_id'));setHasMore(hasFullPage(data,EVENT_PAGE_SIZE));
+ })().catch(()=>{if(live&&seqRef.current===seq)setError('Teilnahmeanfragen konnten nicht geladen werden.');})
+ .finally(()=>{if(live&&seqRef.current===seq)setLoading(false);});
+ return()=>{live=false;seqRef.current++;};
+},[eventId,me,open,revision]);
+async function loadMore(){
+ if(!cursor||!hasMore||loadingMore||loading)return;
+ const seq=seqRef.current;setLoadingMore(true);
+ try{
+  const {data,error:e}=await supabase.rpc('ff_event_pending_page',
+    {p_event_id:eventId,p_limit:EVENT_PAGE_SIZE,...cursor});
+  if(e||!Array.isArray(data))throw e||new Error('Ungültige Antwort');
+  if(seqRef.current!==seq)return;
+  setRows(old=>appendUniqueRows(old,data,'requester_id'));
+  setCursor(descendingRowCursor(data,'requester_id'));
+  setHasMore(hasFullPage(data,EVENT_PAGE_SIZE));
+  setError('');
+ }catch{if(seqRef.current===seq)setError('Weitere Anfragen konnten nicht geladen werden.');}
+ finally{if(seqRef.current===seq)setLoadingMore(false);}
+}
+async function respond(requesterId,status){
+ const ok=await replyEvent(eventId,requesterId,status);
+ if(ok)setRevision(n=>n+1);
+}
+return <View style={{marginTop:12}}>
+<Button title={open?'Teilnahmeanfragen schließen':'Teilnahmeanfragen anzeigen'} small mode="outline" onPress={()=>setOpen(x=>!x)}/>
+{open?<View style={{marginTop:10}}>
+{loading?<ActivityIndicator color={C.accent}/>:null}
+{error?<Info warning>{error}</Info>:null}
+{rows.length===0&&!loading&&!error?<Text style={styles.micro}>Keine offenen Anfragen.</Text>:null}
+{rows.map(r=><View key={r.requester_id} style={{marginTop:9}}>
+ <Text style={styles.body}>{profiles.find(p=>p.user_id===r.requester_id)?.display_name||'Anfragende Familie'}</Text>
+ <Row><Button title="Annehmen" small disabled={busy} onPress={()=>respond(r.requester_id,'approved')}/>
+ <Button title="Ablehnen" small mode="outline" disabled={busy} onPress={()=>respond(r.requester_id,'declined')}/></Row>
+</View>)}
+{hasMore?<Button title={loadingMore?'Weitere Anfragen werden geladen …':'Weitere Anfragen laden'} mode="outline" disabled={loadingMore} onPress={loadMore}/>:null}
+{error&&!loading?<Button title="Erneut versuchen" mode="outline" onPress={()=>setRevision(n=>n+1)}/>:null}
+</View>:null}
+</View>;
+}
+function EventsScreen({focusId,clearFocus,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
 const focus=useFocusedEvent('events',focusId,me);
+const [events,setEvents]=useState([]);
+const [myRequests,setMyRequests]=useState([]);
+const [focusedRequest,setFocusedRequest]=useState(null);
+const [focusedRequestBusy,setFocusedRequestBusy]=useState(false);
+const [focusedRequestError,setFocusedRequestError]=useState(false);
+const [cursor,setCursor]=useState(null);
+const [hasMore,setHasMore]=useState(false);
+const [loading,setLoading]=useState(true);
+const [loadingMore,setLoadingMore]=useState(false);
+const [loadError,setLoadError]=useState('');
+const [revision,setRevision]=useState(0);
+const seqRef=useRef(0);
 const [title,setTitle]=useState('');const [description,setDescription]=useState('');const [region,setRegion]=useState('');
 const [date,setDate]=useState('');const [time,setTime]=useState('15:00');const [count,setCount]=useState('10');const [visibility,setVisibility]=useState('community');
-const names=(uid)=>profiles.find(p=>p.user_id===uid)?.display_name||'Familie';
+async function ownRequestsFor(rows){
+ const ids=rows.map(row=>row.id).slice(0,EVENT_PAGE_SIZE);
+ if(!ids.length)return [];
+ const {data,error:e}=await supabase.rpc('ff_my_event_requests',{p_event_ids:ids});
+ if(e||!Array.isArray(data))throw e||new Error('Ungültiger Teilnahmestatus');
+ return data;
+}
+useEffect(()=>{
+ const seq=++seqRef.current;let live=true;
+ setEvents([]);setMyRequests([]);setHasMore(false);setCursor(null);setLoading(true);setLoadingMore(false);setLoadError('');
+ (async()=>{
+  const {data,error:e}=await supabase.rpc('ff_events_page',{p_limit:EVENT_PAGE_SIZE});
+  if(e||!Array.isArray(data))throw e||new Error('Ungültige Veranstaltungsliste');
+  const mine=await ownRequestsFor(data);
+  if(!live||seqRef.current!==seq)return;
+  setEvents(data);setMyRequests(mine);
+  setCursor(ascendingEventCursor(data));setHasMore(hasFullPage(data,EVENT_PAGE_SIZE));
+ })().catch(()=>{if(live&&seqRef.current===seq)setLoadError('Veranstaltungen konnten nicht geladen werden.');})
+ .finally(()=>{if(live&&seqRef.current===seq)setLoading(false);});
+ return()=>{live=false;seqRef.current++;};
+},[me,revision]);
+useEffect(()=>{
+ let live=true;
+ setFocusedRequest(null);setFocusedRequestError(false);
+ setFocusedRequestBusy(!!focusId&&!!focus.row?.id);
+ if(focusId&&focus.row?.id){
+   supabase.rpc('ff_my_event_requests',{p_event_ids:[focus.row.id]})
+     .then(({data,error:e})=>{
+       if(e)throw e;
+       if(live)setFocusedRequest(Array.isArray(data)?data[0]||null:null);
+     }).catch(()=>{if(live){setFocusedRequest(null);setFocusedRequestError(true);}})
+     .finally(()=>{if(live)setFocusedRequestBusy(false);});
+ }
+ return()=>{live=false;};
+},[focusId,focus.row?.id,me,revision]);
+async function loadMoreEvents(){
+ if(!cursor||!hasMore||loadingMore||loading)return;
+ const seq=seqRef.current;setLoadingMore(true);setLoadError('');
+ try{
+  const {data,error:e}=await supabase.rpc('ff_events_page',{p_limit:EVENT_PAGE_SIZE,...cursor});
+  if(e||!Array.isArray(data))throw e||new Error('Ungültige Veranstaltungsliste');
+  const mine=await ownRequestsFor(data);
+  if(seqRef.current!==seq)return;
+  setEvents(old=>appendUniqueRows(old,data));
+  setMyRequests(old=>appendUniqueRows(old,mine,'event_id'));
+  setCursor(ascendingEventCursor(data));setHasMore(hasFullPage(data,EVENT_PAGE_SIZE));
+ }catch{if(seqRef.current===seq)setLoadError('Weitere Veranstaltungen konnten nicht geladen werden.');}
+ finally{if(seqRef.current===seq)setLoadingMore(false);}
+}
 async function submit(){
-if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time))return Alert.alert('Termin prüfen','Bitte Datum als JJJJ-MM-TT und Zeit als HH:MM eingeben.');
-const start=givenDate(date,time);const max=parseInt(count,10);
-if(!start||start<=new Date()||title.trim().length<4||max<2||max>50)return Alert.alert('Bitte prüfen','Titel, zukünftigen Beginn und Teilnehmerzahl (2–50) korrigieren.');
-const ok=await createEvent({title:safeString(title,100),description:safeString(description,1000),region_label:safeString(region,80),starts_at:start.toISOString(),ends_at:new Date(start.getTime()+2*60*60*1000).toISOString(),max_participants:max,visibility});
-if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');}
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time))return Alert.alert('Termin prüfen','Bitte Datum als JJJJ-MM-TT und Zeit als HH:MM eingeben.');
+ const start=givenDate(date,time);const max=parseInt(count,10);
+ if(!start||start<=new Date()||title.trim().length<4||max<2||max>50)return Alert.alert('Bitte prüfen','Titel, zukünftigen Beginn und Teilnehmerzahl (2–50) korrigieren.');
+ const ok=await createEvent({title:safeString(title,100),description:safeString(description,1000),region_label:safeString(region,80),starts_at:start.toISOString(),ends_at:new Date(start.getTime()+2*60*60*1000).toISOString(),max_participants:max,visibility});
+ if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');setRevision(n=>n+1);}
+}
+async function requestAndRefresh(id){
+ const ok=await requestEvent(id);
+ if(ok)setRevision(n=>n+1);
 }
 const upcoming=focusId?(focus.row?[focus.row]:[]):events.filter(e=>new Date(e.ends_at)>new Date());
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -2352,24 +2558,30 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </Card>:null}
 <Text style={[styles.sectionTitle,{marginTop:22}]}>Anstehende Treffen</Text>
 {focusId?<FocusedEventStatus focus={focus} clearFocus={clearFocus}/>:null}
-{upcoming.length===0?(focusId?null:<Blank title="Noch keine Treffen" body="Neue Aktivitäten erscheinen hier nach Freigabe."/>):upcoming.map(e=>{
-const self=e.organizer_id===me;const request=eventRequests.find(x=>x.event_id===e.id&&x.requester_id===me);
-const pending=eventRequests.filter(x=>x.event_id===e.id&&x.status==='requested');
-return <Card key={e.id} style={{marginBottom:12}}>
-<Text style={styles.eyebrow}>▦ {formatDate(e.starts_at)}</Text><Text style={[styles.cardTitle,{fontSize:19,marginTop:5}]}>{e.title}</Text>
-<Text style={[styles.sub,{marginTop:7}]}>{e.description||'Gemeinsames Familientreffen'}</Text>
-<Text style={[styles.micro,{marginTop:10}]}>⌖ {e.region_label||'Region nach Absprache'} · max. {e.max_participants} Personen</Text>
-{e.moderation_status==='approved'&&new Date(e.ends_at)>new Date()?<CalendarEventButton userId={me} kind="family" id={e.id}/>:null}
-{self?<Info warning>{e.moderation_status==='pending'?'Dein Termin wartet auf Freigabe.':'Du organisierst diesen Termin.'}</Info>:
-request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request.status==='requested'?'angefragt':request.status==='declined'?'abgelehnt':'zurückgezogen'}</Info>:
-<Button title="Teilnahme anfragen" disabled={busy||!active} small style={{marginTop:12}} onPress={()=>requestEvent(e.id)}/>}
-{self&&pending.length>0?<View style={{marginTop:12}}><Text style={styles.label}>Teilnahmeanfragen</Text>{pending.map(r=><View key={r.requester_id} style={{marginTop:9}}><Text style={styles.body}>{names(r.requester_id)}</Text><Row><Button title="Annehmen" small disabled={busy} onPress={()=>replyEvent(e.id,r.requester_id,'approved')}/><Button title="Ablehnen" small mode="outline" disabled={busy} onPress={()=>replyEvent(e.id,r.requester_id,'declined')}/></Row></View>)}</View>:null}
-{!self?<Pressable accessibilityRole="button" accessibilityLabel="Veranstaltung melden" onPress={()=>reportEvent(e.id)} style={{marginTop:12,minHeight:44,justifyContent:'center'}}><Text style={styles.micro}>⚑ Veranstaltung melden</Text></Pressable>:null}
-</Card>;
+{!focusId&&loading?<ActivityIndicator color={C.accent}/>:null}
+{!focusId&&loadError?<Info warning>{loadError}</Info>:null}
+{!focusId&&loadError&&events.length===0?<Button title="Erneut versuchen" mode="outline" onPress={()=>setRevision(n=>n+1)}/>:null}
+{upcoming.length===0&&!loading&&!loadError?(focusId?null:<Blank title="Noch keine Treffen" body="Neue Aktivitäten erscheinen hier nach Freigabe."/>):upcoming.map(e=>{
+ const self=e.organizer_id===me;
+ const request=(focusId&&focus.row?.id===e.id?focusedRequest:null)||myRequests.find(x=>x.event_id===e.id&&x.requester_id===me);
+ return <Card key={e.id} style={{marginBottom:12}}>
+ <Text style={styles.eyebrow}>▦ {formatDate(e.starts_at)}</Text><Text style={[styles.cardTitle,{fontSize:19,marginTop:5}]}>{e.title}</Text>
+ <Text style={[styles.sub,{marginTop:7}]}>{e.description||'Gemeinsames Familientreffen'}</Text>
+ <Text style={[styles.micro,{marginTop:10}]}>⌖ {e.region_label||'Region nach Absprache'} · max. {e.max_participants} Personen</Text>
+ {e.moderation_status==='approved'&&new Date(e.ends_at)>new Date()?<CalendarEventButton userId={me} kind="family" id={e.id}/>:null}
+ {self?<Info warning>{e.moderation_status==='pending'?'Dein Termin wartet auf Freigabe.':'Du organisierst diesen Termin.'}</Info>:
+ focusId&&focusedRequestBusy?<Info>Teilnahmestatus wird geladen …</Info>:
+ focusId&&focusedRequestError?<Info warning>Teilnahmestatus derzeit nicht verfügbar. Bitte den Termin erneut öffnen.</Info>:
+ request?<Info>Deine Teilnahme: {request.status==='approved'?'bestätigt':request.status==='requested'?'angefragt':request.status==='declined'?'abgelehnt':'zurückgezogen'}</Info>:
+ <Button title="Teilnahme anfragen" disabled={busy||!active} small style={{marginTop:12}} onPress={()=>requestAndRefresh(e.id)}/>}
+ {self?<EventPendingPanel eventId={e.id} me={me} busy={busy} profiles={profiles} replyEvent={replyEvent}/>:null}
+ {!self?<Pressable accessibilityRole="button" accessibilityLabel="Veranstaltung melden" onPress={()=>reportEvent(e.id)} style={{marginTop:12,minHeight:44,justifyContent:'center'}}><Text style={styles.micro}>⚑ Veranstaltung melden</Text></Pressable>:null}
+ </Card>;
 })}
+{!focusId&&hasMore?<Button title={loadingMore?'Weitere Veranstaltungen werden geladen …':'Weitere Veranstaltungen laden'} mode="outline" disabled={loadingMore} onPress={loadMoreEvents}/>:null}
 </ScrollView>;
 }
-function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
+function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
 const [form,setForm]=useState(blankProfile);
 const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
@@ -2463,12 +2675,15 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </View>:<Text style={[styles.micro,{marginTop:10}]}>
   Nach der Fotoauswahl kannst du eine Beschreibung ergänzen und beides zusammen einreichen.
 </Text>}
+{photoBusy?<ActivityIndicator color={C.accent}/>:null}
+{photoLoadError?<><Info warning>{photoLoadError}</Info><Button title="Fotos erneut laden" mode="outline" onPress={retryPhotos}/></>:null}
 <View style={[styles.photoGrid,{marginTop:15}]}>{photos.map(p=><Card key={p.id} style={styles.photoCard}>
 {photosUrls[p.id]?<Image accessibilityLabel={p.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
 <Text style={styles.micro} numberOfLines={2}>{p.caption||'Profilbild'}</Text><Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'Freigegeben':p.moderation_status==='pending'?'In Prüfung':'Abgelehnt'}</Text>
 <Button title="Löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
 </Card>)}</View>
-{photos.length===0?<Text style={[styles.micro,{marginTop:10}]}>Noch keine Bilder hochgeladen.</Text>:null}
+{!photoBusy&&photos.length===0&&!photoLoadError?<Text style={[styles.micro,{marginTop:10}]}>Noch keine Bilder hochgeladen.</Text>:null}
+{photoHasMore?<Button title={photoBusyMore?'Weitere Fotos werden geladen …':'Weitere Profilfotos laden'} mode="outline" disabled={photoBusyMore} onPress={loadMorePhotos}/>:null}
 </Card>
 </>:null}
 {profileSection==='security'?<><Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Sicherheit und Einstellungen</Text>

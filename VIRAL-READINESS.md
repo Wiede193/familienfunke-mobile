@@ -49,12 +49,11 @@ Kapazität**. Der aktuell angebundene Supabase-Datenbestand ist eine kleine Beta
    Login, Discovery, Chat, Basarsuche, Bilder, Push und Meldungen.
    Zielwerte vor dem Test vereinbaren (z. B. p95 für Lesen <2s und Fehler <1%
    ohne absichtliche Quota-429); keine echten Nutzer-/Privatfotos kopieren.
-2. **Restliche Abfragen optimieren:** Familien-, Kontakt- und Chatbereiche sind
-   jetzt cursor-paginiert. **Nicht vollständig optimiert** sind u. a. öffentliche
-   Veranstaltungen, Teilnahmeanfragen, Profilfotolisten, eigene Inserate,
-   Partner- und Organisationslisten. Die anfänglichen festen Grenzen können
-   bei großen Datenbeständen weiterhin Einträge verbergen. Pro Bereich unter
-   RLS nutzerspezifisch filtern, nachladen und auf echten Geräten testen.
+2. **Restliche Abfragen optimieren:** Die Hauptbereiche Familie, Kontakte,
+   Chat, Veranstaltungen, Teilnahme und Profilfotos sind jetzt seitenweise
+   abrufbar. Eigene Inserate, Partner- und Organisationslisten sowie einzelne
+   Nebenbereiche haben weiterhin feste Grenzen und müssen vor Launch
+   nutzerspezifisch gefiltert und auf echten Geräten geprüft werden.
 3. **Supabase-Kapazität und Kosten:** Datenbank-Compute, Pooler/Verbindungslimits,
    API-Raten, Speicher-Bandbreite, CDN und Egress am tatsächlichen Tarif prüfen.
    Bei Bedarf Budgetalarm, Upgrade und getrennte Staging-Umgebung einrichten.
@@ -84,6 +83,29 @@ Security-Definer-Funktionen: diese dürfen nicht pauschal entzogen werden,
 weil ihre Berechtigungen Bestandteil der App- und Adminlogik sind; pro Funktion
 müssen Auth-Prüfungen und EXECUTE-Rechte geprüft werden. Aktivierung der
 Supabase-Prüfung auf kompromittierte Passwörter ist ein Dashboard-Schritt.
+
+## Phase 3 – Veranstaltungen, Zusagen und private Fotos
+
+- Veranstaltungen werden nicht mehr beim Start geladen. Der separate
+  Ereignisbereich verwendet `ff_events_page`: 20 Termine pro Seite, Cursor
+  `(starts_at,id)`, unter den bestehenden Veranstaltungs-RLS-Regeln.
+- Der Status der eigenen Teilnahmeanfragen wird pro sichtbarem Batch
+  abgefragt. Organisatoren öffnen ausstehende Anfragen explizit und laden sie
+  in 20er-Schritten nach. Keine systemweite Liste mit fremden Antworten.
+- Persönliche Profilfotos werden nur für das tatsächlich geöffnete Profil
+  (eigenes Profil oder ausgewählte Familie) geladen, ebenfalls in 20er-Seiten.
+  Private Bilder werden über kurzlebige, signierte Links angezeigt.
+- Änderungen an eigenen Fotos aktualisieren nur die Fotoansicht; Aktionen
+  innerhalb des Veranstaltungsbereichs lösen keinen vollständigen Startabruf
+  aller App-Daten mehr aus.
+- Vier neue SQL-RPCs verwenden `SECURITY INVOKER`, `anon` hat keine
+  EXECUTE-Rechte; bestehende RLS bestimmt die tatsächlich sichtbaren Zeilen.
+
+**Offen:** Die Liste eigener Basar-Inserate hat noch eine feste Grenze von
+160 Einträgen. Auch Organisationen, Partnerveranstaltungen, Blocklisten
+und Favoriten müssen weiter gezielt geprüft und optimiert werden.
+Geräte-Integrationstests, Testdaten in größerer Menge sowie ein gestufter
+Lasttest fehlen weiterhin.
 
 ## Status Phase 2
 
