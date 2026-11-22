@@ -14,6 +14,17 @@ Kapazität**. Der aktuell angebundene Supabase-Datenbestand ist eine kleine Beta
   Inserat-IDs abgefragt statt pauschal aus der gesamten Datenbank.
 - Basarsuche: Bereits paginierte Suche (40 Treffer pro Seite) nutzt die
   gebündelte Signierung auch für Zusatzfotos.
+- **Phase 2 (22.11.2026):** Familiensuche und Kontaktliste laden mit stabilen
+  Zeitstempel-/ID-Cursorn 40 Datensätze pro Seite. Benachrichtigungen können
+  ältere Kontakte gezielt nachladen. Kontakt-Anzeigenamen werden getrennt und
+  ausschließlich innerhalb bestehender RLS-Rechte angefragt.
+- **Privater Chat:** Kein globales Einlesen von Nachrichten beim App-Start.
+  Der Verlauf wird erst beim Öffnen des ausgewählten Gesprächs in 40er-Seiten
+  geladen; weitere alte Nachrichten nur nach ausdrücklicher Auswahl.
+  Vorschautexte erscheinen weiterhin in der Chatliste, aus einer separaten
+  geschützten, gebündelten Abfrage (bis 50 Kontakte pro Aufruf).
+- **Chat-Versand:** Nach einer gesendeten Nachricht wird nur das betroffene
+  Gespräch aktualisiert statt alle App-Listen erneut einzulesen.
 - Sicherheitsgrenze: Storage-RLS und kurze Ablaufzeit signierter URLs bleiben
   unverändert. Fehlerhafte bzw. nicht erlaubte Bilder liefern keinen Link.
 - CI-Regressionsprüfungen für Batching, Fehler, Parallelität und SQL/Abfrageform.
@@ -38,11 +49,12 @@ Kapazität**. Der aktuell angebundene Supabase-Datenbestand ist eine kleine Beta
    Login, Discovery, Chat, Basarsuche, Bilder, Push und Meldungen.
    Zielwerte vor dem Test vereinbaren (z. B. p95 für Lesen <2s und Fehler <1%
    ohne absichtliche Quota-429); keine echten Nutzer-/Privatfotos kopieren.
-2. **Abfragen umstellen:** Start lädt derzeit bis zu 150 Profile, 200 Kontakte,
-   300 Chat-Nachrichten, 160 Inserate und weitere Listen. Das sind Grenzen
-   gegen unendliche Antworten, aber **keine echte Cursor-Paginierung** für alle
-   Bereiche. Bei größeren Nutzerzahlen wären Profile/Kontakte unvollständig.
-   Serverseitig pro berechtigtem Nutzer filtern und pro Bereich nachladen.
+2. **Restliche Abfragen optimieren:** Familien-, Kontakt- und Chatbereiche sind
+   jetzt cursor-paginiert. **Nicht vollständig optimiert** sind u. a. öffentliche
+   Veranstaltungen, Teilnahmeanfragen, Profilfotolisten, eigene Inserate,
+   Partner- und Organisationslisten. Die anfänglichen festen Grenzen können
+   bei großen Datenbeständen weiterhin Einträge verbergen. Pro Bereich unter
+   RLS nutzerspezifisch filtern, nachladen und auf echten Geräten testen.
 3. **Supabase-Kapazität und Kosten:** Datenbank-Compute, Pooler/Verbindungslimits,
    API-Raten, Speicher-Bandbreite, CDN und Egress am tatsächlichen Tarif prüfen.
    Bei Bedarf Budgetalarm, Upgrade und getrennte Staging-Umgebung einrichten.
@@ -72,3 +84,10 @@ Security-Definer-Funktionen: diese dürfen nicht pauschal entzogen werden,
 weil ihre Berechtigungen Bestandteil der App- und Adminlogik sind; pro Funktion
 müssen Auth-Prüfungen und EXECUTE-Rechte geprüft werden. Aktivierung der
 Supabase-Prüfung auf kompromittierte Passwörter ist ein Dashboard-Schritt.
+
+## Status Phase 2
+
+Backend-RPCs mit `SECURITY INVOKER` und ausschließlich `authenticated`-EXECUTE
+sind im bestehenden Supabase-Projekt installiert. Der GitHub-Änderungssatz
+enthält Client-Code und Tests. **Keine Freigabe für einen viralen Launch ohne
+Lasttests, Prüfung im realen Mobilgerät und ausreichende Infrastruktur.**
