@@ -36,6 +36,8 @@ jobs:
         run: node tests/check-home-highlights.mjs
       - name: Familienrunden und sicheres Teilen prüfen
         run: node tests/check-family-rounds.mjs
+      - name: Begrenzte Startabfragen bei gleichzeitigen Anmeldungen prüfen
+        run: node tests/check-startup-concurrency.mjs
       - name: KI-Startseite Navigation und Datenschutz prüfen
         run: npm run check:home
       - name: Kontobezogene Layout-Synchronisierung und RLS-Verträge prüfen

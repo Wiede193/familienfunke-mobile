@@ -16,6 +16,7 @@ import {FAMILY_COLORS} from './FamilyTheme';
 import FamilyGuideScreen from './FamilyGuide';
 import HomeAssistant from './HomeAssistant';
 import {selectHomeHighlights} from './HomePersonalization';
+import {runBoundedQueries} from './StartupQueryScheduler';
 import {newFamilyRoundDraft,publicMeetingShareText} from './FamilyRoundModel';
 import {FamilyLocaleProvider,useFamilyLocale} from './FamilyLocale';
 import {marketSearchQuery} from './MarketLocaleSearch';
@@ -230,23 +231,23 @@ const seq=++loadSequence.current;
 const current=()=>accountRef.current===me&&loadSequence.current===seq;
 if(!silent)setLoading(true);
 try {
-const queries=await Promise.all([
-supabase.from('profiles').select('*').neq('user_id',me).limit(150),
-supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('contact_requests').select('*').order('created_at',{ascending:false}).limit(200),
-supabase.from('messages').select('*').order('created_at',{ascending:false}).limit(300),
-supabase.from('events').select('*').gt('ends_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(150),
-supabase.from('event_requests').select('*').limit(200),
-supabase.from('profile_photos').select('*').order('created_at',{ascending:false}).limit(100),
-supabase.from('blocks').select('*').limit(200),
-supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('ff_market_listings').select('*').order('created_at',{ascending:false}).limit(160),
-supabase.from('ff_market_photos').select('*').order('slot',{ascending:true}).limit(800),
-supabase.from('ff_market_favorites').select('*').eq('user_id',me).limit(800),
-supabase.from('ff_organizations').select('*').order('created_at',{ascending:false}).limit(100),
-supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(100),
-]);
+const queries=await runBoundedQueries([
+()=>supabase.from('profiles').select('*').neq('user_id',me).limit(150),
+()=>supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),
+()=>supabase.from('contact_requests').select('*').order('created_at',{ascending:false}).limit(200),
+()=>supabase.from('messages').select('*').order('created_at',{ascending:false}).limit(300),
+()=>supabase.from('events').select('*').gt('ends_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(150),
+()=>supabase.from('event_requests').select('*').limit(200),
+()=>supabase.from('profile_photos').select('*').order('created_at',{ascending:false}).limit(100),
+()=>supabase.from('blocks').select('*').limit(200),
+()=>supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
+()=>supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
+()=>supabase.from('ff_market_listings').select('*').order('created_at',{ascending:false}).limit(160),
+()=>supabase.from('ff_market_photos').select('*').order('slot',{ascending:true}).limit(800),
+()=>supabase.from('ff_market_favorites').select('*').eq('user_id',me).limit(800),
+()=>supabase.from('ff_organizations').select('*').order('created_at',{ascending:false}).limit(100),
+()=>supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(100),
+],4);
 if(!current())return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
