@@ -29,6 +29,7 @@ import FamilyGuideScreen from './FamilyGuide';
 import InclusionKnowledgeScreen from './InclusionKnowledgeScreen';
 import HomeAssistant from './HomeAssistant';
 import FamilyCalendar,{CalendarEventButton} from './FamilyCalendar';
+import OfficialFamilyEvents from './OfficialFamilyEvents';
 import FamilyPlayScreen from './FamilyPlayScreen';
 import SavedMarketSearches,{saveMarketSearch} from './SavedMarketSearches';
 import PriceAlertPreference from './PriceAlertPreference';
@@ -3060,6 +3061,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Text style={styles.label}>Wer soll den Termin sehen?</Text><Row style={{marginBottom:15}}><Chip text="Alle geprüften Familien" selected={visibility==='community'} onPress={()=>setVisibility('community')}/><Chip text="Nur Kontakte" selected={visibility==='contacts'} onPress={()=>setVisibility('contacts')}/></Row>
 <Button title="Zur Freigabe einreichen" disabled={busy} onPress={submit}/>
 </Card>:null}
+{!focusId?<OfficialFamilyEvents userId={me}/>:null}
 <Text style={[styles.sectionTitle,{marginTop:22}]}>Anstehende Treffen</Text>
 {focusId?<FocusedEventStatus focus={focus} clearFocus={clearFocus}/>:null}
 {!focusId&&loading?<ActivityIndicator color={C.accent}/>:null}
