@@ -15,4 +15,6 @@ assert.ok(app.includes("setDb(old=>({...old,contacts:appendUniqueRows([older],ol
 assert.ok(app.includes('send={(body)=>sendChatMessage(body,selectedContact)}'),'Sending one chat message must not refresh the entire app');
 assert.ok(!app.includes("send={(body)=>execute(async"),'Chat sends must not invoke global refresh');
 assert.ok(app.includes("scrollToEnd({animated:false})"),'Chat should show newest messages');
+assert.ok(app.includes("supabase.rpc('ff_chat_previews'"),'Last message summaries must be lazy and batched');
+assert.ok(app.includes("previews[c.id]||'Noch keine Nachrichten'"),'Keep message previews in chat list');
 console.log('Scoped social loading static checks passed');
