@@ -9,6 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
+import { signPhotoPaths } from './SignedPhotoUrls';
 import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WelcomeIntro from './WelcomeIntro';
@@ -227,7 +228,8 @@ if(!me||!supabase)return;
 if(!silent)setLoading(true);
 try {
 const queries=await Promise.all([
-supabase.from('profiles').select('*').limit(150),
+supabase.from('profiles').select('*').eq('is_discoverable',true).eq('moderation_status','approved').order('created_at',{ascending:false}).limit(150),
+ supabase.from('profiles').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('contact_requests').select('*').order('created_at',{ascending:false}).limit(200),
 supabase.from('messages').select('*').order('created_at',{ascending:false}).limit(300),
 supabase.from('events').select('*').gt('ends_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(150),
@@ -236,8 +238,7 @@ supabase.from('profile_photos').select('*').order('created_at',{ascending:false}
 supabase.from('blocks').select('*').limit(200),
 supabase.from('verifications').select('*').eq('user_id',me).maybeSingle(),
 supabase.from('memberships').select('*').eq('user_id',me).maybeSingle(),
-supabase.from('ff_market_listings').select('*').order('created_at',{ascending:false}).limit(160),
-supabase.from('ff_market_photos').select('*').order('slot',{ascending:true}).limit(800),
+supabase.from('ff_market_listings').select('*').eq('seller_id',me).order('created_at',{ascending:false}).limit(160),
 supabase.from('ff_market_favorites').select('*').eq('user_id',me).limit(800),
 supabase.from('ff_organizations').select('*').order('created_at',{ascending:false}).limit(100),
 supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOString()).order('starts_at',{ascending:true}).limit(100),
@@ -245,33 +246,31 @@ supabase.from('ff_partner_events').select('*').gt('starts_at',new Date().toISOSt
 if(accountRef.current!==me)return null;
 const firstError=queries.find(x=>x.error)?.error;
 if(firstError)throw firstError;
-const [profiles,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketPhotos,marketFavorites,organizations,partnerEvents]=queries;
-const profileRow=profiles.data.find(p=>p.user_id===me)||null;
-setDb({profiles:profiles.data||[],contacts:contacts.data||[],messages:messages.data||[],
+const [profiles,ownProfile,contacts,messages,events,eventRequests,photos,blocks,verificationRow,membershipRow,listings,marketFavorites,organizations,partnerEvents]=queries;
+ const visibleListingIds=(listings.data||[]).map(row=>row.id);
+ const marketPhotos=visibleListingIds.length
+   ? await supabase.from('ff_market_photos').select('*').in('listing_id',visibleListingIds).order('slot',{ascending:true}).limit(800)
+   : {data:[],error:null};
+ if(marketPhotos.error)throw marketPhotos.error;
+ if(accountRef.current!==me)return null;
+const profileRow=ownProfile.data||profiles.data.find(p=>p.user_id===me)||null;
+setDb({profiles:profileRow?[profileRow,...(profiles.data||[]).filter(p=>p.user_id!==me)]:(profiles.data||[]),contacts:contacts.data||[],messages:messages.data||[],
 events:events.data||[],eventRequests:eventRequests.data||[],photos:photos.data||[],blocks:blocks.data||[],
 listings:listings.data||[],marketPhotos:marketPhotos.data||[],marketFavorites:marketFavorites.data||[],organizations:organizations.data||[],partnerEvents:partnerEvents.data||[]});
 setMyProfile(profileRow);setVerification(verificationRow.data);setMembership(membershipRow.data);
 setError('');
-const images=await Promise.all((photos.data||[]).map(async(p)=>{
-try {const {data,error:e}=await supabase.storage.from('familienfunke-photos').createSignedUrl(p.storage_path,1800);
-return [p.id,e?null:data?.signedUrl||null];} catch {return [p.id,null];}
-}));
-if(accountRef.current!==me)return null;
-setPhotosUrls(Object.fromEntries(images));
-const marketImages=await Promise.all((listings.data||[]).filter(x=>x.photo_path).map(async(x)=>{
- try {const {data,error:e}=await supabase.storage.from('ff-market-photos').createSignedUrl(x.photo_path,600);return [x.id,e?null:data?.signedUrl||null];}
- catch{return [x.id,null];}
-}));
-if(accountRef.current!==me)return null;
-setMarketPhotoUrls(Object.fromEntries(marketImages));
-const extraImages=await Promise.all((marketPhotos.data||[]).map(async(p)=>{
- try{
-   const {data,error:e}=await supabase.storage.from('ff-market-photos').createSignedUrl(p.photo_path,600);
-   return [p.photo_path,e?null:data?.signedUrl||null];
- }catch{return [p.photo_path,null];}
-}));
-if(accountRef.current!==me)return null;
-setMarketExtraPhotoUrls(Object.fromEntries(extraImages));
+const profileSigned=await signPhotoPaths(supabase,'familienfunke-photos',(photos.data||[]).map(row=>row.storage_path),1800);
+ if(accountRef.current!==me)return null;
+ setPhotosUrls(Object.fromEntries((photos.data||[]).map(row=>[row.id,profileSigned[row.storage_path]||null])));
+ const marketSigned=await signPhotoPaths(supabase,'ff-market-photos',[
+   ...(listings.data||[]).map(row=>row.photo_path),
+   ...(marketPhotos.data||[]).map(row=>row.photo_path),
+ ],600);
+ if(accountRef.current!==me)return null;
+ setMarketPhotoUrls(Object.fromEntries((listings.data||[]).filter(row=>row.photo_path)
+   .map(row=>[row.id,marketSigned[row.photo_path]||null])));
+ setMarketExtraPhotoUrls(Object.fromEntries((marketPhotos.data||[])
+   .map(row=>[row.photo_path,marketSigned[row.photo_path]||null])));
 return {contacts:contacts.data||[],listings:listings.data||[]};
 } catch(e){if(accountRef.current===me)setError(humanError(e));return null;}
 finally{if(accountRef.current===me)setLoading(false);}
@@ -1014,10 +1013,6 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
         if(!Array.isArray(data))throw new Error('Ungültige Suchantwort');
         const records=(buyerFocus?data.map(listing=>({listing})):data).map(row=>({...row.listing,match_item:row.match_item||''}))
           .filter(row=>!!row.id&&row.moderation_status==='approved');
-        const images=await Promise.all(records.filter(row=>row.photo_path).map(async row=>{
-          const {data:link,error:photoError}=await supabase.storage.from('ff-market-photos').createSignedUrl(row.photo_path,600);
-          return [row.id,photoError?null:link?.signedUrl||null];
-        }));
         const ids=records.map(row=>row.id);
         let extras=[];
         if(ids.length){
@@ -1025,11 +1020,12 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,favorit
             .select('*').in('listing_id',ids).order('slot',{ascending:true});
           if(!photosError)extras=photos||[];
         }
-        const extraLinks=await Promise.all(extras.map(async p=>{
-          const {data:link,error:photoError}=await supabase.storage.from('ff-market-photos').createSignedUrl(p.photo_path,600);
-          return [p.photo_path,photoError?null:link?.signedUrl||null];
-        }));
-        if(!live||seq!==searchSeq.current)return;
+        const signed=await signPhotoPaths(supabase,'ff-market-photos',[
+           ...records.map(row=>row.photo_path),...extras.map(row=>row.photo_path),
+         ],600);
+         const images=records.filter(row=>row.photo_path).map(row=>[row.id,signed[row.photo_path]||null]);
+         const extraLinks=extras.map(row=>[row.photo_path,signed[row.photo_path]||null]);
+         if(!live||seq!==searchSeq.current)return;
         setRemoteListings(old=>searchPage===0?records:[
           ...old,...records.filter(row=>!old.some(existing=>existing.id===row.id))
         ]);
