@@ -6,4 +6,6 @@ assert.ok(!src.includes('.createSignedUrl('),'Avoid per-image HTTP fanout');
 assert.ok(src.includes(".in('listing_id',visibleListingIds)"));
 assert.ok(!src.includes("supabase.from('ff_market_photos').select('*').order('slot'"));
 assert.ok(src.includes("const signed=await signPhotoPaths(supabase,'ff-market-photos'"));
+assert.ok(src.includes("supabase.from('ff_market_listings').select('*').eq('seller_id',me)"),'No global listing feed on initial app load');
+assert.ok(src.includes("supabase.from('profiles').select('*').eq('user_id',me).maybeSingle()"),'Own profile must not be lost in discovery paging');
 console.log('Viral readiness static checks passed');
