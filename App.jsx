@@ -1003,7 +1003,7 @@ replyEvent={(id,requester,status)=>executeEvent(async()=>{
  if(data?.status!==status)throw new Error('Teilnahmeanfrage konnte nicht aktualisiert werden.');
 },'Teilnahmestatus aktualisiert.')}
 reportEvent={(id)=>report('event',id)}/>:
-<ProfileScreen profile={myProfile} verification={verification} membership={membership} active={active}
+<ProfileScreen userId={me} profile={myProfile} verification={verification} membership={membership} active={active}
 photos={ownPhotos} photosUrls={photosUrls} busy={busy}
  photoBusy={photoBusy} photoBusyMore={photoBusyMore} photoHasMore={photoHasMore} photoLoadError={photoLoadError} loadMorePhotos={loadMorePhotos} retryPhotos={()=>setPhotoEpoch(n=>n+1)}
 save={(value)=>execute(async()=>{
@@ -2719,7 +2719,7 @@ function ChatList({contacts,me,nameOf,onChat,blocked,hasMore,loadingMore,onLoadM
   },[me,idsKey,previewRetry]);
 
   return <FlatList style={styles.scroll} contentContainerStyle={styles.content}
-    data={contacts} keyExtractor={c=>c.id} initialNumToRender={12}
+    data={contacts} extraData={previews} keyExtractor={c=>c.id} initialNumToRender={12}
     maxToRenderPerBatch={12} windowSize={7}
     ListHeaderComponent={<>
       <H sub="Persönlich und privat – nur mit bestätigten Familien.">Nachrichten</H>
@@ -3019,7 +3019,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 {!focusId&&hasMore?<Button title={loadingMore?'Weitere Veranstaltungen werden geladen …':'Weitere Veranstaltungen laden'} mode="outline" disabled={loadingMore} onPress={loadMoreEvents}/>:null}
 </ScrollView>;
 }
-function ProfileScreen({profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
+function ProfileScreen({userId,profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
 const [form,setForm]=useState(blankProfile);
 const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
@@ -3128,7 +3128,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Button title="Elternwissen öffnen" mode="outline" onPress={openInfo}/>
 <Text style={[styles.label,{marginTop:18}]}>Passwort ändern</Text><Input label="Neues Passwort (mindestens 12 Zeichen)" value={newPassword} onChangeText={setNewPassword} secureTextEntry autoCapitalize="none"/>
 <Button title="Passwort ändern" small mode="outline" disabled={busy||newPassword.length<12} onPress={updatePassword}/>
-<BlockedAccountsPanel userId={profile?.user_id} disabled={busy} onUnblock={onUnblock}/>
+<BlockedAccountsPanel userId={userId} disabled={busy} onUnblock={onUnblock}/>
 <View style={{height:16}}/><Button title="Abmelden" mode="ghost" onPress={signOut}/>
 </Card>
 </>:null}
