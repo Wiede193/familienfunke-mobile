@@ -28,3 +28,6 @@ Die Karten-/Karten-Screenreader-Tests prüfen jetzt dynamische lokalisierte Labe
 Mini-Spiele (Paare, Drei gewinnt, Zahlenfolgen) haben jetzt englische Beschriftungen und bekannte Regel-/Screenreader-Texte. Zahlenfolgen-Erklärungen werden nur für drei exakt bekannte Vorlagen übersetzt, Mathematik unverändert.
 
 Weitere Spielbildschirme: Standardanleitungen und Hauptaktionen der Klassiker und Brettspiele sind englisch. Deutsche Wörter-/Kreuzworträtsel werden ausdrücklich gekennzeichnet; Lösungen bleiben original. Einzelne dynamische Spielstandsmeldungen, Schachfigur-Namen und Screenreader-Texte benötigen noch vollständige Lokalisierung. Keine Änderungen der Spielalgorithmen.
+
+## Dynamische Spielansagen und Barrierefreiheit
+Für Brettspiele, Sudoku, Solitär und Bilderpuzzle werden jetzt wichtige Live-Statusmeldungen, Feldkoordinaten, Figuren, Kartenfarben/Ränge und Bedienelemente in der gewählten Sprache angesagt. Die Schach-Engine liefert weiterhin unveränderte deutsche Ergebnis-Codes; nur deren Darstellung wird übersetzt. Spielregeln, Spielzustand und Lösungsdaten bleiben unverändert. Wörter und Kreuzworträtsel bleiben inhaltlich deutsch. Manuelle VoiceOver-/TalkBack-Tests stehen weiterhin aus.

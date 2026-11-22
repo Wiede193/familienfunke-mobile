@@ -1088,7 +1088,14 @@ export const EN=Object.freeze({
  "Dieser Zug ist nicht möglich.": "That move is not possible.",
  "Diese Karte passt noch nicht auf einen Zielstapel.": "This card cannot go to a foundation yet.",
  "Hinweise genutzt: ": "Hints used: ",
- "Die Lösung lautet: ": "The answer is: "
+ "Die Lösung lautet: ": "The answer is: ",
+ "Vorlage ausblenden": "Hide reference",
+ "Vorlage anzeigen": "Show reference",
+ "Vorlage: ": "Reference: ",
+ "Sonnenwiese": "Sunny meadow",
+ "Kleines Haus": "Little house",
+ "Unter Wasser": "Underwater",
+ "Berge": "Mountains"
 });
 export function normalizeLanguage(value){return LANGUAGE_OPTIONS.includes(value)?value:'auto';}
 export function resolveLanguage(preference,deviceLocale){return preference==='de'||preference==='en'?preference:/^en(?:[-_]|$)/i.test(String(deviceLocale||''))?'en':'de';}
