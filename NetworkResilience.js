@@ -18,20 +18,25 @@ export async function retryRead(operation, {
   delayMs = 350,
   pause = ms => new Promise(resolve => setTimeout(resolve, ms)),
 } = {}) {
-  // One repeat only, and only after an actual temporary transport/5xx failure.
-  // The caller must separately verify freshness before publishing the result.
+  // Exactly one additional attempt. The second call must never enter the
+  // retry decision again, even when it rejects with another transport error.
+  let first;
+  let initialException;
   try {
-    const first = await operation();
-    if (!isCurrent() || !isTransientFailure(first)) return first;
-    await pause(delayMs);
-    if (!isCurrent()) return first;
-    return await operation();
+    first = await operation();
   } catch (error) {
-    if (!isTransientFailure(error) || !isCurrent()) throw error;
-    await pause(delayMs);
-    if (!isCurrent()) throw error;
-    return await operation();
+    initialException = error;
   }
+  if (!isCurrent() || !isTransientFailure(initialException || first)) {
+    if (initialException) throw initialException;
+    return first;
+  }
+  await pause(delayMs);
+  if (!isCurrent()) {
+    if (initialException) throw initialException;
+    return first;
+  }
+  return await operation();
 }
 
 export function createActionGate() {
