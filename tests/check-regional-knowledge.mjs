@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES,REGIONAL_DIRECTORY_URL,
+  findBrandenburgRegions,guessBrandenburgRegion,officeForGuideStep}=
+ await import('data:text/javascript;base64,'+Buffer.from(read('BrandenburgFamilyRegions.js')).toString('base64'));
+assert.equal(BRANDENBURG_REGIONS.length,18,'Brandenburg consists of 14 districts + 4 independent cities');
+assert.equal(new Set(BRANDENBURG_REGIONS.map(r=>r.id)).size,18);
+assert.equal(BRANDENBURG_REGIONS.filter(r=>r.coverage==='verified').length,8,'Never imply all district offices have been verified');
+assert.ok(BRANDENBURG_REGIONS.every(r=>r.directory_url===REGIONAL_DIRECTORY_URL));
+assert.ok(BRANDENBURG_REGIONS.every(r=>r.offices.every(o=>o.title&&o.topic&&o.detail&&/^https:\/\//.test(o.url))));
+assert.equal(guessBrandenburgRegion('Frankfurt (Oder)').id,'frankfurt-oder','Independent city is not Oder-Spree');
+assert.equal(guessBrandenburgRegion('Landkreis Oder-Spree').id,'oder-spree');
+assert.equal(guessBrandenburgRegion('Barnim').id,'barnim');
+assert.equal(guessBrandenburgRegion('Berlin'),null,'Never claim Berlin lies inside Brandenburg counties');
+assert.equal(guessBrandenburgRegion('Brandenburg'),null,'State name is not a known single Kreis');
+assert.equal(findBrandenburgRegions('seelow')[0]?.id,'maerkisch-oderland');
+assert.equal(findBrandenburgRegions('Schwedt')[0]?.id,'uckermark');
+assert.equal(findBrandenburgRegions('')[0]?.id,'oder-spree');
+assert.equal(findBrandenburgRegions('berlin').length,0);
+assert.equal(findBrandenburgRegions('rathenow')[0]?.coverage,'directory');
+const ff=guessBrandenburgRegion('Frankfurt (Oder)'),os=guessBrandenburgRegion('Landkreis Oder-Spree');
+assert.equal(officeForGuideStep(ff,'parental_allowance')[0]?.title,'Elterngeld Frankfurt (Oder)');
+assert.equal(officeForGuideStep(os,'parental_allowance')[0]?.title,'Elterngeldstelle Oder-Spree');
+assert.ok(officeForGuideStep(ff,'kita_application').length);
+assert.equal(officeForGuideStep(null,'childcare_search').length,0);
+assert.equal(officeForGuideStep(ff,'birth_certificate').length,0);
+assert.ok(BRANDENBURG_FAMILY_RESOURCES.length>=5);
+assert.ok(BRANDENBURG_FAMILY_RESOURCES.every(x=>x.title&&x.explanation&&x.url.startsWith('https://')));
+
+const guide=read('FamilyGuide.jsx');
+assert.match(guide,/findBrandenburgRegions\(regionSearch\)/);
+assert.match(guide,/guessBrandenburgRegion\(regionLabel\)/);
+assert.match(guide,/pickedRegionId/);
+assert.match(guide,/region\.coverage==='verified'/);
+assert.match(guide,/regionStepOffices\.map/);
+assert.match(guide,/accessibilityLabel="Brandenburger Landkreis oder Stadt suchen"/);
+assert.match(guide,/BRANDENBURG_FAMILY_RESOURCES\.map/);
+assert.match(guide,/Amtliches Kommunalverzeichnis öffnen/);
+assert.match(guide,/showOderSpree\?ODER_SPREE_GUIDE\.steps|ODER_SPREE_GUIDE\.steps/,'Keep old reviewed Oder-Spree notes');
+assert.doesNotMatch(guide,/AsyncStorage\.setItem\([^\n]*region/i,'Region selection must not store health or precision data');
+console.log('18 Brandenburg regions, eight locally researched directories, safe fallback and contextual steps passed.');
