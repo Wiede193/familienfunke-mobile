@@ -48,7 +48,7 @@ export const BRANDENBURG_FAMILY_PLACES=[
   id:'bb-zoo-eberswalde',title:'Zoologischer Garten Eberswalde',
   category:'outing',region_label:'Eberswalde · Barnim',
   address:'Am Wasserfall 1, 16225 Eberswalde, Deutschland',
-  latitude:52.82296,longitude:13.78303,osm_key:'osm-way-113213635',
+  latitude:52.82296,longitude:13.78303,
   description:'Waldzoo mit Tiergehegen, Familien-Spielplätzen und Bildungsangeboten.',
   info_url:'https://zoo.eberswalde.de/de/zoobesuch/',
   accessibility:documented(
