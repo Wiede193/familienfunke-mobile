@@ -2,7 +2,7 @@
 // Koordinaten aus OpenStreetMap/Mapcarta (je nach Ort Gebäude oder Parkmitte).
 // Barrierefreiheit ist mehrdimensional; dokumentierte Einzelmerkmale sind
 // KEINE pauschale Zusage für alle Wege, Attraktionen und Begleitangebote.
-const documented=(summary,mobility,limitations,url,sensory='Nicht näher dokumentiert.')=>({
+const documented=(summary,mobility,limitations,url,sensory='Zu Sinnes- und Kommunikationsangeboten liegen keine hinreichend geprüften Angaben vor.')=>({
  status:'documented',summary,mobility,limitations,sensory,source_url:url,
  checked:'2026-11-22'
 });
