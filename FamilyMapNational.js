@@ -1,4 +1,4 @@
-// Redaktionelle bundesweite Familienziele (Deutschland), Recherche 20.11.2026.
+// Redaktionelle bundesweite Familienziele (Deutschland), Recherche 20.–22.11.2026.
 // Die Pins liegen je nach Quelle am Eingang, Gebäude oder im Parkbereich.
 // Betriebszeiten, Preise, Alters-/Größenregeln und Barrierefreiheit sind dynamisch.
 // Geografische Basis: © OpenStreetMap-Mitwirkende (ODbL), offizielle Betreiberseiten.
@@ -397,7 +397,8 @@ export const NATIONAL_FAMILY_PLACES=[
     "limitations": "Teilweise barrierefrei bedeutet nicht, dass alle Mitmachstationen und Räume erreichbar sind.",
     "source_url": "https://dynamikum.de/besuch-planen/",
     "checked": "2026-11-22"
-  }
+  },
+  "last_checked": "2026-11-22"
 },
 {
   "id": "national-gondwana-schiffweiler",
@@ -412,7 +413,8 @@ export const NATIONAL_FAMILY_PLACES=[
   "longitude": 7.11783,
   "description": "Erlebniswelt zur Erd- und Menschheitsgeschichte mit Dinosaurier- und Filmvorführungen. Lautstärke und individuelle Anforderungen vorab erfragen.",
   "info_url": "https://gondwana-das-praehistorium.de/",
-  "osm_key": "osm-way-1277874450"
+  "osm_key": "osm-way-1277874450",
+  "last_checked": "2026-11-22"
 },
 {
   "id": "national-jahrtausendturm-magdeburg",
@@ -436,7 +438,8 @@ export const NATIONAL_FAMILY_PLACES=[
     "limitations": "Weitere Geschosse und der Aussichtsturm dürfen nicht als mit Rollstuhl oder Kinderwagen erreichbar dargestellt werden.",
     "source_url": "https://www.elbauenpark.de/de/besucherinfos/",
     "checked": "2026-11-22"
-  }
+  },
+  "last_checked": "2026-11-22"
 },
 {
   "id": "national-explorata-zella-mehlis",
@@ -451,12 +454,13 @@ export const NATIONAL_FAMILY_PLACES=[
   "longitude": 10.667809,
   "description": "Interaktive Experimentierstationen zu Wahrnehmung und Physik für Kinder und Erwachsene. Zugangsdetails sind noch nicht separat verifiziert.",
   "info_url": "https://www.explorata.de/",
-  "osm_key": "osm-way-308263555"
+  "osm_key": "osm-way-308263555",
+  "last_checked": "2026-11-22"
 }
 ].map(p=>({
   ...p,
   source:'national',
   kind_label:{"theme":"Freizeitpark","indoor":"Indoorspielplatz","water":"Erlebnisbad","museum":"Mitmachmuseum & Erlebniswelt"}[p.kind] || 'Familienausflug',
   has_changing_table:false, // unbekannt; weder "vorhanden" noch "nicht vorhanden" belegt
-  last_checked:'2026-11-20'
+  last_checked:p.last_checked||'2026-11-20'
 }));
