@@ -9,8 +9,8 @@ for(const [de,en] of [
  ['Stadt oder Ausflugsziel suchen','Search for a town or destination'],
  ['Familien-Wegweiser','Family guide'],
  ['Offen','Open'],['Erledigt','Completed'],
- ['Wörterrätsel','Word puzzle (German)'],
- ['Kreuzworträtsel','Crossword (German)'],
+ ['Wörterrätsel','Word puzzle'],
+ ['Kreuzworträtsel','Crossword'],
  ['Vier gewinnt','Connect four'],
  ['Dame','Checkers']
 ])assert.equal(t(de),en,de);
@@ -45,4 +45,4 @@ assert.match(classics,/language==='en'\?ENGLISH_WORDS:undefined/);
 assert.match(board,/language==='en'\?ENGLISH_CROSSWORDS:CROSSWORDS/);
 for(const p of ['FamilyMiniGameScreens.jsx','FamilyClassicGameScreens.jsx','FamilyBoardPuzzleScreens.jsx'])
  assert.doesNotMatch(read(p),/\b(?:supabase|AsyncStorage|fetch)\s*\(/);
-console.log('Map, guide, English game content, pattern math and German-only warnings checked');
+console.log('Map, guide, English game content, pattern math and language-specific puzzle banks checked');
