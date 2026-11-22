@@ -61,6 +61,8 @@ jobs:
         run: npm run check:calendar
       - name: Offizielle Familienveranstaltungen und Quellen prüfen
         run: npm run check:official-events
+      - name: Automatisierten Quellenabgleich sicher prüfen
+        run: npm run check:official-event-sync
       - name: Familienquiz und Spielideen prüfen
         run: npm run check:play
       - name: Kistenmodus-UX prüfen
