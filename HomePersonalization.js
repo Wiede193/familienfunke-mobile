@@ -56,5 +56,5 @@ export function missingFamilyProfileStep(profile){
 }
 export function homeGreeting(profile){
   const name=String(profile?.display_name||'').trim().slice(0,32);
-  return name?'Schön, dass ihr da seid!':'Schön, dass ihr da seid!';
+  return name?'Hallo, '+name+'!':'Schön, dass ihr da seid!';
 }
