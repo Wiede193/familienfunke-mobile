@@ -413,6 +413,81 @@ export const BRANDENBURG_FAMILY_PLACES=[
   accessibility:unknown('https://wildpark-frankfurt-oder.de/index.php/de/wildparkgastronomie-kobel'),
   family_focus:'food-play',last_checked:'2026-11-23'
  },
+
+ // 23.11.2026: geprüfte Betreiberangaben; Anfahrtspunkte teilweise nähere Georeferenz.
+ {
+  id:'bb-inselbad-eisenhuettenstadt',title:'Inselbad Eisenhüttenstadt',
+  category:'outing',region_label:'Eisenhüttenstadt · Oder-Spree',
+  address:'Insel 4, 15890 Eisenhüttenstadt, Deutschland',
+  latitude:52.138146,longitude:14.638739,
+  description:'Familienbad mit Lagunenpool, separatem Kleinkinderbecken, Rutschen, Nichtschwimmerbereich und Sportbecken. Ferienzeiten und Nutzbarkeit einzelner Bereiche aktuell beim Betreiber prüfen.',
+  info_url:'https://freizeit-ehst.de/inselbad/preise-oeffnungszeiten/',
+  accessibility:documented(
+   'Das brandenburgische Sportstättenverzeichnis dokumentiert Zugangs- und Nutzungsmerkmale des Inselbads; Datensatz zuletzt 2024 aktualisiert.',
+   'Laut Sportstättenverzeichnis barrierefreier Zugang, Nutzung für Aktive und Zuschauende sowie barrierefreie Sanitäranlagen.',
+   'Die Angaben sind nicht gleichbedeutend mit gesichertem Poollift, barrierefreier Wasserrutsche oder Begleitung bei jedem Angebot. Betreiber zu benötigten Hilfen befragen.',
+   'https://sportstaetten.brandenburg.de/hallenbaeder/inselbad-eisenhuttenstadt~cme',
+   'Das amtliche Verzeichnis nennt ein Leitsystem für hör- und sehgeschädigte Personen; konkretes Angebot vorher bestätigen lassen.'
+  ),
+  family_focus:'water',last_checked:'2026-11-23',
+  coordinate_note:'Adressgeokodierung am Inselbad; Eingang und einzelne Becken liegen möglicherweise versetzt.'
+ },
+ {
+  id:'bb-hallenbad-frankfurt-rathenaustr',title:'Hallenbad Frankfurt (Oder) · Rathenaustraße',
+  category:'outing',region_label:'Frankfurt (Oder) · kreisfreie Stadt',
+  address:'Rathenaustraße 5, 15234 Frankfurt (Oder), Deutschland',
+  latitude:52.348508,longitude:14.515214,
+  description:'Kommunale Schwimmhalle mit öffentlichen Schwimmzeiten und Schwimmlernangeboten. Nach früheren technischen Schließungen weist die Stadt 2026 wieder Schwimmkurse ab Januar 2027 aus. Öffentliche Badezeiten und nutzbare Becken ausdrücklich vor einem Besuch erfragen.',
+  info_url:'https://www.frankfurt-oder.de/Verwaltung-Stadtpolitik/Verwaltung/%C3%84mterverzeichnis/Hallenbad.php?FID=2616.465.1&ModID=9',
+  accessibility:unknown('https://sportstaetten.brandenburg.de/hallenbaeder/hallenbad-rathenaustrasse~gb7'),
+  family_focus:'water',last_checked:'2026-11-23',
+  visit_warning:'Wegen älterer Schließungsmeldungen keine generelle Öffnung oder vollständige Beckennutzung zugesagt.'
+ },
+ {
+  id:'bb-hollandpark-indoor-panketal',title:'Holland-Park · Indoor-Spiel- und Kletterhalle',
+  category:'outing',region_label:'Panketal/Schwanebeck · Barnim',
+  address:'Dorfstraße 30, 16341 Panketal OT Schwanebeck, Deutschland',
+  latitude:52.62089,longitude:13.54519,osm_key:'osm-way-1019990289',
+  description:'Große Indoorspielhalle mit Kletter- und Bewegungsbereichen im Holland-Park. Der Park betreibt zusätzlich Gastronomie und Spielplätze im Freien. Welche Angebote in welchem Ticket enthalten sind, vorab prüfen.',
+  info_url:'https://www.hollandpark.de/erlebnis-/indoor/spielhalle',
+  accessibility:unknown('https://www.hollandpark.de/erlebnis-/indoor/spielhalle'),
+  family_focus:'indoor',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-haberland-indoor-luckau',title:'haberLAND · Indoorspielplatz',
+  category:'outing',region_label:'Luckau · Dahme-Spreewald',
+  address:'Nonnengasse 2, 15926 Luckau, Deutschland',
+  latitude:51.85389,longitude:13.716643,
+  description:'Indoorspielplatz mit Kletter-, Bewegungs- und Spielangeboten; laut Stadt Luckau auch an Wochenenden und in Ferien geöffnet. Zeitfenster, Altersregeln und Ferienöffnungszeiten vorher nachsehen.',
+  info_url:'https://luckau.de/de/kultur-stadtleben/freizeitangebote/indoorspielplatz.html',
+  accessibility:unknown('https://luckau.de/de/kultur-stadtleben/freizeitangebote/indoorspielplatz.html'),
+  family_focus:'indoor',last_checked:'2026-11-23',
+  coordinate_note:'Adressgeokodierung Nonnengasse 2; Gebäudeeingang bitte anhand der Betreiberangaben wählen.'
+ },
+ {
+  id:'bb-landhaus-treptow-spielplatz',title:'Landhaus Treptow · Restaurant mit Spielplatz und Streichelzoo',
+  category:'outing',region_label:'Letschin · Märkisch-Oderland',
+  address:'Karl-Marx-Straße 6, 15324 Letschin, Deutschland',
+  latitude:52.64524,longitude:14.35974,
+  description:'Gasthaus mit regionaler Küche, Außenspielplatz und Streichelzoo. Der Betreiber beschreibt eine direkte Sichtverbindung zwischen Familien-Terrasse und Spielbereich; Öffnung, Tierkontaktregeln und Barrieren bitte vorher klären.',
+  info_url:'https://landhaus-treptow.de/',
+  accessibility:unknown('https://landhaus-treptow.de/'),
+  family_focus:'food-play',last_checked:'2026-11-23',
+  coordinate_note:'Kartenpunkt liegt am direkt benachbarten Haus Karl-Marx-Straße 5; nicht als exakter Eingang verwenden.',
+  play_area:{kind:'outdoor',label:'Außenspielplatz und Streichelzoo am Restaurant',source_url:'https://landhaus-treptow.de/',checked:'2026-11-23'}
+ },
+ {
+  id:'bb-goldene-kartoffel-spielplatz',title:'Zur Goldenen Kartoffel · Restaurant mit Abenteuerspielplatz',
+  category:'outing',region_label:'Prötzel · Märkisch-Oderland',
+  address:'Wriezener Straße 11, 15345 Prötzel, Deutschland',
+  latitude:52.63748,longitude:13.98775,
+  description:'Gasthof mit regionaler Küche, Terrasse, Biergarten und Abenteuerspielplatz im Außenbereich. Der Spielbereich ist wetterabhängig; Restaurant- und Küchenzeiten vorher prüfen.',
+  info_url:'https://zur-goldenen-kartoffel.de/kontakt/',
+  accessibility:unknown('https://www.seenland-oderspree.de/gastro/restaurant-zur-goldenen-kartoffel'),
+  family_focus:'food-play',last_checked:'2026-11-23',
+  coordinate_note:'Orientierungsmarkierung an der Wriezener Straße nahe dem Gasthof, nicht als gesicherter Eingang.',
+  play_area:{kind:'outdoor',label:'Abenteuerspielplatz neben Restaurant und Biergarten',source_url:'https://www.seenland-oderspree.de/gastro/restaurant-zur-goldenen-kartoffel',checked:'2026-11-23'}
+ },
 ].map(place=>({
  ...place,family_focus:place.family_focus||focusById[place.id]||'discovery',source:'curated',
  source_label:'Brandenburg · Redaktionell recherchiert',
