@@ -65,5 +65,8 @@ const edge=read('supabase/functions/ff-decision-sync/index.ts');
 assert.match(edge,/ff_official_sync_authorized/,'Sync requires an existing secret validation');
 assert.match(edge,/SOURCES/);
 assert.match(edge,/ff_decision_sync_runs/);
+assert.match(edge,/redirect:'manual'/,'RSS redirects are validated instead of followed automatically');
+assert.match(edge,/safeSource\(target,allowed\)/,'Redirect targets must be verified before fetching');
+assert.doesNotMatch(edge,/redirect:'follow'/,'Never follow unchecked external redirects');
 assert.doesNotMatch(edge,/openai|GPT|responses\.create/i,'Ingestion never generates uncited political explanations');
 console.log('Beschluss-Monitor: Feed-Filter, Status, RLS, Suche und freiwillige Hinweise geprüft');

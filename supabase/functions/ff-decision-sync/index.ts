@@ -10,12 +10,28 @@ const SOURCES=[
   level:'brandenburg',status:'parlament'}
 ];
 async function download(url){
- const r=await fetch(url,{redirect:'follow',signal:AbortSignal.timeout(9000),
-  headers:{'Accept':'application/rss+xml,application/xml,text/xml;q=0.9,text/plain;q=0.5',
-   'User-Agent':'FamilienfunkeOfficialDecisionMonitor/1.0 (public official RSS; 3-hour interval)'}});
+ const allowed=url.includes('bundesregierung.de')?'bundesregierung.de':'landtag.brandenburg.de';
+ let current=url;
+ if(!safeSource(current,allowed))throw Error('untrusted_initial_url');
+ let r;
+ for(let hop=0;hop<3;hop++){
+  r=await fetch(current,{redirect:'manual',signal:AbortSignal.timeout(9000),
+   headers:{'Accept':'application/rss+xml,application/xml,text/xml;q=0.9,text/plain;q=0.5',
+    'User-Agent':'FamilienfunkeOfficialDecisionMonitor/1.0 (public official RSS; 3-hour interval)'}});
+  if([301,302,303,307,308].includes(r.status)){
+   const location=r.headers.get('location');
+   if(!location)throw Error('missing_redirect_location');
+   const target=new URL(location,current).href;
+   if(!safeSource(target,allowed))throw Error('untrusted_redirect');
+   current=target;
+   r=null;
+   continue;
+  }
+  break;
+ }
+ if(!r)throw Error('too_many_redirects');
  if(!r.ok)throw Error('source_http_'+r.status);
- const allowed=r.url.includes('bundesregierung.de')?'bundesregierung.de':'landtag.brandenburg.de';
- if(!safeSource(r.url,allowed))throw Error('untrusted_redirect');
+ if(!safeSource(r.url,allowed))throw Error('untrusted_final_url');
  const type=r.headers.get('content-type')||'';
  if(!/xml|rss|text\/plain/i.test(type))throw Error('unexpected_content_type');
  if(Number(r.headers.get('content-length')||0)>1040000)throw Error('too_large');
