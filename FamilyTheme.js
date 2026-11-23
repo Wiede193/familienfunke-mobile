@@ -8,7 +8,7 @@ export const FAMILY_COLORS = Object.freeze({
   white:'#FFFFFF',
   paper:'#FFFFFF',
   ink:'#253D43',
-  muted:'#61757A',
+  muted:'#52666B',
   accent:'#0B777A',
   teal:'#0B777A',
   accentDark:'#075A60',
