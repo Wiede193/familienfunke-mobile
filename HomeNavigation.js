@@ -23,7 +23,7 @@ export const HOME_ROUTES = [
 ];
 export const HOME_PAGE_IDS = HOME_ROUTES.map(x=>x.id);
 const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9äöüß]+/g,' ').trim();
-const STOP=new Set(['ich','du','die','der','das','und','oder','ein','eine','mit','zu','wo','wie','kann','können','mochte','moechte','möchte','finde','mir','bitte','auf','in','fur','für','ist','von','meine','meinen','was']);
+const STOP=new Set(['ich','du','die','der','das','und','oder','ein','eine','mit','zu','wo','wie','kann','können','mochte','moechte','möchte','finde','mir','bitte','auf','in','fur','für','ist','von','meine','meinen','was','finden','suchen','machen','zeigen']);
 // Product descriptions should open the marketplace, not the general app FAQ.
 export function looksLikeMarketProductQuery(value){
  const n=normalize(value);
