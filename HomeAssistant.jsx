@@ -11,6 +11,8 @@ import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavi
 
 import {findFamilyMapLocations} from './FamilyMapSearch';
 import {findHealthyResources} from './FamilyHealthyContent';
+import {findFamilyTopics} from './FamilyTopicsKnowledge';
+import {findInclusionArticles} from './InclusionKnowledge';
 import {CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {BRANDENBURG_FAMILY_PLACES} from './FamilyMapBrandenburg';
 import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
@@ -30,7 +32,7 @@ function AreaCard({route,onNavigate,query,compact=false}){
   const productSearch=route.id==='market'&&looksLikeMarketProductQuery(query);
   return <Pressable accessibilityRole="button"
     accessibilityLabel={route.title+' öffnen'}
-    onPress={()=>onNavigate(route.id,route.id==='healthy'?query.trim():productSearch?query.trim():'')}
+    onPress={()=>onNavigate(route.id,['healthy','guide','inclusion'].includes(route.id)?query.trim():productSearch?query.trim():'')}
     style={({pressed})=>[compact?s.areaGrid:s.areaRow,pressed&&s.pressed]}>
     <View style={s.areaIcon}><FamilyIcon name={FAMILY_ROUTE_ICONS[route.id]||'compass'} size={compact?25:23}/></View>
     <View style={{flex:1}}>
@@ -131,6 +133,8 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   const matches=findHomeRoutes(needle);
   const places=needle.length>=2?findFamilyMapLocations(needle,{curated:[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES],national:NATIONAL_FAMILY_PLACES},4):[];
   const healthMatches=needle.length>=3?findHealthyResources(needle,3):[];
+  const topicMatches=needle.length>=3?findFamilyTopics(needle).slice(0,3):[];
+  const inclusionMatches=needle.length>=3?findInclusionArticles(needle).slice(0,3):[];
   const marketIntent=looksLikeMarketProductQuery(needle)||matches[0]?.id==='market';
   const visibleSearch=searchResult?.query===needle?searchResult:null;
   const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
@@ -272,6 +276,18 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       {places.map(hit=><Pressable key={hit.id} accessibilityRole="button" accessibilityLabel={hit.title+' auf der Familienkarte öffnen'} onPress={()=>onNavigate('map','',hit.place.id)} style={s.areaRow}>
         <View style={s.areaAccent}/><View style={{flex:1}}><Text style={s.areaTitle}>{hit.title}</Text><Text style={s.areaSubtitle}>{hit.subtitle}</Text></View><Text style={s.areaArrow}>›</Text>
       </Pressable>)}</>:null}
+      {topicMatches.length?<><Text style={s.sectionSubtitle}>Familienratgeber</Text>
+        {topicMatches.map(item=><Pressable key={item.id} accessibilityRole="button"
+          onPress={()=>onNavigate('guide',needle)} style={s.areaRow}>
+          <View style={s.areaAccent}/><View style={{flex:1}}><Text style={s.areaTitle}>{item.title}</Text>
+          <Text style={s.areaSubtitle}>{item.short}</Text></View><Text style={s.areaArrow}>›</Text>
+        </Pressable>)}</>:null}
+      {inclusionMatches.length?<><Text style={s.sectionSubtitle}>Inklusion & Teilhabe</Text>
+        {inclusionMatches.map(item=><Pressable key={item.id} accessibilityRole="button"
+          onPress={()=>onNavigate('inclusion',needle)} style={s.areaRow}>
+          <View style={s.areaAccent}/><View style={{flex:1}}><Text style={s.areaTitle}>{item.title}</Text>
+          <Text style={s.areaSubtitle}>{item.short}</Text></View><Text style={s.areaArrow}>›</Text>
+        </Pressable>)}</>:null}
       {healthMatches.length?<><Text style={s.sectionSubtitle}>Sport, Gesundheit & offizielle Quellen</Text>
         {healthMatches.map(resource=><Pressable key={resource.id} accessibilityRole="button"
           accessibilityLabel={resource.title+' im Sportbereich finden'}
@@ -306,7 +322,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         </Pressable>):<Text style={s.mutedSmall}>Keine passenden freigegebenen Angebote gefunden.</Text>}
         <Pressable accessibilityRole="button" onPress={()=>onNavigate('market',needle)} style={s.answerAction}><Text style={s.answerActionLabel}>Alle Basar-Ergebnisse ansehen ›</Text></Pressable>
       </View>:null}
-      {!matches.length&&!places.length&&!healthMatches.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Stelle deine Frage der KI oder ändere die Suche.</Text>:null}
+      {!matches.length&&!places.length&&!healthMatches.length&&!topicMatches.length&&!inclusionMatches.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Stelle deine Frage der KI oder ändere die Suche.</Text>:null}
       {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>Tippe auf „Suchen“, um aktuelle Basar-Angebote und Termine abzurufen.</Text>:null}
     </View>:null}
     {conversation.length?<View style={s.section}>
