@@ -81,7 +81,7 @@ const PHASES=[
 const ALL_STEPS=PHASES.flatMap(phase=>phase.steps.map(step=>({...step,...(VERIFIED_GUIDE_DETAILS[step.id]||{}),phaseId:phase.id,phaseName:phase.name})));
 const clampStatus=(value)=>STATUSES.some(s=>s.id===value)?value:'open';
 
-export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQuery=''}){
+export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQuery='',onOpenHealthy}){
   const [statuses,setStatuses]=useState({});
   const [ready,setReady]=useState(false);
   const [phaseId,setPhaseId]=useState('pregnancy');
@@ -188,7 +188,13 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
       <Text style={st.heroDescription}>Was steht wann an? Wir begleiten euch mit verständlichen Schritten – ohne unnötigen Druck.</Text>
       <Text style={st.region}>⌖ {regionLabel?.trim()?regionLabel.trim():'Deutschland'} · örtliche Regeln beachten</Text>
     </View>
-    {initialKnowledgeQuery.trim()?<FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>:null}
+    {onOpenHealthy?<Pressable accessibilityRole="button" accessibilityLabel="Sport und Gesundheit öffnen"
+      onPress={onOpenHealthy}
+      style={{backgroundColor:P.sunPale,borderRadius:16,padding:16,marginTop:12,marginBottom:5,borderWidth:1,borderColor:P.line,minHeight:70,justifyContent:'center'}}>
+       <Text style={{fontSize:17,fontWeight:'800',color:P.ink}}>Sport & Gesundheit ›</Text>
+       <Text style={{fontSize:13,lineHeight:20,color:P.muted,marginTop:4}}>Sportvereine, Bewegung, Ernährung, Videos und Rad- & Wanderwege</Text>
+     </Pressable>:null}
+     {initialKnowledgeQuery.trim()?<FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>:null}
      <View style={st.progressCard}>
       <View style={st.flexRow}><View style={{flex:1}}><Text style={st.progressTitle}>Euer persönlicher Überblick</Text><Text style={st.small}>{doneCount} von {relevantCount} passenden Aufgaben erledigt</Text></View><Text style={st.progressNumber}>{pct}%</Text></View>
       <View style={st.progressTrack}><View style={[st.progressFill,{width:pct+'%'}]}/></View>
