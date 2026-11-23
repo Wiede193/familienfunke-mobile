@@ -272,7 +272,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
           <Text style={s.askButtonLabel}>{busy?'KI antwortet …':'KI fragen'}</Text>
         </Pressable>
       </View>
-      <Text style={s.searchHint}>App-Funktionen, Angebote, Orte und Veranstaltungen finden oder Fragen stellen.</Text>
+      <Text style={s.searchHint}>App-Funktionen, Beschlüsse, Angebote, Orte und Veranstaltungen finden oder Fragen stellen.</Text>
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
     </View>
     {needle?<View style={s.section}>
@@ -317,7 +317,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         <Text accessibilityRole="header" style={s.offerHeading}>Offizielle Familienveranstaltungen</Text>
         {visibleSearch.officialEvents.map(event=><Pressable key={event.id} accessibilityRole="button"
           accessibilityLabel={event.title+' im Veranstaltungskalender öffnen'}
-          onPress={()=>onNavigate('events')} style={s.offerItem}>
+          onPress={()=>onNavigate('events','',event.id)} style={s.offerItem}>
           <Text style={s.offerTitle}>{event.title}</Text>
           <Text style={s.mutedSmall}>{event.city||'Brandenburg'} · {event.source_name||'Offizieller Veranstalter'}</Text>
           <Text style={s.offerPrice}>{event.start_date}</Text>
