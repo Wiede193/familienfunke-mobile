@@ -1,6 +1,7 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {Linking,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import SearchResultFeedback from './SearchResultFeedback';
 import {FAMILY_TOPIC_CATEGORIES,FAMILY_TOPIC_ARTICLES,findFamilyTopics} from './FamilyTopicsKnowledge';
 
 // A self-contained guide, no personal details, search history or health facts are persisted.
@@ -31,7 +32,7 @@ export default function FamilyTopicsSection({initialQuery=''}){
        <Text style={[s.chipText,category===item.id&&s.selectedText]}>{item.label}</Text>
     </Pressable>)}
    </ScrollView>
-   <Text accessibilityLiveRegion="polite" style={s.hint}>{items.length} passende Themen</Text>
+   <SearchResultFeedback active={!!(query.trim()||category!=='all')} query={query} count={items.length} context="Familienratgeber" hint="Artikel antippen, um die nächsten Schritte und offiziellen Quellen zu öffnen."/>
    {items.map(item=><View key={item.id} style={s.article}>
      <Pressable accessibilityRole="button" accessibilityState={{expanded:expanded===item.id}}
        accessibilityLabel={item.title+(expanded===item.id?' schließen':' öffnen')}
