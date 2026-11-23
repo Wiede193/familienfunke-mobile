@@ -18,14 +18,16 @@ update public.ff_official_decisions set dip_vorgang_id='338785'
  where source_key='editorial:kita-startchancen-2026-11-20-vermittlung';
 
 create table if not exists public.ff_decision_source_snapshots (
- decision_id uuid primary key references public.ff_official_decisions(id) on delete cascade,
+ decision_id uuid not null references public.ff_official_decisions(id) on delete cascade,
+ source_kind text not null check(source_kind in ('dip','website')),
  last_checked_at timestamptz,
  last_success_at timestamptz,
  last_http_status int,
  content_fingerprint text,
  failure_count int not null default 0,
  last_error text,
- checked_source_url text
+ checked_source_url text,
+ primary key(decision_id,source_kind)
 );
 alter table public.ff_decision_source_snapshots enable row level security;
 revoke all on public.ff_decision_source_snapshots from public,anon,authenticated;
@@ -54,6 +56,20 @@ create index if not exists ff_decision_change_pending
 alter table public.ff_decision_change_candidates enable row level security;
 revoke all on public.ff_decision_change_candidates from public,anon,authenticated;
 grant all on public.ff_decision_change_candidates to service_role;
+
+create table if not exists public.ff_decision_tracking_runs (
+ id bigint generated always as identity primary key,
+ started_at timestamptz not null default now(),
+ completed_at timestamptz,
+ checked_pages int not null default 0,
+ checked_dip int not null default 0,
+ new_candidates int not null default 0,
+ dip_configured boolean not null default false,
+ errors text[] not null default '{}'::text[]
+);
+alter table public.ff_decision_tracking_runs enable row level security;
+revoke all on public.ff_decision_tracking_runs from public,anon,authenticated;
+grant all on public.ff_decision_tracking_runs to service_role;
 
 create table if not exists public.ff_decision_status_history (
  id uuid primary key default gen_random_uuid(),
