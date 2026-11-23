@@ -235,6 +235,8 @@ const [marketIntent,setMarketIntent]=useState(null);
 const [outingDraft,setOutingDraft]=useState(null);
 const [mapIntent,setMapIntent]=useState(null);
 const [healthyQuery,setHealthyQuery]=useState('');
+const [guideQuery,setGuideQuery]=useState('');
+const [inclusionQuery,setInclusionQuery]=useState('');
 const [calendarSeed,setCalendarSeed]=useState(null);
 const [eventIntent,setEventIntent]=useState(null);
 const [extraReturnTab,setExtraReturnTab]=useState('more');
@@ -833,6 +835,8 @@ function navigateFromHome(id,marketQuery='',placeId=null){
   if(!routes.includes(id))return;
   if(id==='inbox'){openInbox();return;}
   if(id==='healthy')setHealthyQuery(String(marketQuery||'').slice(0,160));
+  if(id==='guide')setGuideQuery(String(marketQuery||'').slice(0,160));
+  if(id==='inclusion')setInclusionQuery(String(marketQuery||'').slice(0,160));
   setCalendarSeed(null);
   setMapIntent(id==='map'&&typeof placeId==='string'?{id:placeId,returnTab:'home'}:null);
   setEventIntent(['events','partners'].includes(id)&&typeof placeId==='string'?{id:placeId,tab:id,owner:me}:null);
@@ -911,7 +915,7 @@ tab==='play'?<FamilyPlayScreen key={me}/>:
 tab==='healthy'?<HealthyScreen initialQuery={healthyQuery} onOpenMap={()=>{setExtraReturnTab('healthy');setMapIntent({layer:'bike',returnTab:'healthy'});setTab('map');}}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
 tab==='outing'?<FamilyOutingScreen key={me} onCalendar={planCalendarPlace} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
-tab==='guide'?<FamilyGuideScreen userId={me} regionLabel={myProfile?.region_label}/>:
+tab==='guide'?<FamilyGuideScreen userId={me} regionLabel={myProfile?.region_label} initialKnowledgeQuery={guideQuery}/>:
 tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={active} entryPlaceId={mapIntent?.id} entryLayer={mapIntent?.layer||'none'} addPlace={(v)=>executeEvent(async()=>{
  await moderateTextOrThrow([v.title,v.description,v.region_label]);
  assertResult(await supabase.from('ff_family_places').insert(v));
@@ -985,7 +989,7 @@ createPartnerEvent={(v)=>executeEvent(async()=>{
 },'Veranstaltung eingereicht. Sie erscheint nach Freigabe.')}
 openInclusion={()=>{setExtraReturnTab(tab);setTab('inclusion');}}/>:
 tab==='more'?<MoreScreen navigate={selectMenuItem} openInfo={()=>setShowInfo(true)} openWelcome={()=>setShowWelcome(true)}/>:
-tab==='inclusion'?<InclusionScreen regionLabel={myProfile?.region_label} onOpenMap={()=>{setExtraReturnTab('inclusion');setTab('map');}}/>:
+tab==='inclusion'?<InclusionScreen regionLabel={myProfile?.region_label} initialQuery={inclusionQuery} onOpenMap={()=>{setExtraReturnTab('inclusion');setTab('map');}}/>:
 tab==='aboutApp'?<AboutFamilienfunkeScreen/>:
 tab==='help'?<TechnicalHelpScreen/>:
 tab==='push'?<PushSettings key={me} userId={me} active={active}/>:
@@ -2573,8 +2577,8 @@ function MoreScreen({navigate,openInfo,openWelcome}){
     <Button title="Elternwissen & hilfreiche Links" mode="outline" onPress={openInfo}/>
   </ScrollView>;
 }
-function InclusionScreen({regionLabel,onOpenMap}){
- return <InclusionKnowledgeScreen regionLabel={regionLabel} onOpenMap={onOpenMap}/>;
+function InclusionScreen({regionLabel,onOpenMap,initialQuery=''}){
+ return <InclusionKnowledgeScreen regionLabel={regionLabel} onOpenMap={onOpenMap} initialQuery={initialQuery}/>;
 }
 
 function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked,hasMore,loadingMore,onLoadMore}) {
