@@ -81,7 +81,7 @@ const PHASES=[
 const ALL_STEPS=PHASES.flatMap(phase=>phase.steps.map(step=>({...step,...(VERIFIED_GUIDE_DETAILS[step.id]||{}),phaseId:phase.id,phaseName:phase.name})));
 const clampStatus=(value)=>STATUSES.some(s=>s.id===value)?value:'open';
 
-export default function FamilyGuideScreen({userId,regionLabel}){
+export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQuery=''}){
   const [statuses,setStatuses]=useState({});
   const [ready,setReady]=useState(false);
   const [phaseId,setPhaseId]=useState('pregnancy');
@@ -294,7 +294,7 @@ export default function FamilyGuideScreen({userId,regionLabel}){
         </View>)}
       </View>:null}
     </View>
-    <FamilyTopicsSection/>
+    <FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>
     <Text style={st.sectionHeading}>Eure Zeitleiste</Text>
     {PHASES.map((p,index)=>{
       const selected=p.id===phaseId;
