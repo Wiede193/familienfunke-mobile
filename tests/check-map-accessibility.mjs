@@ -3,8 +3,8 @@ import {readFileSync} from 'node:fs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const {BRANDENBURG_FAMILY_PLACES,describePlaceAccessibility}=
  await import('data:text/javascript;base64,'+Buffer.from(read('FamilyMapBrandenburg.js')).toString('base64'));
-assert.equal(BRANDENBURG_FAMILY_PLACES.length,32);
-assert.equal(new Set(BRANDENBURG_FAMILY_PLACES.map(x=>x.id)).size,32);
+assert.equal(BRANDENBURG_FAMILY_PLACES.length,38);
+assert.equal(new Set(BRANDENBURG_FAMILY_PLACES.map(x=>x.id)).size,38);
 for(const p of BRANDENBURG_FAMILY_PLACES){
  assert.ok(p.id.startsWith('bb-'));
  assert.ok(p.latitude>51&&p.latitude<54&&p.longitude>12&&p.longitude<15,'Not in Brandenburg: '+p.id);
@@ -44,6 +44,15 @@ assert.ok(BRANDENBURG_FAMILY_PLACES.some(x=>x.family_focus==='food-play'));
 assert.ok(BRANDENBURG_FAMILY_PLACES.every(x=>x.family_focus));
 assert.ok(!BRANDENBURG_FAMILY_PLACES.some(x=>x.id==='bb-naturparkhaus-schlaubetal'),'Already present in local curated map');
 assert.match(fm,/accessibilityStatus/);
+assert.match(fm,/selected\.play_area/,'Show verified restaurant play area');
+assert.match(fm,/selected\.coordinate_note/,'Approximate coordinates are not precise entrances');
+assert.match(fm,/selected\.visit_warning/,'Show known operational limits');
+for(const id of ['bb-inselbad-eisenhuettenstadt','bb-hallenbad-frankfurt-rathenaustr','bb-hollandpark-indoor-panketal','bb-haberland-indoor-luckau','bb-landhaus-treptow-spielplatz','bb-goldene-kartoffel-spielplatz'])assert.ok(BRANDENBURG_FAMILY_PLACES.some(p=>p.id===id),id);
+for(const place of BRANDENBURG_FAMILY_PLACES.filter(p=>p.play_area)){
+ assert.equal(place.family_focus,'food-play');assert.equal(place.play_area.kind,'outdoor');assert.ok(place.play_area.source_url.startsWith('https://'));
+}
+assert.equal(BRANDENBURG_FAMILY_PLACES.find(p=>p.id==='bb-inselbad-eisenhuettenstadt').accessibility.status,'documented');
+assert.ok(BRANDENBURG_FAMILY_PLACES.find(p=>p.id==='bb-hallenbad-frankfurt-rathenaustr').visit_warning);
 for(const path of ['FamilyOutingScreen.jsx','HomeAssistant.jsx']){
  const src=read(path);
  assert.match(src,/BRANDENBURG_FAMILY_PLACES/,path+' must also surface added destination options');
