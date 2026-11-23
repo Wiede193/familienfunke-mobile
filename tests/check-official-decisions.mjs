@@ -133,7 +133,7 @@ assert.match(trackEdge,/status_review_pending:true/);
 assert.doesNotMatch(trackEdge,/decision_status\s*:/,'The monitor must not overwrite the verified public stage');
 assert.doesNotMatch(trackEdge,/OPENAI_API_KEY|createCompletion|responses\.create/);
 const schedule=read('database/ff_decision_tracking_schedule.sql');
-assert.match(schedule,/ff_decision_track/);
+assert.match(schedule,/ff-decision-track/);
 assert.match(ui,/ff_decision_status_history/);
 assert.match(ui,/status_review_pending/);
 assert.match(ui,/Dieser Abruf bestätigt nicht automatisch den Rechtsstand/);
