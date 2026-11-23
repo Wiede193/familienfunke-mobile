@@ -14,6 +14,31 @@ const unknown=(url)=>({
  limitations:'Aus fehlenden Angaben lässt sich keine fehlende Barrierefreiheit ableiten.',
  source_url:url,checked:'2026-11-22'
 });
+// Recherche-Kategorien dienen der Auswahl, sind keine zugesagte Ausstattung.
+export const BRANDENBURG_FAMILY_FOCUS=[
+ {id:'all',label:'Alle'},
+ {id:'water',label:'Thermen & Bäder'},
+ {id:'indoor',label:'Indoor spielen'},
+ {id:'food-play',label:'Essen & Spielen'},
+ {id:'nature',label:'Natur & Tiere'},
+ {id:'discovery',label:'Entdecken'}
+];
+const focusById={
+ 'bb-spreewelten-luebbenau':'water','bb-naturtherme-templin':'water',
+ 'bb-barnim-panorama':'discovery','bb-museumspark-ruedersdorf':'discovery',
+ 'bb-schiffshebewerk-niederfinow':'discovery','bb-ziegeleipark-mildenberg':'discovery',
+ 'bb-besucherbergwerk-f60':'discovery','bb-kreismuseum-oranienburg':'discovery',
+ 'bb-schloss-museum-luebben':'discovery','bb-schloss-doberlug-erlebnisreich':'discovery',
+ 'bb-biosphaere-potsdam':'discovery','bb-optikpark-rathenow':'discovery',
+ 'bb-sielmann-forum-gross-schauen':'discovery',
+ 'bb-schweizer-haus-buckow':'nature','bb-stobbi-wanderroute-buckow':'nature',
+ 'bb-naturparkzentrum-hoher-flaeming':'nature','bb-naturparkhaus-stechlin':'nature',
+ 'bb-wildpark-schorfheide':'nature','bb-wildpark-johannismuehle':'nature',
+ 'bb-naturschutzzentrum-krugpark':'nature','bb-baumkronenpfad-beelitz':'nature',
+ 'bb-tierpark-cottbus':'nature','bb-zoo-eberswalde':'nature',
+ 'bb-familiengarten-eberswalde':'nature','bb-germendorf-tierpark':'nature'
+};
+
 export const BRANDENBURG_FAMILY_PLACES=[
  {
   id:'bb-barnim-panorama',title:'BARNIM PANORAMA · Naturparkzentrum und Agrarmuseum',
@@ -210,11 +235,189 @@ export const BRANDENBURG_FAMILY_PLACES=[
   info_url:'https://www.natur-brandenburg.de/themen/ausflugsziele-erlebnisse/eintauchen-und-abheben/',
   accessibility:unknown('https://www.natur-brandenburg.de/themen/ausflugsziele-erlebnisse/eintauchen-und-abheben/')
  },
+
+ // 23.11.2026: offizielle Naturpark-/Kommunalquellen, insbesondere inklusive Naturerlebnisse.
+ {
+  id:'bb-schweizer-haus-buckow',title:'Schweizer Haus · Naturpark Märkische Schweiz',
+  category:'outing',region_label:'Buckow · Märkisch-Oderland',
+  address:'Lindenstraße 33, 15377 Buckow (Märkische Schweiz), Deutschland',
+  latitude:52.5742113,longitude:14.084434,
+  description:'Familienfreundliche, interaktive Ausstellung „Expedition Märkische Schweiz“ mit Naturgarten, Forscheranregungen und Informationen zu den Wanderwegen.',
+  info_url:'https://www.maerkische-schweiz-naturpark.de/themen/naturpark-maerkische-schweiz/besucherzentrum-schweizer-haus/',
+  accessibility:documented(
+   'Naturparkverwaltung bestätigt stufenlosen Nebeneingang sowie eine mit Rollstuhl und Rollator nutzbare Ausstellung und Toilette.',
+   'Barrierefreier Parkplatz, stufenloser seitlicher Terrassenzugang, Rollstuhlnutzung von Ausstellung und WC laut Naturparkverwaltung.',
+   'Die Angaben gelten für Besucherzentrum und Toilette, nicht automatisch für steile Naturparkwege oder das gesamte Außengelände.',
+   'https://www.maerkische-schweiz-naturpark.de/naturpark-maerkische-schweiz/besucherzentrum-schweizer-haus/anreise-oeffnungszeiten/',
+   'Die Tourismusinformation nennt barrierefreie Sprache in der Ausstellung; konkrete Hör- und Sehhilfen vorher klären.'
+  ),
+  last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-stobbi-wanderroute-buckow',title:'„Abenteuer mit Stobbi“ · Naturerlebnispfad',
+  category:'outing',region_label:'Buckow · Märkisch-Oderland',
+  address:'Start am Schweizer Haus, Lindenstraße 33, 15377 Buckow, Deutschland',
+  latitude:52.5742113,longitude:14.084434,
+  description:'Rund drei Kilometer langer Naturerlebnispfad mit Entdeckerstationen, Stempel- und Rätselheft. Für Familien mit Kinderwagen und Menschen mit kognitiven Beeinträchtigungen konzipiert.',
+  info_url:'https://www.maerkische-schweiz-naturpark.de/themen/routen-touren/abenteuer-mit-stobbi/',
+  accessibility:documented(
+   'Der Naturpark beschreibt eine familienorientierte, barrierearme Erlebnisroute mit intuitiven Stationen und verständlichem Begleitheft.',
+   'Engmaschige Beschilderung und Wegverbesserungen; Weg wurde auch für Nutzung mit Kinderwagen entwickelt.',
+   'Die Route liegt in der Natur: Steigungen, Wetter, Bodenbeschaffenheit und tatsächliche Rollstuhl-Eignung individuell prüfen. Barrierearm ist nicht gleich umfassend rollstuhlgerecht.',
+   'https://www.maerkische-schweiz-naturpark.de/themen/routen-touren/abenteuer-mit-stobbi/',
+   'Leicht verständliches Begleitheft und intuitiv gestaltete Erlebnisstationen laut Naturpark.'
+  ),
+  last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-naturparkzentrum-hoher-flaeming',title:'Naturparkzentrum Hoher Fläming',
+  category:'outing',region_label:'Raben · Potsdam-Mittelmark',
+  address:'Brennereiweg 45, 14823 Rabenstein/Fläming OT Raben, Deutschland',
+  latitude:52.0413599,longitude:12.5779751,
+  description:'Naturpark-Erlebnisausstellung, Garten der Sinne und Abenteuerspielplatz an der Alten Brennerei. Hinweise zu Veranstaltungen und Anfahrt beim Naturpark einholen.',
+  info_url:'https://www.hoher-flaeming-naturpark.de/erleben-lernen/info-ausstellung/naturparkzentrum-hoher-flaeming-am-fuss-der-burg-rabenstein/',
+  accessibility:documented(
+   'Die brandenburgische Naturparkverwaltung bezeichnet das Naturparkzentrum selbst als barrierefrei.',
+   'Barrierefreies Besucherinformationszentrum laut Naturparkverwaltung; individuelle Hilfsmittel-Nutzung vorab erfragen.',
+   'Außenliegender Garten, Spielplatz und Wanderwege sind damit nicht automatisch vollständig zugänglich; WC und Details separat beim Betreiber bestätigen.',
+   'https://www.hoher-flaeming-naturpark.de/erleben-lernen/info-ausstellung/naturparkzentrum-hoher-flaeming-am-fuss-der-burg-rabenstein/'
+  ),
+  last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-naturparkhaus-stechlin',title:'NaturParkHaus Stechlin',
+  category:'outing',region_label:'Menz · Oberhavel',
+  address:'Kirchstraße 4, 16775 Stechlin OT Menz, Deutschland',
+  latitude:53.1033102,longitude:13.0501753,
+  description:'Mitmach-Ausstellung zu Wald, Seen und Mooren sowie Sinnesgarten, heimische Fische im Aquarium und Fußtastpfad.',
+  info_url:'https://www.stechlin-ruppiner-land-naturpark.de/themen/ausflugsziele-erlebnisse/naturparkhaus-stechlin/',
+  accessibility:documented(
+   'Museumsverband Brandenburg beschreibt die Räume des NaturParkHauses als barrierefrei; Außenelemente separat beurteilen.',
+   'Innenräume laut Museumsverband barrierefrei ausgestattet; genaue Türbreiten, WC und Begleitung beim Betreiber klären.',
+   'Sinnesgarten, Fußtastpfad und Wanderwege können trotz zugänglicher Innenräume individuelle Barrieren aufweisen.',
+   'https://www.museen-brandenburg.de/museen/nach-themen/naturkundemuseen/naturparkhaus',
+   'Sinnesgarten, Aquarium und Fußtastpfad werden offiziell genannt; nicht jedes Angebot ist für jeden Bedarf geeignet.'
+  ),
+  last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-wildpark-schorfheide',title:'Wildpark Schorfheide',
+  category:'outing',region_label:'Groß Schönebeck · Barnim',
+  address:'Prenzlauer Straße 16, 16244 Schorfheide OT Groß Schönebeck, Deutschland',
+  latitude:52.91988,longitude:13.55816,
+  description:'Großzügiger Wildpark mit ursprünglichen Wild- und Haustierrassen, Streichelbereich und großem Spielplatz. Naturwege und längere Strecken einplanen.',
+  info_url:'https://www.gemeinde-schorfheide.de/startseite/wirtschaft-tourismus/freizeit-tourismus/wildpark-schorfheide',
+  accessibility:documented(
+   'Die Gemeinde beschreibt den Wildpark als zugänglich mit Rollstuhl über naturbelassene Wege und nennt ein Behinderten-WC.',
+   'Alle Tiergehege laut Gemeinde über naturbelassene Wege mit Rollstuhl erreichbar; Behinderten-WC und Wickelraum genannt.',
+   'Naturbelassene Wege können witterungsbedingt uneben oder beschwerlich sein; individuelle Mobilitätshilfen und die langen Strecken vorab prüfen.',
+   'https://www.gemeinde-schorfheide.de/startseite/wirtschaft-tourismus/freizeit-tourismus/wildpark-schorfheide'
+  ),
+  last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-wildpark-johannismuehle',title:'Wildpark Johannismühle',
+  category:'outing',region_label:'Baruth/Mark · Teltow-Fläming',
+  address:'Johannismühle 2, 15837 Baruth/Mark OT Klasdorf, Deutschland',
+  latitude:52.017222,longitude:13.532222,
+  description:'Wald-Wildpark mit heimischen Tieren, Tierfütterungen und Natur-Lernangeboten. Saison, Ruhetage und Teilnahmebedingungen vor der Fahrt prüfen.',
+  info_url:'https://www.wildpark-johannismuehle.de/besuch-planen/',
+  accessibility:unknown('https://www.wildpark-johannismuehle.de/besuch-planen/'),
+  last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-naturschutzzentrum-krugpark',title:'Naturschutzzentrum Krugpark',
+  category:'outing',region_label:'Brandenburg an der Havel · kreisfreie Stadt',
+  address:'Ziesarer Landstraße 6P, 14776 Brandenburg an der Havel, Deutschland',
+  latitude:52.37353,longitude:12.50929,
+  description:'Waldschule, Naturbeobachtungen, Lernpfade, Tastangebote und Spielplatz. Gruppenprogramme gegebenenfalls nur mit vorheriger Anmeldung.',
+  info_url:'https://www.stadt-brandenburg.de/leben/umwelt-und-naturschutz/krugpark',
+  accessibility:documented(
+   'Offizieller Tourismusführer nennt einen auch für Menschen mit Behinderung geeigneten Tastpfad; keine pauschale Wegefreigabe.',
+   'Einzelangebot Tastpfad ausdrücklich als geeignet beschrieben; die Rollstuhlzugänglichkeit aller Pfade und Sanitäranlagen ist nicht ausreichend belegt.',
+   'Waldwege, Untergrund und Waldschulangebote sind individuell zu prüfen. Nicht aus dem Tastpfad auf vollständige Barrierefreiheit schließen.',
+   'https://www.reiseland-brandenburg.de/poi/havelland/besucherzentren/naturschutzzentrum-krugpark/',
+   'Tastpfad und Naturstationen bieten multisensorische Naturerfahrung; unterstützende Begleitung gegebenenfalls erfragen.'
+  ),
+  last_checked:'2026-11-23'
+ },
+
+ // 23.11.2026: familiengeeignete Bad-/Indoor-Angebote und dokumentierte Gaststätte mit Spielplatz.
+ {
+  id:'bb-schwapp-fuerstenwalde',title:'schwapp · Schwimm- und Wasserparadies',
+  category:'outing',region_label:'Fürstenwalde/Spree · Oder-Spree',
+  address:'Große Freizeit 1, 15517 Fürstenwalde/Spree, Deutschland',
+  latitude:52.37448,longitude:14.07469,osm_key:'osm-way-96378687',
+  description:'Erlebnisbad mit mehreren großen Rutschen, Kinder- und Nichtschwimmerbecken sowie separatem Sportbad. Rutschen-Altersvorgaben, aktuelle Badezeiten und Ticketpreise vorab kontrollieren.',
+  info_url:'https://www.schwapp.de/',
+  accessibility:unknown('https://sportstaetten.brandenburg.de/hallenbaeder/schwimm-und-wasserparadies-schwapp~9zy'),
+  family_focus:'water',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-duellarena-scharmuetzelbob',title:'Duellarena · Scharmützel-Bob',
+  category:'outing',region_label:'Bad Saarow-Petersdorf · Oder-Spree',
+  address:'Am Fuchsbau 7, 15526 Bad Saarow OT Petersdorf, Deutschland',
+  latitude:52.3275,longitude:14.06947,
+  description:'Indoorspiel- und Geschicklichkeitshalle mit Kletterparcours, Bumper-Cars, Fußballkäfig und interaktiven Spielstationen; Rodelbahn draußen ist gesondert wetterabhängig.',
+  info_url:'https://www.scharmuetzelbob.de/attraktionen/duellarena/',
+  accessibility:unknown('https://www.scharmuetzelbob.de/attraktionen/duellarena/'),
+  family_focus:'indoor',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-mykidsland-frankfurt',title:'MYKIDSLAND · Indoorspielplatz',
+  category:'outing',region_label:'Frankfurt (Oder) · kreisfreie Stadt',
+  address:'Böttnerstraße 4, 15232 Frankfurt (Oder), Deutschland',
+  latitude:52.320141,longitude:14.537761,
+  description:'Indoorspielplatz für Familien und Kindergeburtstage. Betreiber empfiehlt die Buchung einer Spielzeit zur Einlasssicherung. Die Kartenmarkierung liegt näherungsweise an der Böttnerstraße.',
+  info_url:'https://mykidsland.de/',
+  accessibility:unknown('https://mykidsland.de/kontakt-anfahrt/'),
+  family_focus:'indoor',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-fitolino-eberswalde',title:'Fitolino · Indoor-Kinderspielwelt',
+  category:'outing',region_label:'Eberswalde · Barnim',
+  address:'Coppistraße 1g, 16227 Eberswalde, Deutschland',
+  latitude:52.84385,longitude:13.76623,osm_key:'osm-node-6834343663',
+  description:'Indoor-Spielwelt mit Kletter- und Bewegungselementen im Fit-&-Fun-Umfeld. Für Kinder ohne Begleitung gelten besondere Einwilligungsbedingungen; Ferienzeiten und Preise prüfen.',
+  info_url:'https://fitolino.de/preise-oeffnungszeiten/',
+  accessibility:unknown('https://fitolino.de/kontakt/'),
+  family_focus:'indoor',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-saarowtherme',title:'SaarowTherme · Thermalbad',
+  category:'outing',region_label:'Bad Saarow · Oder-Spree',
+  address:'Am Kurpark 1, 15526 Bad Saarow, Deutschland',
+  latitude:52.29101,longitude:14.06,osm_key:'osm-way-94113554',
+  description:'Thermalsolebad mit Entspannung und Schwimmkurs-Angeboten. Achtung: Freitags und samstags ist der Zutritt nach Betreiberangabe ab 16 Jahren gestattet. Für Familien mit jüngeren Kindern nur an zugelassenen Tagen passend.',
+  info_url:'https://www.saarowtherme.de/besucherinformation',
+  accessibility:unknown('https://www.saarowtherme.de/besucherinformation'),
+  family_focus:'water',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-turm-erlebniscity-oranienburg',title:'TURM ErlebnisCity · Sport- und Erlebnisbad',
+  category:'outing',region_label:'Oranienburg · Oberhavel',
+  address:'André-Pican-Straße 42, 16515 Oranienburg, Deutschland',
+  latitude:52.74991,longitude:13.2577,osm_key:'osm-way-212712437',
+  description:'Sport- und Familien-Erlebnisbad mit Becken, Rutschen und Kindergeburtstagsangeboten. Kosten, Kurszeiten und Zugänglichkeit einzelner Wasserattraktionen prüfen.',
+  info_url:'https://www.erlebniscity.de/sport-und-erlebnisbad',
+  accessibility:unknown('https://www.erlebniscity.de/service/kontakt-und-anfahrt'),
+  family_focus:'water',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-bistro-kobel-wildpark',title:'Wildparkbistro „Kobel“ · Terrasse am Spielplatz',
+  category:'outing',region_label:'Frankfurt (Oder) · kreisfreie Stadt',
+  address:'Im Wildpark, Am Wildpark 1, 15234 Frankfurt (Oder), Deutschland (Markierung im Wildparkbereich)',
+  latitude:52.35099,longitude:14.46594,
+  description:'Bistro mit Innenplätzen und Terrasse direkt neben dem Spielplatz im Wildpark Frankfurt (Oder). Der Spielplatz liegt außerhalb des Gastraums; Bistro- und Parköffnungszeiten getrennt prüfen.',
+  info_url:'https://wildpark-frankfurt-oder.de/index.php/de/wildparkgastronomie-kobel',
+  accessibility:unknown('https://wildpark-frankfurt-oder.de/index.php/de/wildparkgastronomie-kobel'),
+  family_focus:'food-play',last_checked:'2026-11-23'
+ },
 ].map(place=>({
- ...place,source:'curated',
+ ...place,family_focus:place.family_focus||focusById[place.id]||'discovery',source:'curated',
  source_label:'Brandenburg · Redaktionell recherchiert',
  has_changing_table:false,
- last_checked:'2026-11-22'
+ last_checked:place.last_checked||'2026-11-22'
 }));
 export function describePlaceAccessibility(place){
  const item=place?.accessibility;

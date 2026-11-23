@@ -7,7 +7,7 @@ const {OFFICIAL_EVENT_DISTRICTS,OFFICIAL_EVENT_CATEGORIES,officialEventRange,
 assert.equal(OFFICIAL_EVENT_DISTRICTS.length,6);
 assert.deepEqual(OFFICIAL_EVENT_DISTRICTS.slice(1).map(x=>x.id).sort(),
  ['barnim','dahme-spreewald','frankfurt-oder','maerkisch-oderland','oder-spree']);
-assert.equal(OFFICIAL_EVENT_CATEGORIES.length,8);
+assert.equal(OFFICIAL_EVENT_CATEGORIES.length,9);
 assert.deepEqual(officialEventRange('2026-11'),{from:'2026-11-01',to:'2026-11-30'});
 assert.deepEqual(officialEventRange('2028-02'),{from:'2028-02-01',to:'2028-02-29'});
 assert.deepEqual(officialEventRange('2026-12'),{from:'2026-12-01',to:'2026-12-31'});
@@ -18,6 +18,8 @@ const evt={id:'1',published:true,district:'oder-spree',category:'theater',end_da
 assert.equal(officialEventVisible(evt,'all','all','2026-11-23'),true);
 assert.equal(officialEventVisible(evt,'oder-spree','theater','2026-11-29'),true);
 assert.equal(officialEventVisible(evt,'oder-spree','market','2026-11-23'),false);
+assert.equal(officialEventVisible({...evt,title:'Weihnachtselch'},'oder-spree','holiday','2026-11-23'),true);
+assert.equal(officialEventVisible({...evt,title:'Sommerfest'},'oder-spree','holiday','2026-11-23'),false);
 assert.equal(officialEventVisible(evt,'barnim','theater','2026-11-23'),false);
 assert.equal(officialEventVisible(evt,'all','all','2026-11-30'),false);
 assert.equal(officialEventVisible({...evt,published:false},'all','all','2026-11-23'),false);

@@ -6,6 +6,7 @@ import {VERIFIED_GUIDE_DETAILS, ODER_SPREE_GUIDE} from './FamilyGuideVerified';
 import {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES,
   guessBrandenburgRegion,findBrandenburgRegions,officeForGuideStep,REGIONAL_DIRECTORY_URL} from './BrandenburgFamilyRegions';
 import {GERMANY_FAMILY_STATES,GERMANY_FAMILY_RESOURCES,findGermanyFamilyStates} from './GermanyFamilyDirectory';
+import FamilyTopicsSection from './FamilyTopicsSection';
 
 const P=FAMILY_COLORS;
 const TYPES={
@@ -293,6 +294,7 @@ export default function FamilyGuideScreen({userId,regionLabel}){
         </View>)}
       </View>:null}
     </View>
+    <FamilyTopicsSection/>
     <Text style={st.sectionHeading}>Eure Zeitleiste</Text>
     {PHASES.map((p,index)=>{
       const selected=p.id===phaseId;

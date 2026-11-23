@@ -41,7 +41,8 @@
     "check:chat-idempotency": "node tests/check-chat-intents.mjs && node tests/check-server-chat-idempotency.mjs",
     "check:blocks": "node tests/check-block-pages.mjs && node tests/check-block-contact-app.mjs",
     "check:design-refresh": "node tests/check-home-personalization.mjs && node tests/check-design-refresh.mjs",
-    "check:knowledge": "node tests/check-regional-knowledge.mjs && node tests/check-inclusion-knowledge.mjs && node tests/check-map-accessibility.mjs"
+    "check:knowledge": "node tests/check-regional-knowledge.mjs && node tests/check-inclusion-knowledge.mjs && node tests/check-map-accessibility.mjs",
+    "check:family-topics": "node tests/check-family-topics.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
