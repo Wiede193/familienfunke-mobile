@@ -888,7 +888,8 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 <Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
 </SafeAreaView>;
 const EXTRA_TITLES={play:'Familienzeit',calendar:'Mein Familienkalender',savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',healthy:'Sport & Gesundheit',decisions:'Beschlüsse einfach erklärt',more:'Weitere Bereiche'};
-const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
+const selectedMainTab=TABS.some(t=>t[0]===tab)?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:null);
+ const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
 function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='calendar'){setMapIntent(null);setTab('calendar');}else if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else if(mapIntent.returnTab==='healthy'){setMapIntent(null);setTab('healthy');}else{setMapIntent(null);setTab('outing');}}else if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);}else if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches','healthy','decisions'].includes(tab))setTab(extraReturnTab);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
@@ -1049,8 +1050,8 @@ changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>si
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');if(id==='guide')setGuideQuery('');setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><View style={[styles.tabIcon,(tab===id)&&styles.tabIconSelected]}>
-  <FamilyIcon name={glyph} size={24} color={tab===id?C.accentDark:C.muted}/>
+accessibilityLabel={title} accessibilityState={{selected:selectedMainTab===id}} style={[styles.tab,(selectedMainTab===id)&&styles.tabActive]}><View style={[styles.tabIcon,(tab===id)&&styles.tabIconSelected]}>
+  <FamilyIcon name={glyph} size={24} color={selectedMainTab===id?C.accentDark:C.muted}/>
 </View><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
 </View>:null}
 <TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
@@ -3262,7 +3263,7 @@ marketHeroIcon:{width:59,height:59,borderRadius:19,backgroundColor:C.white,
 marketTrust:{flexDirection:'row',gap:7,alignItems:'center',
   paddingVertical:11,paddingHorizontal:10,marginBottom:12,
   borderRadius:14,backgroundColor:C.mint},
-marketTrustText:{fontSize:12,color:C.accentDark,fontWeight:'700',flex:1},
+marketTrustText:{fontSize:14,color:C.accentDark,fontWeight:'700',flex:1},
 marketFilterHeading:{fontSize:13,color:C.ink,fontWeight:'800',marginBottom:9},
 marketGiftPill:{position:'absolute',top:9,left:8,backgroundColor:C.sunPale,
   paddingVertical:6,paddingHorizontal:10,borderRadius:10},
@@ -3278,7 +3279,7 @@ marketSearchBox:{minHeight:53,backgroundColor:C.white,borderRadius:17,borderWidt
 marketSearchInput:{fontSize:16,color:C.ink,flex:1,minHeight:50},
 marketFilters:{flexDirection:'row',alignItems:'flex-start',gap:10,marginBottom:14},
 marketFilterToggle:{minHeight:47,borderRadius:14,borderWidth:1,borderColor:'#D0DFDE',backgroundColor:C.white,paddingHorizontal:10,justifyContent:'center',alignItems:'center'},
-marketFilterLabel:{fontSize:12.5,fontWeight:'800',color:C.accentDark},
+marketFilterLabel:{fontSize:14,fontWeight:'800',color:C.accentDark},
 marketSortOptions:{backgroundColor:C.white,borderColor:C.line,borderWidth:1,borderRadius:14,marginTop:5},
 marketGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:13},
 marketTile:{width:'48.3%',borderRadius:19,borderWidth:1,borderColor:C.line,backgroundColor:C.white,overflow:'hidden',minHeight:262,shadowColor:'#986D52',shadowOpacity:0.05,shadowRadius:6,shadowOffset:{width:0,height:2},elevation:1},
@@ -3288,7 +3289,7 @@ marketImagePlaceholder:{backgroundColor:'#F4F1EB',alignItems:'center',justifyCon
 marketPricePill:{position:'absolute',top:8,left:7,right:50,backgroundColor:'#FFFFFFF2',borderRadius:11,paddingVertical:6,paddingHorizontal:9,alignSelf:'flex-start'},
 marketPricePillText:{fontSize:14,fontWeight:'900',color:C.ink},
 marketTileBody:{padding:12,paddingBottom:15,gap:3},
-marketTileTitle:{fontSize:15,fontWeight:'700',color:C.ink,lineHeight:20,minHeight:38},
+marketTileTitle:{fontSize:16,fontWeight:'700',color:C.ink,lineHeight:20,minHeight:38},
 marketTilePrice:{fontSize:17,fontWeight:'800',color:C.accentDark,marginTop:6},
 marketDetailCard:{padding:17,marginBottom:18},
 marketDetailImage:{height:285,backgroundColor:'#F4F1EB',borderRadius:18,overflow:'hidden'},
@@ -3330,26 +3331,26 @@ heroTaglineText:{color:C.ink,fontSize:11.5,fontWeight:'700'},
 headingWrap:{flexDirection:'row',alignItems:'flex-start',gap:12,marginBottom:17},
 headingBar:{width:5,height:37,borderRadius:4,backgroundColor:C.sun,marginTop:3},
 h:{fontSize:25,fontWeight:'800',color:C.ink,letterSpacing:-.6},
-sub:{fontSize:13.5,lineHeight:21,color:C.muted,marginTop:6},
-body:{fontSize:14.5,lineHeight:22,color:C.ink},
-micro:{fontSize:11.5,color:C.muted,lineHeight:17},
+sub:{fontSize:14.5,lineHeight:21,color:C.muted,marginTop:6},
+body:{fontSize:16,lineHeight:22,color:C.ink},
+micro:{fontSize:14,color:C.muted,lineHeight:17},
 sectionTitle:{fontSize:18,color:C.ink,fontWeight:'800',marginBottom:13},
 cardTitle:{fontSize:17,fontWeight:'800',color:C.ink},
-label:{fontSize:13,color:C.ink,fontWeight:'800',marginBottom:8},
+label:{fontSize:14,color:C.ink,fontWeight:'800',marginBottom:8},
 input:{backgroundColor:C.white,borderColor:'#D9DED6',borderWidth:1,borderRadius:15,paddingHorizontal:15,paddingVertical:13,fontSize:15,color:C.ink,minHeight:48},
 button:{minHeight:50,paddingHorizontal:18,paddingVertical:12,borderRadius:15,justifyContent:'center',alignItems:'center',flexDirection:'row'},
 button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#AEDBDD',borderWidth:1.5},
 button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:44,paddingVertical:9,paddingHorizontal:13},
 buttonText:{color:C.white,fontSize:14,fontWeight:'800'},buttonTextDark:{color:C.accentDark},
-chip:{borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:13,paddingVertical:8},
-chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{color:C.accentDark,fontSize:12,fontWeight:'800'},
+chip:{minHeight:44,justifyContent:'center',borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:13,paddingVertical:8},
+chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{color:C.accentDark,fontSize:14,fontWeight:'800'},
 chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},
 info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertical:14,marginHorizontal:0,marginTop:7,marginBottom:12},
-warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:C.accentDark},
+warning:{backgroundColor:C.warning},infoText:{fontSize:14,lineHeight:20,color:C.accentDark},
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
-tabBar:{minHeight:76,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:8,paddingBottom:3},
-tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:57,paddingVertical:6,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{width:35,height:29,alignItems:'center',justifyContent:'center'},tabIconSelected:{borderRadius:10},tabLabel:{fontSize:11,color:C.muted,marginTop:3,fontWeight:'600'},
+tabBar:{minHeight:80,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:8,paddingBottom:3},
+tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:62,paddingVertical:6,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{width:35,height:29,alignItems:'center',justifyContent:'center'},tabIconSelected:{borderRadius:10},tabLabel:{fontSize:12.5,color:C.muted,marginTop:3,fontWeight:'700',textAlign:'center'},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},
