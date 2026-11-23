@@ -14,6 +14,31 @@ const unknown=(url)=>({
  limitations:'Aus fehlenden Angaben lässt sich keine fehlende Barrierefreiheit ableiten.',
  source_url:url,checked:'2026-11-22'
 });
+// Recherche-Kategorien dienen der Auswahl, sind keine zugesagte Ausstattung.
+export const BRANDENBURG_FAMILY_FOCUS=[
+ {id:'all',label:'Alle'},
+ {id:'water',label:'Thermen & Bäder'},
+ {id:'indoor',label:'Indoor spielen'},
+ {id:'food-play',label:'Essen & Spielen'},
+ {id:'nature',label:'Natur & Tiere'},
+ {id:'discovery',label:'Entdecken'}
+];
+const focusById={
+ 'bb-spreewelten-luebbenau':'water','bb-naturtherme-templin':'water',
+ 'bb-barnim-panorama':'discovery','bb-museumspark-ruedersdorf':'discovery',
+ 'bb-schiffshebewerk-niederfinow':'discovery','bb-ziegeleipark-mildenberg':'discovery',
+ 'bb-besucherbergwerk-f60':'discovery','bb-kreismuseum-oranienburg':'discovery',
+ 'bb-schloss-museum-luebben':'discovery','bb-schloss-doberlug-erlebnisreich':'discovery',
+ 'bb-biosphaere-potsdam':'discovery','bb-optikpark-rathenow':'discovery',
+ 'bb-sielmann-forum-gross-schauen':'discovery',
+ 'bb-schweizer-haus-buckow':'nature','bb-stobbi-wanderroute-buckow':'nature',
+ 'bb-naturparkzentrum-hoher-flaeming':'nature','bb-naturparkhaus-stechlin':'nature',
+ 'bb-wildpark-schorfheide':'nature','bb-wildpark-johannismuehle':'nature',
+ 'bb-naturschutzzentrum-krugpark':'nature','bb-baumkronenpfad-beelitz':'nature',
+ 'bb-tierpark-cottbus':'nature','bb-zoo-eberswalde':'nature',
+ 'bb-familiengarten-eberswalde':'nature','bb-germendorf-tierpark':'nature'
+};
+
 export const BRANDENBURG_FAMILY_PLACES=[
  {
   id:'bb-barnim-panorama',title:'BARNIM PANORAMA · Naturparkzentrum und Agrarmuseum',
@@ -213,16 +238,6 @@ export const BRANDENBURG_FAMILY_PLACES=[
 
  // 23.11.2026: offizielle Naturpark-/Kommunalquellen, insbesondere inklusive Naturerlebnisse.
  {
-  id:'bb-naturparkhaus-schlaubetal',title:'Naturparkhaus Schlaubetal',
-  category:'outing',region_label:'Müllrose · Oder-Spree',
-  address:'Kietz 7, 15299 Müllrose, Deutschland',
-  latitude:52.246636,longitude:14.413869,
-  description:'Besucherinformationszentrum mit interaktiven Einblicken in Wälder, Seen, Moore und Eiszeitgeschichte des Schlaubetals. Öffnungszeiten richten sich nach dem Haus des Gastes.',
-  info_url:'https://www.schlaubetal-naturpark.de/themen/ausflugsziele-erlebnisse/naturparkhaus-schlaubetal/',
-  accessibility:unknown('https://www.schlaubetal-naturpark.de/themen/ausflugsziele-erlebnisse/naturparkhaus-schlaubetal/'),
-  last_checked:'2026-11-23'
- },
- {
   id:'bb-schweizer-haus-buckow',title:'Schweizer Haus · Naturpark Märkische Schweiz',
   category:'outing',region_label:'Buckow · Märkisch-Oderland',
   address:'Lindenstraße 33, 15377 Buckow (Märkische Schweiz), Deutschland',
@@ -326,8 +341,80 @@ export const BRANDENBURG_FAMILY_PLACES=[
   ),
   last_checked:'2026-11-23'
  },
+
+ // 23.11.2026: familiengeeignete Bad-/Indoor-Angebote und dokumentierte Gaststätte mit Spielplatz.
+ {
+  id:'bb-schwapp-fuerstenwalde',title:'schwapp · Schwimm- und Wasserparadies',
+  category:'outing',region_label:'Fürstenwalde/Spree · Oder-Spree',
+  address:'Große Freizeit 1, 15517 Fürstenwalde/Spree, Deutschland',
+  latitude:52.37448,longitude:14.07469,osm_key:'osm-way-96378687',
+  description:'Erlebnisbad mit mehreren großen Rutschen, Kinder- und Nichtschwimmerbecken sowie separatem Sportbad. Rutschen-Altersvorgaben, aktuelle Badezeiten und Ticketpreise vorab kontrollieren.',
+  info_url:'https://www.schwapp.de/',
+  accessibility:unknown('https://sportstaetten.brandenburg.de/hallenbaeder/schwimm-und-wasserparadies-schwapp~9zy'),
+  family_focus:'water',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-duellarena-scharmuetzelbob',title:'Duellarena · Scharmützel-Bob',
+  category:'outing',region_label:'Bad Saarow-Petersdorf · Oder-Spree',
+  address:'Am Fuchsbau 7, 15526 Bad Saarow OT Petersdorf, Deutschland',
+  latitude:52.3275,longitude:14.06947,
+  description:'Indoorspiel- und Geschicklichkeitshalle mit Kletterparcours, Bumper-Cars, Fußballkäfig und interaktiven Spielstationen; Rodelbahn draußen ist gesondert wetterabhängig.',
+  info_url:'https://www.scharmuetzelbob.de/attraktionen/duellarena/',
+  accessibility:unknown('https://www.scharmuetzelbob.de/attraktionen/duellarena/'),
+  family_focus:'indoor',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-mykidsland-frankfurt',title:'MYKIDSLAND · Indoorspielplatz',
+  category:'outing',region_label:'Frankfurt (Oder) · kreisfreie Stadt',
+  address:'Böttnerstraße 4, 15232 Frankfurt (Oder), Deutschland',
+  latitude:52.320141,longitude:14.537761,
+  description:'Indoorspielplatz für Familien und Kindergeburtstage. Betreiber empfiehlt die Buchung einer Spielzeit zur Einlasssicherung. Die Kartenmarkierung liegt näherungsweise an der Böttnerstraße.',
+  info_url:'https://mykidsland.de/',
+  accessibility:unknown('https://mykidsland.de/kontakt-anfahrt/'),
+  family_focus:'indoor',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-fitolino-eberswalde',title:'Fitolino · Indoor-Kinderspielwelt',
+  category:'outing',region_label:'Eberswalde · Barnim',
+  address:'Coppistraße 1g, 16227 Eberswalde, Deutschland',
+  latitude:52.84385,longitude:13.76623,osm_key:'osm-node-6834343663',
+  description:'Indoor-Spielwelt mit Kletter- und Bewegungselementen im Fit-&-Fun-Umfeld. Für Kinder ohne Begleitung gelten besondere Einwilligungsbedingungen; Ferienzeiten und Preise prüfen.',
+  info_url:'https://fitolino.de/preise-oeffnungszeiten/',
+  accessibility:unknown('https://fitolino.de/kontakt/'),
+  family_focus:'indoor',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-saarowtherme',title:'SaarowTherme · Thermalbad',
+  category:'outing',region_label:'Bad Saarow · Oder-Spree',
+  address:'Am Kurpark 1, 15526 Bad Saarow, Deutschland',
+  latitude:52.29101,longitude:14.06,osm_key:'osm-way-94113554',
+  description:'Thermalsolebad mit Entspannung und Schwimmkurs-Angeboten. Achtung: Freitags und samstags ist der Zutritt nach Betreiberangabe ab 16 Jahren gestattet. Für Familien mit jüngeren Kindern nur an zugelassenen Tagen passend.',
+  info_url:'https://www.saarowtherme.de/besucherinformation',
+  accessibility:unknown('https://www.saarowtherme.de/besucherinformation'),
+  family_focus:'water',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-turm-erlebniscity-oranienburg',title:'TURM ErlebnisCity · Sport- und Erlebnisbad',
+  category:'outing',region_label:'Oranienburg · Oberhavel',
+  address:'André-Pican-Straße 42, 16515 Oranienburg, Deutschland',
+  latitude:52.74991,longitude:13.2577,osm_key:'osm-way-212712437',
+  description:'Sport- und Familien-Erlebnisbad mit Becken, Rutschen und Kindergeburtstagsangeboten. Kosten, Kurszeiten und Zugänglichkeit einzelner Wasserattraktionen prüfen.',
+  info_url:'https://www.erlebniscity.de/sport-und-erlebnisbad',
+  accessibility:unknown('https://www.erlebniscity.de/service/kontakt-und-anfahrt'),
+  family_focus:'water',last_checked:'2026-11-23'
+ },
+ {
+  id:'bb-bistro-kobel-wildpark',title:'Wildparkbistro „Kobel“ · Terrasse am Spielplatz',
+  category:'outing',region_label:'Frankfurt (Oder) · kreisfreie Stadt',
+  address:'Im Wildpark, Am Wildpark 1, 15234 Frankfurt (Oder), Deutschland (Markierung im Wildparkbereich)',
+  latitude:52.35099,longitude:14.46594,
+  description:'Bistro mit Innenplätzen und Terrasse direkt neben dem Spielplatz im Wildpark Frankfurt (Oder). Der Spielplatz liegt außerhalb des Gastraums; Bistro- und Parköffnungszeiten getrennt prüfen.',
+  info_url:'https://wildpark-frankfurt-oder.de/index.php/de/wildparkgastronomie-kobel',
+  accessibility:unknown('https://wildpark-frankfurt-oder.de/index.php/de/wildparkgastronomie-kobel'),
+  family_focus:'food-play',last_checked:'2026-11-23'
+ },
 ].map(place=>({
- ...place,source:'curated',
+ ...place,family_focus:place.family_focus||focusById[place.id]||'discovery',source:'curated',
  source_label:'Brandenburg · Redaktionell recherchiert',
  has_changing_table:false,
  last_checked:place.last_checked||'2026-11-22'
