@@ -2719,7 +2719,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <SearchResultFeedback active={!!(query.trim()||interest!=='Alle'||onlyRegion||onlyShared)} query={query} count={filtered.length}
  context="Familien entdecken" hasMore={hasMore} loading={loadingMore} hint="Nur freigegebene, freiwillig sichtbare Familienprofile."/>
 <Pressable accessibilityRole="button" accessibilityState={{expanded:showInterestFilter}}
- onPress={()=>setShowInterestFilter(v=>!v)}
+ onPress={()=>{Keyboard.dismiss();setShowInterestFilter(v=>!v);}}
  style={[styles.marketFilterToggle,{minHeight:48,marginBottom:12,alignSelf:'stretch'}]}>
  <Text style={styles.marketFilterLabel}>Interessen auswählen: {interest==='Alle'?'Alle Interessen':interest} {showInterestFilter?'−':'+'}</Text>
  </Pressable>
