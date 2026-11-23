@@ -2604,6 +2604,7 @@ const [interest,setInterest]=useState('Alle');
 const [onlyRegion,setOnlyRegion]=useState(false);
 const [onlyShared,setOnlyShared]=useState(false);
 const [mode,setMode]=useState('cards');
+const [showInterestFilter,setShowInterestFilter]=useState(false);
 const [cardIndex,setCardIndex]=useState(0);
 const myRegion=myProfile?.region_label||'';
 const filtered=matches.filter(p=>
@@ -2647,15 +2648,20 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <View style={styles.heroDecorationTwo} pointerEvents="none"/>
 <View style={styles.heroPill}><Text style={styles.heroPillText}>✦ GEMEINSAM MEHR ERLEBEN</Text></View>
 <Text style={styles.heroTitle}>Familien entdecken, die zu euch passen.</Text>
-<Text style={styles.heroText}>Entdecke gemeinsame Hobbys und Familien aus deiner Region – ganz ohne Standortfreigabe.</Text>
+<Text style={styles.heroText}>Findet andere Familien mit gemeinsamen Interessen – freiwillig und ohne genaue Standortfreigabe.</Text>
 <View style={styles.heroTagline}><Text style={styles.heroTaglineText}>♥  Aus Nachbarschaft wird Freundschaft.</Text></View>
 </View>
 {!active?<Info warning>Dein Konto wartet noch auf persönliche Erwachsenenprüfung oder Profilfreigabe. Profilstatus: {myProfile?.moderation_status||'–'} · Verifizierung: {verification?.status||'–'}.</Info>:null}
-<Info>{SECTION_MESSAGES.discover}</Info><H sub="Nur freigegebene, freiwillig sichtbare Familienprofile.">Familien entdecken</H>
+<H sub="Nur freigegebene, freiwillig sichtbare Familienprofile.">Familien entdecken</H>
 <Input label="Suche nach Familie, Region oder Interesse" placeholder="z. B. Natur, Beeskow …" value={query} onChangeText={value=>updateFilter(setQuery,value)} />
-<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:13}}>
-{['Alle',...INTERESTS].map(i=><View key={i} style={{marginRight:6}}><Chip text={i} selected={interest===i} onPress={()=>updateFilter(setInterest,i)}/></View>)}
-</ScrollView>
+<Pressable accessibilityRole="button" accessibilityState={{expanded:showInterestFilter}}
+ onPress={()=>setShowInterestFilter(v=>!v)}
+ style={[styles.marketFilterToggle,{minHeight:48,marginBottom:12,alignSelf:'stretch'}]}>
+ <Text style={styles.marketFilterLabel}>Interessen auswählen: {interest==='Alle'?'Alle Interessen':interest} {showInterestFilter?'−':'+'}</Text>
+ </Pressable>
+ {showInterestFilter?<View style={[styles.chipsRow,{marginBottom:13}]}>
+ {['Alle',...INTERESTS].map(i=><Chip key={i} text={i} selected={interest===i} onPress={()=>{updateFilter(setInterest,i);setShowInterestFilter(false);}}/>)}
+ </View>:null}
 <View style={styles.filterPanel}>
 <Row style={{justifyContent:'space-between',marginBottom:10}}>
 <View style={{flex:1}}><Text style={styles.label}>Nur meine Region</Text><Text style={styles.micro}>{myRegion?'Gleiche Region oder bekannter Ort im selben Landkreis':'Bitte zuerst deine Region im Profil auswählen'}</Text></View>
@@ -2668,7 +2674,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </View>
 <Row style={{justifyContent:'space-between',marginBottom:14,marginTop:5}}>
 <Text style={[styles.micro,{fontWeight:'800'}]}>{filtered.length} {filtered.length===1?'Familie':'Familien'} in geladenen Ergebnissen</Text>
-<Row><Chip text="Karten" selected={mode==='cards'} onPress={()=>setMode('cards')}/><Chip text="Liste" selected={mode==='list'} onPress={()=>setMode('list')}/></Row>
+<Row><Chip text="Einzelansicht" selected={mode==='cards'} onPress={()=>setMode('cards')}/><Chip text="Liste" selected={mode==='list'} onPress={()=>setMode('list')}/></Row>
 </Row>
 {!active?<Blank title="Zunächst Freigabe abwarten" body="Sobald das Konto geprüft ist, erscheinen freigegebene Familienprofile."/>:
 filtered.length===0?<Blank title="Noch keine passenden Familien" icon="users"
@@ -2676,7 +2682,7 @@ filtered.length===0?<Blank title="Noch keine passenden Familien" icon="users"
   actionLabel="Filter zurücksetzen"
   onAction={()=>{setQuery('');setInterest('Alle');setOnlyRegion(false);setOnlyShared(false);setCardIndex(0);}}/>:
 mode==='cards'?<>
-<Text style={[styles.micro,{textAlign:'center',marginBottom:12}]}>Familie {index+1} von {filtered.length} · Du entscheidest, wen du kontaktierst.</Text>
+<Text style={[styles.sub,{textAlign:'center',marginBottom:12}]}>Familie {index+1} von {filtered.length} · Du entscheidest, wen du kontaktierst.</Text>
 {familyCard(filtered[index])}
 <Row style={{justifyContent:'space-between',gap:12}}>
 <Button title="← Zurück" mode="outline" disabled={index===0} style={{flex:1}} onPress={()=>setCardIndex(index-1)}/>
