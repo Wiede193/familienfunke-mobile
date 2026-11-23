@@ -41,6 +41,7 @@ import {useNotificationCenter} from './NotificationCenter';
 import {signOutWithPush} from './PushDevice';
 import FamilyMapScreen from './FamilyMap';
 import HealthyScreen from './HealthyScreen';
+import OfficialDecisionsScreen from './OfficialDecisionsScreen';
 import {FACT_KEYS,EMPTY_FACTS,DEFECTS,encodeArticleFacts,decodeArticleFacts,articleFactRows} from './MarketArticleFacts';
 import {marketPhotoAlt,marketPhotoFacts} from './MarketAccessibleDescription';
 import {compactBoxDetail,summarizeBox,packageNote,packagePersonalLimit,parsePackageNote,labelSource,BOX_MAX_ITEMS,BOX_MAX_BATCHES,BOX_MAX_PACKAGE,sizeGroups,matchingBatchPhotos,sameBoxSelection,listingDraftId} from './MarketBoxPackage';
@@ -235,6 +236,8 @@ const [marketIntent,setMarketIntent]=useState(null);
 const [outingDraft,setOutingDraft]=useState(null);
 const [mapIntent,setMapIntent]=useState(null);
 const [healthyQuery,setHealthyQuery]=useState('');
+const [decisionQuery,setDecisionQuery]=useState('');
+const [decisionFocusId,setDecisionFocusId]=useState(null);
 const [guideQuery,setGuideQuery]=useState('');
 const [inclusionQuery,setInclusionQuery]=useState('');
 const [calendarSeed,setCalendarSeed]=useState(null);
@@ -763,11 +766,18 @@ async function openInboxEvent(event){
  if(!owner||!event?.id)return false;
  try{
    const {data:row,error:e}=await supabase.from('ff_notifications')
-    .select('id,kind,contact_id,listing_id,listing_status').eq('id',event.id).eq('user_id',me).maybeSingle();
+    .select('id,kind,contact_id,listing_id,listing_status,decision_id').eq('id',event.id).eq('user_id',me).maybeSingle();
    if(accountRef.current!==owner)return false;
    if(e)throw e;
    if(!row){setNotice('Diese Neuigkeit ist nicht mehr verfügbar.');inbox.refresh();return false;}
-   if(row.kind==='search'||row.kind==='price'){
+   if(row.kind==='decision'){
+     if(!row.decision_id)return false;
+     const {data:decision,error:decisionError}=await supabase.from('ff_official_decisions')
+      .select('id').eq('id',row.decision_id).eq('published',true).maybeSingle();
+     if(accountRef.current!==owner)return false;
+     if(decisionError||!decision){setNotice('Dieser amtliche Beschluss ist nicht mehr verfügbar.');return false;}
+     setDecisionFocusId(decision.id);setDecisionQuery('');setExtraReturnTab('inbox');setTab('decisions');
+   }else if(row.kind==='search'||row.kind==='price'){ 
      if(!row.listing_id){setNotice('Dieses Angebot ist nicht mehr verfügbar.');return false;}
      const {data:listing,error:listingError}=await supabase.from('ff_market_listings')
        .select('id').eq('id',row.listing_id).eq('moderation_status','approved')
@@ -831,10 +841,11 @@ async function openInboxEvent(event){
  }
 }
 function navigateFromHome(id,marketQuery='',placeId=null){
-  const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar','play','healthy'];
+  const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar','play','healthy','decisions'];
   if(!routes.includes(id))return;
   if(id==='inbox'){openInbox();return;}
   if(id==='healthy')setHealthyQuery(String(marketQuery||'').slice(0,160));
+  if(id==='decisions'){setDecisionQuery(String(marketQuery||'').slice(0,160));setDecisionFocusId(typeof placeId==='string'?placeId:null);}
   if(id==='guide')setGuideQuery(String(marketQuery||'').slice(0,160));
   if(id==='inclusion')setInclusionQuery(String(marketQuery||'').slice(0,160));
   setCalendarSeed(null);
@@ -860,6 +871,7 @@ function selectMenuItem(id){
   if(!MORE_ITEMS.some(item=>item[0]===id)&&id!=='more')return;
   // Menu navigation opens topic overviews; global search keeps its own deep-link query.
   if(id==='healthy')setHealthyQuery('');
+  if(id==='decisions'){setDecisionQuery('');setDecisionFocusId(null);}
   if(id==='inclusion')setInclusionQuery('');
   if(tab===id&&!detailFamily&&!selectedContact&&!showInfo)return;
   const previous=TABS.some(t=>t[0]===tab)||tab==='more'?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:'home');
@@ -875,9 +887,9 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 </View><TechnicalHelpScreen initialCategory="Anmeldung & Konto"/></>:
 <Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
 </SafeAreaView>;
-const EXTRA_TITLES={play:'Familienzeit',calendar:'Mein Familienkalender',savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',healthy:'Sport & Gesundheit',more:'Weitere Bereiche'};
+const EXTRA_TITLES={play:'Familienzeit',calendar:'Mein Familienkalender',savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',healthy:'Sport & Gesundheit',decisions:'Beschlüsse einfach erklärt',more:'Weitere Bereiche'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='calendar'){setMapIntent(null);setTab('calendar');}else if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else if(mapIntent.returnTab==='healthy'){setMapIntent(null);setTab('healthy');}else{setMapIntent(null);setTab('outing');}}else if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);}else if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches','healthy'].includes(tab))setTab(extraReturnTab);}
+function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='calendar'){setMapIntent(null);setTab('calendar');}else if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else if(mapIntent.returnTab==='healthy'){setMapIntent(null);setTab('healthy');}else{setMapIntent(null);setTab('outing');}}else if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);}else if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches','healthy','decisions'].includes(tab))setTab(extraReturnTab);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
@@ -889,7 +901,7 @@ return <SafeAreaView style={styles.screen}>
   </View>
 </View>
 {tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><FamilyIcon name="bell" size={22} color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
-{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
+{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
 <Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
 {connectionIssue?<View accessibilityLiveRegion="polite" style={{paddingHorizontal:12,paddingTop:8}}>
@@ -916,6 +928,7 @@ showInfo?<InfoScreen/>:
 tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome} userId={me} profile={myProfile} active={active} inboxUnread={inbox.unread}/>:
 tab==='play'?<FamilyPlayScreen key={me}/>:
 tab==='healthy'?<HealthyScreen initialQuery={healthyQuery} onOpenMap={()=>{setExtraReturnTab('healthy');setMapIntent({layer:'bike',returnTab:'healthy'});setTab('map');}}/>:
+tab==='decisions'?<OfficialDecisionsScreen key={me} userId={me} initialQuery={decisionQuery} focusId={decisionFocusId}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
 tab==='outing'?<FamilyOutingScreen key={me} onCalendar={planCalendarPlace} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
 tab==='guide'?<FamilyGuideScreen userId={me} regionLabel={myProfile?.region_label} initialKnowledgeQuery={guideQuery} onOpenHealthy={()=>{setExtraReturnTab('guide');setHealthyQuery('');setTab('healthy');}}/>:
