@@ -67,7 +67,7 @@ function AssistantReply({entry,onNavigate}){
       <Text style={[s.mutedSmall,{marginTop:12}]}>Treffer lassen sich gerade nicht laden. Die Suche im Basar ist weiterhin möglich.</Text>:null}
     {entry.pageId?<Pressable accessibilityRole="button"
       accessibilityLabel="Vorgeschlagenen App-Bereich öffnen"
-      onPress={()=>onNavigate(entry.pageId,entry.pageId==='market'?entry.searchQuery||entry.question:'')}
+      onPress={()=>onNavigate(entry.pageId,['market','healthy','guide','inclusion'].includes(entry.pageId)?entry.searchQuery||entry.question:'')}
       style={({pressed})=>[s.answerAction,pressed&&s.pressed]}>
       <Text style={s.answerActionLabel}>{HOME_ROUTES.find(x=>x.id===entry.pageId)?.title||'Passenden Bereich öffnen'} ›</Text>
       
