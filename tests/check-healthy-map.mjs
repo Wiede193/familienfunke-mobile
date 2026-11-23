@@ -16,6 +16,8 @@ assert.match(screen,/Linking\.openURL/,'Original source pages must be linked');
 assert.match(screen,/Barrierefreiheit/,'Physical accessibility caveat kept');
 const app=read('App.jsx'),home=read('HomeAssistant.jsx'),map=read('FamilyMap.jsx');
 assert.match(app,/tab==='healthy'\?<HealthyScreen/,'Screen must be reachable');
+assert.match(app,/\['guide','Wissen','book'\]/,'Navigation must keep knowledge in five primary tabs');
+assert.match(read('FamilyGuide.jsx'),/onPress=\{onOpenHealthy\}/,'Knowledge area must link directly to Healthy');
 assert.match(app,/setMapIntent\(\{layer:'bike',returnTab:'healthy'\}\)/,'Map button opens selected cycling layer');
 assert.match(app,/returnTab==='healthy'/,'Navigation back to health must work');
 assert.match(map,/setPathLayer:function\(kind\)/,'Map layer toggle must be implemented, not decorative');
