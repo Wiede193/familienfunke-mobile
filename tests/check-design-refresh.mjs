@@ -15,7 +15,7 @@ for(const x of ['FamilyEmptyState','FamilySkeleton','FamilySectionTitle'])
 assert.match(feedback,/accessibilityRole="progressbar"/);
 assert.match(home,/import \{recommendFamilyPlaces,selectHomeOffers,selectHomeEvents/);
 assert.match(home,/function SunMark\(/,'Keep the distinctive natural sun mark');
-assert.match(home,/const FEATURED=\['discover','map','market','healthy'\]/);
+assert.match(home,/const FEATURED=\['discover','map','market','guide'\]/);
 assert.match(home,/onSubmitEditing=\{searchApp\}/,'Google-like direct search must remain keyboard-first');
 assert.match(home,/supabase\.functions\.invoke\('ff-app-assistant'/,'Do not remove AI assistant');
 assert.match(home,/ff_market_search/,'Only show server-verified listings');
@@ -38,7 +38,7 @@ assert.match(menu,/animationType="fade"/);
 assert.match(menu,/MENU_GROUPS\.map/,'Keep every existing menu item accessible');
 assert.match(menu,/FamilyIcon name=\{FAMILY_ROUTE_ICONS\[id\]/);
 assert.match(app,/const TABS = \[\['home','Start','home'\]/);
-assert.match(app,/styles\.tabIcon,\(tab===id\)/);
+assert.match(app,/styles\.tabIcon,\(selectedMainTab===id\)/);
 assert.match(app,/FamilyIcon name=\{glyph\}/);
 assert.match(app,/tab==='home'\?<HomeAssistant key=\{me\}.*profile=\{myProfile\}.*inboxUnread=\{inbox\.unread\}/);
 assert.match(app,/type:'buyerListing',id:placeId/,'Home market card opens actual approved listing');
