@@ -28,7 +28,7 @@ const old=read('FamilyMapCurated.js');
 assert.match(old,/id:'curated-burg-storkow'/);
 assert.match(old,/status:'documented'/);
 const fm=read('FamilyMap.jsx');
-assert.match(fm,/BRANDENBURG_FAMILY_PLACES,describePlaceAccessibility/);
+assert.match(fm,/BRANDENBURG_FAMILY_PLACES,BRANDENBURG_FAMILY_FOCUS,describePlaceAccessibility/);
 assert.match(fm,/const curated=\[\.\.\.CURATED_FAMILY_PLACES,\.\.\.BRANDENBURG_FAMILY_PLACES,\.\.\.nationalShown\]/);
 assert.match(fm,/curated:\[\.\.\.CURATED_FAMILY_PLACES,\.\.\.BRANDENBURG_FAMILY_PLACES\]/);
 assert.match(fm,/const place=\[\.\.\.CURATED_FAMILY_PLACES,\.\.\.BRANDENBURG_FAMILY_PLACES,\.\.\.NATIONAL_FAMILY_PLACES\]/);
