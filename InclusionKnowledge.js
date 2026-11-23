@@ -234,6 +234,69 @@ export const INCLUSION_ARTICLES=[
   sources:[source('Familienportal – Hilfe im Alltag','https://familienportal.de/familienportal/lebenslagen/leben-mit-behinderung/hilfe-im-alltag'),
     source('BMAS – Rehabilitation und Teilhabe','https://www.bmas.de/DE/Soziales/Teilhabe-und-Inklusion/Rehabilitation-und-Teilhabe/rehabilitation-und-teilhabe.html')]
  }
+,{
+ id:'respite-care',category:'benefits',title:'Verhinderungspflege und Kurzzeitpflege für Kinder',
+ short:'Pflegevertretung und zeitlich begrenzte Betreuung bei Ausfall von Angehörigen.',
+ overview:'Pflegende Eltern können unter gesetzlichen Voraussetzungen Leistungen der Verhinderungs- oder Kurzzeitpflege für ein pflegebedürftiges Kind nutzen. Seit Juli 2025 gibt es einen gemeinsamen Jahresbetrag für beide Leistungen. Ersatzpflege im häuslichen Umfeld und zeitweise Pflege in einer Einrichtung sind nicht identisch.',
+ firstSteps:[
+  'Bei der Pflegekasse den tatsächlich festgestellten Pflegegrad und die geltenden Voraussetzungen für Verhinderungs- oder Kurzzeitpflege klären.',
+  'Sich vor der Organisation erklären lassen, welche Vertretungspersonen, Einrichtungen und Zeiträume anerkannt werden.',
+  'Den gemeinsamen Jahresbetrag und bereits eingesetzte Beträge für beide Leistungsarten auf dem Kontoauszug der Pflegekasse prüfen.',
+  'Kostenbelege, Tage und Vertretungszeiten aufbewahren sowie Erstattungsfristen schriftlich erfragen.'
+ ],
+ documents:'Pflegegradbescheid, Angaben zur verhinderten Pflegeperson, Bestätigung der Ersatzpflege beziehungsweise Einrichtung und Kostenbelege.',
+ responsible:'Gesetzliche Pflegekasse oder private Pflegepflichtversicherung; ergänzend unabhängige Pflegeberatung.',
+ caveat:'Leistungshöhe, Voraussetzungen und Abrechnung unterscheiden sich nach Pflegegrad und Vertretungssituation. Seit 2026 gelten aktualisierte Regeln zur Abrechnungsfrist; keine veralteten Pauschalbeträge verwenden.',
+ sources:[source('Bundesgesundheitsministerium – Häusliche Pflege','https://www.bundesgesundheitsministerium.de/pflege-zu-hause'),
+  source('Bundesgesundheitsministerium – Gemeinsamer Jahresbetrag','https://www.bundesgesundheitsministerium.de/presse/pressemitteilungen/das-aendert-sich-zum-1-juli-in-der-pflege')]
+},
+{
+ id:'relief-services',category:'benefits',title:'Entlastungsbetrag und familienunterstützende Dienste',
+ short:'Entlastung im Pflegealltag und anerkannte Angebote vor Ort finden.',
+ overview:'Bei häuslicher Pflege kann ein gesetzlich geregelter Entlastungsbetrag oder eine andere Pflegeversicherungsleistung die Nutzung qualitätsgesicherter Angebote unterstützen. Welche Leistungen erstattungsfähig sind, hängt von Pflegegrad, anerkanntem Anbieter und geltendem Recht ab.',
+ firstSteps:[
+  'Bei der Pflegekasse nach aktuellem Anspruch, nutzbarem Budget und etwaigen Überträgen aus Vorperioden fragen.',
+  'Nach landesrechtlich anerkannten Anbietern für Unterstützung im Alltag, familienentlastende Dienste oder Tagesbetreuung suchen.',
+  'Mit dem gewählten Anbieter vor der Buchung klären, ob die konkrete Leistung wirklich erstattungsfähig ist.',
+  'Rechnungen und Leistungsnachweise aufbewahren und bei Pflegekasse den Abrechnungsweg prüfen.'
+ ],
+ documents:'Pflegegradbescheid, Rechnungen und Bestätigungen über erbrachte Leistungen; gegebenenfalls Anerkennungsnachweis des Anbieters.',
+ responsible:'Pflegekasse und nach Landesrecht zuständige Stellen für anerkannte Angebote zur Unterstützung im Alltag; Pflegeberatungsstelle.',
+ caveat:'Der Entlastungsbetrag ist zweckgebunden und keine frei verfügbare Zahlung auf das Girokonto. Wegen angekündigter Reformen müssen Höhe und mögliche künftige Änderungen beim aktuellen Anbieter geprüft werden.',
+ sources:[source('Gesundheitsportal – Entlastungsbetrag','https://gesund.bund.de/entlastungsbetrag'),
+  source('Bundesgesundheitsministerium – Unterstützungsangebote','https://www.bundesgesundheitsministerium.de/pflege-zu-hause/weitere-leistungen-und-angebote-zur-unterstuetzung-im-alltag')]
+},
+{
+ id:'parental-assistance',category:'first-steps',title:'Elternassistenz und Begleitete Elternschaft',
+ short:'Unterstützung der Elternrolle bei Behinderung eines Elternteils.',
+ overview:'Menschen mit Behinderung haben das gleiche Recht auf Familienleben. Je nach Situation kann Elternassistenz die praktische Unterstützung bei Betreuung und Versorgung des eigenen Kindes ermöglichen. Begleitete Elternschaft und andere Beratungsangebote können ergänzend helfen, selbstbestimmt Elternschaft zu gestalten.',
+ firstSteps:[
+  'Konkrete Alltagsaufgaben notieren, bei denen Hilfe benötigt wird, etwa Versorgung, Mobilität, Orientierung oder Kommunikation.',
+  'Bei unabhängiger Teilhabeberatung oder dem regionalen Träger nach Elternassistenz und anderen passenden Leistungsarten fragen.',
+  'Sich erklären lassen, ob Leistungen der Eingliederungshilfe oder andere Systeme zuständig sind und wie die Bedarfsermittlung abläuft.',
+  'Hilfen so planen, dass Entscheidungen über Erziehung und Familienleben bei den Eltern verbleiben und Privatsphäre geschützt wird.'
+ ],
+ documents:'Je nach Leistung individuell benötigte Bedarfsbeschreibung, gegebenenfalls vorhandene Bescheide, Nachweise und Antragsunterlagen.',
+ responsible:'Örtlicher Eingliederungshilfeträger beziehungsweise nach Fall zuständige Leistungsstelle; EUTB und Beratungsangebote Begleitete Elternschaft.',
+ caveat:'Elternassistenz und Unterstützung bei eigenem Pflegebedarf sind verschiedene Leistungen. Es besteht keine pauschale Zusage zu Stunden oder Trägerzuständigkeit.',
+ sources:[source('Familienportal – Eltern mit Behinderung','https://familienportal.de/familienportal/lebenslagen/leben-mit-behinderung/eltern-mit-behinderung/eltern-mit-behinderung-148360'),
+  source('Bundesfamilienportal – Leistungen für Eltern','https://familienportal.de/familienportal/lebenslagen/leben-mit-behinderung/unterstuetzung-und-finanzielles/welche-leistungen-gibt-es-fuer-eltern-von-kindern-mit-behinderungen--148202')]
+},
+{
+ id:'disability-tax',category:'rights',title:'Steuerliche Nachteilsausgleiche bei Behinderung in der Familie',
+ short:'Pauschbeträge und andere Entlastungen gesondert vom Schwerbehindertenausweis prüfen.',
+ overview:'Bei einer Behinderung eines Kindes oder eines Elternteils kommen je nach individuellen Voraussetzungen steuerliche Entlastungen in Betracht, zum Beispiel Behinderten-Pauschbetrag, Pflege-Pauschbetrag oder steuerliche Berücksichtigung notwendiger Fahrten. Ein GdB-Bescheid ersetzt keine steuerliche Prüfung.',
+ firstSteps:[
+  'Auf dem offiziellen Familienportal die Steuerentlastungen und jeweils nötigen Nachweise nachlesen.',
+  'Feststellungsbescheide und Merkzeichen für die Steuererklärung gegebenenfalls bereitstellen.',
+  'Mit dem Finanzamt oder einer zulässigen Steuerberatung klären, ob Übertragung beziehungsweise Pflege-Pauschbetrag in Betracht kommt.',
+  'Bei Änderungen des GdB, der Pflegeverhältnisse oder des Familienstands die Voraussetzungen erneut überprüfen.'
+ ],
+ documents:'Gegebenenfalls Feststellungsbescheid, Merkzeichen, Nachweis einer Pflegeleistung und steuerlich erforderliche Erklärungen.',
+ responsible:'Finanzamt beziehungsweise anerkannte Lohnsteuerhilfe oder Steuerberatung; LASV für Feststellung des GdB in Brandenburg.',
+ caveat:'Ein Pflegegrad oder Schwerbehindertenausweis erzeugt nicht automatisch jede Steuervergünstigung. Steuerrecht, Pauschbeträge und Nachweise können sich ändern und hängen von den persönlichen Voraussetzungen ab.',
+ sources:[source('Familienportal – Steuerentlastungen bei Behinderung','https://familienportal.de/familienportal/familienleistungen/steuerentlastungen/welche-steuerentlastungen-gibt-es-wenn-mein-kind-oder-ich-eine-behinderung-haben--148372')]
+}
 ];
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
 export function findInclusionArticles(query='',category='all'){
