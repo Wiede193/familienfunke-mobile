@@ -151,6 +151,6 @@ export const FAMILY_ROUTE_ICONS=Object.freeze({
  box:'bag',sell:'plus',play:'puzzle',outing:'compass',calendar:'calendar',
  events:'calendar',partners:'users',contacts:'users',chat:'message',
  inbox:'bell',profile:'users',push:'bell',savedSearches:'search',
- info:'book',inclusion:'heart',help:'shield',aboutApp:'sun',
+ info:'book',healthy:'heart',inclusion:'heart',help:'shield',aboutApp:'sun',
  welcome:'sun',refresh:'refresh',more:'menu',saved:'heart'
 });

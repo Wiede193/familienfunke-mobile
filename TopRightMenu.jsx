@@ -5,29 +5,30 @@ import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 
 export const MENU_GROUPS=[
- {title:'Mein Familienfunke',items:[
-  ['profile','◉','Mein Profil','Hobbys, Fotos, Konto und Privatsphäre'],
-  ['contacts','♡','Kontakte','Anfragen und bestätigte Familienkontakte'],
+ {title:'Mein Bereich',items:[
+  ['profile','◉','Mein Profil','Familie, Interessen, Datenschutz und Konto'],
+  ['contacts','♡','Kontakte','Bekannte Familien und Anfragen'],
   ['chat','✉','Nachrichten','Private Unterhaltungen'],
-  ['inbox','◉','Neuigkeiten','Benachrichtigungszentrale'],
-  ['push','⚙','Benachrichtigungseinstellungen','Push-Hinweise auf deinem Gerät'],
-  ['savedSearches','♡','Meine Suchaufträge','Gespeicherte Basar-Suchen und Mitteilungen']
+  ['inbox','◉','Neuigkeiten','Hinweise und Benachrichtigungen'],
+  ['calendar','▦','Familienkalender','Eigene Termine und Pläne'],
+  ['savedSearches','♡','Suchaufträge','Gespeicherte Basar-Suchen'],
+  ['push','⚙','Benachrichtigungen einstellen','Push-Einstellungen']
  ]},
- {title:'Familienalltag',items:[
-  ['play','✧','Familienzeit','Quiz, Rätsel und gemeinsame Spielideen'],
-  ['calendar','▦','Mein Familienkalender','Private Termine und gemerkte Veranstaltungen'],
-  ['events','▦','Treffen & Veranstaltungen','Gemeinsame Aktivitäten'],
-  ['outing','☀','Ausflugsplaner','Ausflüge mit oder ohne KI planen'],
-  ['partners','✿','Kitas & Partnerwelt','Einrichtungen und Kita-Veranstaltungen'],
-  ['inclusion','♡','Familien & Inklusion','Teilhabe und Informationen'],
-  ['info','◇','Elternwissen & hilfreiche Links','Informationen für Familien']
+ {title:'Aktivitäten & Wissen',items:[
+  ['healthy','✿','Sport & Gesundheit','Vereine, Ernährung, Videos und Bewegung'],
+  ['outing','☀','Ausflüge planen','Alter, Budget und Entfernung'],
+  ['events','▦','Treffen & Veranstaltungen','Gemeinsame Termine'],
+  ['play','✧','Spiele & Quiz','Familienzeit und Rätsel'],
+  ['partners','✿','Kitas & Partner','Einrichtungen und Angebote'],
+  ['inclusion','♡','Inklusion & Teilhabe','Informationen und Unterstützung'],
+  ['info','◇','Elternwissen','Ratgeber und hilfreiche Links']
  ]},
- {title:'Service',items:[
-  ['help','?','Hilfe & FAQ','Anleitungen und Unterstützung'],
-  ['aboutApp','♡','Über Familienfunke','Unsere Idee'],
+ {title:'Hilfe & Service',items:[
+  ['help','?','Hilfe & FAQ','Bedienung und Unterstützung'],
+  ['aboutApp','♡','Über Familienfunke','Unser Konzept'],
   ['welcome','☀','Willkommenskarte','Noch einmal ansehen'],
-  ['refresh','⟳','Daten aktualisieren','Aktuellen Stand abrufen'],
-  ['more','≡','Alle weiteren Bereiche','Vollständige Übersicht']
+  ['refresh','⟳','Daten aktualisieren','Neuen Stand abrufen'],
+  ['more','≡','Weitere Bereiche','Gesamtübersicht']
  ]}
 ];
 export const MORE_ITEMS=MENU_GROUPS.flatMap(g=>g.items).filter(([id])=>!['info','refresh','more'].includes(id));
@@ -37,7 +38,7 @@ const QUICK_ITEMS=[
   ['profile','Mein Profil','users'],
   ['chat','Nachrichten','message'],
   ['inbox','Neuigkeiten','bell'],
-  ['market','Familienbasar','bag']
+  ['calendar','Kalender','calendar']
 ];
 export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}){
  const [expanded,setExpanded]=useState(null);

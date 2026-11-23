@@ -1,4 +1,4 @@
-import React,{useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useState} from 'react';
 import {Linking,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import FamilyIcon from './FamilyIcon';
@@ -13,10 +13,11 @@ function LinkRow({title,url}){
    <FamilyIcon name="chevron-right" size={18}/>
  </Pressable>;
 }
-export default function InclusionKnowledgeScreen({regionLabel,onOpenMap}){
+export default function InclusionKnowledgeScreen({regionLabel,onOpenMap,initialQuery=''}){
  const [search,setSearch]=useState('');
  const [category,setCategory]=useState('all');
  const [opened,setOpened]=useState(null);
+ useEffect(()=>{if(initialQuery.trim())setSearch(initialQuery);},[initialQuery]);
  const entries=useMemo(()=>findInclusionArticles(search,category),[search,category]);
  const region=guessBrandenburgRegion(regionLabel);
  const localOffice=region?.offices?.filter(o=>o.topic==='disability')||[];

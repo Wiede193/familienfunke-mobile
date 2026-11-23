@@ -86,9 +86,21 @@ const MAP_HTML=[
   'searchMarkers.push(new ml.Marker({element:el,anchor:"bottom"}).setLngLat([p.longitude,p.latitude]).addTo(map));',
   '});searchSelection(payload&&payload.selectedId);},',
   'setSearchSelection:function(id){searchSelection(id);},',
+  'setPathLayer:function(kind){["bike","walk"].forEach(v=>{const id="ff-"+v+"-paths";',
+  'if(map.getLayer(id))map.setLayoutProperty(id,"visibility",kind===v?"visible":"none");});},',
   'fitSearchResults:function(){zoomToSearch();}',
   '};',
-  'map.on("load",()=>send({type:"ready"}));',
+  'function addPathLayer(id,color,subclasses){map.addLayer({id,type:"line",source:"openmaptiles",',
+  '"source-layer":"transportation",minzoom:9,',
+  'filter:["all",["==",["geometry-type"],"LineString"],["in",["get","subclass"],["literal",subclasses]]],',
+  'layout:{"visibility":"none","line-cap":"round","line-join":"round"},',
+  'paint:{"line-color":color,"line-width":["interpolate",["linear"],["zoom"],9,2,13,3.5,16,5],',
+  '"line-opacity":0.9}});}',
+  'map.on("load",()=>{try{',
+  'if(!map.getSource("openmaptiles"))throw Error("No vector transport source");',
+  'addPathLayer("ff-bike-paths","#0B777A",["cycleway"]);',
+  'addPathLayer("ff-walk-paths","#B9474C",["footway","path","track","pedestrian"]);',
+  '}catch(e){send({type:"pathsError"});}send({type:"ready"});});',
   'map.on("moveend",()=>{const p=map.getCenter();send({type:"move",latitude:p.lat,longitude:p.lng,zoom:map.getZoom()});});',
   'map.on("click",(e)=>send({type:"tap",latitude:e.lngLat.lat,longitude:e.lngLat.lng}));',
   '}catch(e){send({type:"error",message:"Die Vektorkarte konnte nicht gestartet werden."});}',
@@ -114,12 +126,14 @@ function pinSetScript(items){
 function inGermany(lat,lon){
   return valid(lat)&&valid(lon)&&lat>=47&&lat<=55.2&&lon>=5.5&&lon<=15.6;
 }
-export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onCalendar}){
+export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,entryLayer='none',onCalendar}){
   const map=useRef(null);
   const scroll=useRef(null);
   const mapOffset=useRef(0);
   const [ready,setReady]=useState(false);
   const [mapError,setMapError]=useState('');
+  const [pathsError,setPathsError]=useState(false);
+  const [pathLayer,setPathLayer]=useState(['bike','walk'].includes(entryLayer)?entryLayer:'none');
   const [center,setCenter]=useState({latitude:51.2,longitude:10.45,zoom:5.3});
   const [types,setTypes]=useState('all');
   const [nationalType,setNationalType]=useState('all');
@@ -178,6 +192,17 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
   const selected=all.find(p=>p.id===selectedId)||null;
   const selectedAccess=describePlaceAccessibility(selected);
   useEffect(()=>{if(ready)map.current?.injectJavaScript(pinSetScript(all));},[all,ready]);
+  useEffect(()=>{if(ready)map.current?.injectJavaScript(mapScript('setPathLayer',pathLayer));},[pathLayer,ready]);
+  useEffect(()=>{if(['bike','walk'].includes(entryLayer))setPathLayer(entryLayer);},[entryLayer]);
+  // Arriving from Sport & Gesundheit starts in the project pilot region at street-level zoom.
+  // This does not track the user's location.
+  useEffect(()=>{
+    if(!ready||!['bike','walk'].includes(entryLayer))return;
+    const {latitude,longitude}=CURATED_REGION;
+    const zoom=10.8;
+    setCenter({latitude,longitude,zoom});
+    map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo('+latitude+','+longitude+','+zoom+');true;');
+  },[ready,entryLayer]);
   useEffect(()=>{
     if(!ready)return;
     const active=placeQuery.trim().length>=2;
@@ -278,6 +303,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
     try{value=JSON.parse(event.nativeEvent.data);}catch{return;}
     if(value.type==='ready'){setReady(true);setMapError('');}
     else if(value.type==='error')setMapError(String(value.message||'Karte nicht verfügbar'));
+    else if(value.type==='pathsError')setPathsError(true);
     else if(value.type==='move'&&valid(value.latitude)&&valid(value.longitude)&&valid(value.zoom)){
       setCenter({latitude:value.latitude,longitude:value.longitude,zoom:value.zoom});
     }else if(value.type==='tap'&&inGermany(value.latitude,value.longitude)){
@@ -416,6 +442,21 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
         {geoStatus==='quota'?'Suchlimit erreicht oder Dienst ausgelastet. Bitte später erneut versuchen.':geoStatus==='error'?'Die deutschlandweite Suche ist gerade nicht erreichbar. Familienfunke-Tipps bleiben verfügbar.':'Keine weiteren Kartentreffer gefunden. Prüfe die Schreibweise oder ergänze die Stadt.'}
       </Text>:null}
     </View>
+    <View style={{marginTop:16,marginBottom:12}}>
+      <Text accessibilityRole="header" style={styles.sectionNoMargin}>Kartenebene: Bewegung & Natur</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingTop:10,paddingRight:15}}>
+        <Chip label="Normale Karte" selected={pathLayer==='none'} onPress={()=>setPathLayer('none')}/>
+        <Chip label="Radwege" selected={pathLayer==='bike'} onPress={()=>setPathLayer('bike')}/>
+        <Chip label="Wander- & Fußwege" selected={pathLayer==='walk'} onPress={()=>setPathLayer('walk')}/>
+      </ScrollView>
+      {pathLayer!=='none'?<Text style={[styles.micro,{marginTop:9}]}>
+        OpenStreetMap-Wegenetz ab höherem Kartenzoom. Familienorte bleiben als Hotspots sichtbar.
+        Keine geprüften Touren, keine garantierte Rad-/Wander-Eignung oder Barrierefreiheit.
+      </Text>:null}
+      {pathsError?<Text accessibilityRole="alert" style={[styles.micro,{color:C.danger,marginTop:6}]}>
+        Die zusätzliche Wegeebene ist beim Kartendienst derzeit nicht verfügbar. Die Familienorte bleiben nutzbar.
+      </Text>:null}
+    </View>
     <View style={styles.mapFrame} onLayout={event=>{mapOffset.current=event.nativeEvent.layout.y;}}>
       <WebView ref={map} originWhitelist={['*']} source={{html:MAP_HTML}}
        accessible={false} importantForAccessibility="no-hide-descendants"
@@ -424,7 +465,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
        setSupportMultipleWindows={false} allowsInlineMediaPlayback/>
       {!ready?<View pointerEvents="none" style={styles.mapLoading}><ActivityIndicator color={C.teal}/><Text style={styles.micro}>Vektorkarte laden …</Text></View>:null}
       <View pointerEvents="none" style={styles.mapTag}><Text style={styles.mapTagText}>
-        {placeQuery.trim().length>=2?'Suchtreffer auf der Karte: '+locationMatches.length:'Vektorkarte · Deutschland'}
+        {placeQuery.trim().length>=2?'Suchtreffer auf der Karte: '+locationMatches.length:pathLayer==='bike'?'Radwege · Familien-Hotspots':pathLayer==='walk'?'Fußwege · Familien-Hotspots':'Vektorkarte · Deutschland'}
       </Text></View>
     </View>
     {selectedSearchMatch?<View accessibilityLiveRegion="polite" style={styles.mapSelectedInfo}>

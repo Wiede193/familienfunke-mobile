@@ -15,7 +15,7 @@ for(const x of ['FamilyEmptyState','FamilySkeleton','FamilySectionTitle'])
 assert.match(feedback,/accessibilityRole="progressbar"/);
 assert.match(home,/import \{recommendFamilyPlaces,selectHomeOffers,selectHomeEvents/);
 assert.match(home,/function SunMark\(/,'Keep the distinctive natural sun mark');
-assert.match(home,/const FEATURED=\['discover','map','market','box'\]/);
+assert.match(home,/const FEATURED=\['discover','map','market','healthy'\]/);
 assert.match(home,/onSubmitEditing=\{searchApp\}/,'Google-like direct search must remain keyboard-first');
 assert.match(home,/supabase\.functions\.invoke\('ff-app-assistant'/,'Do not remove AI assistant');
 assert.match(home,/ff_market_search/,'Only show server-verified listings');

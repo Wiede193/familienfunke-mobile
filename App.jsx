@@ -40,6 +40,7 @@ import NotificationCenterScreen from './NotificationCenterScreen';
 import {useNotificationCenter} from './NotificationCenter';
 import {signOutWithPush} from './PushDevice';
 import FamilyMapScreen from './FamilyMap';
+import HealthyScreen from './HealthyScreen';
 import {FACT_KEYS,EMPTY_FACTS,DEFECTS,encodeArticleFacts,decodeArticleFacts,articleFactRows} from './MarketArticleFacts';
 import {marketPhotoAlt,marketPhotoFacts} from './MarketAccessibleDescription';
 import {compactBoxDetail,summarizeBox,packageNote,packagePersonalLimit,parsePackageNote,labelSource,BOX_MAX_ITEMS,BOX_MAX_BATCHES,BOX_MAX_PACKAGE,sizeGroups,matchingBatchPhotos,sameBoxSelection,listingDraftId} from './MarketBoxPackage';
@@ -58,7 +59,7 @@ const sameRegion = (a,b) => {
   const x=normalizeLabel(a), y=normalizeLabel(b);
   return !!x && (x===y || REGION_CLUSTERS.some(group=>group.includes(x)&&group.includes(y)));
 };
-const TABS = [['home','Start','home'],['market','Basar','bag'],['discover','Familien','users'],['map','Karte','map'],['guide','Wegweiser','book']];
+const TABS = [['home','Start','home'],['market','Basar','bag'],['discover','Familien','users'],['map','Karte','map'],['guide','Wissen','book']];
 const MARKET_CATEGORIES=['Kleidung','Spielzeug','Bücher','Babyausstattung','Möbel','Sonstiges'];
 const ORG_KINDS=[['kita','Kita / Kindergarten'],['foerderverein','Förderverein'],['familienzentrum','Familienzentrum'],['verein','Familienverein']];
 const SECTION_MESSAGES={market:'Von Familien für Familien: kostenlos einstellen, verschenken und tauschen. Unsere Gebühren sind offen – aktuell gibt es keine Onlinezahlungen. Wir verkaufen keine persönlichen Daten.',partners:'Kitas und Fördervereine stellen sich vor, zeigen freie Plätze und laden zu Flohmärkten ein. Ein Stern erscheint nur bei bestätigter Einrichtung.',discover:'Neue Familien kennenlernen – freiwillig, respektvoll und ohne genaue Standortfreigabe.',events:'Gemeinsam etwas unternehmen statt endlose Diskussionen. Veranstaltungen werden vor der Veröffentlichung geprüft.',inclusion:'Für Familien mit und ohne Behinderung: willkommen, respektiert und ohne Pflicht zur Offenlegung persönlicher Diagnosen.'};
@@ -233,6 +234,9 @@ const [menuOpen,setMenuOpen]=useState(false);
 const [marketIntent,setMarketIntent]=useState(null);
 const [outingDraft,setOutingDraft]=useState(null);
 const [mapIntent,setMapIntent]=useState(null);
+const [healthyQuery,setHealthyQuery]=useState('');
+const [guideQuery,setGuideQuery]=useState('');
+const [inclusionQuery,setInclusionQuery]=useState('');
 const [calendarSeed,setCalendarSeed]=useState(null);
 const [eventIntent,setEventIntent]=useState(null);
 const [extraReturnTab,setExtraReturnTab]=useState('more');
@@ -827,9 +831,12 @@ async function openInboxEvent(event){
  }
 }
 function navigateFromHome(id,marketQuery='',placeId=null){
-  const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar','play'];
+  const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar','play','healthy'];
   if(!routes.includes(id))return;
   if(id==='inbox'){openInbox();return;}
+  if(id==='healthy')setHealthyQuery(String(marketQuery||'').slice(0,160));
+  if(id==='guide')setGuideQuery(String(marketQuery||'').slice(0,160));
+  if(id==='inclusion')setInclusionQuery(String(marketQuery||'').slice(0,160));
   setCalendarSeed(null);
   setMapIntent(id==='map'&&typeof placeId==='string'?{id:placeId,returnTab:'home'}:null);
   setEventIntent(['events','partners'].includes(id)&&typeof placeId==='string'?{id:placeId,tab:id,owner:me}:null);
@@ -851,6 +858,9 @@ function selectMenuItem(id){
   if(id==='info'){setDetailFamily(null);setSelectedContact(null);setShowInfo(true);return;}
   if(id==='inbox'){openInbox();return;}
   if(!MORE_ITEMS.some(item=>item[0]===id)&&id!=='more')return;
+  // Menu navigation opens topic overviews; global search keeps its own deep-link query.
+  if(id==='healthy')setHealthyQuery('');
+  if(id==='inclusion')setInclusionQuery('');
   if(tab===id&&!detailFamily&&!selectedContact&&!showInfo)return;
   const previous=TABS.some(t=>t[0]===tab)||tab==='more'?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:'home');
   setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);setMapIntent(null);setCalendarSeed(null);setEventIntent(null);setFocusContactId(null);setShowEventForm(false);
@@ -865,9 +875,9 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 </View><TechnicalHelpScreen initialCategory="Anmeldung & Konto"/></>:
 <Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
 </SafeAreaView>;
-const EXTRA_TITLES={play:'Familienzeit',calendar:'Mein Familienkalender',savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',more:'Weitere Bereiche'};
+const EXTRA_TITLES={play:'Familienzeit',calendar:'Mein Familienkalender',savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',healthy:'Sport & Gesundheit',more:'Weitere Bereiche'};
 const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='calendar'){setMapIntent(null);setTab('calendar');}else if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else{setMapIntent(null);setTab('outing');}}else if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);}else if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches'].includes(tab))setTab(extraReturnTab);}
+function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='calendar'){setMapIntent(null);setTab('calendar');}else if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else if(mapIntent.returnTab==='healthy'){setMapIntent(null);setTab('healthy');}else{setMapIntent(null);setTab('outing');}}else if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);}else if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches','healthy'].includes(tab))setTab(extraReturnTab);}
 return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
@@ -879,7 +889,7 @@ return <SafeAreaView style={styles.screen}>
   </View>
 </View>
 {tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><FamilyIcon name="bell" size={22} color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
-{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
+{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
 <Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
 {connectionIssue?<View accessibilityLiveRegion="polite" style={{paddingHorizontal:12,paddingTop:8}}>
@@ -905,10 +915,11 @@ onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
 tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome} userId={me} profile={myProfile} active={active} inboxUnread={inbox.unread}/>:
 tab==='play'?<FamilyPlayScreen key={me}/>:
+tab==='healthy'?<HealthyScreen initialQuery={healthyQuery} onOpenMap={()=>{setExtraReturnTab('healthy');setMapIntent({layer:'bike',returnTab:'healthy'});setTab('map');}}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
 tab==='outing'?<FamilyOutingScreen key={me} onCalendar={planCalendarPlace} draft={outingDraft?.owner===me?outingDraft.value:null} onSave={value=>{if(accountRef.current===me)setOutingDraft({owner:me,value});}} onMap={id=>{setMapIntent({id});setTab('map');}}/>:
-tab==='guide'?<FamilyGuideScreen userId={me} regionLabel={myProfile?.region_label}/>:
-tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={active} entryPlaceId={mapIntent?.id} addPlace={(v)=>executeEvent(async()=>{
+tab==='guide'?<FamilyGuideScreen userId={me} regionLabel={myProfile?.region_label} initialKnowledgeQuery={guideQuery} onOpenHealthy={()=>{setExtraReturnTab('guide');setHealthyQuery('');setTab('healthy');}}/>:
+tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={active} entryPlaceId={mapIntent?.id} entryLayer={mapIntent?.layer||'none'} addPlace={(v)=>executeEvent(async()=>{
  await moderateTextOrThrow([v.title,v.description,v.region_label]);
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
@@ -981,7 +992,7 @@ createPartnerEvent={(v)=>executeEvent(async()=>{
 },'Veranstaltung eingereicht. Sie erscheint nach Freigabe.')}
 openInclusion={()=>{setExtraReturnTab(tab);setTab('inclusion');}}/>:
 tab==='more'?<MoreScreen navigate={selectMenuItem} openInfo={()=>setShowInfo(true)} openWelcome={()=>setShowWelcome(true)}/>:
-tab==='inclusion'?<InclusionScreen regionLabel={myProfile?.region_label} onOpenMap={()=>{setExtraReturnTab('inclusion');setTab('map');}}/>:
+tab==='inclusion'?<InclusionScreen regionLabel={myProfile?.region_label} initialQuery={inclusionQuery} onOpenMap={()=>{setExtraReturnTab('inclusion');setTab('map');}}/>:
 tab==='aboutApp'?<AboutFamilienfunkeScreen/>:
 tab==='help'?<TechnicalHelpScreen/>:
 tab==='push'?<PushSettings key={me} userId={me} active={active}/>:
@@ -1024,7 +1035,7 @@ blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
+{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');if(id==='guide')setGuideQuery('');setTab(id);setShowEventForm(false);}}
 accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><View style={[styles.tabIcon,(tab===id)&&styles.tabIconSelected]}>
   <FamilyIcon name={glyph} size={24} color={tab===id?C.accentDark:C.muted}/>
 </View><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
@@ -2569,8 +2580,8 @@ function MoreScreen({navigate,openInfo,openWelcome}){
     <Button title="Elternwissen & hilfreiche Links" mode="outline" onPress={openInfo}/>
   </ScrollView>;
 }
-function InclusionScreen({regionLabel,onOpenMap}){
- return <InclusionKnowledgeScreen regionLabel={regionLabel} onOpenMap={onOpenMap}/>;
+function InclusionScreen({regionLabel,onOpenMap,initialQuery=''}){
+ return <InclusionKnowledgeScreen regionLabel={regionLabel} onOpenMap={onOpenMap} initialQuery={initialQuery}/>;
 }
 
 function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked,hasMore,loadingMore,onLoadMore}) {

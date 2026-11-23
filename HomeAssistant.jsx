@@ -10,12 +10,15 @@ import {retryRead} from './NetworkResilience';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
 
 import {findFamilyMapLocations} from './FamilyMapSearch';
+import {findHealthyResources} from './FamilyHealthyContent';
+import {findFamilyTopics} from './FamilyTopicsKnowledge';
+import {findInclusionArticles} from './InclusionKnowledge';
 import {CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {BRANDENBURG_FAMILY_PLACES} from './FamilyMapBrandenburg';
 import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
 
 const C=FAMILY_COLORS;
-const FEATURED=['discover','map','market','box'];
+const FEATURED=['discover','map','market','healthy'];
 const SUGGESTIONS=['Spielplätze finden','Kinderjeans Größe 110','Profil bearbeiten','Wie beschäftige ich Kinder bei Regen?'];
 function SunMark(){
   return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.sunWrap}>
@@ -29,7 +32,7 @@ function AreaCard({route,onNavigate,query,compact=false}){
   const productSearch=route.id==='market'&&looksLikeMarketProductQuery(query);
   return <Pressable accessibilityRole="button"
     accessibilityLabel={route.title+' öffnen'}
-    onPress={()=>onNavigate(route.id,productSearch?query.trim():'')}
+    onPress={()=>onNavigate(route.id,['healthy','guide','inclusion'].includes(route.id)?query.trim():productSearch?query.trim():'')}
     style={({pressed})=>[compact?s.areaGrid:s.areaRow,pressed&&s.pressed]}>
     <View style={s.areaIcon}><FamilyIcon name={FAMILY_ROUTE_ICONS[route.id]||'compass'} size={compact?25:23}/></View>
     <View style={{flex:1}}>
@@ -64,7 +67,7 @@ function AssistantReply({entry,onNavigate}){
       <Text style={[s.mutedSmall,{marginTop:12}]}>Treffer lassen sich gerade nicht laden. Die Suche im Basar ist weiterhin möglich.</Text>:null}
     {entry.pageId?<Pressable accessibilityRole="button"
       accessibilityLabel="Vorgeschlagenen App-Bereich öffnen"
-      onPress={()=>onNavigate(entry.pageId,entry.pageId==='market'?entry.searchQuery||entry.question:'')}
+      onPress={()=>onNavigate(entry.pageId,['market','healthy','guide','inclusion'].includes(entry.pageId)?entry.searchQuery||entry.question:'')}
       style={({pressed})=>[s.answerAction,pressed&&s.pressed]}>
       <Text style={s.answerActionLabel}>{HOME_ROUTES.find(x=>x.id===entry.pageId)?.title||'Passenden Bereich öffnen'} ›</Text>
       
@@ -129,6 +132,9 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   const needle=question.trim();
   const matches=findHomeRoutes(needle);
   const places=needle.length>=2?findFamilyMapLocations(needle,{curated:[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES],national:NATIONAL_FAMILY_PLACES},4):[];
+  const healthMatches=needle.length>=3?findHealthyResources(needle,3):[];
+  const topicMatches=needle.length>=3?findFamilyTopics(needle).slice(0,3):[];
+  const inclusionMatches=needle.length>=3?findInclusionArticles(needle).slice(0,3):[];
   const marketIntent=looksLikeMarketProductQuery(needle)||matches[0]?.id==='market';
   const visibleSearch=searchResult?.query===needle?searchResult:null;
   const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
@@ -196,16 +202,25 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
     const request=++requestSeq.current;pending.current=true;setSearchBusy(true);
     try{
       // Searches run independently, so one unavailable service does not erase other results.
-      const [eventResponse,marketResponse]=await Promise.allSettled([
+      const [eventResponse,marketResponse,officialResponse]=await Promise.allSettled([
         supabase.rpc('ff_search_events',{p_query:query.slice(0,160)}),
         marketIntent?supabase.rpc('ff_market_search',{
           p_query:query.slice(0,160),p_category:'Alle',p_trade_type:'all',
           p_sort:'relevance',p_limit:5,p_offset:0
-        }):Promise.resolve(null)
+        }):Promise.resolve(null),
+        supabase.from('ff_official_family_events')
+          .select('id,title,city,start_date,source_name')
+          .eq('published',true)
+          .gte('end_date',new Date().toISOString().slice(0,10))
+          .ilike('title','%'+query.slice(0,80).replace(/[%_\\,()]/g,'')+'%')
+          .order('start_date',{ascending:true}).limit(5)
       ]);
       if(!alive.current||request!==requestSeq.current)return;
       const eventData=eventResponse.status==='fulfilled'?eventResponse.value:null;
       const marketData=marketResponse.status==='fulfilled'?marketResponse.value:null;
+      const officialData=officialResponse.status==='fulfilled'?officialResponse.value:null;
+      const officialEvents=officialData&&!officialData.error&&Array.isArray(officialData.data)?officialData.data:[];
+      const officialError=!officialData||!!officialData.error;
       const eventsError=!eventData||!!eventData.error||!Array.isArray(eventData.data);
       const events=eventsError?[]:eventData.data.filter(row=>['family','partner'].includes(row.kind)&&row.id&&new Date(row.starts_at)>new Date());
       const offersError=marketIntent&&(!marketData||!!marketData.error||!Array.isArray(marketData.data));
@@ -214,8 +229,8 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         price:row.listing.trade_type==='gift'?'Zu verschenken':row.listing.trade_type==='swap'?'Tausch':
           (Number(row.listing.price_cents||0)/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'})
       })):null;
-      setSearchResult({query,offers,events,eventsError,offersError});
-      AccessibilityInfo.announceForAccessibility(events.length+' Veranstaltungstreffer und '+(offers?.length||0)+' Basar-Treffer in der Vorschau.');
+      setSearchResult({query,offers,events,eventsError,offersError,officialEvents,officialError});
+      AccessibilityInfo.announceForAccessibility((events.length+officialEvents.length)+' Veranstaltungstreffer und '+(offers?.length||0)+' Basar-Treffer in der Vorschau.');
     }catch{if(alive.current&&request===requestSeq.current)setError('Die Online-Suche konnte nicht geladen werden. App-Bereiche und Katalogorte bleiben verfügbar.');}
     finally{if(alive.current&&request===requestSeq.current){pending.current=false;setSearchBusy(false);}}
   }
@@ -261,6 +276,37 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       {places.map(hit=><Pressable key={hit.id} accessibilityRole="button" accessibilityLabel={hit.title+' auf der Familienkarte öffnen'} onPress={()=>onNavigate('map','',hit.place.id)} style={s.areaRow}>
         <View style={s.areaAccent}/><View style={{flex:1}}><Text style={s.areaTitle}>{hit.title}</Text><Text style={s.areaSubtitle}>{hit.subtitle}</Text></View><Text style={s.areaArrow}>›</Text>
       </Pressable>)}</>:null}
+      {topicMatches.length?<><Text style={s.sectionSubtitle}>Familienratgeber</Text>
+        {topicMatches.map(item=><Pressable key={item.id} accessibilityRole="button"
+          onPress={()=>onNavigate('guide',needle)} style={s.areaRow}>
+          <View style={s.areaAccent}/><View style={{flex:1}}><Text style={s.areaTitle}>{item.title}</Text>
+          <Text style={s.areaSubtitle}>{item.short}</Text></View><Text style={s.areaArrow}>›</Text>
+        </Pressable>)}</>:null}
+      {inclusionMatches.length?<><Text style={s.sectionSubtitle}>Inklusion & Teilhabe</Text>
+        {inclusionMatches.map(item=><Pressable key={item.id} accessibilityRole="button"
+          onPress={()=>onNavigate('inclusion',needle)} style={s.areaRow}>
+          <View style={s.areaAccent}/><View style={{flex:1}}><Text style={s.areaTitle}>{item.title}</Text>
+          <Text style={s.areaSubtitle}>{item.short}</Text></View><Text style={s.areaArrow}>›</Text>
+        </Pressable>)}</>:null}
+      {healthMatches.length?<><Text style={s.sectionSubtitle}>Sport, Gesundheit & offizielle Quellen</Text>
+        {healthMatches.map(resource=><Pressable key={resource.id} accessibilityRole="button"
+          accessibilityLabel={resource.title+' im Sportbereich finden'}
+          onPress={()=>onNavigate('healthy',needle)} style={s.areaRow}>
+          <View style={s.areaAccent}/><View style={{flex:1}}>
+            <Text style={s.areaTitle}>{resource.title}</Text>
+            <Text style={s.areaSubtitle}>{resource.source} · {resource.region}</Text>
+          </View><Text style={s.areaArrow}>›</Text></Pressable>)}</>:null}
+      {visibleSearch?.officialError?<Text style={s.mutedSmall}>Offizielle Veranstaltungstermine konnten nicht geladen werden.</Text>:null}
+      {visibleSearch?.officialEvents?.length?<View style={s.offerGroup}>
+        <Text accessibilityRole="header" style={s.offerHeading}>Offizielle Familienveranstaltungen</Text>
+        {visibleSearch.officialEvents.map(event=><Pressable key={event.id} accessibilityRole="button"
+          accessibilityLabel={event.title+' im Veranstaltungskalender öffnen'}
+          onPress={()=>onNavigate('events')} style={s.offerItem}>
+          <Text style={s.offerTitle}>{event.title}</Text>
+          <Text style={s.mutedSmall}>{event.city||'Brandenburg'} · {event.source_name||'Offizieller Veranstalter'}</Text>
+          <Text style={s.offerPrice}>{event.start_date}</Text>
+        </Pressable>)}
+      </View>:null}
       {visibleSearch?.eventsError?<Text style={s.mutedSmall}>Veranstaltungen konnten gerade nicht geladen werden.</Text>:null}
       {visibleSearch?.events&&!visibleSearch.eventsError?<View style={s.offerGroup}>
         <Text accessibilityRole="header" style={s.offerHeading}>Anstehende Veranstaltungen</Text>
@@ -276,7 +322,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         </Pressable>):<Text style={s.mutedSmall}>Keine passenden freigegebenen Angebote gefunden.</Text>}
         <Pressable accessibilityRole="button" onPress={()=>onNavigate('market',needle)} style={s.answerAction}><Text style={s.answerActionLabel}>Alle Basar-Ergebnisse ansehen ›</Text></Pressable>
       </View>:null}
-      {!matches.length&&!places.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Stelle deine Frage der KI oder ändere die Suche.</Text>:null}
+      {!matches.length&&!places.length&&!healthMatches.length&&!topicMatches.length&&!inclusionMatches.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Stelle deine Frage der KI oder ändere die Suche.</Text>:null}
       {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>Tippe auf „Suchen“, um aktuelle Basar-Angebote und Termine abzurufen.</Text>:null}
     </View>:null}
     {conversation.length?<View style={s.section}>
