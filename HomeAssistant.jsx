@@ -82,6 +82,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
+  const [showMoreFeed,setShowMoreFeed]=useState(false);
   const scrollRef=useRef(null);
   const requestSeq=useRef(0),alive=useRef(true),pending=useRef(false);
   const [searchResult,setSearchResult]=useState(null);
@@ -421,7 +422,12 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
             icon="compass" actionLabel="Familienkarte ansehen"
             onAction={()=>onNavigate('map')} compact/>:null}
       </View>
-      {active?<><View style={s.personalSection}>
+      {active?<Pressable accessibilityRole="button" accessibilityState={{expanded:showMoreFeed}}
+        onPress={()=>setShowMoreFeed(v=>!v)} style={s.moreHighlights}>
+        <Text style={s.moreHighlightsTitle}>{showMoreFeed?'Zusätzliche Empfehlungen schließen':'Weitere Empfehlungen für euch'}</Text>
+        <Text style={s.moreHighlightsSub}>Neue Basarangebote und kommende Familientermine {showMoreFeed?'−':'+'}</Text>
+      </Pressable>:null}
+      {active&&showMoreFeed?<><View style={s.personalSection}>
         <FamilySectionTitle title="Frisch im Familienbasar"
           subtitle="Nur tatsächlich freigegebene Angebote"
           actionLabel="Zum Basar" onAction={()=>onNavigate('market')}/>
@@ -564,6 +570,9 @@ const s=StyleSheet.create({
   feedMeta:{fontSize:14,color:C.muted,marginTop:3},
   feedPrice:{fontSize:15,color:C.accentDark,fontWeight:'800',maxWidth:95,textAlign:'right'},
   feedDate:{fontSize:14,color:C.accentDark,marginTop:3,fontWeight:'700'},
+  moreHighlights:{minHeight:64,backgroundColor:C.sunPale,borderRadius:17,padding:15,justifyContent:'center',marginTop:12,marginBottom:18},
+  moreHighlightsTitle:{fontSize:16,fontWeight:'800',color:C.ink},
+  moreHighlightsSub:{fontSize:14,color:C.accentDark,marginTop:4},
   section:{marginBottom:22},
   sectionTitle:{color:C.ink,fontWeight:'900',fontSize:19,marginBottom:4},
   sectionSubtitle:{color:C.muted,fontSize:14,lineHeight:19,marginBottom:12},
