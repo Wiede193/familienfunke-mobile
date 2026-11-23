@@ -45,6 +45,7 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
  const [area,setArea]=useState('all'),[query,setQuery]=useState(initialQuery);
  const [subscribed,setSubscribed]=useState(false),[preferenceLoading,setPreferenceLoading]=useState(true),[saving,setSaving]=useState(false);
  const [expanded,setExpanded]=useState(null);
+ useEffect(()=>{setExpanded(focusId||null);},[focusId]);
  const [topic,setTopic]=useState('all'),[selectedTopics,setSelectedTopics]=useState([]),[editTopics,setEditTopics]=useState(false);
  const load=useCallback(async()=>{
   if(!supabase||!userId)return;
@@ -136,12 +137,13 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
   {!loading&&!visible.length?<View style={styles.card}><Text style={styles.cardHeading}>Keine passenden Einträge</Text>
    <Text style={styles.muted}>Der Monitor zeigt nur nachvollziehbare amtliche Veröffentlichungen. Fehlende Einträge bedeuten nicht, dass keine Entscheidungen getroffen wurden.</Text></View>:null}
   {visible.map(item=>{
-   const open=expanded===item.id||focusId===item.id;
+   const open=expanded===item.id;
    return <View key={item.id} style={styles.card}>
     <Text style={styles.meta}>{item.level==='bund'?'Bund':item.level==='brandenburg'?'Brandenburg':'Landkreis'} · {topicName(item.family_topic)} · Veröffentlicht {date(item.published_at)}</Text>
     {item.decision_date?<Text style={styles.small}>Entscheidung vom {date(item.decision_date)}</Text>:null}
     <Text accessibilityRole="header" style={styles.cardHeading}>{item.title}</Text>
     <Text style={styles.status}>{STATUS[item.decision_status]||STATUS.unklar}</Text>
+    {item.status_checked_at&&Date.now()-new Date(item.status_checked_at).getTime()>21*86400000?<Text style={styles.note}>Die letzte Prüfung des Verfahrensstands liegt über drei Wochen zurück. Bitte die amtliche Quelle auf neuere Entscheidungen prüfen.</Text>:null}
     <Text style={styles.body}>{item.editorial_reviewed&&item.simple_summary?item.simple_summary:HELP[item.decision_status]||HELP.unklar}</Text>
     {!item.editorial_reviewed?<Text style={styles.small}>Allgemeine Erklärung des Verfahrens. Eine geprüfte Erläuterung dieses konkreten Beschlusses liegt noch nicht vor.</Text>:null}
     {open?<View style={styles.details}>
@@ -162,6 +164,11 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
    <Text style={styles.section}>So arbeitet der Beschluss-Monitor</Text>
    <Text style={styles.body}>Wir trennen Kabinettsentscheidungen, Parlamentsbeschlüsse, Verkündungen und Inkrafttreten. Automatisch erkannte Quellenmeldungen sind nicht dasselbe wie redaktionell geprüfte Erklärungen. Keine politischen Kommentare, keine Bewertung von Parteien.</Text>
    <Text style={styles.small}>Bund und Brandenburg zuerst. Bei Bundesgesetzen kann der weitere Weg über Bundesrat, Vermittlung und Verkündung führen. Kommunale Beschlüsse werden erst nach verlässlicher technischer Quellenanbindung ergänzt. Es besteht kein Anspruch auf Vollständigkeit.</Text>
+   <Text style={styles.section}>Weitere amtliche Quellen</Text>
+   <Pressable accessibilityRole="link" onPress={()=>Linking.openURL('https://dip.bundestag.de/')} style={styles.action}><Text style={styles.actionText}>Bundestag – Gesetzgebungsverfahren (DIP)</Text></Pressable>
+   <Pressable accessibilityRole="link" onPress={()=>Linking.openURL('https://www.landtag.brandenburg.de/de/rss-infodienste/12411')} style={styles.action}><Text style={styles.actionText}>Landtag Brandenburg – aktuelle Gesetze</Text></Pressable>
+   <Pressable accessibilityRole="link" onPress={()=>Linking.openURL('https://web.landkreis-oder-spree.de/bi/info.asp')} style={styles.action}><Text style={styles.actionText}>Oder-Spree – Kreistag und Beschlussunterlagen</Text></Pressable>
+   <Text style={styles.small}>Das Bürgerinformationssystem von Oder-Spree ist als Originalquelle verlinkt. Eine automatische Auswertung und Benachrichtigung zu Kreistagsbeschlüssen ist noch nicht freigeschaltet.</Text>
   </View>
  </ScrollView>;
 }
