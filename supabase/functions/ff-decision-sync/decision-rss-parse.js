@@ -1,6 +1,8 @@
 export const safeSource=(raw,host)=>{
  try{const u=new URL(raw);return u.protocol==='https:'&&!u.username&&!u.password&&
-  (u.hostname===host||u.hostname==='www.'+host);}catch{return false;}
+  (u.hostname===host||u.hostname==='www.'+host||
+  (host==='landtag.brandenburg.de'&&u.hostname==='www.parlamentsdokumentation.brandenburg.de')||
+  (host==='landtag.brandenburg.de'&&u.hostname==='parlamentsdokumentation.brandenburg.de'));}catch{return false;}
 };
 const decode=s=>String(s||'').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,(_,v)=>v)
  .replace(/&#(x[0-9a-fA-F]+|\d+);/g,(_,m)=>{
