@@ -53,7 +53,7 @@ const app=read('App.jsx');
 assert.match(app,/tab==='outing'\?<FamilyOutingScreen/);
 assert.match(app,/outingDraft\?\.owner===me/);
 assert.match(app,/entryPlaceId=\{mapIntent\?\.id\}/);
-assert.match(app,/setMapIntent\(null\);setTab\('outing'\)/);
+assert.match(app,/setTab\(\['calendar','home','healthy','inclusion'\]\.includes\(origin\)\?origin:'outing'\)/);
 assert.match(read('HomeAssistant.jsx'),/onNavigate\('outing'\)/);
 assert.match(read('FamilyMap.jsx'),/find\(p=>p\.id===entryPlaceId\)/);
 console.log('Ausflugsplaner: echte Ziele, Radius, Budgetgrenzen, Altersgruppen, optionaler KI-Vertrag und Kartenübergabe geprüft.');
