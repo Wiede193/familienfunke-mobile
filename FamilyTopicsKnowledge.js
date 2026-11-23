@@ -180,6 +180,102 @@ export const FAMILY_TOPIC_ARTICLES=[
   sources:[source('Gesundheitsportal des Bundes – Anlaufstellen','https://gesund.bund.de/wege-im-gesundheitswesen/kindheit/psychische-gesundheit/anlaufstellen'),
     source('Gesundheitsportal – Tipps für Eltern','https://gesund.bund.de/wege-im-gesundheitswesen/kindheit/psychische-gesundheit/tipps-fuer-eltern')]
  }
+,{
+ id:'kinderkrankengeld',category:'money',title:'Kind krank: Freistellung und Kinderkrankengeld',
+ short:'Krankes Kind betreuen, Arbeitgeber informieren und Krankenkasse ansprechen.',
+ overview:'Muss ein krankes Kind zu Hause versorgt werden, können gesetzlich krankenversicherte Eltern unter bestimmten Voraussetzungen Kinderkrankengeld und unbezahlte Freistellung beanspruchen. Die genauen Regeln hängen von Alter beziehungsweise Behinderung des Kindes, Versicherungsstatus, Arbeitsverhältnis und bereits ausgeschöpften Tagen ab.',
+ steps:[
+  'Kinderarztpraxis zur medizinisch notwendigen häuslichen Betreuung ansprechen und Bescheinigung nach dem geltenden Verfahren organisieren.',
+  'Arbeitgeber unverzüglich über die erforderliche Betreuung und voraussichtliche Abwesenheit informieren.',
+  'Bei Krankenkasse den Antrag und die notwendigen Angaben zum Verdienstausfall prüfen; bestehende Lohnfortzahlungsregelungen berücksichtigen.',
+  'Resttage, Sonderregelungen für Alleinerziehende und Betreuung von Kindern mit Behinderung bei der Kasse individuell klären.'
+ ],
+ responsible:'Gesetzliche Krankenkasse für Kinderkrankengeld, Arbeitgeber für Arbeitsfreistellung und Kinderarztpraxis für Bescheinigung.',
+ documents:'Je nach Vorgang ärztliche Bescheinigung, Angaben zur Versicherung von Kind und Eltern sowie Arbeitgeber-/Entgeltdaten.',
+ caveat:'Ein Kinderkrankentag ist nicht mit bezahltem Sonderurlaub gleichzusetzen. Private Versicherungen und das Alter des Kindes können Ansprüche ändern; keine pauschale Zahl von Tagen ohne Prüfdatum nennen.',
+ sources:[source('Familienportal – Kinderkrankentage und Kinderkrankengeld','https://familienportal.de/familienportal/familienleistungen/weitere-leistungen/kinderkrankentage-und-kinderkrankengeld'),
+  source('Gesundheitsportal – Kinderkrankengeld','https://gesund.bund.de/wege-im-gesundheitswesen/kindheit/akute-erkrankung/kinderkrankengeld')]
+},
+{
+ id:'mutter-vater-kind-kur',category:'wellbeing',title:'Mutter-Kind-Kur und Vater-Kind-Kur beantragen',
+ short:'Medizinische Kurmaßnahme bei Belastung im Familienalltag prüfen.',
+ overview:'Stationäre Vorsorge- oder Rehabilitationsmaßnahmen für Mütter oder Väter können in Betracht kommen, wenn gesundheitliche Beeinträchtigungen im Zusammenhang mit familiären Belastungen bestehen. Kinder können unter bestimmten Voraussetzungen mitreisen; eine eigene Behandlung des Kindes benötigt eine gesonderte medizinische Bewertung.',
+ steps:[
+  'Bei Haus- oder Facharztpraxis die gesundheitlichen Belastungen besprechen und medizinische Eignung einer Maßnahme prüfen.',
+  'Geeignete Beratungsstelle oder Krankenkasse zum Verfahren, zu Mutter-/Vater-Kind-Kureinrichtungen und Kostenfragen ansprechen.',
+  'Notwendige ärztliche Verordnung und Antragsunterlagen vorbereiten; bei medizinischer Mitbehandlung des Kindes Kinderarztpraxis einbinden.',
+  'Bescheid, mögliche Eigenanteile, Zeitraum und Betreuung weiterer Kinder frühzeitig abklären.'
+ ],
+ responsible:'Gesetzliche Krankenkasse oder anderer zuständiger Rehabilitationsträger; behandelnde Praxis und Kurberatungsstelle.',
+ documents:'Ärztliche Verordnung, Antragsformular des Trägers, gegebenenfalls Stellungnahme der Kinderarztpraxis sowie erforderliche Familienangaben.',
+ caveat:'Eine Kur ist keine beliebige Familienreise und nicht automatisch bewilligt. Medizinische Indikation, Trägerzuständigkeit und Behandlung des Kindes werden individuell geprüft.',
+ sources:[source('Gesundheitsportal – Voraussetzungen und Antrag','https://gesund.bund.de/kur'),
+  source('Familienportal – Gesundheit und Erholung','https://familienportal.de/familienportal/lebenslagen/kinder-jugendliche/gesundheit-erholung')]
+},
+{
+ id:'ganztag-grundschule',category:'care',title:'Hort und Ganztag ab dem Schuljahr 2026/27',
+ short:'Stufenweiser Grundschul-Rechtsanspruch und Anmeldung vor Ort.',
+ overview:'Der Rechtsanspruch auf ganztägige Förderung im Grundschulalter wird seit dem 1. August 2026 stufenweise eingeführt: zunächst für Kinder der ersten Klassenstufe, anschließend jährlich für weitere Jahrgänge. Zum Schuljahr 2029/30 sollen alle Kinder der ersten bis vierten Klassenstufe umfasst sein. Die konkrete Umsetzung erfolgt in Horten oder Ganztagsgrundschulen nach Landesrecht.',
+ steps:[
+  'Bei Grundschule, kommunaler Hortverwaltung oder Jugendamt den aktuellen Jahrgang und das Anmeldeverfahren prüfen.',
+  'Vor Aufnahme Schulweg, Betreuungszeiten, Ferienangebote und individuelle Förder- beziehungsweise Assistenzbedarfe klären.',
+  'Erforderliche Anträge mit Eingangsdatum dokumentieren und Kosten beziehungsweise mögliche Befreiungen erfragen.',
+  'Bei unzureichendem Angebot rechtzeitig den zuständigen Jugendhilfeträger um Beratung bitten.'
+ ],
+ responsible:'Örtliches Jugendamt beziehungsweise zuständige kommunale Hortverwaltung sowie Schule und Schulträger.',
+ documents:'Je nach Standort Hortanmeldung, Schulnachweis, Angaben zum Betreuungsumfang und gegebenenfalls erforderliche Nachweise für Kostenbefreiung.',
+ caveat:'Nicht alle Klassen hatten bereits im Herbst 2026 denselben bundesrechtlichen Anspruch. Öffnungszeiten, Ferienregelungen und besondere Bedarfe sind lokal zu klären.',
+ sources:[source('Bundesfamilienministerium – Ganztags-Rechtsanspruch 2026','https://familienportal.de/bmbfsfj/aktuelles/pressemitteilungen/rechtsanspruch-auf-ganztag-startet-zum-1-august-2026-292232'),
+  source('Bundesfamilienministerium – Ganztagsangebote','https://familienportal.de/bmbfsfj/themen/bildung/schule/ganztagsangebote-275354')]
+},
+{
+ id:'familienerholung',category:'care',title:'Günstige Familienferien und Familienferienstätten',
+ short:'Gemeinnützige Angebote, mögliche Zuschüsse und Inklusion vergleichen.',
+ overview:'Gemeinnützige Familienferienstätten bieten Familien Erholungsangebote, teils mit Kinderbetreuung, Familienprogramm und auf besondere Lebenslagen abgestimmter Ausstattung. In manchen Bundesländern gibt es einkommensabhängige Zuschüsse. Das bundesweite Angebot ersetzt keine konkrete Kosten- oder Barrierefreiheitsprüfung.',
+ steps:[
+  'Über die offizielle Broschüre „Urlaub mit der Familie 2026/2027“ familiengeeignete Einrichtungen und Regionen auswählen.',
+  'Mit Einrichtung Preise, Ferienprogramm, Mindestaufenthalt und gegebenenfalls familienfreundliche Ausstattung klären.',
+  'Beim Landesfamilienportal oder Jugendamt nach aktuellen Zuschussbedingungen und Fristen fragen.',
+  'Bei einem Kind mit Behinderung stufenlosen Zugang, Pflegeunterstützung, Hilfsmittel und tatsächliche Betreuung direkt mit dem Haus abstimmen.'
+ ],
+ responsible:'Einzelne Familienferienstätte; mögliche Förderung über zuständige Landesstelle oder Kommune.',
+ documents:'Für einen Zuschuss unter Umständen Einkommens-, Familien- und Wohnsitznachweise; für eine einfache Buchungsanfrage meist keine amtlichen Formulare.',
+ caveat:'„Günstiger Familienurlaub“ bedeutet nicht automatisch Förderung. Zusätzliche Voraussetzungen und tatsächliche Kosten unterscheiden sich je nach Bundesland, Haus, Termin und Ausstattung.',
+ sources:[source('Familienportal – Familienerholung','https://familienportal.de/familienportal/lebenslagen/kinder-jugendliche/gesundheit-erholung/familienerholung-in-familienferienstaetten-137464'),
+  source('Bundesfamilienministerium – Katalog 2026/2027','https://familienportal.de/bmbfsfj/service/publikationen/urlaub-mit-der-familie-2026-2027-223594')]
+},
+{
+ id:'beistandschaft',category:'relationships',title:'Beistandschaft beim Jugendamt: Unterhalt und Vaterschaft',
+ short:'Kostenfreie Unterstützung bei Unterhaltsansprüchen und Vaterschaftsfeststellung.',
+ overview:'Der beistandschaftliche Dienst beim Jugendamt kann berechtigte Elternteile bei Fragen zum Kindesunterhalt und zur Feststellung der Vaterschaft unterstützen. Die freiwillige Beistandschaft wird beim Jugendamt beantragt, ist kostenfrei und beschränkt sich auf den jeweiligen Aufgabenbereich.',
+ steps:[
+  'Beim zuständigen Jugendamt nach der Beistandschaft und vorangehender Unterhaltsberatung fragen.',
+  'Geburtsurkunde, vorhandene Unterhaltsregelungen und Angaben zum anderen Elternteil zusammentragen, soweit für die Beratung erforderlich.',
+  'Prüfen, ob die gesetzlichen Voraussetzungen für die Beistandschaft vorliegen und einen schriftlichen Antrag stellen.',
+  'Unterhaltsvorschuss, Beistandschaft und eine gegebenenfalls erforderliche gerichtliche Durchsetzung getrennt besprechen.'
+ ],
+ responsible:'Jugendamt des gewöhnlichen Aufenthalts des Kindes; bei Streitfragen ggf. Familiengericht oder anwaltliche Beratung.',
+ documents:'Je nach Fall Geburtsurkunde, Ausweis, vorhandene Unterhaltsurkunden oder -vereinbarungen und relevante Angaben zum anderen Elternteil.',
+ caveat:'Eine Beistandschaft setzt bestimmte Sorge-/Obhutsvoraussetzungen voraus und ist keine pauschale rechtliche Vertretung für Trennung, Umgang oder Sorgerecht.',
+ sources:[source('Familienportal – Beistandschaft','https://familienportal.de/familienportal/lebenslagen/trennung/allein-und-getrennt-erziehende-eltern/wie-kann-ich-unterhalt-und-vaterschaft-mit-einem-beistand-regeln--126098'),
+  source('Familienportal – Kindesunterhalt','https://familienportal.de/familienportal/familienleistungen/unterhalt')]
+},
+{
+ id:'haushaltshilfe-eltern-krank',category:'care',title:'Wenn Eltern krank werden: Haushaltshilfe und Familienpflege',
+ short:'Unterstützung organisieren, wenn Kinder und Haushalt nicht versorgt werden können.',
+ overview:'Bei einer Erkrankung, Geburt oder einem Klinikaufenthalt kann unter Voraussetzungen eine Haushaltshilfe der Krankenkasse helfen. Wenn diese nicht ausreicht oder nicht zuständig ist, kommen je nach Situation weitere familienunterstützende Leistungen in Betracht. Eine Ausfallvertretung für Kinderbetreuung sollte frühzeitig organisiert werden.',
+ steps:[
+  'Bei der behandelnden Praxis das konkrete gesundheitlich bedingte Hindernis und notwendige Dauer klären.',
+  'Bei der Krankenkasse nach Haushaltshilfe, erforderlicher ärztlicher Bescheinigung und Übernahme von Kinderbetreuung fragen.',
+  'Falls die Voraussetzungen dort nicht erfüllt sind oder Hilfe nicht ausreicht, beim Jugendamt nach ergänzender ambulanter Familienpflege fragen.',
+  'Bewilligung, Kostenbeteiligung, Einsatzzeiten und gegebenenfalls Verfügbarkeit geeigneter Hilfskräfte schriftlich bestätigen lassen.'
+ ],
+ responsible:'Krankenkasse für Haushaltshilfe nach Krankenversicherungsrecht; Jugendamt für gegebenenfalls ergänzende Leistungen der Kinder- und Jugendhilfe.',
+ documents:'Ärztliche Bescheinigung, Versicherungsdaten, Angaben zum Ausfall der betreuenden Person, zu Kindern und fehlenden anderen Betreuungsmöglichkeiten.',
+ caveat:'Haushaltshilfe ist keine allgemeine kostenlose Betreuung oder frei verfügbare Haushaltstätigkeit; gesetzliche Voraussetzungen und Ersatzbetreuung werden individuell geprüft.',
+ sources:[source('Gesundheitsportal – Haushaltshilfe','https://gesund.bund.de/haushaltshilfe'),
+  source('Gesundheitsportal – Wenn Eltern krank sind','https://gesund.bund.de/unterstuetzungsmoeglichkeiten-eltern-krankheitsfall')]
+}
 ];
 const fold=value=>String(value||'').toLocaleLowerCase('de-DE').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss').replace(/[^a-z0-9 ]/g,' ');
 export function findFamilyTopics(query='',category='all'){
