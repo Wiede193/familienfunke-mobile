@@ -168,20 +168,22 @@ begin
  if c.evidence_url !~ '^https://' then return false;end if;
  if p_new_status is distinct from d.decision_status then
   update public.ff_official_decisions set
-    decision_status=p_new_status,status_checked_at=now(),
-    status_review_pending=false,updated_at=now()
+    decision_status=p_new_status,status_checked_at=now(),updated_at=now()
   where id=d.id;
   insert into public.ff_decision_status_history
    (decision_id,status,previous_status,event_kind,evidence_url,evidence_note)
   values (d.id,p_new_status,d.decision_status,'update',c.evidence_url,p_evidence_note);
  else
-  update public.ff_official_decisions set status_checked_at=now(),status_review_pending=false
-    where id=d.id;
+  update public.ff_official_decisions set status_checked_at=now() where id=d.id;
  end if;
  update public.ff_decision_change_candidates set review_state='accepted',
   review_note=p_evidence_note,reviewed_at=now() where id=c.id;
+ update public.ff_official_decisions set status_review_pending=exists(
+  select 1 from public.ff_decision_change_candidates x
+  where x.decision_id=d.id and x.review_state='pending'
+ ) where id=d.id;
  return true;
-end $$;
+end $;
 revoke all on function private.ff_confirm_decision_status(uuid,text,text) from public,anon,authenticated;
 grant execute on function private.ff_confirm_decision_status(uuid,text,text) to service_role;
 
@@ -215,3 +217,19 @@ $$;
 revoke all on function public.ff_inbox_page_by_kind(text,timestamptz,uuid)
  from public,anon,authenticated;
 grant execute on function public.ff_inbox_page_by_kind(text,timestamptz,uuid) to authenticated;
+
+-- Cycle through the least recently checked entries so older but unresolved
+-- legislation never starves after the first 15 cards have been added.
+create or replace function public.ff_decision_tracking_due(p_limit integer default 15)
+returns table(id uuid,source_url text,dip_vorgang_id text,decision_status text)
+language sql stable security invoker set search_path='' as $$
+ select d.id,d.source_url,d.dip_vorgang_id,d.decision_status
+ from public.ff_official_decisions d
+ left join public.ff_decision_source_snapshots s
+  on s.decision_id=d.id and s.source_kind='website'
+ where d.published=true
+ order by s.last_checked_at asc nulls first,d.published_at desc
+ limit least(greatest(coalesce(p_limit,15),1),15)
+$$;
+revoke all on function public.ff_decision_tracking_due(integer) from public,anon,authenticated;
+grant execute on function public.ff_decision_tracking_due(integer) to service_role;
