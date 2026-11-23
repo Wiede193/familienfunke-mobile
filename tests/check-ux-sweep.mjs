@@ -41,6 +41,17 @@ assert.match(app,/setMapIntent\(\{returnTab:'inclusion'\}\)/,
 assert.match(profile,/Ungespeicherte Profiländerungen/);
 assert.match(profile,/onDirtyChange\?\.\(dirty\)/);
 assert.match(app,/tabLabel:\{fontSize:12\.5/);
+const searchFeedback=read('SearchResultFeedback.jsx');
+assert.match(searchFeedback,/accessibilityLiveRegion="polite"/);
+assert.match(searchFeedback,/fontSize:19,fontWeight:'900'/);
+assert.match(searchFeedback,/borderWidth:1\.5,borderColor:C\.accentDark/);
+for(const file of ['HomeAssistant.jsx','App.jsx','FamilyMap.jsx','FamilyGuide.jsx',
+  'HealthyScreen.jsx','OfficialDecisionsScreen.jsx','FamilyTopicsSection.jsx','InclusionKnowledgeScreen.jsx'])
+ assert.match(read(file),/SearchResultFeedback/,'Missing prominent result feedback in '+file);
+assert.ok(map.indexOf('<View style={styles.searchResultPanel}>')<map.indexOf('style={styles.map}'),
+ 'Family map suggestions must appear near the search field, not after the map');
+assert.match(home,/searchResultOffset\.current/,'App search must scroll directly to results');
+
 
 assert.match(home,/showMoreFeed/);
 assert.match(home,/active&&showMoreFeed/);
