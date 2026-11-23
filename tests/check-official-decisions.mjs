@@ -1,0 +1,69 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const data=await import('data:text/javascript;base64,'+
+ Buffer.from(read('supabase/functions/ff-decision-sync/decision-rss-parse.js')).toString('base64'));
+const {parseDecisions,safeSource}=data;
+const official={id:'bundesregierung-kabinett',name:'Bundesregierung',level:'bund',status:'kabinett'};
+const brandenburg={id:'landtag-brandenburg-beschlossen',name:'Landtag Brandenburg',
+ level:'brandenburg',status:'parlament'};
+const now=Date.parse('2026-11-23T12:00:00Z');
+const rss=items=>'<?xml version="1.0"?><rss><channel><title>Meldungen</title>'+items.join('')+'</channel></rss>';
+const item=(title,link,date='Mon, 23 Nov 2026 08:00:00 GMT')=>
+ '<item><title><![CDATA['+title+']]></title><link>'+link+
+ '</link><pubDate>'+date+'</pubDate><description>Amtliche Information zum Thema.</description></item>';
+const bund=parseDecisions(rss([
+ item('Kabinett beschließt eine Änderung','https://www.bundesregierung.de/breg-de/meldung-111'),
+ item('Regierung informiert über Themen','https://www.bundesregierung.de/breg-de/meldung-222'),
+ item('Kabinett beschließt Entscheidung','https://evil.example/meldung-333'),
+ item('Kabinett beschließt alte Änderung','https://www.bundesregierung.de/breg-de/meldung-alt','Mon, 01 Jan 2024 00:00:00 GMT')
+]),official,now);
+assert.equal(bund.length,1,'Only fresh, official, explicit cabinet decisions may be imported');
+assert.equal(bund[0].decision_status,'kabinett','A cabinet decision must never be labeled law in force');
+assert.equal(bund[0].editorial_reviewed,false,'No automatic invented simple-language summary');
+assert.equal(bund[0].family_impact,null,'No speculative family impacts');
+const bb=parseDecisions(rss([item('Beschlossenes Landesgesetz','https://www.landtag.brandenburg.de/dokumente/123')]),brandenburg,now);
+assert.equal(bb[0].decision_status,'parlament');
+assert.equal(bb[0].level,'brandenburg');
+assert.ok(safeSource('https://www.landtag.brandenburg.de/dokumente/a','landtag.brandenburg.de'));
+assert.equal(safeSource('http://landtag.brandenburg.de','landtag.brandenburg.de'),false);
+assert.equal(safeSource('https://www.landtag.brandenburg.de.evil.example/abc','landtag.brandenburg.de'),false);
+assert.throws(()=>parseDecisions('<html></html>',official,now),/invalid_rss/);
+
+const sql=read('database/ff_official_decisions.sql');
+assert.match(sql,/alter table public.ff_official_decisions enable row level security/);
+assert.match(sql,/alter table public.ff_decision_subscriptions enable row level security/);
+assert.match(sql,/using \(\(select auth.uid\(\)\)=user_id\)/,'Subscription rows must be private');
+assert.match(sql,/published=true/,'Only published source cards visible');
+assert.match(sql,/decision_id uuid/,'Existing inbox must deep link to exact decisions');
+assert.match(sql,/ff_decision_new_publication/,'Published decisions notify only consenting users');
+assert.match(sql,/where s.enabled=true/,'Never notify without opt-in');
+assert.match(sql,/p_kind in \('all','price','decision'\)/,'Decision inbox filter is required');
+assert.match(sql,/when \(new.kind in \('match','request','message'\)\)/,'Do not misroute decisions to incomplete push pipeline');
+assert.match(sql,/revoke all on public.ff_decision_sync_runs/,'Do not expose sync diagnostics to clients');
+
+const ui=read('OfficialDecisionsScreen.jsx');
+assert.match(ui,/Standardmäßig aus/);
+assert.match(ui,/Push auf den Sperrbildschirm ist dafür noch nicht eingerichtet/);
+assert.match(ui,/editorial_reviewed&&item.simple_summary/,'Unreviewed copy cannot masquerade as checked plain-language explanation');
+assert.match(ui,/Amtliche Quelle öffnen/);
+assert.match(ui,/Veröffentlichungsdatum ist nicht automatisch/);
+const app=read('App.jsx');
+assert.match(app,/tab==='decisions'\?<OfficialDecisionsScreen/);
+assert.match(app,/row.kind==='decision'/);
+assert.match(app,/setDecisionFocusId\(decision.id\)/);
+const home=read('HomeAssistant.jsx');
+assert.match(home,/ff_official_decisions/,'Global search must include published government decisions');
+assert.match(home,/onNavigate\('decisions','',item.id\)/);
+const menu=read('TopRightMenu.jsx');
+assert.match(menu,/Beschlüsse einfach erklärt/);
+const alerts=read('NotificationCenterScreen.jsx');
+assert.match(alerts,/Amtliche Beschlüsse/);
+assert.match(alerts,/Neuer amtlicher Beschluss/);
+const edge=read('supabase/functions/ff-decision-sync/index.ts');
+assert.match(edge,/ff_official_sync_authorized/,'Sync requires an existing secret validation');
+assert.match(edge,/SOURCES/);
+assert.match(edge,/ff_decision_sync_runs/);
+assert.doesNotMatch(edge,/openai|GPT|responses\.create/i,'Ingestion never generates uncited political explanations');
+console.log('Beschluss-Monitor: Feed-Filter, Status, RLS, Suche und freiwillige Hinweise geprüft');
