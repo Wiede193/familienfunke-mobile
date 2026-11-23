@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState} from 'react';
 import {Alert,Linking,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
 import {FAMILY_COLORS as C,FAMILY_TYPE as T} from './FamilyTheme';
 import FamilyIcon from './FamilyIcon';
+import SearchResultFeedback from './SearchResultFeedback';
 import {HEALTH_CATEGORIES,HEALTH_RESOURCES,findHealthyResources} from './FamilyHealthyContent';
 
 export default function HealthyScreen({initialQuery='',onOpenMap}){
@@ -36,7 +37,7 @@ export default function HealthyScreen({initialQuery='',onOpenMap}){
     onPress={()=>{setCategory(c.id);setShowAll(false);}} style={[s.chip,category===c.id&&s.chipActive]}>
     <Text style={[s.chipLabel,category===c.id&&{color:C.white}]}>{c.title}</Text></Pressable>)}
   </ScrollView>
-  <Text accessibilityLiveRegion="polite" style={s.note}>{visible.length} redaktionell verlinkte Angebote</Text>
+  <SearchResultFeedback active={!!(query.trim()||category!=='all')} query={query} count={visible.length} context="Sport & Gesundheit" hint="Die Einträge verlinken auf externe Quellen; Angebote und Öffnungszeiten dort prüfen."/>
   {shown.map(r=><Pressable accessibilityRole="link" key={r.id} accessibilityLabel={r.title+', externe Quelle öffnen'}
    onPress={()=>open(r.url)} style={s.card}>
    <Text style={s.source}>{HEALTH_CATEGORIES.find(c=>c.id===r.category)?.title||'Familienangebot'} · {r.region}</Text>
