@@ -904,7 +904,7 @@ function back(){
  if(tab==='inbox'){setTab(inboxReturnTab);return;}
  if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);return;}
  if(tab==='market'&&marketIntent?.returnTab){setMarketIntent(null);setTab(marketIntent.returnTab);return;}
- if(tab==='map'&&mapIntent){const origin=mapIntent.returnTab;setMapIntent(null);setTab(['calendar','home','healthy'].includes(origin)?origin:'outing');return;}
+ if(tab==='map'&&mapIntent){const origin=mapIntent.returnTab;setMapIntent(null);setTab(['calendar','home','healthy','inclusion'].includes(origin)?origin:'outing');return;}
  if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);return;}
  if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');return;}
  if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab))setTab(extraReturnTab==='more'?'home':extraReturnTab);
@@ -925,11 +925,11 @@ function guardProfileExit(next){
 {showBack?<Pressable accessibilityRole="button" accessibilityLabel={'Zurück aus '+navTitle} accessibilityHint="Zur vorherigen Ansicht wechseln" onPress={()=>guardProfileExit(back)} style={({pressed})=>[styles.headerBackButton,pressed&&{opacity:0.72}]}>
   <Text style={styles.headerBackArrow}>‹</Text><Text style={styles.headerBackLabel}>Zurück</Text>
 </Pressable>:null}
-<View style={styles.headerIdentity}>
-  <View style={styles.headerHeartBadge}><Text style={styles.headerHeart}>♥</Text></View>
+<View style={[styles.headerIdentity,showBack&&{minWidth:0}]}>
+  {!showBack?<View style={styles.headerHeartBadge}><Text style={styles.headerHeart}>♥</Text></View>:null}
   <View style={{flex:1}}>
-    <Text style={styles.smallBrand}>Familienfunke<Text style={{color:C.coral}}>.</Text></Text>
-    <Text style={styles.topHint}>{navTitle}</Text>
+    {!showBack?<Text style={styles.smallBrand}>Familienfunke<Text style={{color:C.coral}}>.</Text></Text>:null}
+    <Text numberOfLines={1} style={[styles.topHint,showBack&&{fontSize:14,fontWeight:'800',color:C.ink,marginTop:0}]}>{navTitle}</Text>
   </View>
 </View>
 {tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={()=>guardProfileExit(openInbox)} style={styles.inboxBell}><FamilyIcon name="bell" size={22} color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
@@ -1037,7 +1037,7 @@ createPartnerEvent={(v)=>executeEvent(async()=>{
 },'Veranstaltung eingereicht. Sie erscheint nach Freigabe.')}
 openInclusion={()=>{setExtraReturnTab(tab);setTab('inclusion');}}/>:
 tab==='more'?<MoreScreen navigate={selectMenuItem} openInfo={()=>setShowInfo(true)} openWelcome={()=>setShowWelcome(true)}/>:
-tab==='inclusion'?<InclusionScreen regionLabel={myProfile?.region_label} initialQuery={inclusionQuery} onOpenMap={()=>{setExtraReturnTab('inclusion');setTab('map');}}/>:
+tab==='inclusion'?<InclusionScreen regionLabel={myProfile?.region_label} initialQuery={inclusionQuery} onOpenMap={()=>{setExtraReturnTab('inclusion');setMapIntent({returnTab:'inclusion'});setTab('map');}}/>:
 tab==='aboutApp'?<AboutFamilienfunkeScreen/>:
 tab==='help'?<TechnicalHelpScreen/>:
 tab==='push'?<PushSettings key={me} userId={me} active={active}/>:
