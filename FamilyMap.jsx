@@ -194,6 +194,15 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
   useEffect(()=>{if(ready)map.current?.injectJavaScript(pinSetScript(all));},[all,ready]);
   useEffect(()=>{if(ready)map.current?.injectJavaScript(mapScript('setPathLayer',pathLayer));},[pathLayer,ready]);
   useEffect(()=>{if(['bike','walk'].includes(entryLayer))setPathLayer(entryLayer);},[entryLayer]);
+  // Arriving from Sport & Gesundheit starts in the project pilot region at street-level zoom.
+  // This does not track the user's location.
+  useEffect(()=>{
+    if(!ready||!['bike','walk'].includes(entryLayer))return;
+    const {latitude,longitude}=CURATED_REGION;
+    const zoom=10.8;
+    setCenter({latitude,longitude,zoom});
+    map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo('+latitude+','+longitude+','+zoom+');true;');
+  },[ready,entryLayer]);
   useEffect(()=>{
     if(!ready)return;
     const active=placeQuery.trim().length>=2;
