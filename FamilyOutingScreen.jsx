@@ -20,7 +20,7 @@ function Pick({title,items,selected,onChange}){
   <View style={s.chips}>{items.map(([value,label])=>{
    const active=Array.isArray(selected)?selected.includes(value):selected===value;
    return <Pressable key={String(value)} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{selected:active}}
-    onPress={()=>onChange(value)} style={[s.chip,active&&s.active]}><Text style={[s.chipText,active&&{color:C.white}]}>{label}</Text></Pressable>;
+    disabled={active&&!Array.isArray(selected)} onPress={()=>onChange(value)} style={[s.chip,active&&s.active]}><Text style={[s.chipText,active&&{color:C.white}]}>{label}</Text></Pressable>;
   })}</View>
   <Text style={s.selectedOrigin}>Ausgewählt: {Array.isArray(selected)?(selected.length?items.filter(([id])=>selected.includes(id)).map(([,label])=>label).join(', '):'Noch keine Angabe'):items.find(([id])=>id===selected)?.[1]||'Keine Auswahl'}</Text>
  </View>;
