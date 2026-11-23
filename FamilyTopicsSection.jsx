@@ -43,12 +43,14 @@ export default function FamilyTopicsSection({initialQuery=''}){
        <Text style={s.arrow}>{expanded===item.id?'⌃':'›'}</Text>
      </Pressable>
      {expanded===item.id?<View style={s.detail}>
-       <Text style={s.description}>{item.overview}</Text>
-       <Text style={s.detailTitle}>Das könnt ihr tun</Text>
+       
+       <Text style={s.detailTitle}>Das könnt ihr jetzt tun</Text>
        {item.steps.map((step,i)=><View key={i} style={s.step}>
          <Text style={s.stepNumber}>{i+1}.</Text><Text style={[s.description,{flex:1}]}>{step}</Text>
        </View>)}
-       <Text style={s.detailTitle}>Ansprechpartner</Text><Text style={s.description}>{item.responsible}</Text>
+       <Text style={s.detailTitle}>Worum geht es?</Text>
+      <Text style={s.description}>{item.overview}</Text>
+      <Text style={s.detailTitle}>Ansprechpartner</Text><Text style={s.description}>{item.responsible}</Text>
        <Text style={s.detailTitle}>Mögliche Unterlagen</Text><Text style={s.description}>{item.documents}</Text>
        <Text style={s.warning}>Wichtig: {item.caveat}</Text>
        <Text style={s.detailTitle}>Offizielle Informationen</Text>
@@ -68,21 +70,21 @@ const s=StyleSheet.create({
  header:{flexDirection:'row',alignItems:'center',minHeight:92,padding:16,gap:10,backgroundColor:C.sunPale},
  kicker:{fontWeight:'800',fontSize:10,letterSpacing:1.2,color:C.accentDark},
  title:{fontSize:18,fontWeight:'800',color:C.ink,marginTop:6},
- description:{fontSize:13,lineHeight:20,color:C.ink,marginTop:5},
+ description:{fontSize:15,lineHeight:20,color:C.ink,marginTop:5},
  arrow:{fontSize:23,fontWeight:'700',color:C.accentDark},
  body:{padding:14,gap:9},
- hint:{fontSize:12,lineHeight:18,color:C.muted},
+ hint:{fontSize:14,lineHeight:18,color:C.muted},
  input:{minHeight:47,paddingHorizontal:13,borderRadius:12,borderColor:C.line,borderWidth:1,color:C.ink,backgroundColor:C.bg,fontSize:14},
  chip:{minHeight:44,paddingHorizontal:11,justifyContent:'center',borderRadius:18,borderColor:C.line,borderWidth:1,backgroundColor:C.paper},
  selected:{backgroundColor:C.accentDark,borderColor:C.accentDark},
- chipText:{fontSize:12,fontWeight:'700',color:C.accentDark},selectedText:{color:C.white},
+ chipText:{fontSize:14,fontWeight:'700',color:C.accentDark},selectedText:{color:C.white},
  article:{borderRadius:14,borderColor:C.line,borderWidth:1,backgroundColor:C.paper,overflow:'hidden'},
  articleButton:{minHeight:56,padding:12,flexDirection:'row',gap:10,alignItems:'center'},
- articleTitle:{fontSize:14.5,fontWeight:'800',color:C.ink,marginBottom:4},
+ articleTitle:{fontSize:16,fontWeight:'800',color:C.ink,marginBottom:4},
  detail:{borderTopWidth:1,borderTopColor:C.line,padding:12,gap:7},
- detailTitle:{fontWeight:'800',fontSize:13,color:C.accentDark,marginTop:9},
+ detailTitle:{fontWeight:'800',fontSize:15,color:C.accentDark,marginTop:9},
  step:{flexDirection:'row',gap:8},stepNumber:{fontWeight:'800',color:C.accentDark,fontSize:13},
- warning:{padding:11,borderRadius:10,backgroundColor:C.sunPale,fontSize:12.5,lineHeight:19,color:C.ink},
+ warning:{padding:11,borderRadius:10,backgroundColor:C.sunPale,fontSize:14,lineHeight:19,color:C.ink},
  link:{minHeight:44,borderRadius:10,padding:11,backgroundColor:C.mint,justifyContent:'center'},
- linkText:{color:C.accentDark,fontSize:12,fontWeight:'800'}
+ linkText:{color:C.accentDark,fontSize:14,fontWeight:'800'}
 });
