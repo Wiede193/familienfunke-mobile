@@ -31,7 +31,13 @@ assert.match(app,/selectedMainTab=TABS.some/);
 assert.match(app,/accessibilityState=\{\{selected:selectedMainTab===id\}\}/);
 assert.match(app,/guardProfileExit/);
 assert.match(app,/onDirtyChange=\{setProfileDirty\}/);
-assert.match(app,/accessibilityLabel="Zurück" onPress=\{\(\)=>guardProfileExit\(back\)\}/);
+assert.match(app,/accessibilityLabel=\\{'Zurück aus '\\+navTitle\\}/);
+assert.match(app,/const showBack=!!\\(/);
+assert.match(app,/styles\\.headerBackButton/,'Back action must be clearly visible at the left edge of the header');
+assert.match(app,/if\\(tab==='market'&&marketSubpage&&marketBackRef\\.current\\)/,
+ 'Back from Basar details must close the detail first');
+assert.match(app,/setMapIntent\\(\\{returnTab:'inclusion'\\}\\)/,
+ 'Map opened from inclusion must provide a return route');
 assert.match(profile,/Ungespeicherte Profiländerungen/);
 assert.match(profile,/onDirtyChange\?\.\(dirty\)/);
 assert.match(app,/tabLabel:\{fontSize:12\.5/);
@@ -42,6 +48,10 @@ assert.match(home,/Verfahrensstand offen/,'Do not mislabel promulgation or media
 assert.match(market,/sellChoicesOpen/);
 assert.match(market,/Einzelnen Artikel einstellen/);
 assert.match(market,/Mehrere Kleidungsstücke erfassen/);
+assert.match(market,/onBackStateChange\\(inMarketSubpage\\)/);
+assert.match(market,/navigationBackRef\\.current=\\(\\)=>\\{/);
+assert.ok(market.indexOf('Was möchtest du anbieten?')<market.indexOf('Informationen zu Gebühren und Datenschutz'),
+ 'Inserieren selection must open directly under its trigger, not after unrelated content');
 assert.doesNotMatch(market,/<MarketCategoryDropdown label="Kategorie" value=\{filter\}/,
  'Product category must not appear twice in a single filter flow');
 assert.match(family,/Einzelansicht/);
