@@ -295,7 +295,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
         </View>)}
       </View>:null}
     </View>
-    <FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>
+    {!initialKnowledgeQuery.trim()?<FamilyTopicsSection/>:null}
     <Text style={st.sectionHeading}>Eure Zeitleiste</Text>
     {PHASES.map((p,index)=>{
       const selected=p.id===phaseId;
