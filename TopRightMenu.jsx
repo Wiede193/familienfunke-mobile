@@ -15,6 +15,7 @@ export const MENU_GROUPS=[
   ['push','⚙','Benachrichtigungen einstellen','Push-Einstellungen']
  ]},
  {title:'Aktivitäten & Wissen',items:[
+  ['decisions','▤','Beschlüsse einfach erklärt','Offizielle Entscheidungen und ihre Bedeutung'],
   ['healthy','✿','Sport & Gesundheit','Vereine, Ernährung, Videos und Bewegung'],
   ['outing','☀','Ausflüge planen','Alter, Budget und Entfernung'],
   ['events','▦','Treffen & Veranstaltungen','Gemeinsame Termine'],
