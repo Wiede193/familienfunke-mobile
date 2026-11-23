@@ -254,17 +254,6 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
           placeholderTextColor={P.muted} value={regionSearch}
           onChangeText={setRegionSearch} style={st.regionInput}/>
         <SearchResultFeedback active={!!regionSearch.trim()} query={regionSearch} count={visibleRegions.length} context="Brandenburg – Kreise & Städte" hint="Region antippen, um die zuständigen Stellen zu sehen."/>
-        {visibleRegions.map(region=><Pressable key={region.id}
-          accessibilityRole="button" accessibilityLabel={region.name+' auswählen'}
-          accessibilityState={{selected:selectedRegion?.id===region.id}}
-          style={[st.regionChoice,selectedRegion?.id===region.id&&st.regionChoiceSelected]}
-          onPress={()=>{setPickedRegionId(region.id);setRegionSearch('');}}>
-          <View style={{flex:1}}>
-            <Text style={st.regionChoiceTitle}>{region.name}</Text>
-            <Text style={st.small}>{region.coverage==='verified'?'Konkrete Kontaktseiten geprüft':'Amtliches Verzeichnis, lokale Details folgen'}</Text>
-          </View>
-          <Text style={st.regionChoiceArrow}>{selectedRegion?.id===region.id?'✓':'›'}</Text>
-        </Pressable>)}
         {selectedRegion?<View style={{marginTop:16}}>
           <Text accessibilityRole="header" style={st.regionTitle}>{selectedRegion.name}</Text>
           {selectedRegion.offices.length?selectedRegion.offices.map(office=><View key={office.topic+office.title} style={st.officeCard}>
@@ -282,6 +271,17 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
             <Text style={st.localLink}>Amtliches Kommunalverzeichnis öffnen ↗</Text>
           </Pressable>
         </View>:null}
+        {visibleRegions.map(region=><Pressable key={region.id}
+          accessibilityRole="button" accessibilityLabel={region.name+' auswählen'}
+          accessibilityState={{selected:selectedRegion?.id===region.id}}
+          style={[st.regionChoice,selectedRegion?.id===region.id&&st.regionChoiceSelected]}
+          onPress={()=>{setPickedRegionId(region.id);setRegionSearch('');}}>
+          <View style={{flex:1}}>
+            <Text style={st.regionChoiceTitle}>{region.name}</Text>
+            <Text style={st.small}>{region.coverage==='verified'?'Konkrete Kontaktseiten geprüft':'Amtliches Verzeichnis, lokale Details folgen'}</Text>
+          </View>
+          <Text style={st.regionChoiceArrow}>{selectedRegion?.id===region.id?'✓':'›'}</Text>
+        </Pressable>)}
         <Text accessibilityRole="header" style={[st.regionTitle,{marginTop:16}]}>Brandenburgweite Anträge und Hilfen</Text>
         {BRANDENBURG_FAMILY_RESOURCES.map(item=><View key={item.id} style={st.officeCard}>
           <Text style={st.question}>{item.title}</Text>
@@ -307,6 +307,14 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
           placeholder="z. B. Sachsen, Berlin, München …" placeholderTextColor={P.muted}
           value={stateSearch} onChangeText={setStateSearch} style={st.regionInput}/>
         <SearchResultFeedback active={!!stateSearch.trim()} query={stateSearch} count={visibleStates.length} context="Bundesländer" hint="Bundesland auswählen, um zum offiziellen Landesportal zu gelangen."/>
+        {pickedState?<View style={st.officeCard}>
+          <Text style={st.question}>{pickedState.name}: offizielles Serviceportal</Text>
+          <Text style={st.small}>Hier kannst du Leistungen und Zuständigkeiten nach Wohnort suchen. Für Brandenburg sind zusätzlich die Kreisstellen oben erfasst.</Text>
+          <Pressable accessibilityRole="link" accessibilityLabel={'Amtliches Serviceportal '+pickedState.name+' öffnen'}
+            style={st.officeLink} onPress={()=>openLink(pickedState.portal_url)}>
+            <Text style={st.localLink}>Landesportal öffnen ↗</Text>
+          </Pressable>
+        </View>:null}
         {visibleStates.map(state=><Pressable key={state.code} accessibilityRole="button"
           accessibilityLabel={state.name+' als Bundesland auswählen'}
           accessibilityState={{selected:pickedStateCode===state.code}}
@@ -317,14 +325,6 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
           </View>
           <Text style={st.regionChoiceArrow}>{pickedStateCode===state.code?'✓':'›'}</Text>
         </Pressable>)}
-        {pickedState?<View style={st.officeCard}>
-          <Text style={st.question}>{pickedState.name}: offizielles Serviceportal</Text>
-          <Text style={st.small}>Hier kannst du Leistungen und Zuständigkeiten nach Wohnort suchen. Für Brandenburg sind zusätzlich die Kreisstellen oben erfasst.</Text>
-          <Pressable accessibilityRole="link" accessibilityLabel={'Amtliches Serviceportal '+pickedState.name+' öffnen'}
-            style={st.officeLink} onPress={()=>openLink(pickedState.portal_url)}>
-            <Text style={st.localLink}>Landesportal öffnen ↗</Text>
-          </Pressable>
-        </View>:null}
         <Text accessibilityRole="header" style={[st.regionTitle,{marginTop:16}]}>Bundesweite Anträge, Beratung & Teilhabe</Text>
         {GERMANY_FAMILY_RESOURCES.map(item=><View key={item.id} style={st.officeCard}>
           <Text style={st.question}>{item.title}</Text>
