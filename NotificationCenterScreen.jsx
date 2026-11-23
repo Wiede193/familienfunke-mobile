@@ -14,6 +14,7 @@ const copy={
 };
 function eventCopy(row){
  const base=copy[row.kind]||['Neuigkeit','Es gibt eine Aktualisierung.','Ansehen','•'];
+ if(row.kind==='decision'&&row.decision_title)return [base[0],row.decision_title,base[2],base[3]];
  if(row.kind==='price'&&Number.isInteger(row.old_price_cents)&&Number.isInteger(row.new_price_cents)){
   const money=v=>(v/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
   return [base[0],'Bei einem gemerkten Angebot sank der veröffentlichte Preis von '+money(row.old_price_cents)+' auf '+money(row.new_price_cents)+'. Öffne das Angebot für den aktuellen Preis.',base[2],base[3]];
