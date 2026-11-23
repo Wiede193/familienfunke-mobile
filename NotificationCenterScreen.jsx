@@ -66,7 +66,7 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
   <Text accessibilityRole="header" style={s.cardTitle}>Kategorie</Text>
   <View style={s.filters}>
    {[['all','Alle Neuigkeiten'],['decision','Amtliche Beschlüsse'],['price','Preisalarme']].map(([kind,label])=><Pressable key={kind} accessibilityRole="button" accessibilityLabel={label+(kind==='price'&&inbox.priceUnread!=null?', '+inbox.priceUnread+' ungelesen':'')} accessibilityState={{selected:inbox.kind===kind,disabled:busy}} disabled={busy} onPress={()=>inbox.refresh({kind})} style={[s.chip,inbox.kind===kind&&s.selected]}>
-    <Text style={[s.text,inbox.kind===kind&&{color:C.white,fontWeight:'800'}]}>{label}{kind==='price'&&inbox.priceUnread>0?' ('+inbox.priceUnread+')':''}</Text>
+    <Text style={[s.text,inbox.kind===kind&&{color:C.white,fontWeight:'800'}]}>{label}{kind==='price'&&inbox.priceUnread>0?' ('+inbox.priceUnread+')':kind==='decision'&&inbox.decisionUnread>0?' ('+inbox.decisionUnread+')':''}</Text>
    </Pressable>)}
   </View>
   {inbox.kind==='price'?<PriceAlertPreference key={inbox.owner} userId={inbox.owner} active={active}/>:null}
@@ -87,7 +87,7 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
    <Action disabled={busy} onPress={()=>open(row)}>{action}</Action>
    {!row.read_at?<Action disabled={busy} onPress={async()=>{if(busy)return;setBusy(true);try{await inbox.markRead(row.id);}finally{setBusy(false);}}}>Als gelesen markieren</Action>:null}
   </View>;})}
-  {inbox.hasMore?<Action disabled={inbox.loading||busy} onPress={()=>inbox.refresh({more:true})} >{inbox.kind==='price'?'Ältere Preisalarme laden':'Ältere Neuigkeiten laden'}</Action>:null}
+  {inbox.hasMore?<Action disabled={inbox.loading||busy} onPress={()=>inbox.refresh({more:true})} >{inbox.kind==='price'?'Ältere Preisalarme laden':inbox.kind==='decision'?'Weitere amtliche Hinweise laden':'Ältere Neuigkeiten laden'}</Action>:null}
   <Action onPress={onSettings}>Push-Benachrichtigungen einstellen</Action>
  </ScrollView>;
 }
