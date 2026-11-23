@@ -32,5 +32,5 @@ assert.match(home,/findFamilyTopics\(needle/,'Family knowledge must be indexed')
 assert.match(home,/findInclusionArticles\(needle/,'Inclusion guidance must be indexed');
 assert.match(home,/ff_official_family_events/,'Public official events must be included');
 const server=read('supabase/functions/ff-app-assistant/index.ts');
-assert.match(server,/"healthy"\] as const/,'AI allowed route includes health');
+assert.match(server,/"healthy","decisions"\] as const/,'AI allowed route includes health');
 console.log('Healthy sources, navigation, universal search and optional map layers passed structural checks.');
