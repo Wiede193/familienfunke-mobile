@@ -5,7 +5,7 @@ const source=readFileSync(new URL('../HomeNavigation.js',import.meta.url),'utf8'
 const {HOME_ROUTES,HOME_PAGE_IDS,findHomeRoutes}=await import(
   'data:text/javascript;base64,'+Buffer.from(source).toString('base64')
 );
-assert.equal(HOME_ROUTES.length,20,'Expected 19 real, navigable functions');
+assert.equal(HOME_ROUTES.length,21,'Expected 21 real, navigable functions');
 assert.equal(new Set(HOME_PAGE_IDS).size,HOME_PAGE_IDS.length,'Page IDs must be unique');
 for(const [phrase,id] of [
   ['Kistenmodus','box'],
@@ -25,6 +25,7 @@ for(const [phrase,id] of [
   ['Mein Familienkalender','calendar'],
   ['Familienquiz','play'],
   ['Sportverein','healthy'],
+  ['Bundestag Beschluss','decisions'],
   ['gesunde Ernährung','healthy'],
   ['Wanderwege','map'],
   ['Rätsel','play']
