@@ -104,7 +104,9 @@ returns jsonb language sql stable set search_path='' as $$
   'price_unread',coalesce(c.price_unread,0),
   'decision_unread',coalesce(c.decision_unread,0),
   'rows',coalesce((select jsonb_agg(to_jsonb(x) order by x.created_at desc,x.id desc)
-    from (select id,kind,contact_id,listing_id,listing_status,decision_id,created_at,read_at,old_price_cents,new_price_cents
+    from (select id,kind,contact_id,listing_id,listing_status,decision_id,
+        (select d.title from public.ff_official_decisions d where d.id=n.decision_id and d.published=true) as decision_title,
+        created_at,read_at,old_price_cents,new_price_cents
       from public.ff_notifications n
       where n.user_id=(select auth.uid())
         and (p_kind='all' or n.kind=p_kind)
