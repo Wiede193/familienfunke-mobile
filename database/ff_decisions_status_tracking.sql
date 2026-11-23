@@ -218,6 +218,32 @@ revoke all on function public.ff_inbox_page_by_kind(text,timestamptz,uuid)
  from public,anon,authenticated;
 grant execute on function public.ff_inbox_page_by_kind(text,timestamptz,uuid) to authenticated;
 
+
+-- Website timestamps and page layout changes often do NOT mean new law.
+-- Allow editors to dismiss false positives without sending any notice.
+create or replace function private.ff_dismiss_decision_candidate(
+ p_candidate_id uuid,p_explanation text)
+returns boolean language plpgsql security definer set search_path='' as $
+declare c record;
+begin
+ if length(btrim(coalesce(p_explanation,'')))<20 then return false; end if;
+ select * into c from public.ff_decision_change_candidates
+  where id=p_candidate_id and review_state='pending' for update;
+ if not found then return false;end if;
+ update public.ff_decision_change_candidates set
+  review_state='dismissed',review_note=p_explanation,reviewed_at=now()
+  where id=c.id;
+ update public.ff_official_decisions d set status_review_pending=exists(
+  select 1 from public.ff_decision_change_candidates x
+   where x.decision_id=d.id and x.review_state='pending'
+ ) where d.id=c.decision_id;
+ return true;
+end $;
+revoke all on function private.ff_dismiss_decision_candidate(uuid,text)
+ from public,anon,authenticated;
+grant execute on function private.ff_dismiss_decision_candidate(uuid,text)
+ to service_role;
+
 -- Cycle through the least recently checked entries so older but unresolved
 -- legislation never starves after the first 15 cards have been added.
 create or replace function public.ff_decision_tracking_due(p_limit integer default 15)
