@@ -5,10 +5,11 @@ import FamilyIcon from './FamilyIcon';
 import {HEALTH_CATEGORIES,HEALTH_RESOURCES,findHealthyResources} from './FamilyHealthyContent';
 
 export default function HealthyScreen({initialQuery='',onOpenMap}){
- const [query,setQuery]=useState(initialQuery),[category,setCategory]=useState('all');
+ const [query,setQuery]=useState(initialQuery),[category,setCategory]=useState('all'),[showAll,setShowAll]=useState(false);
  useEffect(()=>setQuery(initialQuery),[initialQuery]);
  const matches=useMemo(()=>query.trim()?findHealthyResources(query,30):HEALTH_RESOURCES,[query]);
  const visible=matches.filter(r=>category==='all'||r.category===category);
+ const shown=showAll||query.trim()?visible:visible.slice(0,6);
  const open=url=>Linking.openURL(url).catch(()=>Alert.alert('Quelle nicht erreichbar','Der externe Link konnte nicht geöffnet werden.'));
  return <ScrollView style={s.page} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
   <View style={s.hero}>
@@ -27,20 +28,24 @@ export default function HealthyScreen({initialQuery='',onOpenMap}){
   <Text style={s.note}>Die Karte zeigt OpenStreetMap-Wege, keine durchgehend ausgeschilderten oder geprüften Touren. Barrierefreiheit und Familien-Eignung vor Ort prüfen.</Text>
   <Text accessibilityRole="header" style={s.section}>Vereine, Ratgeber & Videos</Text>
   <TextInput accessibilityLabel="Sport und Gesundheit suchen" placeholder="z. B. Schwimmen, Wandern, Ernährung"
-   placeholderTextColor={C.muted} value={query} onChangeText={setQuery} style={s.search}/>
+   placeholderTextColor={C.muted} value={query} onChangeText={value=>{setQuery(value);setShowAll(false);}} style={s.search}/>
   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filters}>
    {HEALTH_CATEGORIES.map(c=><Pressable key={c.id} accessibilityRole="button" accessibilityState={{selected:category===c.id}}
-    onPress={()=>setCategory(c.id)} style={[s.chip,category===c.id&&s.chipActive]}>
+    onPress={()=>{setCategory(c.id);setShowAll(false);}} style={[s.chip,category===c.id&&s.chipActive]}>
     <Text style={[s.chipLabel,category===c.id&&{color:C.white}]}>{c.title}</Text></Pressable>)}
   </ScrollView>
-  <Text accessibilityLiveRegion="polite" style={s.note}>{visible.length} geprüfte Quellen</Text>
-  {visible.map(r=><Pressable accessibilityRole="link" key={r.id} accessibilityLabel={r.title+', externe Quelle öffnen'}
+  <Text accessibilityLiveRegion="polite" style={s.note}>{visible.length} redaktionell verlinkte Angebote</Text>
+  {shown.map(r=><Pressable accessibilityRole="link" key={r.id} accessibilityLabel={r.title+', externe Quelle öffnen'}
    onPress={()=>open(r.url)} style={s.card}>
    <Text style={s.source}>{r.source} · {r.region}</Text>
    <Text style={s.cardTitle}>{r.title}</Text>
    <Text style={s.description}>{r.description}</Text>
    <Text style={s.link}>Offizielle Quelle öffnen ›</Text>
   </Pressable>)}
+  {visible.length>6&&!query.trim()?<Pressable accessibilityRole="button" accessibilityState={{expanded:showAll}}
+   onPress={()=>setShowAll(value=>!value)} style={s.moreBtn}>
+   <Text style={s.moreText}>{showAll?'Weniger anzeigen':'Weitere '+(visible.length-6)+' Angebote anzeigen'}</Text>
+  </Pressable>:null}
   {!visible.length?<Text style={s.note}>Keine Treffer. Suche anpassen oder „Alle“ auswählen.</Text>:null}
   <Text style={s.note}>Die verlinkten Videos und Informationen sind öffentlich kostenlos aufrufbar, aber nicht zur Wiederveröffentlichung freigegeben. Vereinsmitgliedschaften können kostenpflichtig sein. Medizinische Beratung wird dadurch nicht ersetzt.</Text>
  </ScrollView>;
@@ -58,6 +63,8 @@ const s=StyleSheet.create({
  search:{minHeight:52,backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:15,paddingHorizontal:14,fontSize:T.body,color:C.ink},
  filters:{gap:8,paddingVertical:3},chip:{minHeight:44,justifyContent:'center',paddingHorizontal:14,borderWidth:1,borderColor:C.line,borderRadius:22,backgroundColor:C.white},
  chipActive:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipLabel:{fontWeight:'700',fontSize:T.small,color:C.ink},
+ moreBtn:{minHeight:48,justifyContent:'center',alignItems:'center',borderRadius:15,backgroundColor:C.mint},
+ moreText:{fontWeight:'800',color:C.accentDark,fontSize:T.small},
  card:{padding:16,borderRadius:18,borderWidth:1,borderColor:C.line,backgroundColor:C.white},
  source:{fontSize:T.meta,color:C.accentDark,fontWeight:'800'},
  cardTitle:{fontSize:T.card,color:C.ink,fontWeight:'800',marginTop:8},
