@@ -1,12 +1,13 @@
-import React,{useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useState} from 'react';
 import {Linking,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import {FAMILY_TOPIC_CATEGORIES,FAMILY_TOPIC_ARTICLES,findFamilyTopics} from './FamilyTopicsKnowledge';
 
 // A self-contained guide, no personal details, search history or health facts are persisted.
-export default function FamilyTopicsSection(){
+export default function FamilyTopicsSection({initialQuery=''}){
  const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[category,setCategory]=useState('all'),[expanded,setExpanded]=useState(null);
  const items=useMemo(()=>findFamilyTopics(query,category),[query,category]);
+ useEffect(()=>{if(initialQuery.trim()){setOpen(true);setQuery(initialQuery);}},[initialQuery]);
  return <View style={s.container}>
   <Pressable accessibilityRole="button" accessibilityState={{expanded:open}}
     accessibilityLabel="Familienthemen – Ratgeber öffnen"
