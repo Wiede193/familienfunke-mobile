@@ -10,12 +10,16 @@ const showDay=day=>new Date(day+'T12:00:00').toLocaleDateString('de-DE',{weekday
 export default function FamilyDateFields({date,onDateChange,time,onTimeChange,timeOptional=false,title='Datum und Uhrzeit'}){
  const today=dayKey(new Date());
  const [month,setMonth]=useState((date&&/^\d{4}-\d{2}-\d{2}$/.test(date)?date:today).slice(0,7));
- const [custom,setCustom]=useState(false);
+ const [custom,setCustom]=useState(false),[expanded,setExpanded]=useState(!date);
  const {width,fontScale}=useWindowDimensions();
  const safeDays=monthDays(month).filter(Boolean);
  function shift(delta){const next=moveMonth(month,delta);if(next>='1900-01'&&next<='2100-12')setMonth(next);}
  return <View style={s.container}>
   <Text accessibilityRole="header" style={s.heading}>{title}</Text>
+  <Pressable accessibilityRole="button" accessibilityState={{expanded}} onPress={()=>setExpanded(v=>!v)} style={s.toggle}>
+   <Text style={s.toggleText}>{/^\d{4}-\d{2}-\d{2}$/.test(date||'')?showDay(date):'Datum auswählen'} · {time||'Ganztägig'} {expanded?'−':'Ändern +'}</Text>
+  </Pressable>
+  {expanded?<>
   <View style={s.row}>
    <Pressable accessibilityRole="button" accessibilityLabel="Vorheriger Monat" style={s.nav} onPress={()=>shift(-1)}><Text style={s.arrow}>‹</Text></Pressable>
    <Text style={[s.month,{flex:1}]}>{monthTitle(month)}</Text>
@@ -49,10 +53,11 @@ export default function FamilyDateFields({date,onDateChange,time,onTimeChange,ti
    <Text style={s.label}>Uhrzeit (HH:MM)</Text>
    <TextInput accessibilityLabel="Uhrzeit als Stunden Doppelpunkt Minuten" style={s.input} placeholder="15:30" value={time} onChangeText={onTimeChange} maxLength={5} keyboardType="numbers-and-punctuation"/>
   </View>:null}
+  </>:null}
  </View>;
 }
 const s=StyleSheet.create({
- container:{gap:10},heading:{fontSize:17,fontWeight:'800',color:C.ink},
+ container:{gap:10},toggle:{minHeight:48,borderRadius:13,backgroundColor:C.sunPale,paddingHorizontal:13,paddingVertical:11,justifyContent:'center'},toggleText:{fontSize:15,fontWeight:'800',color:C.ink},heading:{fontSize:17,fontWeight:'800',color:C.ink},
  row:{flexDirection:'row',alignItems:'center',gap:9},
  nav:{minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center',borderRadius:13,backgroundColor:C.sunPale},
  arrow:{fontSize:28,color:C.ink},month:{fontSize:16,color:C.ink,fontWeight:'800',textAlign:'center'},
