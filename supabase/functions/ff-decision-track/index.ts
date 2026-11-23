@@ -96,7 +96,9 @@ async function monitor(db){
  if(error)throw Error('read_decisions');
  for(let i=0;i<(rows||[]).length;i+=3){
   await Promise.all((rows||[]).slice(i,i+3).map(async d=>{
-   if(sourceKindForUrl(d.source_url)){
+   // DIP's public portal is a JavaScript shell, not the official machine-readable
+   // procedure data. Never mistake its short HTML for a legislative change.
+   if(sourceKindForUrl(d.source_url)&&new URL(d.source_url).hostname!=='dip.bundestag.de'){
     try{
      const page=normalizedOfficialText(await retrieve(d.source_url));
      if(page.length<100)throw Error('short_page');
