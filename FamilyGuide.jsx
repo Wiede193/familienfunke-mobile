@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
+import {ActivityIndicator, Keyboard, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {VERIFIED_GUIDE_DETAILS, ODER_SPREE_GUIDE} from './FamilyGuideVerified';
@@ -275,7 +275,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
           accessibilityRole="button" accessibilityLabel={region.name+' auswählen'}
           accessibilityState={{selected:selectedRegion?.id===region.id}}
           style={[st.regionChoice,selectedRegion?.id===region.id&&st.regionChoiceSelected]}
-          onPress={()=>{setPickedRegionId(region.id);setRegionSearch('');}}>
+          onPress={()=>{Keyboard.dismiss();setPickedRegionId(region.id);setRegionSearch('');}}>
           <View style={{flex:1}}>
             <Text style={st.regionChoiceTitle}>{region.name}</Text>
             <Text style={st.small}>{region.coverage==='verified'?'Konkrete Kontaktseiten geprüft':'Amtliches Verzeichnis, lokale Details folgen'}</Text>
@@ -318,7 +318,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
         {visibleStates.map(state=><Pressable key={state.code} accessibilityRole="button"
           accessibilityLabel={state.name+' als Bundesland auswählen'}
           accessibilityState={{selected:pickedStateCode===state.code}}
-          onPress={()=>setPickedStateCode(state.code)} style={[st.regionChoice,pickedStateCode===state.code&&st.regionChoiceSelected]}>
+          onPress={()=>{Keyboard.dismiss();setPickedStateCode(state.code);}} style={[st.regionChoice,pickedStateCode===state.code&&st.regionChoiceSelected]}>
           <View style={{flex:1}}>
             <Text style={st.regionChoiceTitle}>{state.name}</Text>
             <Text style={st.small}>Amtliches Landesportal · örtliche Zuständigkeit separat prüfen</Text>
