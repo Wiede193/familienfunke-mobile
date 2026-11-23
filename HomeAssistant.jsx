@@ -4,6 +4,7 @@ import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
+import SearchResultFeedback from './SearchResultFeedback';
 import {FamilyEmptyState,FamilySkeleton,FamilySectionTitle} from './FamilyFeedback';
 import {recommendFamilyPlaces,selectHomeOffers,selectHomeEvents,missingFamilyProfileStep,homeGreeting} from './HomePersonalization';
 import {retryRead} from './NetworkResilience';
@@ -84,6 +85,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   const [showAll,setShowAll]=useState(false);
   const [showMoreFeed,setShowMoreFeed]=useState(false);
   const scrollRef=useRef(null);
+  const searchResultOffset=useRef(0);
   const requestSeq=useRef(0),alive=useRef(true),pending=useRef(false);
   const [searchResult,setSearchResult]=useState(null);
   const [searchBusy,setSearchBusy]=useState(false);
@@ -138,6 +140,10 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   const inclusionMatches=needle.length>=3?findInclusionArticles(needle).slice(0,3):[];
   const marketIntent=looksLikeMarketProductQuery(needle)||matches[0]?.id==='market';
   const visibleSearch=searchResult?.query===needle?searchResult:null;
+  const searchCount=matches.length+places.length+healthMatches.length+topicMatches.length+inclusionMatches.length+
+    (visibleSearch?.decisions?.length||0)+(visibleSearch?.officialEvents?.length||0)+
+    (visibleSearch?.events?.length||0)+(visibleSearch?.offers?.length||0);
+  useEffect(()=>{if(visibleSearch)scrollRef.current?.scrollTo({y:Math.max(0,searchResultOffset.current-8),animated:true});},[visibleSearch]);
   const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
   const moreRoutes=HOME_ROUTES.filter(route=>!FEATURED.includes(route.id));
   async function askAssistant(){
@@ -276,7 +282,9 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       <Text style={s.searchHint}>App-Funktionen, Beschlüsse, Angebote, Orte und Veranstaltungen finden oder Fragen stellen.</Text>
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
     </View>
-    {needle?<View style={s.section}>
+    {needle?<View style={s.section} onLayout={event=>{searchResultOffset.current=event.nativeEvent.layout.y;}}>
+      <SearchResultFeedback active context={visibleSearch?'Familienfunke-Suche':'Direkte Suchtreffer'} query={needle} count={searchCount} loading={searchBusy}
+        hint={visibleSearch?'Passenden Eintrag antippen, um ihn zu öffnen.':'Für aktuelle Angebote, Veranstaltungen und Beschlüsse auf „Suchen“ tippen.'}/>
       <Text accessibilityRole="header" style={s.sectionTitle}>Suchergebnisse</Text>
       {matches.length?<><Text style={s.sectionSubtitle}>App-Bereiche</Text>
       {matches.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query={needle}/>)}</>:null}
