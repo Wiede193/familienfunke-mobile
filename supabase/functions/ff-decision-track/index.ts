@@ -92,9 +92,7 @@ async function monitor(db){
  const stats={website:0,dip:0,candidates:0,errors:[]};
  const raw=Deno.env.get('DIP_BUNDESTAG_API_KEY')||'';
  const key=/^[a-z0-9]{5,35}\.[a-z0-9]{15,65}$/i.test(raw)?raw:null;
- const {data:rows,error}=await db.from('ff_official_decisions')
-  .select('id,source_url,dip_vorgang_id,decision_status')
-  .eq('published',true).order('published_at',{ascending:false}).limit(15);
+ const {data:rows,error}=await db.rpc('ff_decision_tracking_due',{p_limit:15});
  if(error)throw Error('read_decisions');
  for(let i=0;i<(rows||[]).length;i+=3){
   await Promise.all((rows||[]).slice(i,i+3).map(async d=>{
