@@ -89,4 +89,55 @@ assert.match(ui,/Hinweisthemen/);
 assert.match(ui,/topic==='all'/);
 assert.match(ui,/entscheidung|Entscheidung vom/);
 assert.match(ui,/Vermittlung zwischen Bundestag und Bundesrat/);
+const trackingParser=read('supabase/functions/ff-decision-track/status-parser.js');
+const tracking=await import('data:text/javascript;base64,'+
+ Buffer.from(trackingParser).toString('base64'));
+assert.equal(tracking.sourceKindForUrl('https://www.bundesregierung.de/breg-de/aktuelles/example'),'website');
+assert.equal(tracking.sourceKindForUrl('https://www.bundesregierung.de.attacker.example/fake'),null);
+assert.equal(tracking.sourceKindForUrl('http://www.bundesregierung.de/breg-de/aktuelles/example'),null);
+assert.equal(tracking.sourceKindForUrl('https://example.com'),null);
+const dipBase={id:'338785',titel:'Startchancen- und Qualitätsentwicklungsgesetz',
+ vorgangstyp:'Gesetzgebung',aktualisiert:'2026-11-23T10:15:00+01:00'};
+const pending=tracking.parseDipVorgang({...dipBase,beratungsstand:'Abgeschlossen',
+ inkrafttreten:[{datum:'2027-01-01'}]},'338785');
+assert.equal(pending.proposedStatus,null,'Abgeschlossen is not proof of enactment');
+const announced=tracking.parseDipVorgang({...dipBase,beratungsstand:'Im Vermittlungsausschuss'},'338785');
+assert.equal(announced.proposedStatus,null,'An ambiguous DIP advisory status never auto-changes a bill');
+const promulgated=tracking.parseDipVorgang({...dipBase,beratungsstand:'Verkündet',
+ verkuendung:[{datum:'2026-11-23',fundstelle:'BGBl'}]},'338785');
+assert.equal(promulgated.proposedStatus,'verkuendet');
+assert.throws(()=>tracking.parseDipVorgang({...dipBase,id:'123456'},'338785'),/dip_unexpected_record/);
+assert.throws(()=>tracking.parseDipVorgang({...dipBase,vorgangstyp:'Antrag'},'338785'),/dip_unexpected_record/);
+assert.equal(tracking.normalizedOfficialText('<main><p>Gesetzesstand</p><script>evil()</script></main>'),
+ 'Gesetzesstand','Active markup must never be interpreted as legislation text');
+const trackingSql=read('database/ff_decisions_status_tracking.sql');
+for(const snippet of [
+ 'status_review_pending boolean not null default false',
+ 'ff_decision_change_candidates','ff_decision_source_snapshots',
+ 'ff_decision_status_history','ff_decision_history_notification',
+ 'ff_notification_decision_revision_unique','private.ff_confirm_decision_status',
+ "where x.decision_id=d.id and x.review_state='pending'",
+ 'ff_decision_tracking_due'
+])assert.ok(trackingSql.includes(snippet),'Missing tracking guard: '+snippet);
+assert.match(trackingSql,/alter table public.ff_decision_change_candidates enable row level security/);
+assert.match(trackingSql,/revoke all on public.ff_decision_change_candidates from public,anon,authenticated/);
+assert.match(trackingSql,/grant execute on function public.ff_decision_tracking_due\(integer\) to service_role/);
+assert.match(trackingSql,/p_kind='decision' and n.kind='decision_update'/);
+assert.match(trackingSql,/new.event_kind='update' and new.status is distinct from new.previous_status/);
+const trackEdge=read('supabase/functions/ff-decision-track/index.ts');
+assert.match(trackEdge,/ff_official_sync_authorized/);
+assert.match(trackEdge,/DIP_BUNDESTAG_API_KEY/);
+assert.match(trackEdge,/ff_decision_tracking_due/);
+assert.match(trackEdge,/redirect:'manual'/);
+assert.match(trackEdge,/status_review_pending:true/);
+assert.doesNotMatch(trackEdge,/decision_status\s*:/,'The monitor must not overwrite the verified public stage');
+assert.doesNotMatch(trackEdge,/OPENAI_API_KEY|createCompletion|responses\.create/);
+const schedule=read('database/ff_decision_tracking_schedule.sql');
+assert.match(schedule,/ff_decision_track/);
+assert.match(ui,/ff_decision_status_history/);
+assert.match(ui,/status_review_pending/);
+assert.match(ui,/Dieser Abruf bestätigt nicht automatisch den Rechtsstand/);
+assert.match(app,/row.kind==='decision'\|\|row.kind==='decision_update'/);
+assert.match(alerts,/decision_update:/);
+
 console.log('Beschluss-Monitor: Quellenfilter, Verfahrensstand, Familienthemen, RLS und Hinweise geprüft');
