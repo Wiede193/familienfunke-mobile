@@ -9,6 +9,7 @@ const copy={
  message:['Neue Nachricht','Du hast eine neue private Nachricht erhalten.','Unterhaltung öffnen','✉'],
  price:['Preis gesenkt','Ein gemerkter Artikel wurde günstiger.','Angebot öffnen','€'],
  search:['Neuer Basar-Treffer','Ein neu freigegebenes Angebot passt zu einem deiner Suchaufträge.','Angebot öffnen','♡'],
+ decision:['Neuer amtlicher Beschluss','Ein neuer amtlich belegter Beschluss wurde veröffentlicht.','Beschluss lesen','§'],
  market:['Basar-Prüfung','Der Prüfstatus deiner Anzeige wurde aktualisiert.','Meine Anzeige öffnen','♧']
 };
 function eventCopy(row){
@@ -64,7 +65,7 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
   </View>
   <Text accessibilityRole="header" style={s.cardTitle}>Kategorie</Text>
   <View style={s.filters}>
-   {[['all','Alle Neuigkeiten'],['price','Preisalarme']].map(([kind,label])=><Pressable key={kind} accessibilityRole="button" accessibilityLabel={label+(kind==='price'&&inbox.priceUnread!=null?', '+inbox.priceUnread+' ungelesen':'')} accessibilityState={{selected:inbox.kind===kind,disabled:busy}} disabled={busy} onPress={()=>inbox.refresh({kind})} style={[s.chip,inbox.kind===kind&&s.selected]}>
+   {[['all','Alle Neuigkeiten'],['decision','Amtliche Beschlüsse'],['price','Preisalarme']].map(([kind,label])=><Pressable key={kind} accessibilityRole="button" accessibilityLabel={label+(kind==='price'&&inbox.priceUnread!=null?', '+inbox.priceUnread+' ungelesen':'')} accessibilityState={{selected:inbox.kind===kind,disabled:busy}} disabled={busy} onPress={()=>inbox.refresh({kind})} style={[s.chip,inbox.kind===kind&&s.selected]}>
     <Text style={[s.text,inbox.kind===kind&&{color:C.white,fontWeight:'800'}]}>{label}{kind==='price'&&inbox.priceUnread>0?' ('+inbox.priceUnread+')':''}</Text>
    </Pressable>)}
   </View>
@@ -74,7 +75,7 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
     onPress={()=>setOnlyUnread(value)} style={[s.chip,value===onlyUnread&&s.selected]}><Text style={[s.text,value===onlyUnread&&{color:C.white,fontWeight:'800'}]}>{label}</Text></Pressable>)}
   </View>
   {inbox.error?<View><Text accessibilityLiveRegion="assertive" style={s.note}>{inbox.error}</Text><Action onPress={()=>inbox.refresh()}>Erneut laden</Action></View>:null}
-  {rows.length===0&&!inbox.loading&&!inbox.error?<Text style={s.note}>{onlyUnread?'Keine ungelesenen Hinweise auf dieser Seite.':inbox.kind==='price'?'Noch keine Preisalarme.':'Noch keine Neuigkeiten.'}</Text>:null}
+  {rows.length===0&&!inbox.loading&&!inbox.error?<Text style={s.note}>{onlyUnread?'Keine ungelesenen Hinweise auf dieser Seite.':inbox.kind==='price'?'Noch keine Preisalarme.':inbox.kind==='decision'?'Noch keine neuen amtlichen Beschlüsse.':'Noch keine Neuigkeiten.'}</Text>:null}
   {rows.map(row=>{const [title,description,action,icon]=eventCopy(row);return <View key={row.id} style={[s.card,!row.read_at&&s.unread]}>
    <View style={s.row}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.icon}><Text style={s.symbol}>{icon}</Text></View>
     <View style={{flex:1}}><Text style={s.cardTitle}>{title}</Text>
