@@ -1058,7 +1058,7 @@ save={(value)=>execute(async()=>{
 uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,executePhoto)}
 reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,executePhoto)}
 blocks={db.blocks} onUnblock={unblockUser}
-changePassword={changePassword} onDirtyChange={setProfileDirty} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
+changePassword={changePassword} onDirtyChange={setProfileDirty} openInfo={()=>guardProfileExit(()=>setShowInfo(true))} signOut={()=>guardProfileExit(()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.')))}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>guardProfileExit(()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');if(id==='guide')setGuideQuery('');setTab(id);setShowEventForm(false);})}
@@ -3147,7 +3147,8 @@ const dirty=!!profile&&(form.display_name!==String(initialProfile.display_name||
  form.region_label!==String(initialProfile.region_label||'')||
  form.about!==String(initialProfile.about||'')||
  !!form.is_discoverable!==!!initialProfile.is_discoverable||
- JSON.stringify(form.interests||[])!==JSON.stringify(Array.isArray(initialProfile.interests)?initialProfile.interests:[]));
+ JSON.stringify(form.interests||[])!==JSON.stringify(Array.isArray(initialProfile.interests)?initialProfile.interests:[])||
+ !!selectedPhoto||!!photoCaption||!!newPassword);
 useEffect(()=>{onDirtyChange?.(dirty);},[dirty,onDirtyChange]);
 function switchSection(next){
  if(next===profileSection)return;
