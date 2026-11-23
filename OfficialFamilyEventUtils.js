@@ -9,6 +9,7 @@ export const OFFICIAL_EVENT_DISTRICTS=[
 ];
 export const OFFICIAL_EVENT_CATEGORIES=[
  {id:'all',label:'Alle Aktivitäten'},
+ {id:'holiday',label:'Feiertage & Ferien'},
  {id:'festival',label:'Familienfeste'},
  {id:'market',label:'Märkte'},
  {id:'theater',label:'Kindertheater'},
@@ -41,5 +42,5 @@ export function officialEventDateLabel(item){
 export function officialEventVisible(event,district='all',category='all',today=isoDay(new Date())){
  return !!event?.published&&String(event.end_date)>=today&&
   (district==='all'||event.district===district)&&
-  (category==='all'||event.category===category);
+  (category==='all'||event.category===category||(category==='holiday'&&/weihnacht|advent|nikolaus|oster|pfingst|silvester|winterzauber|laternen|martinsfest|fasching|karneval|halloween/i.test(event.title||'')));
 }
