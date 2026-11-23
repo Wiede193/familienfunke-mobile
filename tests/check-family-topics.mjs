@@ -17,7 +17,7 @@ for(const item of FAMILY_TOPIC_ARTICLES){
  assert.ok(item.sources.every(s=>s.url.startsWith('https://')&&s.title));
  assert.ok(FAMILY_TOPIC_CATEGORIES.some(cat=>cat.id===item.category),item.id+' category');
 }
-assert.ok(findFamilyTopics('KiZ').some(a=>a.id==='kinderzuschlag')===false,'No guessed synonyms unless present in source text');
+assert.ok(findFamilyTopics('KiZ').some(a=>a.id==='kinderzuschlag'),'Article contains the official KiZ-Lotse term');
 assert.ok(findFamilyTopics('kinderzuschlag').some(a=>a.id==='kinderzuschlag'));
 assert.ok(findFamilyTopics('wohngeld').some(a=>a.id==='wohngeld'));
 assert.ok(findFamilyTopics('FrÜhE hIlFeN').some(a=>a.id==='fruehe-hilfen'));
