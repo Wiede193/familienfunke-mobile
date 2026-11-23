@@ -2,6 +2,7 @@ import React,{useRef,useState,useEffect} from 'react';
 import {ActivityIndicator,AccessibilityInfo,Linking,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import SearchResultFeedback from './SearchResultFeedback';
 import {CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {BRANDENBURG_FAMILY_PLACES} from './FamilyMapBrandenburg';
 import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
@@ -19,17 +20,19 @@ function Pick({title,items,selected,onChange}){
   <View style={s.chips}>{items.map(([value,label])=>{
    const active=Array.isArray(selected)?selected.includes(value):selected===value;
    return <Pressable key={String(value)} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{selected:active}}
-    onPress={()=>onChange(value)} style={[s.chip,active&&s.active]}><Text style={[s.chipText,active&&{color:C.white}]}>{label}</Text></Pressable>;
+    disabled={active&&!Array.isArray(selected)} onPress={()=>onChange(value)} style={[s.chip,active&&s.active]}><Text style={[s.chipText,active&&{color:C.white}]}>{label}</Text></Pressable>;
   })}</View>
+  <Text style={s.selectedOrigin}>Ausgewählt: {Array.isArray(selected)?(selected.length?items.filter(([id])=>selected.includes(id)).map(([,label])=>label).join(', '):'Noch keine Angabe'):items.find(([id])=>id===selected)?.[1]||'Keine Auswahl'}</Text>
  </View>;
 }
 export default function FamilyOutingScreen({draft,onSave,onMap,onCalendar}){
  const [form,setForm]=useState(()=>draft||initial);
  const [remote,setRemote]=useState([]),[looking,setLooking]=useState(false),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
  const current=useRef(form);const seq=useRef(0),alive=useRef(true),locked=useRef(false);
+ const scrollRef=useRef(null),lastScrolledResult=useRef(null);
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;seq.current++;};},[]);
  function save(next){current.current=next;setForm(next);onSave(next);}
- function change(next){seq.current++;locked.current=false;setBusy(false);setLooking(false);setNotice('');save({...next,result:null});}
+ function change(next){seq.current++;locked.current=false;lastScrolledResult.current=null;setBusy(false);setLooking(false);setNotice('');save({...next,result:null});}
  function pref(key,value){change({...current.current,prefs:{...current.current.prefs,[key]:value}});}
  function chooseOrigin(origin){setRemote([]);change({...current.current,query:origin.title,origin});}
  async function searchOrigin(){
@@ -68,9 +71,10 @@ export default function FamilyOutingScreen({draft,onSave,onMap,onCalendar}){
   }finally{if(alive.current&&request===seq.current){locked.current=false;setBusy(false);}}
  }
  const local=form.origin?[]:localOrigins(form.query);
+ const originSuggestions=[...local,...remote.filter(p=>!local.some(x=>x.title===p.title))];
  const candidates=form.result?selectOutings(form.origin,CATALOG,form.prefs):[];
  const results=form.result?orderOutings(candidates,form.result.ids):[];
- return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}>
+ return <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}>
   <View style={s.hero}><Text accessibilityRole="header" style={s.title}>Euer nächster Familienausflug</Text>
    <Text style={s.text}>Wählt eure Wünsche. Die KI sortiert vorhandene Ausflugsziele passend zu eurem Familienalltag.</Text>
   </View>
@@ -82,7 +86,8 @@ export default function FamilyOutingScreen({draft,onSave,onMap,onCalendar}){
     placeholder="z. B. Frankfurt (Oder)" placeholderTextColor={C.muted} style={s.input}/>
    {form.origin?<Text style={s.selectedOrigin}>Ausgewählt: {form.origin.title}</Text>:<>
     {!form.query.trim()?<View style={s.chips}>{ORIGINS.slice(0,6).map(origin=><Action key={origin.title} secondary onPress={()=>chooseOrigin(origin)}>{origin.title}</Action>)}</View>:null}
-    {[...local,...remote.filter(p=>!local.some(x=>x.title===p.title))].map((origin,i)=><Pressable accessibilityRole="button" accessibilityLabel={origin.title+' als Ausgangsort wählen'} key={origin.title+i} onPress={()=>chooseOrigin(origin)} style={s.origin}>
+    <SearchResultFeedback active={!!form.query.trim()} query={form.query} context="Ausgangsort suchen" count={originSuggestions.length} loading={looking} hint="Wähle einen Ortsvorschlag oder tippe auf „Deutschlandweit Ort suchen“."/>
+    {originSuggestions.map((origin,i)=><Pressable accessibilityRole="button" accessibilityLabel={origin.title+' als Ausgangsort wählen'} key={origin.title+i} onPress={()=>chooseOrigin(origin)} style={s.origin}>
      <Text style={s.label}>{origin.title}</Text>{origin.subtitle?<Text style={s.muted}>{origin.subtitle}</Text>:null}</Pressable>)}
     <Action secondary disabled={looking||busy||form.query.trim().length<3} onPress={searchOrigin}>{looking?'Ortssuche läuft …':'Deutschlandweit Ort suchen'}</Action>
     <Text style={s.muted}>Nur beim Start der externen Ortssuche wird der Suchtext an Photon/OpenStreetMap übermittelt. Keine privaten Adressen eingeben.</Text>
@@ -101,8 +106,12 @@ export default function FamilyOutingScreen({draft,onSave,onMap,onCalendar}){
   </View>
   {notice?<Text accessibilityLiveRegion="polite" style={s.note}>{notice}</Text>:null}
   {busy?<ActivityIndicator color={C.accent}/>:null}
-  {form.result?<View style={s.card}>
+  {form.result?<View style={s.card} onLayout={event=>{
+    const key=form.result.ids.join('|')+form.result.mode;
+    if(lastScrolledResult.current!==key){lastScrolledResult.current=key;scrollRef.current?.scrollTo({y:Math.max(0,event.nativeEvent.layout.y-12),animated:true});}
+   }}>
    <Text accessibilityRole="header" style={s.heading}>{form.result.mode==='ai'?'Eure KI-Auswahl':'Passende Ziele aus dem Katalog'}</Text>
+   <SearchResultFeedback active context="Ausflugsvorschläge" count={results.length} hint="Tippe auf Familienkarte oder Kalender, um mit einem Ziel weiterzumachen."/>
    <Text style={s.muted}>{form.result.candidateCount} passende Katalogziele im gewählten Radius; bis zu drei Vorschläge. Keine Live-Prüfung von Wetter, Öffnungszeiten, Fahrzeiten oder Preisen.</Text>
    {!results.length?<Text style={s.note}>Der bisherige Ausflugskatalog enthält keine passenden Ziele. Erweitert den Radius, ändert das Interesse oder Budget oder nutzt die Familienkarte.</Text>:null}
    {results.length>0?<>

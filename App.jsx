@@ -24,6 +24,7 @@ import WelcomeIntro from './WelcomeIntro';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
+import SearchResultFeedback from './SearchResultFeedback';
 import {FamilyEmptyState,FamilySkeleton} from './FamilyFeedback';
 import FamilyGuideScreen from './FamilyGuide';
 import InclusionKnowledgeScreen from './InclusionKnowledgeScreen';
@@ -234,6 +235,8 @@ const [session,setSession]=useState(undefined);
 const [tab,setTab]=useState('home');
 const [menuOpen,setMenuOpen]=useState(false);
 const [profileDirty,setProfileDirty]=useState(false);
+const [marketSubpage,setMarketSubpage]=useState(false);
+const marketBackRef=useRef(null);
 const [marketIntent,setMarketIntent]=useState(null);
 const [outingDraft,setOutingDraft]=useState(null);
 const [mapIntent,setMapIntent]=useState(null);
@@ -436,7 +439,7 @@ useEffect(()=>{
   setShowInfo(false);
   setShowLoginHelp(false);
   setShowEventForm(false);
-  setMarketIntent(null);setOutingDraft(null);setCalendarSeed(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
+  setMarketIntent(null);setMarketSubpage(false);marketBackRef.current=null;setOutingDraft(null);setCalendarSeed(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
   setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
   setPhotosUrls({});setMarketPhotoUrls({});setMarketExtraPhotoUrls({});
   setMarketOwnerCursor(null);setMarketOwnerHasMore(false);setMarketOwnerError('');setMarketOwnerBusy(false);setMarketOwnerBusyMore(false);
@@ -891,8 +894,22 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 </SafeAreaView>;
 const EXTRA_TITLES={play:'Familienzeit',calendar:'Mein Familienkalender',savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',healthy:'Sport & Gesundheit',decisions:'Beschlüsse einfach erklärt',more:'Weitere Bereiche'};
 const selectedMainTab=TABS.some(t=>t[0]===tab)?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:null);
+const showBack=!!(detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&(marketSubpage||marketIntent?.returnTab))||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab));
  const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
-function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='calendar'){setMapIntent(null);setTab('calendar');}else if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else if(mapIntent.returnTab==='healthy'){setMapIntent(null);setTab('healthy');}else{setMapIntent(null);setTab('outing');}}else if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);}else if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches','healthy','decisions'].includes(tab))setTab(extraReturnTab);}
+function back(){
+ if(detailFamily){setDetailFamily(null);return;}
+ if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);return;}
+ if(showInfo){setShowInfo(false);return;}
+ // Basar-Unterseiten zuerst schließen, bevor der übergeordnete Bereich verlassen wird.
+ if(tab==='market'&&marketSubpage&&marketBackRef.current){marketBackRef.current();return;}
+ if(tab==='inbox'){setTab(inboxReturnTab);return;}
+ if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);return;}
+ if(tab==='market'&&marketIntent?.returnTab){setMarketIntent(null);setTab(marketIntent.returnTab);return;}
+ if(tab==='map'&&mapIntent){const origin=mapIntent.returnTab;setMapIntent(null);setTab(['calendar','home','healthy','inclusion'].includes(origin)?origin:'outing');return;}
+ if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);return;}
+ if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');return;}
+ if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab))setTab(extraReturnTab==='more'?'home':extraReturnTab);
+}
 function guardProfileExit(next){
  if(tab==='profile'&&profileDirty){
   Alert.alert('Profiländerungen noch nicht gespeichert','Du hast Angaben verändert. Möchtest du sie verwerfen und den Bereich verlassen?',[
@@ -906,15 +923,18 @@ function guardProfileExit(next){
  return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
-<View style={styles.headerIdentity}>
-  <View style={styles.headerHeartBadge}><Text style={styles.headerHeart}>♥</Text></View>
+{showBack?<Pressable accessibilityRole="button" accessibilityLabel={'Zurück aus '+navTitle} accessibilityHint="Zur vorherigen Ansicht wechseln" onPress={()=>guardProfileExit(back)} style={({pressed})=>[styles.headerBackButton,pressed&&{opacity:0.72}]}>
+  <Text style={styles.headerBackArrow}>‹</Text><Text style={styles.headerBackLabel}>Zurück</Text>
+</Pressable>:null}
+<View style={[styles.headerIdentity,showBack&&{minWidth:0}]}>
+  {!showBack?<View style={styles.headerHeartBadge}><Text style={styles.headerHeart}>♥</Text></View>:null}
   <View style={{flex:1}}>
-    <Text style={styles.smallBrand}>Familienfunke<Text style={{color:C.coral}}>.</Text></Text>
-    <Text style={styles.topHint}>{navTitle}</Text>
+    {!showBack?<Text style={styles.smallBrand}>Familienfunke<Text style={{color:C.coral}}>.</Text></Text>:null}
+    <Text numberOfLines={1} style={[styles.topHint,showBack&&{fontSize:14,fontWeight:'800',color:C.ink,marginTop:0}]}>{navTitle}</Text>
   </View>
 </View>
 {tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={()=>guardProfileExit(openInbox)} style={styles.inboxBell}><FamilyIcon name="bell" size={22} color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
-{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={()=>guardProfileExit(back)} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
+
 <Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
 {connectionIssue?<View accessibilityLiveRegion="polite" style={{paddingHorizontal:12,paddingTop:8}}>
@@ -950,7 +970,7 @@ tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
 tab==='savedSearches'?<SavedMarketSearches key={me} userId={me} onSearch={row=>{setMarketIntent({type:'savedSearch',row,returnTab:'savedSearches'});setTab('market');}} onBrowse={()=>{setMarketIntent(null);setTab('market');}}/>:
-tab==='market'?<MarketScreen key={me} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} listings={db.listings} me={me} active={active} busy={busy}
+tab==='market'?<MarketScreen key={me} navigationBackRef={marketBackRef} onBackStateChange={setMarketSubpage} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} listings={db.listings} me={me} active={active} busy={busy}
  ownLoading={marketOwnerBusy} ownLoadingMore={marketOwnerBusyMore} ownHasMore={marketOwnerHasMore}
  ownError={marketOwnerError} onLoadMoreOwn={loadMoreOwnListings} onRetryOwn={()=>setMarketEpoch(n=>n+1)}
 organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} contacts={db.contacts}
@@ -1018,7 +1038,7 @@ createPartnerEvent={(v)=>executeEvent(async()=>{
 },'Veranstaltung eingereicht. Sie erscheint nach Freigabe.')}
 openInclusion={()=>{setExtraReturnTab(tab);setTab('inclusion');}}/>:
 tab==='more'?<MoreScreen navigate={selectMenuItem} openInfo={()=>setShowInfo(true)} openWelcome={()=>setShowWelcome(true)}/>:
-tab==='inclusion'?<InclusionScreen regionLabel={myProfile?.region_label} initialQuery={inclusionQuery} onOpenMap={()=>{setExtraReturnTab('inclusion');setTab('map');}}/>:
+tab==='inclusion'?<InclusionScreen regionLabel={myProfile?.region_label} initialQuery={inclusionQuery} onOpenMap={()=>{setExtraReturnTab('inclusion');setMapIntent({returnTab:'inclusion'});setTab('map');}}/>:
 tab==='aboutApp'?<AboutFamilienfunkeScreen/>:
 tab==='help'?<TechnicalHelpScreen/>:
 tab==='push'?<PushSettings key={me} userId={me} active={active}/>:
@@ -1229,7 +1249,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
     </View>:null}
   </View>;
 }
-function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked,ownLoading,ownLoadingMore,ownHasMore,ownError,onLoadMoreOwn,onRetryOwn}){
+function MarketScreen({entryIntent,navigationBackRef,onBackStateChange,onSavedSearches,listings,marketPhotos,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked,ownLoading,ownLoadingMore,ownHasMore,ownError,onLoadMoreOwn,onRetryOwn}){
   const [open,setOpen]=useState(false);
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<375||fontScale>=1.5;
@@ -1300,6 +1320,27 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   const [boxShowAll,setBoxShowAll]=useState(false);
   const [boxFormExtras,setBoxFormExtras]=useState(false);
   const marketScrollRef=useRef(null);
+  const inMarketSubpage=boxOpen||open||!!boxEditor||!!selectedListing||sellChoicesOpen;
+  useEffect(()=>{onBackStateChange(inMarketSubpage);return()=>onBackStateChange(false);},[inMarketSubpage,onBackStateChange]);
+  // Header-Zurück führt zur unmittelbar vorherigen Basar-Ansicht.
+  useEffect(()=>{
+    navigationBackRef.current=()=>{
+      if(boxEditor){saveBoxEditor();return;}
+      if(boxOpen){closeBox();return;}
+      if(open){
+        const changed=!!(editingId||title.trim()||description.trim()||region.trim()||price.trim()||photo.length);
+        const close=()=>{resetForm();setOpen(false);};
+        if(changed)Alert.alert('Anzeige verlassen?','Noch nicht eingereichte Angaben werden verworfen.',[
+          {text:'Weiter bearbeiten',style:'cancel'},{text:'Verwerfen',style:'destructive',onPress:close}
+        ]);
+        else close();
+        return;
+      }
+      if(selectedListing){setSelectedListing(null);setBuyerFocus(null);return;}
+      if(sellChoicesOpen)setSellChoicesOpen(false);
+    };
+    return()=>{navigationBackRef.current=null;};
+  });
   useEffect(()=>{if(boxOpen||boxEditor)marketScrollRef.current?.scrollTo({y:0,animated:false});},[boxStep,boxOpen,boxEditor]);
   const [boxStorage,setBoxStorage]=useState('loading');
   // Deep-link the homepage directly into the actual selling workflows.
@@ -1885,8 +1926,18 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         <Text style={styles.marketTopTitle}>Dein Familienbasar</Text>
         <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
       </View>
-      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':sellChoicesOpen?'Auswahl schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){resetForm();setOpen(false);}else{setSellChoicesOpen(v=>!v);}}}/>
+      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':sellChoicesOpen?'Auswahl schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){navigationBackRef.current?.();}else{setSellChoicesOpen(v=>!v);}}}/>
     </View>
+    {sellChoicesOpen&&!open&&!boxOpen&&active?<Card style={{marginBottom:13,backgroundColor:C.sunPale}}>
+      <Text style={styles.sectionTitle}>Was möchtest du anbieten?</Text>
+      <Text style={[styles.body,{marginBottom:12}]}>Wähle den passenden Weg: einen Artikel einzeln einstellen oder mehrere Kleidungsstücke gemeinsam fotografieren.</Text>
+      <Button title="Einzelnen Artikel einstellen" onPress={()=>{setSellChoicesOpen(false);startQuick();}}/>
+    </Card>:null}
+    {sellChoicesOpen&&!open&&!boxOpen&&active?<Card style={{marginBottom:15,backgroundColor:'#FFF4DA'}}>
+      <Text style={styles.sectionTitle}>Mehrere Kleidungsstücke erfassen</Text>
+      <Text style={[styles.micro,{marginBottom:10}]}>Viele Sachen auf einmal erfassen. Ein Foto, mehrere Entwürfe – einzeln oder im Paket.</Text>
+      <Button title={boxDrafts.length?'Kiste weiterbearbeiten ('+boxDrafts.length+')':'✦ Kiste erfassen'} disabled={busy||choosing||scanBusy||boxStorage==='loading'} onPress={()=>{setSellChoicesOpen(false);showBox();}}/>
+    </Card>:null}
     <Pressable accessibilityRole="button" accessibilityLabel="Informationen zu Gebühren und Datenschutz"
       accessibilityState={{expanded:showMarketTrust}} onPress={()=>setShowMarketTrust(v=>!v)}
       style={styles.marketTrust}>
@@ -1906,16 +1957,6 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         onPress={()=>{setBuyerFocus(null);setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
     {onlyFavorites&&!open&&!boxOpen?<PriceAlertPreference key={me} userId={me} active={active}/>:null}
-    {sellChoicesOpen&&!open&&!boxOpen&&active?<Card style={{marginBottom:13,backgroundColor:C.sunPale}}>
-      <Text style={styles.sectionTitle}>Was möchtest du anbieten?</Text>
-      <Text style={[styles.body,{marginBottom:12}]}>Wähle den passenden Weg: einen Artikel einzeln einstellen oder mehrere Kleidungsstücke gemeinsam fotografieren.</Text>
-      <Button title="Einzelnen Artikel einstellen" onPress={()=>{setSellChoicesOpen(false);startQuick();}}/>
-    </Card>:null}
-    {sellChoicesOpen&&!open&&!boxOpen&&active?<Card style={{marginBottom:15,backgroundColor:'#FFF4DA'}}>
-      <Text style={styles.sectionTitle}>Mehrere Kleidungsstücke erfassen</Text>
-      <Text style={[styles.micro,{marginBottom:10}]}>Viele Sachen auf einmal erfassen. Ein Foto, mehrere Entwürfe – einzeln oder im Paket.</Text>
-      <Button title={boxDrafts.length?'Kiste weiterbearbeiten ('+boxDrafts.length+')':'✦ Kiste erfassen'} disabled={busy||choosing||scanBusy||boxStorage==='loading'} onPress={()=>{setSellChoicesOpen(false);showBox();}}/>
-    </Card>:null}
     {boxOpen&&boxPending?<Card style={{marginBottom:18,backgroundColor:'#FFF4DA'}}>
       <Text style={styles.sectionTitle}>Unterbrochene Einreichung</Text>
       <Text style={[styles.body,{marginBottom:12}]}>Wir prüfen zuerst, ob deine Anzeige bereits beim Server angekommen ist. So werden dieselben Artikel nicht versehentlich zweimal eingestellt.</Text>
@@ -2289,6 +2330,10 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
           <Text style={{fontSize:20,color:C.muted}}>×</Text>
         </Pressable>:null}
       </View>
+      <SearchResultFeedback active={!!(query.trim()||filter!=='Alle'||tradeFilter!=='all'||minPrice||maxPrice||onlyMine||onlyFavorites)}
+        query={query} count={shown.length} loading={remoteBusy||!!(onlyMine&&ownLoading)} error={remoteError||ownError}
+        hasMore={remoteHasMore||ownHasMore} context="Familienbasar"
+        hint="Tippe auf eine Anzeige, um Fotos, Details und Kontaktmöglichkeiten zu sehen."/>
       <Text style={styles.marketFilterHeading}>Kategorie auswählen</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}}
         contentContainerStyle={{gap:7,paddingRight:15}}>
@@ -2671,8 +2716,10 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 {!active?<Info warning>Dein Konto wartet noch auf persönliche Erwachsenenprüfung oder Profilfreigabe. Profilstatus: {myProfile?.moderation_status||'–'} · Verifizierung: {verification?.status||'–'}.</Info>:null}
 <H sub="Nur freigegebene, freiwillig sichtbare Familienprofile.">Familien entdecken</H>
 <Input label="Suche nach Familie, Region oder Interesse" placeholder="z. B. Natur, Beeskow …" value={query} onChangeText={value=>updateFilter(setQuery,value)} />
+<SearchResultFeedback active={!!(query.trim()||interest!=='Alle'||onlyRegion||onlyShared)} query={query} count={filtered.length}
+ context="Familien entdecken" hasMore={hasMore} loading={loadingMore} hint="Nur freigegebene, freiwillig sichtbare Familienprofile."/>
 <Pressable accessibilityRole="button" accessibilityState={{expanded:showInterestFilter}}
- onPress={()=>setShowInterestFilter(v=>!v)}
+ onPress={()=>{Keyboard.dismiss();setShowInterestFilter(v=>!v);}}
  style={[styles.marketFilterToggle,{minHeight:48,marginBottom:12,alignSelf:'stretch'}]}>
  <Text style={styles.marketFilterLabel}>Interessen auswählen: {interest==='Alle'?'Alle Interessen':interest} {showInterestFilter?'−':'+'}</Text>
  </Pressable>
@@ -3347,7 +3394,9 @@ smallBrand:{fontSize:19,fontWeight:'900',color:C.ink,letterSpacing:-.7},tagline:
 loginPage:{flexGrow:1,alignItems:'center',justifyContent:'center',padding:20,backgroundColor:C.bg},
 loginMark:{width:95,height:95,borderRadius:31,backgroundColor:C.sun,alignItems:'center',justifyContent:'center',marginBottom:22,transform:[{rotate:'-7deg'}]},
 topBar:{minHeight:64,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:12,flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:6,paddingVertical:8},
-headerMenuButton:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:13,backgroundColor:C.mint},headerBackSymbol:{fontSize:31,lineHeight:35,color:C.ink,fontWeight:'700'},
+headerMenuButton:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:13,backgroundColor:C.mint},
+headerBackButton:{minHeight:48,minWidth:83,paddingHorizontal:9,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:3,borderRadius:13,borderWidth:1.5,borderColor:C.accentDark,backgroundColor:C.sunPale},
+headerBackArrow:{fontSize:33,lineHeight:35,color:C.accentDark,fontWeight:'800'},headerBackLabel:{fontSize:15,color:C.accentDark,fontWeight:'800'},
 inboxBell:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',borderRadius:14,backgroundColor:C.sunPale},
 inboxBadge:{position:'absolute',top:0,right:0,backgroundColor:C.accentDark,minWidth:20,borderRadius:12,paddingHorizontal:4,paddingVertical:2},
 inboxBadgeText:{fontSize:12,fontWeight:'900',color:C.white,textAlign:'center'},

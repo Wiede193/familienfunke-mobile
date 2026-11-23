@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {ActivityIndicator,Alert,AppState,Linking,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import SearchResultFeedback from './SearchResultFeedback';
 import {OFFICIAL_EVENT_DISTRICTS,OFFICIAL_EVENT_CATEGORIES,officialEventRange,officialEventDay,officialEventDateLabel,officialEventVisible} from './OfficialFamilyEventUtils';
 
 // Official/third-party events are distinct from Familienfunke's own family meetings.
@@ -76,7 +77,7 @@ export default function OfficialFamilyEvents({userId,month=null,compact=false,on
   <SelectRow label="Was möchtet ihr unternehmen?" options={OFFICIAL_EVENT_CATEGORIES} value={category} onChange={setCategory}/>
   {loading?<View style={s.loading}><ActivityIndicator color={C.accentDark}/><Text style={s.sub}>Offizielle Termine laden …</Text></View>:null}
   {!loading&&error?<View style={s.card}><Text style={s.description}>{error}</Text><Pressable accessibilityRole="button" onPress={()=>setRevision(n=>n+1)} style={s.btn}><Text style={s.btnText}>Erneut laden</Text></Pressable></View>:null}
-  {!loading&&!error?<Text accessibilityLiveRegion="polite" style={s.sub}>{shown.length} passende {shown.length===1?'Veranstaltung':'Veranstaltungen'} {month?'für '+month:'in den nächsten 90 Tagen'} gefunden</Text>:null}
+  <SearchResultFeedback active={district!=='all'||category!=='all'||!loading} count={shown.length} loading={loading} error={error} context="Familienveranstaltungen" hint={month?'Ausgewählter Monat: '+month:'Geprüfte Veranstaltungen im aktuellen Zeitraum; weitere Termine können beim Veranstalter stehen.'}/>
   {!loading&&!error&&!shown.length?<Text style={s.description}>Für diese Auswahl sind aktuell keine redaktionell geprüften Termine hinterlegt. In der Originalquelle können weitere Angebote stehen.</Text>:null}
   {shown.map(event=><View key={event.id} style={s.card}>
     <Text style={s.kicker}>{categoryName(event.category)} · {regionName(event.district)}</Text>

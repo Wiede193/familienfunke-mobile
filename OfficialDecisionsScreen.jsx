@@ -2,6 +2,7 @@ import React,{useCallback,useEffect,useMemo,useState} from 'react';
 import {ActivityIndicator,Linking,Pressable,RefreshControl,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import SearchResultFeedback from './SearchResultFeedback';
 
 const LEVELS=[['all','Alle'],['bund','Bund'],['brandenburg','Brandenburg'],['landkreis','Landkreis']];
 const TOPICS=[['kindergeld','Kindergeld'],['elterngeld','Elterngeld'],['kita','Kita & Hort'],['schule','Schule'],['wohnen','Wohnen'],['gesundheit','Gesundheit'],['familienrecht','Familienrecht'],['leistungen','Weitere Leistungen'],['freizeit','Freizeit'],['weitere','Weitere']];
@@ -140,7 +141,9 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
    <Chip label="Alle Themen" selected={topic==='all'} onPress={()=>setTopic('all')}/>
    {TOPICS.map(([id,name])=><Chip key={id} label={name} selected={topic===id} onPress={()=>setTopic(id)}/>)}
   </ScrollView>
-  {loading&&!rows.length?<ActivityIndicator color={C.accent}/>:null}
+  <SearchResultFeedback active={!!(query.trim()||area!=='all'||topic!=='all')} query={query} count={visible.length} loading={loading} error={error} context="Amtliche Beschlüsse"
+    hint="Nur veröffentlichte, recherchierte Einträge. Kein Treffer bedeutet nicht, dass es keinen Beschluss gibt."/>
+   {loading&&!rows.length?<ActivityIndicator color={C.accent}/>:null}
   {error?<View style={styles.card}><Text accessibilityLiveRegion="polite" style={styles.note}>{error}</Text>
    <Pressable accessibilityRole="button" onPress={load}><Text style={styles.link}>Erneut versuchen</Text></Pressable></View>:null}
   {!loading&&!visible.length?<View style={styles.card}><Text style={styles.cardHeading}>Keine passenden Einträge</Text>

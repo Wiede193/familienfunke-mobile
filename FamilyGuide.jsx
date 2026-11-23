@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
+import {ActivityIndicator, Keyboard, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {VERIFIED_GUIDE_DETAILS, ODER_SPREE_GUIDE} from './FamilyGuideVerified';
@@ -7,6 +7,7 @@ import {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES,
   guessBrandenburgRegion,findBrandenburgRegions,officeForGuideStep,REGIONAL_DIRECTORY_URL} from './BrandenburgFamilyRegions';
 import {GERMANY_FAMILY_STATES,GERMANY_FAMILY_RESOURCES,findGermanyFamilyStates} from './GermanyFamilyDirectory';
 import FamilyTopicsSection from './FamilyTopicsSection';
+import SearchResultFeedback from './SearchResultFeedback';
 
 const P=FAMILY_COLORS;
 const TYPES={
@@ -252,18 +253,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
           placeholder="z. B. Barnim, Strausberg, Cottbus …"
           placeholderTextColor={P.muted} value={regionSearch}
           onChangeText={setRegionSearch} style={st.regionInput}/>
-        <Text style={st.small}>{visibleRegions.length} {visibleRegions.length===1?'Region':'Regionen'} in der Auswahl</Text>
-        {visibleRegions.map(region=><Pressable key={region.id}
-          accessibilityRole="button" accessibilityLabel={region.name+' auswählen'}
-          accessibilityState={{selected:selectedRegion?.id===region.id}}
-          style={[st.regionChoice,selectedRegion?.id===region.id&&st.regionChoiceSelected]}
-          onPress={()=>{setPickedRegionId(region.id);setRegionSearch('');}}>
-          <View style={{flex:1}}>
-            <Text style={st.regionChoiceTitle}>{region.name}</Text>
-            <Text style={st.small}>{region.coverage==='verified'?'Konkrete Kontaktseiten geprüft':'Amtliches Verzeichnis, lokale Details folgen'}</Text>
-          </View>
-          <Text style={st.regionChoiceArrow}>{selectedRegion?.id===region.id?'✓':'›'}</Text>
-        </Pressable>)}
+        <SearchResultFeedback active={!!regionSearch.trim()} query={regionSearch} count={visibleRegions.length} context="Brandenburg – Kreise & Städte" hint="Region antippen, um die zuständigen Stellen zu sehen."/>
         {selectedRegion?<View style={{marginTop:16}}>
           <Text accessibilityRole="header" style={st.regionTitle}>{selectedRegion.name}</Text>
           {selectedRegion.offices.length?selectedRegion.offices.map(office=><View key={office.topic+office.title} style={st.officeCard}>
@@ -281,6 +271,17 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
             <Text style={st.localLink}>Amtliches Kommunalverzeichnis öffnen ↗</Text>
           </Pressable>
         </View>:null}
+        {visibleRegions.map(region=><Pressable key={region.id}
+          accessibilityRole="button" accessibilityLabel={region.name+' auswählen'}
+          accessibilityState={{selected:selectedRegion?.id===region.id}}
+          style={[st.regionChoice,selectedRegion?.id===region.id&&st.regionChoiceSelected]}
+          onPress={()=>{Keyboard.dismiss();setPickedRegionId(region.id);setRegionSearch('');}}>
+          <View style={{flex:1}}>
+            <Text style={st.regionChoiceTitle}>{region.name}</Text>
+            <Text style={st.small}>{region.coverage==='verified'?'Konkrete Kontaktseiten geprüft':'Amtliches Verzeichnis, lokale Details folgen'}</Text>
+          </View>
+          <Text style={st.regionChoiceArrow}>{selectedRegion?.id===region.id?'✓':'›'}</Text>
+        </Pressable>)}
         <Text accessibilityRole="header" style={[st.regionTitle,{marginTop:16}]}>Brandenburgweite Anträge und Hilfen</Text>
         {BRANDENBURG_FAMILY_RESOURCES.map(item=><View key={item.id} style={st.officeCard}>
           <Text style={st.question}>{item.title}</Text>
@@ -305,17 +306,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
         <TextInput accessibilityLabel="Bundesland oder Landeshauptstadt suchen"
           placeholder="z. B. Sachsen, Berlin, München …" placeholderTextColor={P.muted}
           value={stateSearch} onChangeText={setStateSearch} style={st.regionInput}/>
-        <Text style={st.small}>{visibleStates.length} Bundesländer in der Auswahl</Text>
-        {visibleStates.map(state=><Pressable key={state.code} accessibilityRole="button"
-          accessibilityLabel={state.name+' als Bundesland auswählen'}
-          accessibilityState={{selected:pickedStateCode===state.code}}
-          onPress={()=>setPickedStateCode(state.code)} style={[st.regionChoice,pickedStateCode===state.code&&st.regionChoiceSelected]}>
-          <View style={{flex:1}}>
-            <Text style={st.regionChoiceTitle}>{state.name}</Text>
-            <Text style={st.small}>Amtliches Landesportal · örtliche Zuständigkeit separat prüfen</Text>
-          </View>
-          <Text style={st.regionChoiceArrow}>{pickedStateCode===state.code?'✓':'›'}</Text>
-        </Pressable>)}
+        <SearchResultFeedback active={!!stateSearch.trim()} query={stateSearch} count={visibleStates.length} context="Bundesländer" hint="Bundesland auswählen, um zum offiziellen Landesportal zu gelangen."/>
         {pickedState?<View style={st.officeCard}>
           <Text style={st.question}>{pickedState.name}: offizielles Serviceportal</Text>
           <Text style={st.small}>Hier kannst du Leistungen und Zuständigkeiten nach Wohnort suchen. Für Brandenburg sind zusätzlich die Kreisstellen oben erfasst.</Text>
@@ -324,6 +315,16 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
             <Text style={st.localLink}>Landesportal öffnen ↗</Text>
           </Pressable>
         </View>:null}
+        {visibleStates.map(state=><Pressable key={state.code} accessibilityRole="button"
+          accessibilityLabel={state.name+' als Bundesland auswählen'}
+          accessibilityState={{selected:pickedStateCode===state.code}}
+          onPress={()=>{Keyboard.dismiss();setPickedStateCode(state.code);}} style={[st.regionChoice,pickedStateCode===state.code&&st.regionChoiceSelected]}>
+          <View style={{flex:1}}>
+            <Text style={st.regionChoiceTitle}>{state.name}</Text>
+            <Text style={st.small}>Amtliches Landesportal · örtliche Zuständigkeit separat prüfen</Text>
+          </View>
+          <Text style={st.regionChoiceArrow}>{pickedStateCode===state.code?'✓':'›'}</Text>
+        </Pressable>)}
         <Text accessibilityRole="header" style={[st.regionTitle,{marginTop:16}]}>Bundesweite Anträge, Beratung & Teilhabe</Text>
         {GERMANY_FAMILY_RESOURCES.map(item=><View key={item.id} style={st.officeCard}>
           <Text style={st.question}>{item.title}</Text>

@@ -19,7 +19,7 @@ assert.match(app,/tab==='healthy'\?<HealthyScreen/,'Screen must be reachable');
 assert.match(app,/\['guide','Wissen','book'\]/,'Navigation must keep knowledge in five primary tabs');
 assert.match(read('FamilyGuide.jsx'),/onPress=\{onOpenHealthy\}/,'Knowledge area must link directly to Healthy');
 assert.match(app,/setMapIntent\(\{layer:'bike',returnTab:'healthy'\}\)/,'Map button opens selected cycling layer');
-assert.match(app,/returnTab==='healthy'/,'Navigation back to health must work');
+assert.match(app,/\['calendar','home','healthy','inclusion'\]\.includes\(origin\)/,'Navigation back to health and inclusion must work');
 assert.match(map,/setPathLayer:function\(kind\)/,'Map layer toggle must be implemented, not decorative');
 assert.match(map,/addPathLayer\("ff-bike-paths"/,'Cycling layer must use vector road data');
 assert.match(map,/addPathLayer\("ff-walk-paths"/,'Footway overlay must use vector road data');

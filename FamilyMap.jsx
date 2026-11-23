@@ -2,6 +2,7 @@ import React,{useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {AccessibilityInfo,ActivityIndicator,Alert,Keyboard,Linking,Pressable,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
 import {WebView} from 'react-native-webview';
 import {supabase} from './supabase';
+import SearchResultFeedback from './SearchResultFeedback';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {CURATED_REGION,CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {BRANDENBURG_FAMILY_PLACES,BRANDENBURG_FAMILY_FOCUS,describePlaceAccessibility} from './FamilyMapBrandenburg';
@@ -439,6 +440,29 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
       {placeQuery?<Pressable accessibilityRole="button" onPress={()=>changePlaceQuery('')} style={[styles.outlineBtn,{minHeight:44,marginTop:8}]}>
         <Text style={styles.outlineText}>Suche zurücksetzen</Text>
       </Pressable>:null}
+      <SearchResultFeedback active={placeQuery.trim().length>=2} context="Kartensuche" query={placeQuery}
+        count={locationMatches.length} loading={geoStatus==='loading'} hasMore={locationMatches.length>12}
+        hint="Passenden Ort direkt auswählen. Externe Ergebnisse sind keine geprüften Familienempfehlungen."/>
+      {placeQuery.trim().length>=2?
+        <View style={styles.searchResultPanel}>
+          <Text accessibilityLiveRegion="polite" style={[styles.micro,{marginBottom:6}]}>
+            {locationMatches.length} {locationMatches.length===1?'passender Ort':'passende Orte'} · Familienfunke und Kartensuche
+          </Text>
+          {locationMatches.slice(0,12).map(match=><Pressable key={match.id}
+            accessibilityRole="button" accessibilityState={{selected:selectedSearchId===match.id}}
+            accessibilityLabel={match.title+', '+match.subtitle+', auf der Karte anzeigen'}
+            onPress={()=>selectSearchedLocation(match)}
+            style={[styles.searchResult,selectedSearchId===match.id&&styles.searchResultSelected]}>
+            <View style={{flex:1}}>
+              <Text style={styles.placeTitle}>{locationMatches.indexOf(match)+1}. {match.title}</Text>
+              <Text style={styles.micro}>{match.subtitle}</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>)}
+          {locationMatches.length===0?<Text style={styles.micro}>
+            Noch keine Treffer. Nutze „Deutschlandweit suchen“ oder passe deinen Suchbegriff an.
+          </Text>:null}
+        </View>:null}
       {geoStatus==='quota'||geoStatus==='error'||geoStatus==='empty'?<Text accessibilityLiveRegion="polite" style={[styles.micro,{marginTop:9}]}>
         {geoStatus==='quota'?'Suchlimit erreicht oder Dienst ausgelastet. Bitte später erneut versuchen.':geoStatus==='error'?'Die deutschlandweite Suche ist gerade nicht erreichbar. Familienfunke-Tipps bleiben verfügbar.':'Keine weiteren Kartentreffer gefunden. Prüfe die Schreibweise oder ergänze die Stadt.'}
       </Text>:null}
@@ -537,26 +561,6 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
       <Pressable accessibilityRole="link" onPress={()=>openInOSM(selected)} style={styles.minorBtn}><Text style={styles.minorBtnText}>In OpenStreetMap ansehen ↗</Text></Pressable>
     </View>:null}
 
-      {placeQuery.trim().length>=2?
-        <View style={styles.searchResultPanel}>
-          <Text accessibilityLiveRegion="polite" style={[styles.micro,{marginBottom:6}]}>
-            {locationMatches.length} {locationMatches.length===1?'passender Ort':'passende Orte'} · Familienfunke und Kartensuche
-          </Text>
-          {locationMatches.map(match=><Pressable key={match.id}
-            accessibilityRole="button" accessibilityState={{selected:selectedSearchId===match.id}}
-            accessibilityLabel={match.title+', '+match.subtitle+', auf der Karte anzeigen'}
-            onPress={()=>selectSearchedLocation(match)}
-            style={[styles.searchResult,selectedSearchId===match.id&&styles.searchResultSelected]}>
-            <View style={{flex:1}}>
-              <Text style={styles.placeTitle}>{locationMatches.indexOf(match)+1}. {match.title}</Text>
-              <Text style={styles.micro}>{match.subtitle}</Text>
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </Pressable>)}
-          {locationMatches.length===0?<Text style={styles.micro}>
-            Noch keine Treffer. Nutze „Deutschlandweit suchen“ oder passe deinen Suchbegriff an.
-          </Text>:null}
-        </View>:null}
 
     {placeQuery.trim().length>=2&&locationMatches.length>0?<Pressable accessibilityRole="button"
       accessibilityLabel="Alle Suchtreffer auf der Karte anzeigen"
@@ -802,7 +806,7 @@ accessibilityDisclaimer:{fontSize:14,color:C.muted,lineHeight:18,marginTop:8},
  title:{fontSize:25,fontWeight:'900',color:C.ink},
  sub:{fontSize:15,color:C.ink,lineHeight:20,marginTop:7},
  locationSearch:{backgroundColor:C.paper,borderRadius:18,borderWidth:1,borderColor:C.line,padding:16,marginBottom:12},
- searchResultPanel:{marginTop:12,padding:14,backgroundColor:C.paper,borderRadius:18,borderWidth:1,borderColor:C.line},
+ searchResultPanel:{marginTop:12,padding:14,backgroundColor:C.paper,borderRadius:18,borderWidth:2,borderColor:C.accentDark},
  searchResultSelected:{backgroundColor:C.sunPale,borderColor:C.teal},
  mapSelectedInfo:{marginTop:12,padding:15,backgroundColor:C.sunPale,borderRadius:17,borderWidth:1,borderColor:C.line},
  searchResult:{minHeight:48,flexDirection:'row',alignItems:'center',paddingVertical:10,paddingHorizontal:12,borderRadius:12,borderWidth:1,borderColor:C.line,backgroundColor:C.bg,marginTop:7},

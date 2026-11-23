@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {Linking,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
+import SearchResultFeedback from './SearchResultFeedback';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import FamilyIcon from './FamilyIcon';
 import {INCLUSION_ARTICLES,INCLUSION_CATEGORIES,findInclusionArticles} from './InclusionKnowledge';
@@ -63,7 +64,8 @@ export default function InclusionKnowledgeScreen({regionLabel,onOpenMap,initialQ
     <Text style={[s.filterText,category===c.id&&{color:C.paper}]}>{c.label}</Text>
    </Pressable>)}
   </ScrollView>
-  <Text style={s.count}>{entries.length} {entries.length===1?'Thema':'Themen'} gefunden</Text>
+  <SearchResultFeedback active={!!(search.trim()||category!=='all')} query={search} count={entries.length} context="Inklusion & Teilhabe" hint="Artikel antippen, um Hilfen und zuständige Stellen zu sehen."/>
+   {!search.trim()&&category==='all'?<Text style={s.count}>{entries.length} Themen verfügbar</Text>:null}
   {!entries.length?<View style={s.empty}>
     <Text style={s.cardTitle}>Kein passender Artikel</Text>
     <Text style={s.text}>Versuche andere Suchbegriffe oder zeige alle Themen.</Text>
