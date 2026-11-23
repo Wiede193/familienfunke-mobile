@@ -32,7 +32,7 @@ function AreaCard({route,onNavigate,query,compact=false}){
   const productSearch=route.id==='market'&&looksLikeMarketProductQuery(query);
   return <Pressable accessibilityRole="button"
     accessibilityLabel={route.title+' öffnen'}
-    onPress={()=>onNavigate(route.id,['healthy','guide','inclusion'].includes(route.id)?query.trim():productSearch?query.trim():'')}
+    onPress={()=>onNavigate(route.id,['healthy','guide','inclusion','decisions'].includes(route.id)?query.trim():productSearch?query.trim():'')}
     style={({pressed})=>[compact?s.areaGrid:s.areaRow,pressed&&s.pressed]}>
     <View style={s.areaIcon}><FamilyIcon name={FAMILY_ROUTE_ICONS[route.id]||'compass'} size={compact?25:23}/></View>
     <View style={{flex:1}}>
@@ -67,7 +67,7 @@ function AssistantReply({entry,onNavigate}){
       <Text style={[s.mutedSmall,{marginTop:12}]}>Treffer lassen sich gerade nicht laden. Die Suche im Basar ist weiterhin möglich.</Text>:null}
     {entry.pageId?<Pressable accessibilityRole="button"
       accessibilityLabel="Vorgeschlagenen App-Bereich öffnen"
-      onPress={()=>onNavigate(entry.pageId,['market','healthy','guide','inclusion'].includes(entry.pageId)?entry.searchQuery||entry.question:'')}
+      onPress={()=>onNavigate(entry.pageId,['market','healthy','guide','inclusion','decisions'].includes(entry.pageId)?entry.searchQuery||entry.question:'')}
       style={({pressed})=>[s.answerAction,pressed&&s.pressed]}>
       <Text style={s.answerActionLabel}>{HOME_ROUTES.find(x=>x.id===entry.pageId)?.title||'Passenden Bereich öffnen'} ›</Text>
       
@@ -202,7 +202,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
     const request=++requestSeq.current;pending.current=true;setSearchBusy(true);
     try{
       // Searches run independently, so one unavailable service does not erase other results.
-      const [eventResponse,marketResponse,officialResponse]=await Promise.allSettled([
+      const [eventResponse,marketResponse,officialResponse,decisionResponse]=await Promise.allSettled([
         supabase.rpc('ff_search_events',{p_query:query.slice(0,160)}),
         marketIntent?supabase.rpc('ff_market_search',{
           p_query:query.slice(0,160),p_category:'Alle',p_trade_type:'all',
@@ -213,7 +213,12 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
           .eq('published',true)
           .gte('end_date',new Date().toISOString().slice(0,10))
           .ilike('title','%'+query.slice(0,80).replace(/[%_\\,()]/g,'')+'%')
-          .order('start_date',{ascending:true}).limit(5)
+          .order('start_date',{ascending:true}).limit(5),
+        supabase.from('ff_official_decisions')
+          .select('id,title,level,decision_status,source_name,published_at')
+          .eq('published',true)
+          .ilike('title','%'+query.slice(0,80).replace(/[%_\\,()]/g,'')+'%')
+          .order('published_at',{ascending:false}).limit(5)
       ]);
       if(!alive.current||request!==requestSeq.current)return;
       const eventData=eventResponse.status==='fulfilled'?eventResponse.value:null;
@@ -229,7 +234,9 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         price:row.listing.trade_type==='gift'?'Zu verschenken':row.listing.trade_type==='swap'?'Tausch':
           (Number(row.listing.price_cents||0)/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'})
       })):null;
-      setSearchResult({query,offers,events,eventsError,offersError,officialEvents,officialError});
+      const decisionData=decisionResponse.status==='fulfilled'?decisionResponse.value:null;
+      const decisions=decisionData&&!decisionData.error&&Array.isArray(decisionData.data)?decisionData.data:[];
+      setSearchResult({query,offers,events,eventsError,offersError,officialEvents,officialError,decisions});
       AccessibilityInfo.announceForAccessibility((events.length+officialEvents.length)+' Veranstaltungstreffer und '+(offers?.length||0)+' Basar-Treffer in der Vorschau.');
     }catch{if(alive.current&&request===requestSeq.current)setError('Die Online-Suche konnte nicht geladen werden. App-Bereiche und Katalogorte bleiben verfügbar.');}
     finally{if(alive.current&&request===requestSeq.current){pending.current=false;setSearchBusy(false);}}
@@ -296,6 +303,15 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
             <Text style={s.areaTitle}>{resource.title}</Text>
             <Text style={s.areaSubtitle}>{resource.source} · {resource.region}</Text>
           </View><Text style={s.areaArrow}>›</Text></Pressable>)}</>:null}
+      {visibleSearch?.decisions?.length?<View style={s.offerGroup}>
+        <Text accessibilityRole="header" style={s.offerHeading}>Amtliche Beschlüsse</Text>
+        {visibleSearch.decisions.map(item=><Pressable key={item.id} accessibilityRole="button"
+          accessibilityLabel={item.title+' im Beschlussmonitor öffnen'}
+          onPress={()=>onNavigate('decisions','',item.id)} style={s.offerItem}>
+          <Text style={s.offerTitle}>{item.title}</Text>
+          <Text style={s.mutedSmall}>{item.source_name} · {item.decision_status==='kabinett'?'Kabinettsbeschluss':'Parlamentsbeschluss'}</Text>
+        </Pressable>)}
+      </View>:null}
       {visibleSearch?.officialError?<Text style={s.mutedSmall}>Offizielle Veranstaltungstermine konnten nicht geladen werden.</Text>:null}
       {visibleSearch?.officialEvents?.length?<View style={s.offerGroup}>
         <Text accessibilityRole="header" style={s.offerHeading}>Offizielle Familienveranstaltungen</Text>
