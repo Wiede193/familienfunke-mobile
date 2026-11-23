@@ -183,7 +183,7 @@ begin
   where x.decision_id=d.id and x.review_state='pending'
  ) where id=d.id;
  return true;
-end $;
+end $$;
 revoke all on function private.ff_confirm_decision_status(uuid,text,text) from public,anon,authenticated;
 grant execute on function private.ff_confirm_decision_status(uuid,text,text) to service_role;
 
@@ -223,7 +223,7 @@ grant execute on function public.ff_inbox_page_by_kind(text,timestamptz,uuid) to
 -- Allow editors to dismiss false positives without sending any notice.
 create or replace function private.ff_dismiss_decision_candidate(
  p_candidate_id uuid,p_explanation text)
-returns boolean language plpgsql security definer set search_path='' as $
+returns boolean language plpgsql security definer set search_path='' as $$
 declare c record;
 begin
  if length(btrim(coalesce(p_explanation,'')))<20 then return false; end if;
@@ -238,7 +238,7 @@ begin
    where x.decision_id=d.id and x.review_state='pending'
  ) where d.id=c.decision_id;
  return true;
-end $;
+end $$;
 revoke all on function private.ff_dismiss_decision_candidate(uuid,text)
  from public,anon,authenticated;
 grant execute on function private.ff_dismiss_decision_candidate(uuid,text)
