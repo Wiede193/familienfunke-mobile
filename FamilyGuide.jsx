@@ -188,7 +188,8 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
       <Text style={st.heroDescription}>Was steht wann an? Wir begleiten euch mit verständlichen Schritten – ohne unnötigen Druck.</Text>
       <Text style={st.region}>⌖ {regionLabel?.trim()?regionLabel.trim():'Deutschland'} · örtliche Regeln beachten</Text>
     </View>
-    <View style={st.progressCard}>
+    {initialKnowledgeQuery.trim()?<FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>:null}
+     <View style={st.progressCard}>
       <View style={st.flexRow}><View style={{flex:1}}><Text style={st.progressTitle}>Euer persönlicher Überblick</Text><Text style={st.small}>{doneCount} von {relevantCount} passenden Aufgaben erledigt</Text></View><Text style={st.progressNumber}>{pct}%</Text></View>
       <View style={st.progressTrack}><View style={[st.progressFill,{width:pct+'%'}]}/></View>
       <Text style={[st.small,{marginTop:9}]}>Nur eure Häkchen werden auf diesem Gerät für euer Konto gespeichert. Keine Schwangerschafts- oder Gesundheitsdaten erforderlich.</Text>
