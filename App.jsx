@@ -3196,9 +3196,9 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </View>
 {!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
 </Card>
-<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingVertical:12}} style={{marginTop:9,marginBottom:8}}>
+<View style={{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:11,marginBottom:14}}>
 {[['about','Über uns'],['hobbies','Hobbys'],['privacy','Sichtbarkeit'],['photos','Fotos'],['security','Konto & Sicherheit']].map(([id,title])=><Chip key={id} text={title} selected={profileSection===id} onPress={()=>switchSection(id)}/>)}
-</ScrollView>
+</View>
 {profileSection==='about'?<Card>
 <Text style={styles.sectionTitle}>Über eure Familie</Text>
 <Text style={[styles.sub,{marginBottom:14}]}>Ein paar freiwillige Angaben helfen beim Kennenlernen.</Text>
