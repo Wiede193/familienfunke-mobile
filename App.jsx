@@ -233,6 +233,7 @@ export default function App() {
 const [session,setSession]=useState(undefined);
 const [tab,setTab]=useState('home');
 const [menuOpen,setMenuOpen]=useState(false);
+const [profileDirty,setProfileDirty]=useState(false);
 const [marketIntent,setMarketIntent]=useState(null);
 const [outingDraft,setOutingDraft]=useState(null);
 const [mapIntent,setMapIntent]=useState(null);
@@ -892,7 +893,17 @@ const EXTRA_TITLES={play:'Familienzeit',calendar:'Mein Familienkalender',savedSe
 const selectedMainTab=TABS.some(t=>t[0]===tab)?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:null);
  const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
 function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='calendar'){setMapIntent(null);setTab('calendar');}else if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else if(mapIntent.returnTab==='healthy'){setMapIntent(null);setTab('healthy');}else{setMapIntent(null);setTab('outing');}}else if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);}else if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches','healthy','decisions'].includes(tab))setTab(extraReturnTab);}
-return <SafeAreaView style={styles.screen}>
+function guardProfileExit(next){
+ if(tab==='profile'&&profileDirty){
+  Alert.alert('Profiländerungen noch nicht gespeichert','Du hast Angaben verändert. Möchtest du sie verwerfen und den Bereich verlassen?',[
+   {text:'Weiter bearbeiten',style:'cancel'},
+   {text:'Änderungen verwerfen',style:'destructive',onPress:()=>{setProfileDirty(false);next();}}
+  ]);
+  return;
+ }
+ next();
+}
+ return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
 <View style={styles.headerIdentity}>
@@ -902,8 +913,8 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><FamilyIcon name="bell" size={22} color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
-{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
+{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={()=>guardProfileExit(openInbox)} style={styles.inboxBell}><FamilyIcon name="bell" size={22} color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
+{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={()=>guardProfileExit(back)} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
 <Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
 {connectionIssue?<View accessibilityLiveRegion="polite" style={{paddingHorizontal:12,paddingTop:8}}>
@@ -1047,15 +1058,15 @@ save={(value)=>execute(async()=>{
 uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,executePhoto)}
 reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,executePhoto)}
 blocks={db.blocks} onUnblock={unblockUser}
-changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
+changePassword={changePassword} onDirtyChange={setProfileDirty} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');if(id==='guide')setGuideQuery('');setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:selectedMainTab===id}} style={[styles.tab,(selectedMainTab===id)&&styles.tabActive]}><View style={[styles.tabIcon,(tab===id)&&styles.tabIconSelected]}>
+{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>guardProfileExit(()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');if(id==='guide')setGuideQuery('');setTab(id);setShowEventForm(false);})}
+accessibilityLabel={title} accessibilityState={{selected:selectedMainTab===id}} style={[styles.tab,(selectedMainTab===id)&&styles.tabActive]}><View style={[styles.tabIcon,(selectedMainTab===id)&&styles.tabIconSelected]}>
   <FamilyIcon name={glyph} size={24} color={selectedMainTab===id?C.accentDark:C.muted}/>
-</View><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+</View><Text style={[styles.tabLabel,(selectedMainTab===id)&&{color:C.accentDark,fontWeight:'800'}]}>{title}</Text></Pressable>)}
 </View>:null}
-<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
+<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={id=>id==='profile'?selectMenuItem(id):guardProfileExit(()=>selectMenuItem(id))} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text accessibilityRole="header" style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -3123,7 +3134,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 {!focusId&&hasMore?<Button title={loadingMore?'Weitere Veranstaltungen werden geladen …':'Weitere Veranstaltungen laden'} mode="outline" disabled={loadingMore} onPress={loadMoreEvents}/>:null}
 </ScrollView>;
 }
-function ProfileScreen({userId,profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
+function ProfileScreen({userId,profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,onDirtyChange,openInfo,signOut}){
 const [form,setForm]=useState(blankProfile);
 const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
@@ -3131,6 +3142,21 @@ const [photoPickerBusy,setPhotoPickerBusy]=useState(false);
 const [newPassword,setNewPassword]=useState('');
 const [profileSection,setProfileSection]=useState('about');
 useEffect(()=>{if(profile)setForm({...blankProfile,...profile,interests:Array.isArray(profile.interests)?profile.interests:[]});},[profile?.updated_at,profile?.user_id]);
+const initialProfile={...blankProfile,...profile};
+const dirty=!!profile&&(form.display_name!==String(initialProfile.display_name||'')||
+ form.region_label!==String(initialProfile.region_label||'')||
+ form.about!==String(initialProfile.about||'')||
+ !!form.is_discoverable!==!!initialProfile.is_discoverable||
+ JSON.stringify(form.interests||[])!==JSON.stringify(Array.isArray(initialProfile.interests)?initialProfile.interests:[]));
+useEffect(()=>{onDirtyChange?.(dirty);},[dirty,onDirtyChange]);
+function switchSection(next){
+ if(next===profileSection)return;
+ if(!dirty){setProfileSection(next);return;}
+ Alert.alert('Ungespeicherte Profiländerungen','Einige Änderungen sind noch nicht gespeichert. Sie bleiben nur vorübergehend in diesem Bildschirm.',[
+ {text:'Zurück zum Formular',style:'cancel'},
+ {text:'Bereich wechseln',onPress:()=>setProfileSection(next)}
+ ]);
+}
 async function submit(){if((form.display_name||'').trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
 await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});}
 function toggle(i){setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):f.interests.length>=12?f.interests:[...f.interests,i]}));}
@@ -3171,7 +3197,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 {!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
 </Card>
 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingVertical:12}} style={{marginTop:9,marginBottom:8}}>
-{[['about','Über uns'],['hobbies','Hobbys'],['privacy','Sichtbarkeit'],['photos','Fotos'],['security','Konto & Sicherheit']].map(([id,title])=><Chip key={id} text={title} selected={profileSection===id} onPress={()=>setProfileSection(id)}/>)}
+{[['about','Über uns'],['hobbies','Hobbys'],['privacy','Sichtbarkeit'],['photos','Fotos'],['security','Konto & Sicherheit']].map(([id,title])=><Chip key={id} text={title} selected={profileSection===id} onPress={()=>switchSection(id)}/>)}
 </ScrollView>
 {profileSection==='about'?<Card>
 <Text style={styles.sectionTitle}>Über eure Familie</Text>
