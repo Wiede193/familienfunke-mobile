@@ -47,7 +47,7 @@ assert.match(source,/onPress=\{\(\)=>map\.current\?\.injectJavaScript\(mapScript
   'Users should be able to refocus map on matches');
 assert.match(source,/accessible=\{false\} importantForAccessibility="no-hide-descendants"/,
   'Screenreader list must remain the map navigation alternative');
-assert.ok(source.indexOf('<View style={styles.mapFrame} onLayout=')>=0&&
- source.indexOf('<View style={styles.mapFrame} onLayout=')<source.indexOf('locationMatches.map(match=>'),
- 'Map should appear immediately after the search field, before search results');
+assert.ok(source.indexOf('<View style={styles.searchResultPanel}>')>=0&&
+ source.indexOf('<View style={styles.searchResultPanel}>')<source.indexOf('<View style={styles.mapFrame} onLayout='),
+ 'Search results should be directly below the search field, above the map');
 console.log('Interaktive Karte: Pins, Suchergebnis-Auswahl, Kartenausschnitt und Barrierefreiheit geprüft.');
