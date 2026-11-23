@@ -29,6 +29,7 @@ import FamilyGuideScreen from './FamilyGuide';
 import InclusionKnowledgeScreen from './InclusionKnowledgeScreen';
 import HomeAssistant from './HomeAssistant';
 import FamilyCalendar,{CalendarEventButton} from './FamilyCalendar';
+import FamilyDateFields from './FamilyDateFields';
 import OfficialFamilyEvents from './OfficialFamilyEvents';
 import FamilyPlayScreen from './FamilyPlayScreen';
 import SavedMarketSearches,{saveMarketSearch} from './SavedMarketSearches';
@@ -2569,8 +2570,7 @@ function PartnersScreen({focusId,clearFocus,organizations,me,active,busy,applyOr
           <View style={{marginTop:16}}><Input label="Titel" maxLength={100} value={eventTitle} onChangeText={setEventTitle} placeholder="Sommerflohmarkt der Kita …"/></View>
           <Input label="Beschreibung" multiline maxLength={1000} value={eventDesc} onChangeText={setEventDesc}/>
           <Input label="Region" maxLength={80} value={eventRegion} onChangeText={setEventRegion}/>
-          <Input label="Datum (JJJJ-MM-TT)" value={eventDate} onChangeText={setEventDate} placeholder="2026-12-12"/>
-          <Input label="Uhrzeit (HH:MM)" value={eventTime} onChangeText={setEventTime}/>
+          <FamilyDateFields title="Veranstaltungstermin auswählen" date={eventDate} onDateChange={setEventDate} time={eventTime} onTimeChange={setEventTime}/>
           <Button title="Veranstaltung zur Freigabe senden" disabled={busy} onPress={postEvent}/>
         </View>:null}
     </Card>:null}
@@ -3080,8 +3080,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Input label="Titel" placeholder="Spielplatztreffen am Samstag" maxLength={100} value={title} onChangeText={setTitle}/>
 <Input label="Beschreibung" multiline maxLength={1000} value={description} onChangeText={setDescription}/>
 <Input label="Grobe Region" placeholder="z. B. Potsdam" maxLength={80} value={region} onChangeText={setRegion}/>
-<Input label="Datum (JJJJ-MM-TT)" placeholder="2026-12-05" value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation"/>
-<Input label="Uhrzeit (HH:MM)" placeholder="15:00" value={time} onChangeText={setTime}/>
+<FamilyDateFields title="Wann findet die Aktivität statt?" date={date} onDateChange={setDate} time={time} onTimeChange={setTime}/>
 <Input label="Maximale Personen (2–50)" value={count} onChangeText={setCount} keyboardType="number-pad"/>
 <Text style={styles.label}>Wer soll den Termin sehen?</Text><Row style={{marginBottom:15}}><Chip text="Alle geprüften Familien" selected={visibility==='community'} onPress={()=>setVisibility('community')}/><Chip text="Nur Kontakte" selected={visibility==='contacts'} onPress={()=>setVisibility('contacts')}/></Row>
 <Button title="Zur Freigabe einreichen" disabled={busy} onPress={submit}/>
