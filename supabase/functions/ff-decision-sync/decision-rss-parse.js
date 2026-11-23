@@ -16,6 +16,22 @@ const pick=(xml,tag)=>{
  const m=xml.match(new RegExp('<'+tag+'(?:\\s[^>]*)?>([\\s\\S]*?)<\\/'+tag+'>','i'));
  return m?decode(m[1]):'';
 };
+// This deliberately requires explicit topic words. "Kabinett" alone is not
+// evidence that a political news item is relevant to families.
+export function classifyFamilyDecision(title){
+ const n=String(title||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ if(/\bkindergeld|kinderzuschlag|kinderfreibetrag|familienleistungsausgleich/.test(n))return 'kindergeld';
+ if(/\belterngeld|elternzeit|mutterschutz/.test(n))return 'elterngeld';
+ if(/kita|kindertages|kinderbetreuung|ganztag|hort|fruhkindlich|fruehkindlich/.test(n))return 'kita';
+ if(/\bschule|schulgesetz|schulabschluss|schulpflicht|schulbildung/.test(n))return 'schule';
+ if(/wohngeld|mietrecht|mieterschutz|sozialwohn|bezahlbar(?:es|en)? wohnen/.test(n))return 'wohnen';
+ if(/gesundheit|krankenhaus|kinderarzt|hebammen|pflege|gesundheitsversorgung/.test(n))return 'gesundheit';
+ if(/kindschaft|sorgerecht|umgangsrecht|gewaltschutz|adoption/.test(n))return 'familienrecht';
+ if(/unterhaltsvorschuss|unterhaltsrecht|bildungs.?und.?teilhabe|familienforderung/.test(n))return 'leistungen';
+ if(/bibliothek|jugendfreizeit|familienticket|familienfreizeit/.test(n))return 'freizeit';
+ return null;
+}
+
 export function parseDecisions(xml,source,now=Date.now()){
  if(typeof xml!=='string'||xml.length>1050000||!/(\<rss[\s>]|<feed[\s>])/i.test(xml))
   throw Error('invalid_rss');
@@ -30,13 +46,15 @@ export function parseDecisions(xml,source,now=Date.now()){
   if(!safeSource(link,source.level==='bund'?'bundesregierung.de':'landtag.brandenburg.de'))return null;
   if(!Number.isFinite(stamp)||stamp<threshold||stamp>now+86400000)return null;
   if(title.length<8)return null;
+  const family_topic=classifyFamilyDecision(title);
+  if(!family_topic)return null;
   // A general government press release is NOT a decision. Require an explicit
   // cabinet action, and never reclassify it as a parliament-approved law.
   if(source.level==='bund'&&!(/\b(?:kabinett|bundeskabinett)\b/i.test(title)&&
     /\b(?:beschloss|beschli[eé]ßt|beschlossen|beschluss)\b/i.test(title)))return null;
   return {
    source_key:(source.id+':'+link).slice(0,500),level:source.level,
-   decision_status:source.status,title,source_name:source.name,source_url:link,
+   decision_status:source.status,title,family_topic,source_name:source.name,source_url:link,
    official_excerpt:excerpt||null,published_at:new Date(stamp).toISOString(),
    simple_summary:null,family_impact:null,next_step:null,editorial_reviewed:false,published:true
   };

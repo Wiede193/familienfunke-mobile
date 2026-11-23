@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const data=await import('data:text/javascript;base64,'+
  Buffer.from(read('supabase/functions/ff-decision-sync/decision-rss-parse.js')).toString('base64'));
-const {parseDecisions,safeSource}=data;
+const {parseDecisions,safeSource,classifyFamilyDecision}=data;
 const official={id:'bundesregierung-kabinett',name:'Bundesregierung',level:'bund',status:'kabinett'};
 const brandenburg={id:'landtag-brandenburg-beschlossen',name:'Landtag Brandenburg',
  level:'brandenburg',status:'parlament'};
@@ -14,17 +14,22 @@ const item=(title,link,date='Mon, 23 Nov 2026 08:00:00 GMT')=>
  '<item><title><![CDATA['+title+']]></title><link>'+link+
  '</link><pubDate>'+date+'</pubDate><description>Amtliche Information zum Thema.</description></item>';
 const bund=parseDecisions(rss([
- item('Kabinett beschließt eine Änderung','https://www.bundesregierung.de/breg-de/meldung-111'),
- item('Regierung informiert über Themen','https://www.bundesregierung.de/breg-de/meldung-222'),
- item('Kabinett beschließt Entscheidung','https://evil.example/meldung-333'),
- item('Kabinett beschließt alte Änderung','https://www.bundesregierung.de/breg-de/meldung-alt','Mon, 01 Jan 2024 00:00:00 GMT')
+ item('Kabinett beschließt neue Kindergeldregeln','https://www.bundesregierung.de/breg-de/meldung-111'),
+ item('Regierung informiert über Elterngeld','https://www.bundesregierung.de/breg-de/meldung-222'),
+ item('Kabinett beschließt eine Kita-Reform','https://evil.example/meldung-333'),
+ item('Kabinett beschließt alte Schulreform','https://www.bundesregierung.de/breg-de/meldung-alt','Mon, 01 Jan 2024 00:00:00 GMT')
 ]),official,now);
 assert.equal(bund.length,1,'Only fresh, official, explicit cabinet decisions may be imported');
+assert.equal(bund[0].family_topic,'kindergeld');
+assert.equal(classifyFamilyDecision('Reform des Wohngeldgesetzes'),'wohnen');
+assert.equal(classifyFamilyDecision('Elterngeld und Mutterschutz'),'elterngeld');
+assert.equal(classifyFamilyDecision('Regierungssitzung zum Verkehrshaushalt'),null);
 assert.equal(bund[0].decision_status,'kabinett','A cabinet decision must never be labeled law in force');
 assert.equal(bund[0].editorial_reviewed,false,'No automatic invented simple-language summary');
 assert.equal(bund[0].family_impact,null,'No speculative family impacts');
-const bb=parseDecisions(rss([item('Beschlossenes Landesgesetz','https://www.landtag.brandenburg.de/dokumente/123')]),brandenburg,now);
+const bb=parseDecisions(rss([item('Beschlossenes Kita-Gesetz','https://www.landtag.brandenburg.de/dokumente/123')]),brandenburg,now);
 assert.equal(bb[0].decision_status,'parlament');
+assert.equal(bb[0].family_topic,'kita');
 assert.equal(bb[0].level,'brandenburg');
 assert.ok(safeSource('https://www.landtag.brandenburg.de/dokumente/a','landtag.brandenburg.de'));
 assert.equal(safeSource('http://landtag.brandenburg.de','landtag.brandenburg.de'),false);
@@ -69,4 +74,19 @@ assert.match(edge,/redirect:'manual'/,'RSS redirects are validated instead of fo
 assert.match(edge,/safeSource\(target,allowed\)/,'Redirect targets must be verified before fetching');
 assert.doesNotMatch(edge,/redirect:'follow'/,'Never follow unchecked external redirects');
 assert.doesNotMatch(edge,/openai|GPT|responses\.create/i,'Ingestion never generates uncited political explanations');
-console.log('Beschluss-Monitor: Feed-Filter, Status, RLS, Suche und freiwillige Hinweise geprüft');
+const topicsSql=read('database/ff_decisions_family_topics.sql');
+assert.match(topicsSql,/family_topic text not null default 'weitere'/);
+assert.match(topicsSql,/topics text\[\] not null default '\{\}'/);
+assert.match(topicsSql,/new.family_topic=any\(s.topics\)/,'Alerts must respect opted-in topics');
+assert.match(topicsSql,/cardinality\(s.topics\)=0/,'No topic selection means all topics');
+assert.match(topicsSql,/ff_official_decisions_source_url_unique/,'Same source URL may not create duplicate news');
+const seed=read('database/ff_decisions_family_verified_20261123.sql');
+for(const [term,status] of [['antragslosen Kindergeldes','verkuendet'],['Elterngeld und Mutterschutz','kabinett'],['Kita-Startchancengesetz','vermittlung'],['Kita-Pakt 2030','vereinbarung'],['Wohngeld','kabinett']]){
+ assert.ok(seed.includes(term),'Missing article: '+term);
+ assert.ok(seed.includes("'"+status+"'"),'Missing status: '+status);
+}
+assert.match(ui,/Hinweisthemen/);
+assert.match(ui,/topic==='all'/);
+assert.match(ui,/entscheidung|Entscheidung vom/);
+assert.match(ui,/Vermittlung zwischen Bundestag und Bundesrat/);
+console.log('Beschluss-Monitor: Quellenfilter, Verfahrensstand, Familienthemen, RLS und Hinweise geprüft');

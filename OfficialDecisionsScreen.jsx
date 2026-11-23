@@ -4,9 +4,13 @@ import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 
 const LEVELS=[['all','Alle'],['bund','Bund'],['brandenburg','Brandenburg'],['landkreis','Landkreis']];
+const TOPICS=[['kindergeld','Kindergeld'],['elterngeld','Elterngeld'],['kita','Kita & Hort'],['schule','Schule'],['wohnen','Wohnen'],['gesundheit','Gesundheit'],['familienrecht','Familienrecht'],['leistungen','Weitere Leistungen'],['freizeit','Freizeit'],['weitere','Weitere']];
+const topicName=id=>TOPICS.find(([key])=>key===id)?.[1]||'Weitere';
 const STATUS={
  kabinett:'Von der Regierung beschlossen',
  parlament:'Vom Parlament beschlossen',
+ vermittlung:'Vermittlung zwischen Bundestag und Bundesrat',
+ vereinbarung:'Vereinbarung – noch kein Gesetz',
  verkuendet:'Amtlich verkündet',
  inkraft:'In Kraft',
  unklar:'Status nicht abschließend geprüft'
@@ -14,6 +18,8 @@ const STATUS={
 const HELP={
  kabinett:'Das Kabinett hat eine Entscheidung oder einen Entwurf beschlossen. Dadurch ist ein Gesetzentwurf noch nicht automatisch geltendes Recht.',
  parlament:'Das Parlament hat zugestimmt. Ob und wann eine neue Regelung gilt, muss anhand der amtlichen Verkündung geprüft werden.',
+ vermittlung:'Bundestag und Bundesrat sind noch nicht einig. Der Vermittlungsausschuss sucht eine Verständigung. Daraus folgt noch kein endgültig wirksames neues Gesetz.',
+ vereinbarung:'Beteiligte Institutionen haben eine Vereinbarung oder Eckpunkte beschlossen. Die notwendige parlamentarische Zustimmung und Umsetzung können noch ausstehen.',
  verkuendet:'Das Regelwerk wurde amtlich veröffentlicht. Das Datum seines Inkrafttretens kann davon abweichen.',
  inkraft:'Die offizielle Quelle weist die Regelung als in Kraft aus.',
  unklar:'Aus der veröffentlichten Meldung lässt sich der rechtliche Status noch nicht sicher bestimmen.'
@@ -39,18 +45,20 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
  const [area,setArea]=useState('all'),[query,setQuery]=useState(initialQuery);
  const [subscribed,setSubscribed]=useState(false),[preferenceLoading,setPreferenceLoading]=useState(true),[saving,setSaving]=useState(false);
  const [expanded,setExpanded]=useState(null);
+ useEffect(()=>{setExpanded(focusId||null);},[focusId]);
+ const [topic,setTopic]=useState('all'),[selectedTopics,setSelectedTopics]=useState([]),[editTopics,setEditTopics]=useState(false);
  const load=useCallback(async()=>{
   if(!supabase||!userId)return;
   setLoading(true);setError('');
   try{
    const {data,error:e}=await supabase.from('ff_official_decisions')
-    .select('id,level,decision_status,title,source_name,source_url,published_at,official_excerpt,simple_summary,family_impact,next_step,editorial_reviewed')
+    .select('id,level,family_topic,decision_status,decision_date,status_checked_at,title,source_name,source_url,published_at,official_excerpt,simple_summary,family_impact,next_step,editorial_reviewed')
     .eq('published',true).order('published_at',{ascending:false}).limit(100);
    if(e)throw e;
    let results=data||[];
    if(focusId&&!results.some(x=>x.id===focusId)){
     const focused=await supabase.from('ff_official_decisions')
-     .select('id,level,decision_status,title,source_name,source_url,published_at,official_excerpt,simple_summary,family_impact,next_step,editorial_reviewed')
+     .select('id,level,family_topic,decision_status,decision_date,status_checked_at,title,source_name,source_url,published_at,official_excerpt,simple_summary,family_impact,next_step,editorial_reviewed')
      .eq('id',focusId).eq('published',true).maybeSingle();
     if(!focused.error&&focused.data)results=[focused.data,...results];
    }
@@ -64,28 +72,30 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
   let live=true;
   setPreferenceLoading(true);
   if(!userId||!supabase){setPreferenceLoading(false);return;}
-  supabase.from('ff_decision_subscriptions').select('enabled').eq('user_id',userId).maybeSingle()
-   .then(({data,error:e})=>{if(live){if(e)setError('Benachrichtigungseinstellung konnte nicht geladen werden.');else setSubscribed(!!data?.enabled);setPreferenceLoading(false);}})
+  supabase.from('ff_decision_subscriptions').select('enabled,topics').eq('user_id',userId).maybeSingle()
+   .then(({data,error:e})=>{if(live){if(e)setError('Benachrichtigungseinstellung konnte nicht geladen werden.');else {setSubscribed(!!data?.enabled);setSelectedTopics(Array.isArray(data?.topics)?data.topics:[]);}setPreferenceLoading(false);}})
    .catch(()=>{if(live){setPreferenceLoading(false);setError('Benachrichtigungseinstellung konnte nicht geladen werden.');}});
   return()=>{live=false;};
  },[userId]);
- const change=async next=>{
+ const savePreference=async(next,topics)=>{
   if(saving||preferenceLoading||!userId)return;
   setSaving(true);
   try{
    const {error:e}=await supabase.from('ff_decision_subscriptions')
-    .upsert({user_id:userId,enabled:next,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+    .upsert({user_id:userId,enabled:next,topics,updated_at:new Date().toISOString()},{onConflict:'user_id'});
    if(e)throw e;
-   setSubscribed(next);
+   setSubscribed(next);setSelectedTopics(topics);
   }catch{setError('Die Einstellung konnte nicht gespeichert werden. Bitte erneut versuchen.');}
   finally{setSaving(false);}
  };
+ const change=next=>savePreference(next,selectedTopics);
+ const changeTopic=next=>savePreference(subscribed,next);
  const visible=useMemo(()=>{
   const words=normal(query).split(/\s+/).filter(Boolean);
-  return rows.filter(x=>(area==='all'||x.level===area)&&
+  return rows.filter(x=>(area==='all'||x.level===area)&&(topic==='all'||x.family_topic===topic)&&
    words.every(w=>normal([x.title,x.source_name,x.simple_summary,x.official_excerpt].join(' ')).includes(w)))
    .sort((a,b)=>(a.id===focusId?-1:b.id===focusId?1:0));
- },[area,query,rows,focusId]);
+ },[area,topic,query,rows,focusId]);
  return <ScrollView style={styles.root} contentContainerStyle={styles.page}
   keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={loading} onRefresh={load}/>}>
   <View style={styles.hero}>
@@ -101,6 +111,14 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
     <Switch accessibilityLabel="In-App-Hinweise zu neuen amtlichen Beschlüssen"
      value={subscribed} onValueChange={change} disabled={saving||preferenceLoading}/>
    </View>
+   <Pressable accessibilityRole="button" onPress={()=>setEditTopics(v=>!v)} style={styles.preferencesButton}>
+    <Text style={styles.preferencesLabel}>Hinweisthemen: {selectedTopics.length?selectedTopics.map(topicName).join(', '):'Alle Themen'} {editTopics?'−':'+'}</Text>
+   </Pressable>
+   {editTopics?<View style={styles.preferenceTopics}>
+    <Chip label="Alle Themen" selected={!selectedTopics.length} onPress={()=>changeTopic([])}/>
+    {TOPICS.map(([id,name])=><Chip key={id} label={name} selected={selectedTopics.includes(id)} onPress={()=>changeTopic(selectedTopics.includes(id)?selectedTopics.filter(t=>t!==id):[...selectedTopics,id])}/>)}
+    <Text style={styles.small}>Ohne Einschränkung erhältst du Hinweise zu allen veröffentlichten Themen. Die Themenauswahl wird auch bei ausgeschalteten Hinweisen gespeichert.</Text>
+   </View>:null}
    <Text style={styles.small}>Die Auswahl gilt für dein Familienfunke-Konto. Nur nach Aktivierung neu veröffentlichte Einträge lösen Hinweise aus. Push auf den Sperrbildschirm ist dafür noch nicht eingerichtet.</Text>
   </View>
   <TextInput accessibilityLabel="Beschlüsse durchsuchen" placeholder="Beschlüsse und Themen suchen"
@@ -108,23 +126,31 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
    {LEVELS.map(([id,title])=><Chip key={id} label={title} selected={area===id} onPress={()=>setArea(id)}/>)}
   </ScrollView>
+  <Text style={styles.muted}>Thema auswählen</Text>
+  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+   <Chip label="Alle Themen" selected={topic==='all'} onPress={()=>setTopic('all')}/>
+   {TOPICS.map(([id,name])=><Chip key={id} label={name} selected={topic===id} onPress={()=>setTopic(id)}/>)}
+  </ScrollView>
   {loading&&!rows.length?<ActivityIndicator color={C.accent}/>:null}
   {error?<View style={styles.card}><Text accessibilityLiveRegion="polite" style={styles.note}>{error}</Text>
    <Pressable accessibilityRole="button" onPress={load}><Text style={styles.link}>Erneut versuchen</Text></Pressable></View>:null}
   {!loading&&!visible.length?<View style={styles.card}><Text style={styles.cardHeading}>Keine passenden Einträge</Text>
    <Text style={styles.muted}>Der Monitor zeigt nur nachvollziehbare amtliche Veröffentlichungen. Fehlende Einträge bedeuten nicht, dass keine Entscheidungen getroffen wurden.</Text></View>:null}
   {visible.map(item=>{
-   const open=expanded===item.id||focusId===item.id;
+   const open=expanded===item.id;
    return <View key={item.id} style={styles.card}>
-    <Text style={styles.meta}>{item.level==='bund'?'Bund':item.level==='brandenburg'?'Brandenburg':'Landkreis'} · {date(item.published_at)}</Text>
+    <Text style={styles.meta}>{item.level==='bund'?'Bund':item.level==='brandenburg'?'Brandenburg':'Landkreis'} · {topicName(item.family_topic)} · Veröffentlicht {date(item.published_at)}</Text>
+    {item.decision_date?<Text style={styles.small}>Entscheidung vom {date(item.decision_date)}</Text>:null}
     <Text accessibilityRole="header" style={styles.cardHeading}>{item.title}</Text>
     <Text style={styles.status}>{STATUS[item.decision_status]||STATUS.unklar}</Text>
+    {item.status_checked_at&&Date.now()-new Date(item.status_checked_at).getTime()>21*86400000?<Text style={styles.note}>Die letzte Prüfung des Verfahrensstands liegt über drei Wochen zurück. Bitte die amtliche Quelle auf neuere Entscheidungen prüfen.</Text>:null}
     <Text style={styles.body}>{item.editorial_reviewed&&item.simple_summary?item.simple_summary:HELP[item.decision_status]||HELP.unklar}</Text>
     {!item.editorial_reviewed?<Text style={styles.small}>Allgemeine Erklärung des Verfahrens. Eine geprüfte Erläuterung dieses konkreten Beschlusses liegt noch nicht vor.</Text>:null}
     {open?<View style={styles.details}>
       {item.editorial_reviewed&&item.family_impact?<><Text style={styles.section}>Was bedeutet das für Familien?</Text><Text style={styles.body}>{item.family_impact}</Text></>:null}
       {item.editorial_reviewed&&item.next_step?<><Text style={styles.section}>Wie geht es weiter?</Text><Text style={styles.body}>{item.next_step}</Text></>:null}
       {item.official_excerpt?<><Text style={styles.section}>Kurztext der amtlichen Quelle</Text><Text style={styles.body}>{item.official_excerpt}</Text></>:null}
+      {item.status_checked_at?<Text style={styles.small}>Verfahrensstand zuletzt überprüft: {date(item.status_checked_at)}</Text>:null}
       <Text style={styles.small}>Ein Veröffentlichungsdatum ist nicht automatisch das Datum des Inkrafttretens. Einzelne Wirkungen und Fristen müssen aus der amtlichen Quelle hervorgehen.</Text>
     </View>:null}
     <View style={styles.actions}>
@@ -137,7 +163,12 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
   <View style={styles.card}>
    <Text style={styles.section}>So arbeitet der Beschluss-Monitor</Text>
    <Text style={styles.body}>Wir trennen Kabinettsentscheidungen, Parlamentsbeschlüsse, Verkündungen und Inkrafttreten. Automatisch erkannte Quellenmeldungen sind nicht dasselbe wie redaktionell geprüfte Erklärungen. Keine politischen Kommentare, keine Bewertung von Parteien.</Text>
-   <Text style={styles.small}>Bund und Brandenburg zuerst. Kommunale Beschlüsse werden erst nach verlässlicher technischer Quellenanbindung ergänzt. Es besteht kein Anspruch auf Vollständigkeit.</Text>
+   <Text style={styles.small}>Bund und Brandenburg zuerst. Bei Bundesgesetzen kann der weitere Weg über Bundesrat, Vermittlung und Verkündung führen. Kommunale Beschlüsse werden erst nach verlässlicher technischer Quellenanbindung ergänzt. Es besteht kein Anspruch auf Vollständigkeit.</Text>
+   <Text style={styles.section}>Weitere amtliche Quellen</Text>
+   <Pressable accessibilityRole="link" onPress={()=>Linking.openURL('https://dip.bundestag.de/')} style={styles.action}><Text style={styles.actionText}>Bundestag – Gesetzgebungsverfahren (DIP)</Text></Pressable>
+   <Pressable accessibilityRole="link" onPress={()=>Linking.openURL('https://www.landtag.brandenburg.de/de/rss-infodienste/12411')} style={styles.action}><Text style={styles.actionText}>Landtag Brandenburg – aktuelle Gesetze</Text></Pressable>
+   <Pressable accessibilityRole="link" onPress={()=>Linking.openURL('https://web.landkreis-oder-spree.de/bi/info.asp')} style={styles.action}><Text style={styles.actionText}>Oder-Spree – Kreistag und Beschlussunterlagen</Text></Pressable>
+   <Text style={styles.small}>Das Bürgerinformationssystem von Oder-Spree ist als Originalquelle verlinkt. Eine automatische Auswertung und Benachrichtigung zu Kreistagsbeschlüssen ist noch nicht freigeschaltet.</Text>
   </View>
  </ScrollView>;
 }
@@ -151,7 +182,7 @@ const styles=StyleSheet.create({
  status:{fontSize:13,fontWeight:'800',color:C.accentDark,backgroundColor:C.mint,alignSelf:'flex-start',paddingVertical:6,paddingHorizontal:10,borderRadius:12},
  note:{fontSize:14,color:C.danger},link:{color:C.accentDark,fontWeight:'800',paddingVertical:8},
  input:{backgroundColor:C.paper,borderRadius:15,padding:14,fontSize:15,color:C.ink,borderWidth:1,borderColor:C.line,minHeight:48},
- filters:{gap:8,paddingVertical:2},chip:{paddingVertical:10,paddingHorizontal:15,borderRadius:22,backgroundColor:C.paper,borderWidth:1,borderColor:C.line,minHeight:44,justifyContent:'center'},
+ filters:{gap:8,paddingVertical:2},preferencesButton:{paddingVertical:10,minHeight:44,justifyContent:'center'},preferencesLabel:{fontWeight:'800',color:C.accentDark,fontSize:14},preferenceTopics:{flexDirection:'row',flexWrap:'wrap',gap:7},chip:{paddingVertical:10,paddingHorizontal:15,borderRadius:22,backgroundColor:C.paper,borderWidth:1,borderColor:C.line,minHeight:44,justifyContent:'center'},
  chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{fontSize:13,color:C.ink,fontWeight:'700'},chipSelectedText:{color:C.white},
  details:{gap:8,marginTop:6,borderTopWidth:1,borderTopColor:C.line,paddingTop:12},section:{fontSize:15,fontWeight:'800',color:C.ink},
  actions:{flexDirection:'row',gap:8,flexWrap:'wrap'},action:{borderRadius:14,backgroundColor:C.sunPale,paddingVertical:11,paddingHorizontal:14,minHeight:44,justifyContent:'center'},
