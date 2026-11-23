@@ -219,12 +219,12 @@ return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'pad
 <View style={{height:28}}/>
 <Card style={{width:'100%',padding:23}}>
 <Text style={styles.h}>Willkommen zurück!</Text>
-<Text style={[styles.sub,{marginBottom:21}]}>Deine private Familien-Community. Nur eingeladene Erwachsene können sich anmelden.</Text>
+<Text style={[styles.sub,{marginBottom:21}]}>Deine Familien-Community. Die Testphase ist derzeit nur mit bereits eingerichtetem Konto zugänglich.</Text>
 <Input label="E-Mail-Adresse" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email"/>
 <Input label="Passwort" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoComplete="current-password"/>
 {error?<Info warning>{error}</Info>:null}
 <Button title={busy?'Anmeldung läuft …':'Anmelden'} disabled={busy} onPress={submit}/>
-<View style={{marginTop:12}}><Button title="Hilfe bei der Anmeldung" mode="ghost" onPress={onHelp}/></View>
+<View style={{marginTop:12}}><Button title="Anmeldung, Einladung & Hilfe" mode="ghost" onPress={onHelp}/></View>
 </Card>
 </ScrollView>
 </KeyboardAvoidingView>;
