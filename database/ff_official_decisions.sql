@@ -40,6 +40,19 @@ create policy ff_decision_subscriptions_owner on public.ff_decision_subscription
  for all to authenticated using ((select auth.uid())=user_id)
  with check ((select auth.uid())=user_id);
 
+-- Monitoring metadata is internal and must never appear in the client Data API.
+create table if not exists public.ff_decision_sync_runs (
+ id bigint generated always as identity primary key,
+ started_at timestamptz not null default now(),
+ source_count integer not null default 0,
+ candidate_count integer not null default 0,
+ new_count integer not null default 0,
+ errors text[] not null default '{}'::text[]
+);
+alter table public.ff_decision_sync_runs enable row level security;
+revoke all on public.ff_decision_sync_runs from public,anon,authenticated;
+grant all on public.ff_decision_sync_runs to service_role;
+
 -- Existing inbox schema: allow an authorized, source-linked decision, without inventing a fake actor.
 alter table public.ff_notifications add column if not exists decision_id uuid
  references public.ff_official_decisions(id) on delete cascade;
@@ -59,6 +72,11 @@ alter table public.ff_notifications add constraint ff_notification_market_shape 
 );
 create unique index if not exists ff_notification_decision_unique
  on public.ff_notifications(user_id,decision_id) where kind='decision';
+-- The existing external push workflow does not yet recognize this new category.
+drop trigger if exists ff_push_on_inbox on public.ff_notifications;
+create trigger ff_push_on_inbox after insert on public.ff_notifications
+ for each row when (new.kind in ('match','request','message'))
+ execute function private.ff_queue_push();
 
 -- Automatic in-app notice only for explicit subscribers and verified published source cards.
 -- Existing push pipeline remains untouched; it is not yet enabled for decision notifications.
@@ -76,6 +94,7 @@ end $$;
 drop trigger if exists ff_decision_new_publication on public.ff_official_decisions;
 create trigger ff_decision_new_publication after insert or update of published
  on public.ff_official_decisions for each row execute function private.ff_decision_publish_notice();
+revoke all on function private.ff_decision_publish_notice() from public,anon,authenticated;
 
 create or replace function public.ff_inbox_page_by_kind(
  p_kind text, p_before timestamptz default null, p_before_id uuid default null)
