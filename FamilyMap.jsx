@@ -446,6 +446,17 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
       {selected.address?<Text style={[styles.micro,{marginTop:8}]}>⌖ {selected.address}</Text>:null}
       {['curated','national'].includes(selected.source)&&onCalendar?<Pressable accessibilityRole="button" accessibilityLabel="Ausflugsziel im Kalender einplanen" onPress={()=>onCalendar(selected)} style={{minHeight:44,padding:12,borderRadius:12,backgroundColor:'#E8F3E9',marginTop:10}}><Text style={{fontWeight:'800',color:'#075A60'}}>Im Kalender einplanen</Text></Pressable>:null}
       {selected.family_focus?<Text style={[styles.micro,{marginTop:7}]}>Ausflugsart: {BRANDENBURG_FAMILY_FOCUS.find(x=>x.id===selected.family_focus)?.label||'Familienausflug'}</Text>:null}
+      {selected.play_area?<View style={{marginTop:10,padding:11,borderRadius:12,backgroundColor:C.sunPale}}>
+       <Text style={{fontWeight:'800',fontSize:13,color:C.accentDark}}>Spielbereich konkret nachgewiesen</Text>
+       <Text style={[styles.micro,{marginTop:5}]}>{selected.play_area.label} · {selected.play_area.kind==='outdoor'?'Außenbereich, wetterabhängig':'Innenbereich'}</Text>
+       <Text style={[styles.micro,{marginTop:5}]}>Die Spielangebote sind kein Nachweis für Kinderbetreuung oder Aufsicht durch das Restaurant. Eigene Aufsicht erforderlich.</Text>
+       <Pressable accessibilityRole="link" onPress={()=>Linking.openURL(selected.play_area.source_url).catch(()=>{})} style={[styles.minorBtn,{marginTop:7}]}>
+         <Text style={styles.minorBtnText}>Quelle zum Spielbereich öffnen ↗</Text>
+       </Pressable>
+      </View>:null}
+      {selected.coordinate_note?<Text style={[styles.micro,{marginTop:7,color:C.accentDark}]}>{selected.coordinate_note}</Text>:null}
+      {selected.visit_warning?<Text style={[styles.micro,{marginTop:8,fontWeight:'700',color:C.accentDark}]}>{selected.visit_warning}</Text>:null}
+
       {selected.source==='national'?<Text style={[styles.micro,{marginTop:7}]}>Kategorie: {selected.kind_label} · {selected.state}</Text>:null}
       {['curated','national'].includes(selected.source)?<Text style={[styles.micro,{marginTop:8}]}>Recherchestand November 2026. Aktuelle Besuchsbedingungen beim Anbieter erfragen.</Text>:null}
       <View style={styles.accessibilitySection}>

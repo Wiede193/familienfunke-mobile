@@ -4,8 +4,8 @@ const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const mod=await import('data:text/javascript;base64,'+Buffer.from(read('FamilyTopicsKnowledge.js')).toString('base64'));
 const {FAMILY_TOPIC_CATEGORIES,FAMILY_TOPIC_ARTICLES,findFamilyTopics}=mod;
 assert.equal(FAMILY_TOPIC_CATEGORIES.length,5);
-assert.equal(FAMILY_TOPIC_ARTICLES.length,11);
-assert.equal(new Set(FAMILY_TOPIC_ARTICLES.map(a=>a.id)).size,11);
+assert.equal(FAMILY_TOPIC_ARTICLES.length,17);
+assert.equal(new Set(FAMILY_TOPIC_ARTICLES.map(a=>a.id)).size,17);
 for(const item of FAMILY_TOPIC_ARTICLES){
  assert.ok(item.title.length>15,item.id);
  assert.ok(item.overview.length>=120,item.id+' overview');
@@ -20,6 +20,7 @@ for(const item of FAMILY_TOPIC_ARTICLES){
 assert.ok(findFamilyTopics('KiZ').some(a=>a.id==='kinderzuschlag'),'Article contains the official KiZ-Lotse term');
 assert.ok(findFamilyTopics('kinderzuschlag').some(a=>a.id==='kinderzuschlag'));
 assert.ok(findFamilyTopics('wohngeld').some(a=>a.id==='wohngeld'));
+for(const id of ['kinderkrankengeld','mutter-vater-kind-kur','ganztag-grundschule','familienerholung','beistandschaft','haushaltshilfe-eltern-krank'])assert.ok(FAMILY_TOPIC_ARTICLES.some(a=>a.id===id),id);
 assert.ok(findFamilyTopics('FrÜhE hIlFeN').some(a=>a.id==='fruehe-hilfen'));
 assert.ok(findFamilyTopics('Medien').some(a=>a.id==='medien-alltag'));
 assert.deepEqual(findFamilyTopics('unbekannte-suchfolge'),[]);
