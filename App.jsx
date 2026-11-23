@@ -770,7 +770,7 @@ async function openInboxEvent(event){
    if(accountRef.current!==owner)return false;
    if(e)throw e;
    if(!row){setNotice('Diese Neuigkeit ist nicht mehr verfügbar.');inbox.refresh();return false;}
-   if(row.kind==='decision'){
+   if(row.kind==='decision'||row.kind==='decision_update'){
      if(!row.decision_id)return false;
      const {data:decision,error:decisionError}=await supabase.from('ff_official_decisions')
       .select('id').eq('id',row.decision_id).eq('published',true).maybeSingle();
