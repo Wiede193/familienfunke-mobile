@@ -7,6 +7,7 @@ import {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES,
   guessBrandenburgRegion,findBrandenburgRegions,officeForGuideStep,REGIONAL_DIRECTORY_URL} from './BrandenburgFamilyRegions';
 import {GERMANY_FAMILY_STATES,GERMANY_FAMILY_RESOURCES,findGermanyFamilyStates} from './GermanyFamilyDirectory';
 import FamilyTopicsSection from './FamilyTopicsSection';
+import SearchResultFeedback from './SearchResultFeedback';
 
 const P=FAMILY_COLORS;
 const TYPES={
@@ -252,7 +253,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
           placeholder="z. B. Barnim, Strausberg, Cottbus …"
           placeholderTextColor={P.muted} value={regionSearch}
           onChangeText={setRegionSearch} style={st.regionInput}/>
-        <Text style={st.small}>{visibleRegions.length} {visibleRegions.length===1?'Region':'Regionen'} in der Auswahl</Text>
+        <SearchResultFeedback active={!!regionSearch.trim()} query={regionSearch} count={visibleRegions.length} context="Brandenburg – Kreise & Städte" hint="Region antippen, um die zuständigen Stellen zu sehen."/>
         {visibleRegions.map(region=><Pressable key={region.id}
           accessibilityRole="button" accessibilityLabel={region.name+' auswählen'}
           accessibilityState={{selected:selectedRegion?.id===region.id}}
@@ -305,7 +306,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
         <TextInput accessibilityLabel="Bundesland oder Landeshauptstadt suchen"
           placeholder="z. B. Sachsen, Berlin, München …" placeholderTextColor={P.muted}
           value={stateSearch} onChangeText={setStateSearch} style={st.regionInput}/>
-        <Text style={st.small}>{visibleStates.length} Bundesländer in der Auswahl</Text>
+        <SearchResultFeedback active={!!stateSearch.trim()} query={stateSearch} count={visibleStates.length} context="Bundesländer" hint="Bundesland auswählen, um zum offiziellen Landesportal zu gelangen."/>
         {visibleStates.map(state=><Pressable key={state.code} accessibilityRole="button"
           accessibilityLabel={state.name+' als Bundesland auswählen'}
           accessibilityState={{selected:pickedStateCode===state.code}}
