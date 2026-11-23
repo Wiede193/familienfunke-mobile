@@ -4,7 +4,7 @@ import {WebView} from 'react-native-webview';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {CURATED_REGION,CURATED_FAMILY_PLACES} from './FamilyMapCurated';
-import {BRANDENBURG_FAMILY_PLACES,describePlaceAccessibility} from './FamilyMapBrandenburg';
+import {BRANDENBURG_FAMILY_PLACES,BRANDENBURG_FAMILY_FOCUS,describePlaceAccessibility} from './FamilyMapBrandenburg';
 import {NATIONAL_FAMILY_PLACES,NATIONAL_TYPES,NATIONAL_AREAS} from './FamilyMapNational';
 import {findFamilyMapLocations,mergeMapSearchResults} from './FamilyMapSearch';
 
@@ -124,6 +124,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
   const [types,setTypes]=useState('all');
   const [nationalType,setNationalType]=useState('all');
   const [nationalArea,setNationalArea]=useState('all');
+  const [brandenburgFocus,setBrandenburgFocus]=useState('all');
   const [openForm,setOpenForm]=useState(false);
   const [draftPoint,setDraftPoint]=useState(null);
   const [latitudeInput,setLatitudeInput]=useState('');
@@ -444,6 +445,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
       <Text style={styles.micro}>{selected.description||'Keine Beschreibung hinterlegt.'}</Text>
       {selected.address?<Text style={[styles.micro,{marginTop:8}]}>⌖ {selected.address}</Text>:null}
       {['curated','national'].includes(selected.source)&&onCalendar?<Pressable accessibilityRole="button" accessibilityLabel="Ausflugsziel im Kalender einplanen" onPress={()=>onCalendar(selected)} style={{minHeight:44,padding:12,borderRadius:12,backgroundColor:'#E8F3E9',marginTop:10}}><Text style={{fontWeight:'800',color:'#075A60'}}>Im Kalender einplanen</Text></Pressable>:null}
+      {selected.family_focus?<Text style={[styles.micro,{marginTop:7}]}>Ausflugsart: {BRANDENBURG_FAMILY_FOCUS.find(x=>x.id===selected.family_focus)?.label||'Familienausflug'}</Text>:null}
       {selected.source==='national'?<Text style={[styles.micro,{marginTop:7}]}>Kategorie: {selected.kind_label} · {selected.state}</Text>:null}
       {['curated','national'].includes(selected.source)?<Text style={[styles.micro,{marginTop:8}]}>Recherchestand November 2026. Aktuelle Besuchsbedingungen beim Anbieter erfragen.</Text>:null}
       <View style={styles.accessibilitySection}>
@@ -558,8 +560,13 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,onC
       <Text style={[styles.micro,{marginTop:7,marginBottom:13}]}>
         {BRANDENBURG_FAMILY_PLACES.length} zusätzlich recherchierte Ziele. Zu jedem Ziel zeigen wir dokumentierte Einzelmerkmale und Grenzen oder ausdrücklich fehlende Angaben zur Barrierefreiheit.
       </Text>
+      <Text style={[styles.micro,{marginBottom:6}]}>Dauerhafte Familienziele auswählen – aktuelle Preise, Öffnungszeiten und Altersregeln beim Betreiber prüfen.</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingBottom:12}}>
+        {BRANDENBURG_FAMILY_FOCUS.map(f=><Chip key={f.id} label={f.label} selected={brandenburgFocus===f.id} onPress={()=>setBrandenburgFocus(f.id)}/>)}
+      </ScrollView>
+      <Text accessibilityLiveRegion="polite" style={[styles.micro,{marginBottom:8}]}>{BRANDENBURG_FAMILY_PLACES.filter(p=>brandenburgFocus==='all'||p.family_focus===brandenburgFocus).length} passende Brandenburg-Ziele</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:10,paddingRight:9}}>
-        {BRANDENBURG_FAMILY_PLACES.map(place=><Pressable key={place.id} accessibilityRole="button"
+        {BRANDENBURG_FAMILY_PLACES.filter(p=>brandenburgFocus==='all'||p.family_focus===brandenburgFocus).map(place=><Pressable key={place.id} accessibilityRole="button"
           accessibilityLabel={place.title+' und Angaben zur Barrierefreiheit öffnen'}
           onPress={()=>showPlace(place)} style={styles.curatedPlace}>
           <View style={styles.row}>
