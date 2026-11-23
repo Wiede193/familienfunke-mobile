@@ -45,6 +45,7 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
  const [area,setArea]=useState('all'),[query,setQuery]=useState(initialQuery);
  const [subscribed,setSubscribed]=useState(false),[preferenceLoading,setPreferenceLoading]=useState(true),[saving,setSaving]=useState(false);
  const [expanded,setExpanded]=useState(null);
+ const [showSources,setShowSources]=useState(false);
  useEffect(()=>{setExpanded(focusId||null);},[focusId]);
  const [topic,setTopic]=useState('all'),[selectedTopics,setSelectedTopics]=useState([]),[editTopics,setEditTopics]=useState(false);
  const load=useCallback(async()=>{
@@ -153,10 +154,14 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
     <Text style={styles.status}>{STATUS[item.decision_status]||STATUS.unklar}</Text>
     {item.status_review_pending?<Text style={styles.note}>Die amtliche Quelle wurde aktualisiert. Ob sich dadurch der Rechtsstand ändert, wird noch geprüft. Angezeigt wird bis dahin der zuletzt bestätigte Stand.</Text>:null}
     {item.status_checked_at&&Date.now()-new Date(item.status_checked_at).getTime()>21*86400000?<Text style={styles.note}>Die letzte Prüfung des Verfahrensstands liegt über drei Wochen zurück. Bitte die amtliche Quelle auf neuere Entscheidungen prüfen.</Text>:null}
-    <Text style={styles.body}>{item.editorial_reviewed&&item.simple_summary?item.simple_summary:HELP[item.decision_status]||HELP.unklar}</Text>
+    <Text style={styles.question}>Was wurde entschieden?</Text>
+    <Text style={styles.body} numberOfLines={open?undefined:3}>{item.editorial_reviewed&&item.simple_summary?item.simple_summary:HELP[item.decision_status]||HELP.unklar}</Text>
+    {item.editorial_reviewed&&item.family_impact?<><Text style={styles.question}>Betrifft euch das?</Text><Text style={styles.body} numberOfLines={open?undefined:2}>{item.family_impact}</Text></>:null}
+    <Text style={styles.question}>Gilt es schon?</Text>
+    <Text style={styles.body}>{item.decision_status==='inkraft'?'Ja, laut geprüftem Verfahrensstand ist die Regelung in Kraft. Übergangsfristen prüfen.':item.decision_status==='verkuendet'?'Amtlich veröffentlicht. Der Starttermin kann später liegen.':'Aus diesem Verfahrensstand folgt noch kein neues geltendes Gesetz.'}</Text>
     {!item.editorial_reviewed?<Text style={styles.small}>Allgemeine Erklärung des Verfahrens. Eine geprüfte Erläuterung dieses konkreten Beschlusses liegt noch nicht vor.</Text>:null}
     {open?<View style={styles.details}>
-      {item.editorial_reviewed&&item.family_impact?<><Text style={styles.section}>Was bedeutet das für Familien?</Text><Text style={styles.body}>{item.family_impact}</Text></>:null}
+      
       {item.editorial_reviewed&&item.next_step?<><Text style={styles.section}>Wie geht es weiter?</Text><Text style={styles.body}>{item.next_step}</Text></>:null}
       {item.official_excerpt?<><Text style={styles.section}>Kurztext der amtlichen Quelle</Text><Text style={styles.body}>{item.official_excerpt}</Text></>:null}
       {item.status_checked_at?<Text style={styles.small}>Rechtsstand redaktionell geprüft: {date(item.status_checked_at)}</Text>:null}
@@ -180,7 +185,8 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
     <Text style={styles.source}>Quelle: {item.source_name}</Text>
    </View>;
   })}
-  <View style={styles.card}>
+  <Pressable accessibilityRole="button" accessibilityState={{expanded:showSources}} onPress={()=>setShowSources(v=>!v)} style={styles.sourcesToggle}><Text style={styles.question}>{showSources?'Quelleninformationen ausblenden':'Quellen und Arbeitsweise anzeigen'} {showSources?'−':'+'}</Text></Pressable>
+   {showSources?<View style={styles.card}>
    <Text style={styles.section}>So arbeitet der Beschluss-Monitor</Text>
    <Text style={styles.body}>Wir trennen Kabinettsentscheidungen, Parlamentsbeschlüsse, Verkündungen und Inkrafttreten. Automatisch erkannte Quellenmeldungen sind nicht dasselbe wie redaktionell geprüfte Erklärungen. Keine politischen Kommentare, keine Bewertung von Parteien.</Text>
    <Text style={styles.small}>Bund und Brandenburg zuerst. Bei Bundesgesetzen kann der weitere Weg über Bundesrat, Vermittlung und Verkündung führen. Kommunale Beschlüsse werden erst nach verlässlicher technischer Quellenanbindung ergänzt. Es besteht kein Anspruch auf Vollständigkeit.</Text>
@@ -189,7 +195,7 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
    <Pressable accessibilityRole="link" onPress={()=>Linking.openURL('https://www.landtag.brandenburg.de/de/rss-infodienste/12411')} style={styles.action}><Text style={styles.actionText}>Landtag Brandenburg – aktuelle Gesetze</Text></Pressable>
    <Pressable accessibilityRole="link" onPress={()=>Linking.openURL('https://web.landkreis-oder-spree.de/bi/info.asp')} style={styles.action}><Text style={styles.actionText}>Oder-Spree – Kreistag und Beschlussunterlagen</Text></Pressable>
    <Text style={styles.small}>Das Bürgerinformationssystem von Oder-Spree ist als Originalquelle verlinkt. Eine automatische Auswertung und Benachrichtigung zu Kreistagsbeschlüssen ist noch nicht freigeschaltet.</Text>
-  </View>
+  </View>:null}
  </ScrollView>;
 }
 const styles=StyleSheet.create({
@@ -197,14 +203,14 @@ const styles=StyleSheet.create({
  hero:{backgroundColor:C.sunPale,padding:22,borderRadius:22,gap:8},heading:{fontSize:25,fontWeight:'900',color:C.ink},
  intro:{fontSize:15,color:C.ink,lineHeight:22},card:{backgroundColor:C.paper,borderRadius:18,padding:18,gap:10,borderWidth:1,borderColor:C.line},
  row:{flexDirection:'row',alignItems:'center',gap:12},cardHeading:{fontSize:18,fontWeight:'800',color:C.ink,lineHeight:25},
- body:{fontSize:15,color:C.ink,lineHeight:22},muted:{fontSize:14,color:C.muted,lineHeight:20},
- small:{fontSize:12,color:C.muted,lineHeight:18},meta:{fontSize:12,fontWeight:'700',color:C.muted},
- status:{fontSize:13,fontWeight:'800',color:C.accentDark,backgroundColor:C.mint,alignSelf:'flex-start',paddingVertical:6,paddingHorizontal:10,borderRadius:12},
+ body:{fontSize:16,color:C.ink,lineHeight:24},muted:{fontSize:14,color:C.muted,lineHeight:20},
+ small:{fontSize:14,color:C.muted,lineHeight:21},meta:{fontSize:14,fontWeight:'700',color:C.muted},
+ status:{fontSize:14,fontWeight:'800',color:C.accentDark,backgroundColor:C.mint,alignSelf:'flex-start',paddingVertical:6,paddingHorizontal:10,borderRadius:12},
  note:{fontSize:14,color:C.danger},link:{color:C.accentDark,fontWeight:'800',paddingVertical:8},
  input:{backgroundColor:C.paper,borderRadius:15,padding:14,fontSize:15,color:C.ink,borderWidth:1,borderColor:C.line,minHeight:48},
  filters:{gap:8,paddingVertical:2},preferencesButton:{paddingVertical:10,minHeight:44,justifyContent:'center'},preferencesLabel:{fontWeight:'800',color:C.accentDark,fontSize:14},preferenceTopics:{flexDirection:'row',flexWrap:'wrap',gap:7},chip:{paddingVertical:10,paddingHorizontal:15,borderRadius:22,backgroundColor:C.paper,borderWidth:1,borderColor:C.line,minHeight:44,justifyContent:'center'},
- chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{fontSize:13,color:C.ink,fontWeight:'700'},chipSelectedText:{color:C.white},
- details:{gap:8,marginTop:6,borderTopWidth:1,borderTopColor:C.line,paddingTop:12},historyRow:{backgroundColor:C.bg,borderRadius:12,padding:12,gap:5},section:{fontSize:15,fontWeight:'800',color:C.ink},
+ chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{fontSize:14,color:C.ink,fontWeight:'700'},chipSelectedText:{color:C.white},
+ question:{fontSize:15,fontWeight:'800',color:C.ink,marginTop:7},sourcesToggle:{minHeight:50,padding:14,backgroundColor:C.sunPale,borderRadius:14,justifyContent:'center'},details:{gap:8,marginTop:6,borderTopWidth:1,borderTopColor:C.line,paddingTop:12},historyRow:{backgroundColor:C.bg,borderRadius:12,padding:12,gap:5},section:{fontSize:15,fontWeight:'800',color:C.ink},
  actions:{flexDirection:'row',gap:8,flexWrap:'wrap'},action:{borderRadius:14,backgroundColor:C.sunPale,paddingVertical:11,paddingHorizontal:14,minHeight:44,justifyContent:'center'},
- actionText:{fontSize:13,fontWeight:'800',color:C.accentDark},source:{fontSize:12,color:C.muted}
+ actionText:{fontSize:14,fontWeight:'800',color:C.accentDark},source:{fontSize:14,color:C.muted}
 });

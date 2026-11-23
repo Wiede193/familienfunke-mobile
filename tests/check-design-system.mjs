@@ -33,8 +33,8 @@ const app=read('App.jsx');
 assert.match(app,/const C = FAMILY_COLORS;/,'Main app palette must be centralized');
 assert.match(app,/headingBar:\{width:5/,'Section heading should have a consistent sun accent');
 assert.match(app,/tabActive:\{backgroundColor:C\.sunPale\}/,'Bottom navigation uses sunny selected state');
-assert.match(app,/styles\.tabIcon,\(tab===id\)/,'Primary bottom navigation shows selected screen');
-assert.match(app,/styles\.tabLabel,\(tab===id\)/,'Primary bottom navigation label reflects selection');
+assert.match(app,/styles\.tabIcon,\(selectedMainTab===id\)/,'Primary bottom navigation shows selected screen');
+assert.match(app,/styles\.tabLabel,\(selectedMainTab===id\)/,'Primary bottom navigation label reflects selection');
 assert.match(app,/chipSelected:\{backgroundColor:C\.accentDark/,'Selection should not rely on coral as primary');
 const menu=read('TopRightMenu.jsx');
 assert.match(menu,/import \{FAMILY_COLORS as C\} from '\.\/FamilyTheme'/);
@@ -50,7 +50,7 @@ for(const id of ['contacts','chat','inbox','push','events','outing','partners','
  assert.ok(menu.includes("['"+id+"',"),'Menu missing '+id);
 }
 assert.doesNotMatch(app.match(/const TABS = .*;/)[0],/\['more',/,'Move More up to the menu');
-assert.match(app,/onSelect=\{selectMenuItem\}/);
+assert.match(app,/onSelect=\{id=>id==='profile'/);
 assert.match(app,/const items=MORE_ITEMS/);
 assert.match(app,/setTab\('home'\);\s*setMenuOpen\(false\)/,'Account switch closes menu');
 assert.match(read('HomeAssistant.jsx'),/const C=FAMILY_COLORS;/,'Home keeps shared palette');

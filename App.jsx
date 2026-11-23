@@ -29,6 +29,7 @@ import FamilyGuideScreen from './FamilyGuide';
 import InclusionKnowledgeScreen from './InclusionKnowledgeScreen';
 import HomeAssistant from './HomeAssistant';
 import FamilyCalendar,{CalendarEventButton} from './FamilyCalendar';
+import FamilyDateFields from './FamilyDateFields';
 import OfficialFamilyEvents from './OfficialFamilyEvents';
 import FamilyPlayScreen from './FamilyPlayScreen';
 import SavedMarketSearches,{saveMarketSearch} from './SavedMarketSearches';
@@ -218,12 +219,12 @@ return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'pad
 <View style={{height:28}}/>
 <Card style={{width:'100%',padding:23}}>
 <Text style={styles.h}>Willkommen zurück!</Text>
-<Text style={[styles.sub,{marginBottom:21}]}>Deine private Familien-Community. Nur eingeladene Erwachsene können sich anmelden.</Text>
+<Text style={[styles.sub,{marginBottom:21}]}>Deine Familien-Community. Die Testphase ist derzeit nur mit bereits eingerichtetem Konto zugänglich.</Text>
 <Input label="E-Mail-Adresse" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email"/>
 <Input label="Passwort" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoComplete="current-password"/>
 {error?<Info warning>{error}</Info>:null}
 <Button title={busy?'Anmeldung läuft …':'Anmelden'} disabled={busy} onPress={submit}/>
-<View style={{marginTop:12}}><Button title="Hilfe bei der Anmeldung" mode="ghost" onPress={onHelp}/></View>
+<View style={{marginTop:12}}><Button title="Anmeldung, Einladung & Hilfe" mode="ghost" onPress={onHelp}/></View>
 </Card>
 </ScrollView>
 </KeyboardAvoidingView>;
@@ -232,6 +233,7 @@ export default function App() {
 const [session,setSession]=useState(undefined);
 const [tab,setTab]=useState('home');
 const [menuOpen,setMenuOpen]=useState(false);
+const [profileDirty,setProfileDirty]=useState(false);
 const [marketIntent,setMarketIntent]=useState(null);
 const [outingDraft,setOutingDraft]=useState(null);
 const [mapIntent,setMapIntent]=useState(null);
@@ -888,9 +890,20 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 <Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
 </SafeAreaView>;
 const EXTRA_TITLES={play:'Familienzeit',calendar:'Mein Familienkalender',savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',healthy:'Sport & Gesundheit',decisions:'Beschlüsse einfach erklärt',more:'Weitere Bereiche'};
-const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
+const selectedMainTab=TABS.some(t=>t[0]===tab)?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:null);
+ const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
 function back(){if(detailFamily)setDetailFamily(null);else if(selectedContact){setSelectedContact(null);setTab(chatReturnTab);}else if(showInfo)setShowInfo(false);else if(tab==='inbox')setTab(inboxReturnTab);else if(tab==='outing'||tab==='more'||tab==='play'){setTab(extraReturnTab==='more'?'home':extraReturnTab);}else if(tab==='market'&&marketIntent?.returnTab){setTab(marketIntent.returnTab);setMarketIntent(null);}else if(tab==='map'&&mapIntent){if(mapIntent.returnTab==='calendar'){setMapIntent(null);setTab('calendar');}else if(mapIntent.returnTab==='home'){setMapIntent(null);setTab('home');}else if(mapIntent.returnTab==='healthy'){setMapIntent(null);setTab('healthy');}else{setMapIntent(null);setTab('outing');}}else if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);}else if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');}else if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','inbox','savedSearches','healthy','decisions'].includes(tab))setTab(extraReturnTab);}
-return <SafeAreaView style={styles.screen}>
+function guardProfileExit(next){
+ if(tab==='profile'&&profileDirty){
+  Alert.alert('Profiländerungen noch nicht gespeichert','Du hast Angaben verändert. Möchtest du sie verwerfen und den Bereich verlassen?',[
+   {text:'Weiter bearbeiten',style:'cancel'},
+   {text:'Änderungen verwerfen',style:'destructive',onPress:()=>{setProfileDirty(false);next();}}
+  ]);
+  return;
+ }
+ next();
+}
+ return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
 <View style={styles.headerIdentity}>
@@ -900,8 +913,8 @@ return <SafeAreaView style={styles.screen}>
     <Text style={styles.topHint}>{navTitle}</Text>
   </View>
 </View>
-{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={openInbox} style={styles.inboxBell}><FamilyIcon name="bell" size={22} color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
-{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={back} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
+{tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={()=>guardProfileExit(openInbox)} style={styles.inboxBell}><FamilyIcon name="bell" size={22} color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
+{detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&marketIntent?.returnTab)||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab)?<Pressable accessibilityRole="button" accessibilityLabel="Zurück" onPress={()=>guardProfileExit(back)} style={styles.headerMenuButton}><Text style={styles.headerBackSymbol}>‹</Text></Pressable>:null}
 <Pressable accessibilityRole="button" accessibilityLabel="Menü öffnen" accessibilityState={{expanded:menuOpen}} onPress={()=>{Keyboard.dismiss();setMenuOpen(true);}} style={styles.headerMenuButton}><MenuIcon/></Pressable>
 </View>
 {connectionIssue?<View accessibilityLiveRegion="polite" style={{paddingHorizontal:12,paddingTop:8}}>
@@ -1045,15 +1058,15 @@ save={(value)=>execute(async()=>{
 uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,executePhoto)}
 reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,executePhoto)}
 blocks={db.blocks} onUnblock={unblockUser}
-changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
+changePassword={changePassword} onDirtyChange={setProfileDirty} openInfo={()=>guardProfileExit(()=>setShowInfo(true))} signOut={()=>guardProfileExit(()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.')))}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');if(id==='guide')setGuideQuery('');setTab(id);setShowEventForm(false);}}
-accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><View style={[styles.tabIcon,(tab===id)&&styles.tabIconSelected]}>
-  <FamilyIcon name={glyph} size={24} color={tab===id?C.accentDark:C.muted}/>
-</View><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
+{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>guardProfileExit(()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');if(id==='guide')setGuideQuery('');setTab(id);setShowEventForm(false);})}
+accessibilityLabel={title} accessibilityState={{selected:selectedMainTab===id}} style={[styles.tab,(selectedMainTab===id)&&styles.tabActive]}><View style={[styles.tabIcon,(selectedMainTab===id)&&styles.tabIconSelected]}>
+  <FamilyIcon name={glyph} size={24} color={selectedMainTab===id?C.accentDark:C.muted}/>
+</View><Text style={[styles.tabLabel,(selectedMainTab===id)&&{color:C.accentDark,fontWeight:'800'}]}>{title}</Text></Pressable>)}
 </View>:null}
-<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={selectMenuItem} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
+<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={id=>id==='profile'?selectMenuItem(id):guardProfileExit(()=>selectMenuItem(id))} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text accessibilityRole="header" style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
@@ -1228,6 +1241,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
   const [maxPrice,setMaxPrice]=useState('');
   const [filterOpen,setFilterOpen]=useState(false);
   const [showMarketTrust,setShowMarketTrust]=useState(false);
+const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   const [savingSearch,setSavingSearch]=useState(false);
   const [buyerFocus,setBuyerFocus]=useState(null);
   const [selectedListing,setSelectedListing]=useState(null);
@@ -1871,7 +1885,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
         <Text style={styles.marketTopTitle}>Dein Familienbasar</Text>
         <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
       </View>
-      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){resetForm();setOpen(false);}else{startQuick();}}}/>
+      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':sellChoicesOpen?'Auswahl schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){resetForm();setOpen(false);}else{setSellChoicesOpen(v=>!v);}}}/>
     </View>
     <Pressable accessibilityRole="button" accessibilityLabel="Informationen zu Gebühren und Datenschutz"
       accessibilityState={{expanded:showMarketTrust}} onPress={()=>setShowMarketTrust(v=>!v)}
@@ -1892,10 +1906,15 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
         onPress={()=>{setBuyerFocus(null);setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
     {onlyFavorites&&!open&&!boxOpen?<PriceAlertPreference key={me} userId={me} active={active}/>:null}
-    {!open&&!boxOpen&&active?<Card style={{marginBottom:15,backgroundColor:'#FFF4DA'}}>
-      <Text style={styles.sectionTitle}>Kistenmodus</Text>
+    {sellChoicesOpen&&!open&&!boxOpen&&active?<Card style={{marginBottom:13,backgroundColor:C.sunPale}}>
+      <Text style={styles.sectionTitle}>Was möchtest du anbieten?</Text>
+      <Text style={[styles.body,{marginBottom:12}]}>Wähle den passenden Weg: einen Artikel einzeln einstellen oder mehrere Kleidungsstücke gemeinsam fotografieren.</Text>
+      <Button title="Einzelnen Artikel einstellen" onPress={()=>{setSellChoicesOpen(false);startQuick();}}/>
+    </Card>:null}
+    {sellChoicesOpen&&!open&&!boxOpen&&active?<Card style={{marginBottom:15,backgroundColor:'#FFF4DA'}}>
+      <Text style={styles.sectionTitle}>Mehrere Kleidungsstücke erfassen</Text>
       <Text style={[styles.micro,{marginBottom:10}]}>Viele Sachen auf einmal erfassen. Ein Foto, mehrere Entwürfe – einzeln oder im Paket.</Text>
-      <Button title={boxDrafts.length?'Kiste weiterbearbeiten ('+boxDrafts.length+')':'✦ Kiste erfassen'} disabled={busy||choosing||scanBusy||boxStorage==='loading'} onPress={showBox}/>
+      <Button title={boxDrafts.length?'Kiste weiterbearbeiten ('+boxDrafts.length+')':'✦ Kiste erfassen'} disabled={busy||choosing||scanBusy||boxStorage==='loading'} onPress={()=>{setSellChoicesOpen(false);showBox();}}/>
     </Card>:null}
     {boxOpen&&boxPending?<Card style={{marginBottom:18,backgroundColor:'#FFF4DA'}}>
       <Text style={styles.sectionTitle}>Unterbrochene Einreichung</Text>
@@ -2287,7 +2306,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
         </View>
       </View>
       {filterOpen?<Card style={{marginBottom:15,padding:15}}>
-        <MarketCategoryDropdown label="Kategorie" value={filter} onChange={setFilter} options={MARKET_CATEGORIES} allOption/>
+        <Text style={[styles.sub,{marginBottom:10}]}>Die Kategorie kannst du bereits oberhalb dieser Filter auswählen.</Text>
         <Text style={styles.label}>Art des Angebots</Text>
         <View style={[styles.chipsRow,{marginTop:0,marginBottom:14}]}>
           {[['all','Alle'],['sell','Verkaufen'],['gift','Verschenken'],['swap','Tauschen']].map(([id,label])=>
@@ -2568,8 +2587,7 @@ function PartnersScreen({focusId,clearFocus,organizations,me,active,busy,applyOr
           <View style={{marginTop:16}}><Input label="Titel" maxLength={100} value={eventTitle} onChangeText={setEventTitle} placeholder="Sommerflohmarkt der Kita …"/></View>
           <Input label="Beschreibung" multiline maxLength={1000} value={eventDesc} onChangeText={setEventDesc}/>
           <Input label="Region" maxLength={80} value={eventRegion} onChangeText={setEventRegion}/>
-          <Input label="Datum (JJJJ-MM-TT)" value={eventDate} onChangeText={setEventDate} placeholder="2026-12-12"/>
-          <Input label="Uhrzeit (HH:MM)" value={eventTime} onChangeText={setEventTime}/>
+          <FamilyDateFields title="Veranstaltungstermin auswählen" date={eventDate} onDateChange={setEventDate} time={eventTime} onTimeChange={setEventTime}/>
           <Button title="Veranstaltung zur Freigabe senden" disabled={busy} onPress={postEvent}/>
         </View>:null}
     </Card>:null}
@@ -2603,6 +2621,7 @@ const [interest,setInterest]=useState('Alle');
 const [onlyRegion,setOnlyRegion]=useState(false);
 const [onlyShared,setOnlyShared]=useState(false);
 const [mode,setMode]=useState('cards');
+const [showInterestFilter,setShowInterestFilter]=useState(false);
 const [cardIndex,setCardIndex]=useState(0);
 const myRegion=myProfile?.region_label||'';
 const filtered=matches.filter(p=>
@@ -2646,15 +2665,20 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <View style={styles.heroDecorationTwo} pointerEvents="none"/>
 <View style={styles.heroPill}><Text style={styles.heroPillText}>✦ GEMEINSAM MEHR ERLEBEN</Text></View>
 <Text style={styles.heroTitle}>Familien entdecken, die zu euch passen.</Text>
-<Text style={styles.heroText}>Entdecke gemeinsame Hobbys und Familien aus deiner Region – ganz ohne Standortfreigabe.</Text>
+<Text style={styles.heroText}>Findet andere Familien mit gemeinsamen Interessen – freiwillig und ohne genaue Standortfreigabe.</Text>
 <View style={styles.heroTagline}><Text style={styles.heroTaglineText}>♥  Aus Nachbarschaft wird Freundschaft.</Text></View>
 </View>
 {!active?<Info warning>Dein Konto wartet noch auf persönliche Erwachsenenprüfung oder Profilfreigabe. Profilstatus: {myProfile?.moderation_status||'–'} · Verifizierung: {verification?.status||'–'}.</Info>:null}
-<Info>{SECTION_MESSAGES.discover}</Info><H sub="Nur freigegebene, freiwillig sichtbare Familienprofile.">Familien entdecken</H>
+<H sub="Nur freigegebene, freiwillig sichtbare Familienprofile.">Familien entdecken</H>
 <Input label="Suche nach Familie, Region oder Interesse" placeholder="z. B. Natur, Beeskow …" value={query} onChangeText={value=>updateFilter(setQuery,value)} />
-<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:13}}>
-{['Alle',...INTERESTS].map(i=><View key={i} style={{marginRight:6}}><Chip text={i} selected={interest===i} onPress={()=>updateFilter(setInterest,i)}/></View>)}
-</ScrollView>
+<Pressable accessibilityRole="button" accessibilityState={{expanded:showInterestFilter}}
+ onPress={()=>setShowInterestFilter(v=>!v)}
+ style={[styles.marketFilterToggle,{minHeight:48,marginBottom:12,alignSelf:'stretch'}]}>
+ <Text style={styles.marketFilterLabel}>Interessen auswählen: {interest==='Alle'?'Alle Interessen':interest} {showInterestFilter?'−':'+'}</Text>
+ </Pressable>
+ {showInterestFilter?<View style={[styles.chipsRow,{marginBottom:13}]}>
+ {['Alle',...INTERESTS].map(i=><Chip key={i} text={i} selected={interest===i} onPress={()=>{updateFilter(setInterest,i);setShowInterestFilter(false);}}/>)}
+ </View>:null}
 <View style={styles.filterPanel}>
 <Row style={{justifyContent:'space-between',marginBottom:10}}>
 <View style={{flex:1}}><Text style={styles.label}>Nur meine Region</Text><Text style={styles.micro}>{myRegion?'Gleiche Region oder bekannter Ort im selben Landkreis':'Bitte zuerst deine Region im Profil auswählen'}</Text></View>
@@ -2667,7 +2691,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </View>
 <Row style={{justifyContent:'space-between',marginBottom:14,marginTop:5}}>
 <Text style={[styles.micro,{fontWeight:'800'}]}>{filtered.length} {filtered.length===1?'Familie':'Familien'} in geladenen Ergebnissen</Text>
-<Row><Chip text="Karten" selected={mode==='cards'} onPress={()=>setMode('cards')}/><Chip text="Liste" selected={mode==='list'} onPress={()=>setMode('list')}/></Row>
+<Row><Chip text="Einzelansicht" selected={mode==='cards'} onPress={()=>setMode('cards')}/><Chip text="Liste" selected={mode==='list'} onPress={()=>setMode('list')}/></Row>
 </Row>
 {!active?<Blank title="Zunächst Freigabe abwarten" body="Sobald das Konto geprüft ist, erscheinen freigegebene Familienprofile."/>:
 filtered.length===0?<Blank title="Noch keine passenden Familien" icon="users"
@@ -2675,7 +2699,7 @@ filtered.length===0?<Blank title="Noch keine passenden Familien" icon="users"
   actionLabel="Filter zurücksetzen"
   onAction={()=>{setQuery('');setInterest('Alle');setOnlyRegion(false);setOnlyShared(false);setCardIndex(0);}}/>:
 mode==='cards'?<>
-<Text style={[styles.micro,{textAlign:'center',marginBottom:12}]}>Familie {index+1} von {filtered.length} · Du entscheidest, wen du kontaktierst.</Text>
+<Text style={[styles.sub,{textAlign:'center',marginBottom:12}]}>Familie {index+1} von {filtered.length} · Du entscheidest, wen du kontaktierst.</Text>
 {familyCard(filtered[index])}
 <Row style={{justifyContent:'space-between',gap:12}}>
 <Button title="← Zurück" mode="outline" disabled={index===0} style={{flex:1}} onPress={()=>setCardIndex(index-1)}/>
@@ -3079,8 +3103,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Input label="Titel" placeholder="Spielplatztreffen am Samstag" maxLength={100} value={title} onChangeText={setTitle}/>
 <Input label="Beschreibung" multiline maxLength={1000} value={description} onChangeText={setDescription}/>
 <Input label="Grobe Region" placeholder="z. B. Potsdam" maxLength={80} value={region} onChangeText={setRegion}/>
-<Input label="Datum (JJJJ-MM-TT)" placeholder="2026-12-05" value={date} onChangeText={setDate} keyboardType="numbers-and-punctuation"/>
-<Input label="Uhrzeit (HH:MM)" placeholder="15:00" value={time} onChangeText={setTime}/>
+<FamilyDateFields title="Wann findet die Aktivität statt?" date={date} onDateChange={setDate} time={time} onTimeChange={setTime}/>
 <Input label="Maximale Personen (2–50)" value={count} onChangeText={setCount} keyboardType="number-pad"/>
 <Text style={styles.label}>Wer soll den Termin sehen?</Text><Row style={{marginBottom:15}}><Chip text="Alle geprüften Familien" selected={visibility==='community'} onPress={()=>setVisibility('community')}/><Chip text="Nur Kontakte" selected={visibility==='contacts'} onPress={()=>setVisibility('contacts')}/></Row>
 <Button title="Zur Freigabe einreichen" disabled={busy} onPress={submit}/>
@@ -3111,7 +3134,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 {!focusId&&hasMore?<Button title={loadingMore?'Weitere Veranstaltungen werden geladen …':'Weitere Veranstaltungen laden'} mode="outline" disabled={loadingMore} onPress={loadMoreEvents}/>:null}
 </ScrollView>;
 }
-function ProfileScreen({userId,profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,openInfo,signOut}){
+function ProfileScreen({userId,profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,onDirtyChange,openInfo,signOut}){
 const [form,setForm]=useState(blankProfile);
 const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
@@ -3119,6 +3142,22 @@ const [photoPickerBusy,setPhotoPickerBusy]=useState(false);
 const [newPassword,setNewPassword]=useState('');
 const [profileSection,setProfileSection]=useState('about');
 useEffect(()=>{if(profile)setForm({...blankProfile,...profile,interests:Array.isArray(profile.interests)?profile.interests:[]});},[profile?.updated_at,profile?.user_id]);
+const initialProfile={...blankProfile,...profile};
+const dirty=!!profile&&(form.display_name!==String(initialProfile.display_name||'')||
+ form.region_label!==String(initialProfile.region_label||'')||
+ form.about!==String(initialProfile.about||'')||
+ !!form.is_discoverable!==!!initialProfile.is_discoverable||
+ JSON.stringify(form.interests||[])!==JSON.stringify(Array.isArray(initialProfile.interests)?initialProfile.interests:[])||
+ !!selectedPhoto||!!photoCaption||!!newPassword);
+useEffect(()=>{onDirtyChange?.(dirty);},[dirty,onDirtyChange]);
+function switchSection(next){
+ if(next===profileSection)return;
+ if(!dirty){setProfileSection(next);return;}
+ Alert.alert('Ungespeicherte Profiländerungen','Einige Änderungen sind noch nicht gespeichert. Sie bleiben nur vorübergehend in diesem Bildschirm.',[
+ {text:'Zurück zum Formular',style:'cancel'},
+ {text:'Bereich wechseln',onPress:()=>setProfileSection(next)}
+ ]);
+}
 async function submit(){if((form.display_name||'').trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
 await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});}
 function toggle(i){setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):f.interests.length>=12?f.interests:[...f.interests,i]}));}
@@ -3158,9 +3197,9 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 </View>
 {!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
 </Card>
-<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingVertical:12}} style={{marginTop:9,marginBottom:8}}>
-{[['about','Über uns'],['hobbies','Hobbys'],['privacy','Sichtbarkeit'],['photos','Fotos'],['security','Konto & Sicherheit']].map(([id,title])=><Chip key={id} text={title} selected={profileSection===id} onPress={()=>setProfileSection(id)}/>)}
-</ScrollView>
+<View style={{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:11,marginBottom:14}}>
+{[['about','Über uns'],['hobbies','Hobbys'],['privacy','Sichtbarkeit'],['photos','Fotos'],['security','Konto & Sicherheit']].map(([id,title])=><Chip key={id} text={title} selected={profileSection===id} onPress={()=>switchSection(id)}/>)}
+</View>
 {profileSection==='about'?<Card>
 <Text style={styles.sectionTitle}>Über eure Familie</Text>
 <Text style={[styles.sub,{marginBottom:14}]}>Ein paar freiwillige Angaben helfen beim Kennenlernen.</Text>
@@ -3262,7 +3301,7 @@ marketHeroIcon:{width:59,height:59,borderRadius:19,backgroundColor:C.white,
 marketTrust:{flexDirection:'row',gap:7,alignItems:'center',
   paddingVertical:11,paddingHorizontal:10,marginBottom:12,
   borderRadius:14,backgroundColor:C.mint},
-marketTrustText:{fontSize:12,color:C.accentDark,fontWeight:'700',flex:1},
+marketTrustText:{fontSize:14,color:C.accentDark,fontWeight:'700',flex:1},
 marketFilterHeading:{fontSize:13,color:C.ink,fontWeight:'800',marginBottom:9},
 marketGiftPill:{position:'absolute',top:9,left:8,backgroundColor:C.sunPale,
   paddingVertical:6,paddingHorizontal:10,borderRadius:10},
@@ -3278,7 +3317,7 @@ marketSearchBox:{minHeight:53,backgroundColor:C.white,borderRadius:17,borderWidt
 marketSearchInput:{fontSize:16,color:C.ink,flex:1,minHeight:50},
 marketFilters:{flexDirection:'row',alignItems:'flex-start',gap:10,marginBottom:14},
 marketFilterToggle:{minHeight:47,borderRadius:14,borderWidth:1,borderColor:'#D0DFDE',backgroundColor:C.white,paddingHorizontal:10,justifyContent:'center',alignItems:'center'},
-marketFilterLabel:{fontSize:12.5,fontWeight:'800',color:C.accentDark},
+marketFilterLabel:{fontSize:14,fontWeight:'800',color:C.accentDark},
 marketSortOptions:{backgroundColor:C.white,borderColor:C.line,borderWidth:1,borderRadius:14,marginTop:5},
 marketGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:13},
 marketTile:{width:'48.3%',borderRadius:19,borderWidth:1,borderColor:C.line,backgroundColor:C.white,overflow:'hidden',minHeight:262,shadowColor:'#986D52',shadowOpacity:0.05,shadowRadius:6,shadowOffset:{width:0,height:2},elevation:1},
@@ -3288,7 +3327,7 @@ marketImagePlaceholder:{backgroundColor:'#F4F1EB',alignItems:'center',justifyCon
 marketPricePill:{position:'absolute',top:8,left:7,right:50,backgroundColor:'#FFFFFFF2',borderRadius:11,paddingVertical:6,paddingHorizontal:9,alignSelf:'flex-start'},
 marketPricePillText:{fontSize:14,fontWeight:'900',color:C.ink},
 marketTileBody:{padding:12,paddingBottom:15,gap:3},
-marketTileTitle:{fontSize:15,fontWeight:'700',color:C.ink,lineHeight:20,minHeight:38},
+marketTileTitle:{fontSize:16,fontWeight:'700',color:C.ink,lineHeight:20,minHeight:38},
 marketTilePrice:{fontSize:17,fontWeight:'800',color:C.accentDark,marginTop:6},
 marketDetailCard:{padding:17,marginBottom:18},
 marketDetailImage:{height:285,backgroundColor:'#F4F1EB',borderRadius:18,overflow:'hidden'},
@@ -3330,26 +3369,26 @@ heroTaglineText:{color:C.ink,fontSize:11.5,fontWeight:'700'},
 headingWrap:{flexDirection:'row',alignItems:'flex-start',gap:12,marginBottom:17},
 headingBar:{width:5,height:37,borderRadius:4,backgroundColor:C.sun,marginTop:3},
 h:{fontSize:25,fontWeight:'800',color:C.ink,letterSpacing:-.6},
-sub:{fontSize:13.5,lineHeight:21,color:C.muted,marginTop:6},
-body:{fontSize:14.5,lineHeight:22,color:C.ink},
-micro:{fontSize:11.5,color:C.muted,lineHeight:17},
+sub:{fontSize:14.5,lineHeight:21,color:C.muted,marginTop:6},
+body:{fontSize:16,lineHeight:22,color:C.ink},
+micro:{fontSize:14,color:C.muted,lineHeight:17},
 sectionTitle:{fontSize:18,color:C.ink,fontWeight:'800',marginBottom:13},
 cardTitle:{fontSize:17,fontWeight:'800',color:C.ink},
-label:{fontSize:13,color:C.ink,fontWeight:'800',marginBottom:8},
+label:{fontSize:14,color:C.ink,fontWeight:'800',marginBottom:8},
 input:{backgroundColor:C.white,borderColor:'#D9DED6',borderWidth:1,borderRadius:15,paddingHorizontal:15,paddingVertical:13,fontSize:15,color:C.ink,minHeight:48},
 button:{minHeight:50,paddingHorizontal:18,paddingVertical:12,borderRadius:15,justifyContent:'center',alignItems:'center',flexDirection:'row'},
 button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#AEDBDD',borderWidth:1.5},
 button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:44,paddingVertical:9,paddingHorizontal:13},
 buttonText:{color:C.white,fontSize:14,fontWeight:'800'},buttonTextDark:{color:C.accentDark},
-chip:{borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:13,paddingVertical:8},
-chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{color:C.accentDark,fontSize:12,fontWeight:'800'},
+chip:{minHeight:44,justifyContent:'center',borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:13,paddingVertical:8},
+chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{color:C.accentDark,fontSize:14,fontWeight:'800'},
 chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},
 info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertical:14,marginHorizontal:0,marginTop:7,marginBottom:12},
-warning:{backgroundColor:C.warning},infoText:{fontSize:12.5,lineHeight:20,color:C.accentDark},
+warning:{backgroundColor:C.warning},infoText:{fontSize:14,lineHeight:20,color:C.accentDark},
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
-tabBar:{minHeight:76,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:8,paddingBottom:3},
-tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:57,paddingVertical:6,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{width:35,height:29,alignItems:'center',justifyContent:'center'},tabIconSelected:{borderRadius:10},tabLabel:{fontSize:11,color:C.muted,marginTop:3,fontWeight:'600'},
+tabBar:{minHeight:80,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:8,paddingBottom:3},
+tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:62,paddingVertical:6,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{width:35,height:29,alignItems:'center',justifyContent:'center'},tabIconSelected:{borderRadius:10},tabLabel:{fontSize:12.5,color:C.muted,marginTop:3,fontWeight:'700',textAlign:'center'},
 chatHeader:{padding:13,backgroundColor:C.white,borderBottomWidth:1,borderBottomColor:C.line},
 chatComposer:{padding:11,backgroundColor:C.white,borderTopWidth:1,borderTopColor:C.line},
 bubble:{borderRadius:20,padding:13,maxWidth:'87%',marginVertical:5},mine:{backgroundColor:C.accent,alignSelf:'flex-end',borderBottomRightRadius:5},

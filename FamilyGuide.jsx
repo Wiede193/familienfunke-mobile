@@ -87,6 +87,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
   const [phaseId,setPhaseId]=useState('pregnancy');
   const [stepId,setStepId]=useState(null);
   const [showOderSpree,setShowOderSpree]=useState(false);
+ const [showRegionalDirectory,setShowRegionalDirectory]=useState(false);
   const [regionSearch,setRegionSearch]=useState('');
   const [pickedRegionId,setPickedRegionId]=useState(null);
   const [showGermany,setShowGermany]=useState(false);
@@ -203,6 +204,39 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
     <View style={st.legend}>{[
       TYPES.recommended,TYPES.voluntary,TYPES.individual
     ].map(t=><View key={t.short} style={[st.tag,{backgroundColor:t.bg}]}><Text style={[st.tagText,{color:t.color}]}>{t.short}</Text></View>)}</View>
+
+    <Text style={st.sectionHeading}>Eure Zeitleiste</Text>
+    {PHASES.map((p,index)=>{
+      const selected=p.id===phaseId;
+      const completed=p.steps.filter(s=>statuses[s.id]==='done').length;
+      return <View key={p.id} style={st.phaseRow}>
+        <View style={st.timelineRail}><View style={[st.circle,selected&&st.circleSelected]}><Text style={[st.circleLabel,selected&&{color:P.paper}]}>{index+1}</Text></View>{index<PHASES.length-1?<View style={st.railLine}/>:null}</View>
+        <Pressable accessibilityRole="button" accessibilityState={{expanded:selected}} onPress={()=>setPhaseId(p.id)} style={[st.phaseCard,selected&&st.phaseCardSelected]}>
+          <View style={st.flexRow}><View style={{flex:1}}><Text style={st.eyebrow}>{p.period}</Text><Text style={st.phaseTitle}>{p.name}</Text></View><Text style={st.phaseGlyph}>{p.symbol}</Text></View>
+          <Text style={st.small}>{p.description}</Text>
+          <View style={[st.flexRow,{marginTop:10}]}><Text style={st.countText}>{completed} / {p.steps.length} erledigt</Text><Text style={st.openText}>{selected?'Schritte anzeigen ⌃':'Öffnen ›'}</Text></View>
+        </Pressable>
+      </View>;
+    })}
+    <View style={st.stepsBox}>
+      <Text style={st.sectionHeading}>{phase.name}: eure Schritte</Text>
+      <Text style={[st.small,{marginBottom:12}]}>Tippt auf einen Schritt für Zeitpunkt, Zuständigkeit, Unterlagen und weitere Hinweise.</Text>
+      {phase.steps.map((step,index)=>{
+        const status=statuses[step.id]||'open';
+        return <Pressable key={step.id} accessibilityRole="button" onPress={()=>setStepId(step.id)} style={st.stepCard}>
+          <View style={st.stepIcon}><Text style={st.stepIconText}>{status==='done'?'✓':String(index+1)}</Text></View>
+          <View style={{flex:1}}><Text style={st.stepTitle}>{step.title}</Text><Text style={st.small}>{TYPES[step.kind].short} · {STATUSES.find(x=>x.id===status)?.name}</Text></View><Text style={st.arrow}>›</Text>
+        </Pressable>;
+      })}
+    </View>
+    <View style={{marginTop:22}}>
+      {!initialKnowledgeQuery.trim()?<FamilyTopicsSection/>:null}
+      <Pressable accessibilityRole="button" accessibilityState={{expanded:showRegionalDirectory}} onPress={()=>setShowRegionalDirectory(v=>!v)}
+        style={st.directoryToggle}>
+        <Text style={st.directoryToggleTitle}>{showRegionalDirectory?'Stellen und Formulare ausblenden':'Stellen und Formulare nach Wohnort finden'}</Text>
+        <Text style={st.small}>Behörden in Brandenburg und amtliche Portale für ganz Deutschland {showRegionalDirectory?'−':'+'}</Text>
+      </Pressable>
+      {showRegionalDirectory?<>
     <View style={st.regionCard}>
       <Text accessibilityRole="header" style={st.regionTitle}>Regionale Stellen & Anträge</Text>
       <Text style={st.small}>Alle 14 Landkreise und vier kreisfreien Städte Brandenburgs sind auswählbar. Für jede Region ist mindestens eine konkrete amtliche Fachseite hinterlegt. Nicht jede Leistung, jeder Kontakt oder jedes kommunale Formular ist einzeln geprüft. Die Auswahl ändert weder Profil noch Standort.</Text>
@@ -301,45 +335,24 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
         </View>)}
       </View>:null}
     </View>
-    {!initialKnowledgeQuery.trim()?<FamilyTopicsSection/>:null}
-    <Text style={st.sectionHeading}>Eure Zeitleiste</Text>
-    {PHASES.map((p,index)=>{
-      const selected=p.id===phaseId;
-      const completed=p.steps.filter(s=>statuses[s.id]==='done').length;
-      return <View key={p.id} style={st.phaseRow}>
-        <View style={st.timelineRail}><View style={[st.circle,selected&&st.circleSelected]}><Text style={[st.circleLabel,selected&&{color:P.paper}]}>{index+1}</Text></View>{index<PHASES.length-1?<View style={st.railLine}/>:null}</View>
-        <Pressable accessibilityRole="button" accessibilityState={{expanded:selected}} onPress={()=>setPhaseId(p.id)} style={[st.phaseCard,selected&&st.phaseCardSelected]}>
-          <View style={st.flexRow}><View style={{flex:1}}><Text style={st.eyebrow}>{p.period}</Text><Text style={st.phaseTitle}>{p.name}</Text></View><Text style={st.phaseGlyph}>{p.symbol}</Text></View>
-          <Text style={st.small}>{p.description}</Text>
-          <View style={[st.flexRow,{marginTop:10}]}><Text style={st.countText}>{completed} / {p.steps.length} erledigt</Text><Text style={st.openText}>{selected?'Schritte anzeigen ⌃':'Öffnen ›'}</Text></View>
-        </Pressable>
-      </View>;
-    })}
-    <View style={st.stepsBox}>
-      <Text style={st.sectionHeading}>{phase.name}: eure Schritte</Text>
-      <Text style={[st.small,{marginBottom:12}]}>Tippt auf einen Schritt für Zeitpunkt, Zuständigkeit, Unterlagen und weitere Hinweise.</Text>
-      {phase.steps.map((step,index)=>{
-        const status=statuses[step.id]||'open';
-        return <Pressable key={step.id} accessibilityRole="button" onPress={()=>setStepId(step.id)} style={st.stepCard}>
-          <View style={st.stepIcon}><Text style={st.stepIconText}>{status==='done'?'✓':String(index+1)}</Text></View>
-          <View style={{flex:1}}><Text style={st.stepTitle}>{step.title}</Text><Text style={st.small}>{TYPES[step.kind].short} · {STATUSES.find(x=>x.id===status)?.name}</Text></View><Text style={st.arrow}>›</Text>
-        </Pressable>;
-      })}
+      </>:null}
     </View>
     <View style={st.note}><Text style={st.noteText}>Gesetzliche Fristen, Empfehlungen und freiwillige Schritte sind nicht dasselbe. Persönliche Situationen und regionale Verfahren unterscheiden sich. Prüft verbindliche Fristen immer bei der zuständigen offiziellen Stelle.</Text></View>
   </ScrollView>;
 }
 
 const st=StyleSheet.create({
+ directoryToggle:{minHeight:68,backgroundColor:P.sunPale,borderRadius:16,padding:15,justifyContent:'center',gap:5,marginBottom:14},
+ directoryToggleTitle:{fontSize:16,fontWeight:'800',color:P.ink},
   page:{flex:1,backgroundColor:P.bg},content:{padding:17,paddingBottom:46},
-  loading:{flex:1,justifyContent:'center',alignItems:'center',gap:12},small:{fontSize:12.5,lineHeight:19,color:P.muted},
+  loading:{flex:1,justifyContent:'center',alignItems:'center',gap:12},small:{fontSize:14,lineHeight:19,color:P.muted},
   hero:{borderRadius:25,backgroundColor:P.sun,padding:22,marginBottom:15,borderWidth:1,borderColor:P.sunPale},
   sunDot:{width:49,height:49,backgroundColor:P.paper,borderRadius:18,alignItems:'center',justifyContent:'center',marginBottom:12},
   sunSymbol:{fontSize:27,color:P.coral,fontWeight:'900'},
-  eyebrow:{fontSize:10,fontWeight:'900',color:P.tealDark,letterSpacing:1.3,marginBottom:6},
+  eyebrow:{fontSize:13,fontWeight:'900',color:P.tealDark,letterSpacing:1.3,marginBottom:6},
   heroTitle:{fontSize:27,fontWeight:'900',color:P.ink,letterSpacing:-0.6},
-  heroDescription:{fontSize:14,color:P.ink,lineHeight:21,marginTop:8},
-  region:{fontSize:11.5,fontWeight:'700',color:P.tealDark,marginTop:13},
+  heroDescription:{fontSize:15,color:P.ink,lineHeight:21,marginTop:8},
+  region:{fontSize:14,fontWeight:'700',color:P.tealDark,marginTop:13},
   flexRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:10},
   progressCard:{backgroundColor:P.paper,borderRadius:20,borderWidth:1,borderColor:P.line,padding:16,marginBottom:14},
   progressTitle:{fontSize:15,fontWeight:'900',color:P.ink,marginBottom:3},
@@ -348,7 +361,7 @@ const st=StyleSheet.create({
   progressFill:{height:9,backgroundColor:P.coral,borderRadius:8},
   legend:{flexDirection:'row',gap:7,flexWrap:'wrap',marginBottom:16},
   tag:{paddingHorizontal:11,paddingVertical:6,borderRadius:14},
-  tagText:{fontWeight:'800',fontSize:11},
+  tagText:{fontWeight:'800',fontSize:13},
   sectionHeading:{fontSize:19,fontWeight:'900',color:P.ink,marginBottom:14},
   phaseRow:{flexDirection:'row',gap:10,alignItems:'stretch',minHeight:107},
   timelineRail:{width:30,alignItems:'center'},
@@ -360,37 +373,37 @@ const st=StyleSheet.create({
   phaseCardSelected:{borderColor:P.teal,borderWidth:2,backgroundColor:'#F4FBF8'},
   phaseTitle:{fontSize:16.5,fontWeight:'900',color:P.ink,marginBottom:5},
   phaseGlyph:{fontSize:23,color:P.coral},
-  countText:{color:P.muted,fontWeight:'700',fontSize:11},
-  openText:{color:P.tealDark,fontWeight:'900',fontSize:11},
+  countText:{color:P.muted,fontWeight:'700',fontSize:14},
+  openText:{color:P.tealDark,fontWeight:'900',fontSize:14},
   stepsBox:{backgroundColor:'#FFF5E8',borderRadius:21,padding:14,marginTop:9,borderColor:'#F6E2CF',borderWidth:1},
   stepCard:{backgroundColor:P.paper,borderRadius:14,marginBottom:9,padding:12,flexDirection:'row',alignItems:'center',gap:11},
   stepIcon:{backgroundColor:P.pale,width:34,height:34,borderRadius:12,alignItems:'center',justifyContent:'center'},
   stepIconText:{fontSize:15,color:P.tealDark,fontWeight:'900'},
-  stepTitle:{fontSize:13.5,color:P.ink,fontWeight:'900',marginBottom:3},
+  stepTitle:{fontSize:16,color:P.ink,fontWeight:'900',marginBottom:3},
   arrow:{fontSize:24,color:P.teal},
   back:{minHeight:44,justifyContent:'center',paddingVertical:10,marginBottom:11},backText:{fontWeight:'900',fontSize:14.5,color:P.tealDark},
   detailCard:{backgroundColor:P.paper,borderRadius:24,padding:18,borderWidth:1,borderColor:P.line},
   detailTitle:{fontSize:24,fontWeight:'900',color:P.ink,marginBottom:13},
-  body:{fontSize:13.5,color:P.ink,lineHeight:21},
+  body:{fontSize:16,color:P.ink,lineHeight:21},
   detailDivider:{height:1,backgroundColor:P.line,marginVertical:16},
   detailSection:{marginBottom:16},question:{fontSize:14,fontWeight:'900',color:P.ink,marginBottom:7},
   source:{backgroundColor:P.pale,borderRadius:15,padding:14,marginTop:5},
   sourceButton:{backgroundColor:P.teal,borderRadius:13,padding:12,alignItems:'center',justifyContent:'center',minHeight:44,marginTop:12},
-  sourceButtonText:{fontSize:12.5,fontWeight:'900',color:P.paper},
+  sourceButtonText:{fontSize:15,fontWeight:'900',color:P.paper},
   statusRow:{flexDirection:'row',flexWrap:'wrap',gap:7},
   statusButton:{minHeight:44,justifyContent:'center',paddingHorizontal:11,paddingVertical:10,borderRadius:13,backgroundColor:'#EDF3F2'},
   statusSelected:{backgroundColor:P.teal},
-  statusText:{color:P.tealDark,fontSize:12,fontWeight:'900'},
+  statusText:{color:P.tealDark,fontSize:14,fontWeight:'900'},
   deadlineCard:{backgroundColor:'#FFF4D8',borderRadius:15,padding:15,marginTop:17},
-  deadlineLabel:{fontSize:11,fontWeight:'900',color:'#7C5420',textTransform:'uppercase',letterSpacing:0.6},
+  deadlineLabel:{fontSize:13,fontWeight:'900',color:'#7C5420',textTransform:'uppercase',letterSpacing:0.6},
   deadlineText:{fontSize:15,fontWeight:'900',color:P.ink,lineHeight:22,marginTop:7},
-  deadlineHint:{fontSize:11.5,lineHeight:18,color:P.muted,marginTop:9},
+  deadlineHint:{fontSize:14,lineHeight:18,color:P.muted,marginTop:9},
   localNotice:{borderWidth:1,borderColor:'#D2E8E0',backgroundColor:'#F4FBF8',borderRadius:15,padding:14,marginTop:15},
-  localLink:{fontSize:12.5,fontWeight:'900',color:P.tealDark,marginTop:9},
+  localLink:{fontSize:15,fontWeight:'900',color:P.tealDark,marginTop:9},
   regionCard:{backgroundColor:P.paper,borderWidth:1,borderColor:P.line,borderRadius:19,padding:15,marginBottom:21},
   regionTitle:{fontSize:16,fontWeight:'900',color:P.ink,marginBottom:6},
   regionButton:{backgroundColor:P.teal,paddingVertical:12,paddingHorizontal:12,borderRadius:12,alignItems:'center',marginTop:12},
-  regionButtonText:{fontWeight:'900',color:P.paper,fontSize:13},
+  regionButtonText:{fontWeight:'900',color:P.paper,fontSize:15},
   regionDetails:{marginTop:15},
   regionInput:{borderWidth:1,borderColor:P.line,borderRadius:12,backgroundColor:P.paper,padding:12,minHeight:48,fontSize:14,color:P.ink,marginVertical:8},
   regionChoice:{minHeight:58,padding:11,borderRadius:13,flexDirection:'row',alignItems:'center',marginTop:7,borderWidth:1,borderColor:P.line,backgroundColor:P.bg},
@@ -400,5 +413,5 @@ const st=StyleSheet.create({
   officeCard:{paddingVertical:12,borderTopWidth:1,borderTopColor:P.line},
   officeLink:{minHeight:44,justifyContent:'center',marginTop:3},
   note:{backgroundColor:P.warn,padding:15,borderRadius:16,marginTop:16},
-  noteText:{color:'#6A542E',lineHeight:20,fontSize:12.5},
+  noteText:{color:'#6A542E',lineHeight:23,fontSize:14},
 });

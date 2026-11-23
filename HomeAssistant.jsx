@@ -18,7 +18,7 @@ import {BRANDENBURG_FAMILY_PLACES} from './FamilyMapBrandenburg';
 import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
 
 const C=FAMILY_COLORS;
-const FEATURED=['discover','map','market','healthy'];
+const FEATURED=['discover','map','market','guide'];
 const SUGGESTIONS=['Spielplätze finden','Kinderjeans Größe 110','Profil bearbeiten','Wie beschäftige ich Kinder bei Regen?'];
 function SunMark(){
   return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.sunWrap}>
@@ -82,6 +82,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
+  const [showMoreFeed,setShowMoreFeed]=useState(false);
   const scrollRef=useRef(null);
   const requestSeq=useRef(0),alive=useRef(true),pending=useRef(false);
   const [searchResult,setSearchResult]=useState(null);
@@ -309,7 +310,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
           accessibilityLabel={item.title+' im Beschlussmonitor öffnen'}
           onPress={()=>onNavigate('decisions','',item.id)} style={s.offerItem}>
           <Text style={s.offerTitle}>{item.title}</Text>
-          <Text style={s.mutedSmall}>{item.source_name} · {item.decision_status==='kabinett'?'Kabinettsbeschluss':'Parlamentsbeschluss'}</Text>
+          <Text style={s.mutedSmall}>{item.source_name} · {({kabinett:'Kabinettsbeschluss',parlament:'Parlamentsbeschluss',vermittlung:'Vermittlungsverfahren',vereinbarung:'Politische Vereinbarung',verkuendet:'Amtlich verkündet',inkraft:'In Kraft',unklar:'Verfahrensstand offen'}[item.decision_status]||'Verfahrensstand offen')}</Text>
         </Pressable>)}
       </View>:null}
       {visibleSearch?.officialError?<Text style={s.mutedSmall}>Offizielle Veranstaltungstermine konnten nicht geladen werden.</Text>:null}
@@ -421,7 +422,12 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
             icon="compass" actionLabel="Familienkarte ansehen"
             onAction={()=>onNavigate('map')} compact/>:null}
       </View>
-      {active?<><View style={s.personalSection}>
+      {active?<Pressable accessibilityRole="button" accessibilityState={{expanded:showMoreFeed}}
+        onPress={()=>setShowMoreFeed(v=>!v)} style={s.moreHighlights}>
+        <Text style={s.moreHighlightsTitle}>{showMoreFeed?'Zusätzliche Empfehlungen schließen':'Weitere Empfehlungen für euch'}</Text>
+        <Text style={s.moreHighlightsSub}>Neue Basarangebote und kommende Familientermine {showMoreFeed?'−':'+'}</Text>
+      </Pressable>:null}
+      {active&&showMoreFeed?<><View style={s.personalSection}>
         <FamilySectionTitle title="Frisch im Familienbasar"
           subtitle="Nur tatsächlich freigegebene Angebote"
           actionLabel="Zum Basar" onAction={()=>onNavigate('market')}/>
@@ -503,7 +509,7 @@ const s=StyleSheet.create({
   searchCenter:{alignItems:'center',paddingVertical:12,marginBottom:12},
   searchCenterIdle:{paddingTop:14,paddingBottom:13},
   wordmark:{fontSize:31,fontWeight:'800',letterSpacing:-1.1,color:C.ink,textAlign:'center',marginTop:6},
-  tagline:{fontSize:14,color:C.muted,textAlign:'center',marginTop:5,marginBottom:18},
+  tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:5,marginBottom:18},
   sunWrap:{width:54,height:54,alignItems:'center',justifyContent:'center'},
   sunCore:{position:'absolute',width:28,height:28,borderRadius:14,backgroundColor:'#F5B644'},
   ray:{position:'absolute',height:9,width:2.5,borderRadius:2,backgroundColor:'#E8A942'},
@@ -541,11 +547,11 @@ const s=StyleSheet.create({
   calloutIcon:{width:37,height:37,borderRadius:12,backgroundColor:C.sunPale,
     alignItems:'center',justifyContent:'center'},
   calloutTitle:{fontSize:14,fontWeight:'800',color:C.ink},
-  calloutSubtitle:{fontSize:12,color:C.muted,marginTop:3},
+  calloutSubtitle:{fontSize:14,color:C.muted,marginTop:3},
   profilePrompt:{backgroundColor:C.paper,borderRadius:15,padding:12,
     marginTop:11,flexDirection:'row',alignItems:'center',gap:10},
   promptTitle:{fontSize:14,fontWeight:'800',color:C.ink},
-  promptSubtitle:{fontSize:12,lineHeight:17,color:C.muted,marginTop:3},
+  promptSubtitle:{fontSize:14,lineHeight:17,color:C.muted,marginTop:3},
   personalSection:{marginTop:18,marginBottom:6},
   placesList:{gap:9},
   placeCard:{backgroundColor:C.paper,borderWidth:1,borderColor:C.line,
@@ -553,20 +559,23 @@ const s=StyleSheet.create({
   placeIcon:{width:54,height:54,backgroundColor:C.mint,borderRadius:15,
     alignItems:'center',justifyContent:'center'},
   placeTitle:{fontSize:15,fontWeight:'800',color:C.ink},
-  placeSubtitle:{fontSize:12,color:C.accentDark,marginTop:3,fontWeight:'700'},
-  placeDescription:{fontSize:12,lineHeight:17,color:C.muted,marginTop:3},
+  placeSubtitle:{fontSize:14,color:C.accentDark,marginTop:3,fontWeight:'700'},
+  placeDescription:{fontSize:14,lineHeight:17,color:C.muted,marginTop:3},
   feedCard:{backgroundColor:C.paper,borderWidth:1,borderColor:C.line,
     borderRadius:16,padding:12,flexDirection:'row',alignItems:'center',
     gap:10,minHeight:80,marginBottom:9},
   feedIcon:{width:46,height:46,backgroundColor:C.sunPale,borderRadius:14,
     alignItems:'center',justifyContent:'center'},
   feedTitle:{fontSize:14,fontWeight:'800',color:C.ink},
-  feedMeta:{fontSize:12,color:C.muted,marginTop:3},
-  feedPrice:{fontSize:13,color:C.accentDark,fontWeight:'800',maxWidth:95,textAlign:'right'},
-  feedDate:{fontSize:12,color:C.accentDark,marginTop:3,fontWeight:'700'},
+  feedMeta:{fontSize:14,color:C.muted,marginTop:3},
+  feedPrice:{fontSize:15,color:C.accentDark,fontWeight:'800',maxWidth:95,textAlign:'right'},
+  feedDate:{fontSize:14,color:C.accentDark,marginTop:3,fontWeight:'700'},
+  moreHighlights:{minHeight:64,backgroundColor:C.sunPale,borderRadius:17,padding:15,justifyContent:'center',marginTop:12,marginBottom:18},
+  moreHighlightsTitle:{fontSize:16,fontWeight:'800',color:C.ink},
+  moreHighlightsSub:{fontSize:14,color:C.accentDark,marginTop:4},
   section:{marginBottom:22},
   sectionTitle:{color:C.ink,fontWeight:'900',fontSize:19,marginBottom:4},
-  sectionSubtitle:{color:C.muted,fontSize:13,lineHeight:19,marginBottom:12},
+  sectionSubtitle:{color:C.muted,fontSize:14,lineHeight:19,marginBottom:12},
   featuredGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:10},
   areaGrid:{width:'48.4%',minHeight:114,backgroundColor:C.paper,borderColor:C.line,
     borderWidth:1,borderRadius:19,padding:14,justifyContent:'space-between'},
@@ -575,7 +584,7 @@ const s=StyleSheet.create({
     paddingHorizontal:15,paddingVertical:14,marginBottom:9,flexDirection:'row',alignItems:'center'},
   areaAccent:{width:5,height:39,borderRadius:4,backgroundColor:C.sun,marginRight:12},
   areaTitle:{color:C.ink,fontSize:15.5,fontWeight:'900',lineHeight:20},
-  areaSubtitle:{fontSize:12.5,lineHeight:18,color:C.muted,marginTop:5},
+  areaSubtitle:{fontSize:14,lineHeight:18,color:C.muted,marginTop:5},
   areaArrow:{fontSize:23,color:C.tealDark,alignSelf:'flex-end',marginLeft:6},
   allAction:{minHeight:47,flexDirection:'row',alignItems:'center',
     justifyContent:'space-between',paddingHorizontal:15,marginTop:12,
@@ -593,11 +602,11 @@ const s=StyleSheet.create({
   assistantLabel:{color:C.tealDark,fontSize:10,fontWeight:'900',letterSpacing:.9},
   answerText:{color:C.ink,fontSize:15,lineHeight:23,marginTop:8},
   offerGroup:{marginTop:15,backgroundColor:'#FCFAF5',borderRadius:13,padding:12},
-  offerHeading:{fontSize:13,fontWeight:'900',color:C.ink,marginBottom:7},
+  offerHeading:{fontSize:15,fontWeight:'900',color:C.ink,marginBottom:7},
   offerItem:{minHeight:44,paddingVertical:9,borderTopWidth:1,borderTopColor:C.line},
-  offerTitle:{fontSize:13.5,fontWeight:'800',color:C.ink},
+  offerTitle:{fontSize:15,fontWeight:'800',color:C.ink},
   offerPrice:{fontSize:13,color:C.tealDark,fontWeight:'800',marginTop:4},
-  mutedSmall:{fontSize:12.5,lineHeight:18,color:C.muted,marginTop:3},
+  mutedSmall:{fontSize:14,lineHeight:18,color:C.muted,marginTop:3},
   answerAction:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',
     backgroundColor:C.mint,borderRadius:12,paddingHorizontal:14,minHeight:44,marginTop:14},
   answerActionLabel:{color:C.tealDark,fontSize:13.5,fontWeight:'900'},
@@ -607,7 +616,7 @@ const s=StyleSheet.create({
     paddingHorizontal:15,borderWidth:1,borderColor:C.line,borderRadius:14,backgroundColor:C.paper},
   suggestionText:{color:C.ink,fontSize:13.5,fontWeight:'700'},
   suggestionArrow:{fontSize:23,color:C.tealDark},
-  disclaimer:{fontSize:11.5,lineHeight:18,color:C.muted,marginTop:1},
+  disclaimer:{fontSize:14,lineHeight:18,color:C.muted,marginTop:1},
   outingCard:{backgroundColor:C.mint,borderColor:C.line,borderWidth:1,borderRadius:22,padding:16,marginTop:12,minHeight:48,flexDirection:'row',alignItems:'center'},
   outingTitle:{fontSize:19,fontWeight:'900',color:C.ink},outingSubtitle:{fontSize:14,lineHeight:21,color:C.ink,marginTop:6},outingLink:{fontSize:14,fontWeight:'900',color:C.accentDark,marginTop:12},
   pressed:{opacity:.72}

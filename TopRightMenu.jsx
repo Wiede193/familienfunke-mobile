@@ -14,7 +14,7 @@ export const MENU_GROUPS=[
   ['savedSearches','♡','Suchaufträge','Gespeicherte Basar-Suchen'],
   ['push','⚙','Benachrichtigungen einstellen','Push-Einstellungen']
  ]},
- {title:'Aktivitäten & Wissen',items:[
+ {title:'Ausflüge, Freizeit & Wissen',items:[
   ['decisions','▤','Beschlüsse einfach erklärt','Offizielle Entscheidungen und ihre Bedeutung'],
   ['healthy','✿','Sport & Gesundheit','Vereine, Ernährung, Videos und Bewegung'],
   ['outing','☀','Ausflüge planen','Alter, Budget und Entfernung'],
@@ -24,7 +24,7 @@ export const MENU_GROUPS=[
   ['inclusion','♡','Inklusion & Teilhabe','Informationen und Unterstützung'],
   ['info','◇','Elternwissen','Ratgeber und hilfreiche Links']
  ]},
- {title:'Hilfe & Service',items:[
+ {title:'Hilfe & Einstellungen',items:[
   ['help','?','Hilfe & FAQ','Bedienung und Unterstützung'],
   ['aboutApp','♡','Über Familienfunke','Unser Konzept'],
   ['welcome','☀','Willkommenskarte','Noch einmal ansehen'],
@@ -39,7 +39,7 @@ const QUICK_ITEMS=[
   ['profile','Mein Profil','users'],
   ['chat','Nachrichten','message'],
   ['inbox','Neuigkeiten','bell'],
-  ['calendar','Kalender','calendar']
+  ['market','Basar','bag']
 ];
 export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}){
  const [expanded,setExpanded]=useState(null);
@@ -126,14 +126,14 @@ const s=StyleSheet.create({
  groupRow:{flexDirection:'row',alignItems:'center',padding:14,minHeight:54,gap:8,
    backgroundColor:C.bg},
  groupTitle:{fontSize:T.body,fontWeight:'800',color:C.ink,flex:1},
- groupCount:{color:C.muted,fontSize:11},
+ groupCount:{color:C.muted,fontSize:13},
  item:{flexDirection:'row',gap:10,alignItems:'center',minHeight:63,padding:12,
    borderTopWidth:1,borderTopColor:C.line},
  selected:{backgroundColor:C.sunPale},
  glyphWrap:{width:36,height:36,alignItems:'center',justifyContent:'center',
    backgroundColor:C.mint,borderRadius:11},
- name:{fontSize:14,fontWeight:'700',color:C.ink},
+ name:{fontSize:15,fontWeight:'700',color:C.ink},
  subtitle:{fontSize:T.meta,lineHeight:17,color:C.muted,marginTop:3},
- unread:{color:C.accentDark,fontWeight:'800',fontSize:11},
+ unread:{color:C.accentDark,fontWeight:'800',fontSize:13},
  pressed:{opacity:0.72}
 });

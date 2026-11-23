@@ -87,13 +87,15 @@ export default function InclusionKnowledgeScreen({regionLabel,onOpenMap,initialQ
       <FamilyIcon name={open?'chevron-up':'chevron-down'} size={20}/>
     </Pressable>
     {open?<View style={s.detail}>
-     <Text style={s.body}>{article.overview}</Text>
-     <Text style={s.detailHeading}>So kannst du vorgehen</Text>
+     
+     <Text style={s.detailHeading}>Deine nächsten Schritte</Text>
      {article.firstSteps.map((step,i)=><View key={i} style={s.step}>
        <View style={s.stepNumber}><Text style={s.stepNumberText}>{i+1}</Text></View>
        <Text style={[s.body,{flex:1}]}>{step}</Text>
      </View>)}
-     <Text style={s.detailHeading}>Ansprechpartner</Text>
+     <Text style={s.detailHeading}>Worum geht es?</Text>
+      <Text style={s.body}>{article.overview}</Text>
+      <Text style={s.detailHeading}>Ansprechpartner</Text>
      <Text style={s.body}>{article.responsible}</Text>
      <Text style={s.detailHeading}>Mögliche Unterlagen</Text>
      <Text style={s.body}>{article.documents}</Text>
@@ -128,7 +130,7 @@ const s=StyleSheet.create({
  heroText:{fontSize:14,lineHeight:21,color:C.ink,marginTop:9},
  note:{backgroundColor:C.mint,borderRadius:18,padding:15,marginBottom:18},
  noteTitle:{color:C.accentDark,fontWeight:'800',fontSize:15,marginBottom:7},
- text:{color:C.muted,fontSize:13,lineHeight:20},
+ text:{color:C.muted,fontSize:15,lineHeight:20},
  regionCard:{borderRadius:20,backgroundColor:C.paper,borderWidth:1,borderColor:C.line,
    padding:16,marginBottom:23},
  sectionTitle:{fontSize:19,fontWeight:'800',color:C.ink,marginBottom:10},
@@ -136,23 +138,23 @@ const s=StyleSheet.create({
  contact:{color:C.ink,fontWeight:'700',fontSize:12,marginTop:7},
  linkRow:{minHeight:48,marginTop:7,padding:11,borderRadius:12,backgroundColor:C.sunPale,
    flexDirection:'row',gap:8,alignItems:'center'},
- linkText:{color:C.accentDark,fontSize:12.5,fontWeight:'800'},
+ linkText:{color:C.accentDark,fontSize:15,fontWeight:'800'},
  search:{backgroundColor:C.paper,borderWidth:1,borderColor:C.line,minHeight:52,borderRadius:15,
    fontSize:15,color:C.ink,paddingHorizontal:15,marginBottom:14},
  filterChip:{backgroundColor:C.paper,borderColor:C.line,borderWidth:1,borderRadius:22,
    paddingHorizontal:13,minHeight:42,justifyContent:'center'},
  filterSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},
- filterText:{fontSize:13,color:C.accentDark,fontWeight:'700'},
- count:{color:C.muted,fontSize:12.5,marginBottom:10},
+ filterText:{fontSize:14,color:C.accentDark,fontWeight:'700'},
+ count:{color:C.muted,fontSize:14,marginBottom:10},
  article:{backgroundColor:C.paper,borderColor:C.line,borderWidth:1,borderRadius:19,
    overflow:'hidden',marginBottom:10},
  articleTrigger:{flexDirection:'row',alignItems:'center',padding:14,minHeight:79,gap:10},
  articleIcon:{width:39,height:39,borderRadius:13,backgroundColor:C.mint,
    alignItems:'center',justifyContent:'center'},
  cardTitle:{fontSize:15,fontWeight:'800',color:C.ink},
- articleSubtitle:{fontSize:12.5,lineHeight:18,color:C.muted,marginTop:4},
+ articleSubtitle:{fontSize:14,lineHeight:18,color:C.muted,marginTop:4},
  detail:{borderTopWidth:1,borderTopColor:C.line,padding:15,gap:4},
- body:{fontSize:13.5,color:C.ink,lineHeight:21},
+ body:{fontSize:16,color:C.ink,lineHeight:21},
  detailHeading:{fontSize:14.5,color:C.ink,fontWeight:'800',marginTop:13,marginBottom:5},
  step:{flexDirection:'row',alignItems:'flex-start',gap:11,marginVertical:6},
  stepNumber:{width:28,height:28,borderRadius:14,backgroundColor:C.mint,

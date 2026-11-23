@@ -8,7 +8,7 @@ export const FAMILY_COLORS = Object.freeze({
   white:'#FFFFFF',
   paper:'#FFFFFF',
   ink:'#253D43',
-  muted:'#61757A',
+  muted:'#52666B',
   accent:'#0B777A',
   teal:'#0B777A',
   accentDark:'#075A60',
@@ -48,15 +48,15 @@ export const FAMILY_TYPE = Object.freeze({
   section:19,
   card:16,
   body:15,
-  small:13,
-  meta:12,
+  small:14,
+  meta:13,
   weightDisplay:'800',
   weightTitle:'800',
   weightBody:'400'
 });
 export const FAMILY_SPACE = Object.freeze({
   xs:4,sm:8,md:12,base:16,lg:20,xl:24,xxl:32,
-  touch:44,
+  touch:48,
   screen:18
 });
 export const FAMILY_SURFACE = Object.freeze({

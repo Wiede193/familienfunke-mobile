@@ -139,6 +139,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
   const [nationalType,setNationalType]=useState('all');
   const [nationalArea,setNationalArea]=useState('all');
   const [brandenburgFocus,setBrandenburgFocus]=useState('all');
+  const [showCatalog,setShowCatalog]=useState(false);
   const [openForm,setOpenForm]=useState(false);
   const [draftPoint,setDraftPoint]=useState(null);
   const [latitudeInput,setLatitudeInput]=useState('');
@@ -565,6 +566,43 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
     </Pressable>:null}
     {mapError?<View accessibilityLiveRegion="polite" style={styles.warn}><Text style={styles.micro}>{mapError} Die Ortsliste kann weiterhin genutzt werden.</Text></View>:null}
     <Text style={[styles.micro,{marginTop:7}]}>Kartengrundlage: OpenFreeMap / OpenStreetMap. Adresssuche: Photon / © OpenStreetMap-Mitwirkende. Zum Navigieren die Karte verschieben und zoomen. Standortzugriff ist nicht nötig. Alle verfügbaren Orte sind zusätzlich als bedienbare Liste unter der Karte erreichbar.</Text>
+    <Text style={styles.section}>Stadt auswählen</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:15}}>
+      {CENTERS.map(c=><Chip key={c.name} label={c.name} selected={false} onPress={()=>visit(c)}/>)}
+    </ScrollView>
+    <View style={[styles.row,{marginTop:12,gap:9,alignItems:'stretch'}]}>
+      <Pressable accessibilityRole="button" disabled={loading} onPress={()=>loadAround()}
+       style={[styles.mainBtn,{flex:1,opacity:loading?.6:1}]}>
+        <Text style={styles.mainBtnText}>{loading?'Orte werden gesucht …':'⌕  Hier nach Orten suchen'}</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={()=>{setCenter({latitude:51.2,longitude:10.45,zoom:5.3});setOsm([]);
+       if(ready)map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo(51.2,10.45,5.3);true;');}}
+       accessibilityLabel="Kartenausschnitt auf Deutschland zurücksetzen" style={styles.outlineBtn}><Text style={styles.outlineText}>DE</Text></Pressable>
+    </View>
+    {loading?<ActivityIndicator color={C.teal} style={{marginTop:9}}/>:null}
+    {searchError?<View accessibilityLiveRegion="assertive" style={styles.warn}><Text style={styles.warnText}>{searchError}</Text></View>:null}
+    {notice?<View accessibilityLiveRegion="polite" style={styles.tip}><Text style={styles.tipText}>{notice}</Text></View>:null}
+    <Text style={styles.section}>Was sucht ihr?</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:15}}>
+      {TYPES.map(([id,label,icon])=><Chip key={id} label={icon+' '+label} selected={types===id} onPress={()=>{setTypes(id);setSelectedId(null);}}/>)}
+    </ScrollView>
+    <Text style={[styles.micro,{marginTop:12}]}>Orte aus OpenStreetMap sind nicht von Familienfunke überprüft. Ein Wickeltisch ist nur dann als vorhanden markiert, wenn die Quelle oder der Eintrag das ausdrücklich angibt.</Text>
+    <View style={[styles.row,{justifyContent:'space-between',marginTop:24}]}>
+      <Text style={styles.sectionNoMargin}>Orte im Kartenausschnitt</Text>
+      <Text style={styles.micro}>{list.length} angezeigt</Text>
+    </View>
+    {!list.length?<View style={styles.empty}><Text style={styles.emptyTitle}>Noch keine Orte in dieser Ansicht</Text>
+      <Text style={styles.micro}>Wähle eine Stadt, tippe auf „Hier nach Orten suchen“ oder trage einen neuen Ort ein.</Text>
+    </View>:list.map(p=><Pressable key={p.id} accessibilityRole="button" accessibilityLabel={p.title+', '+typeLabel(p.category)+', Details öffnen'} onPress={()=>showPlace(p)} style={styles.placeRow}>
+      <View style={styles.placeGlyph}><Text style={{fontSize:23,color:C.coral}}>{typeGlyph(p.category)}</Text></View>
+      <View style={{flex:1}}><Text style={styles.placeTitle}>{p.title}</Text><Text style={styles.micro}>{typeLabel(p.category)} · {p.source==='osm'?'OpenStreetMap':p.source==='curated'?'Recherchierter Ausflugstipp':p.source==='national'?(p.kind_label||'Deutschlandweiter Ausflugstipp'):p.moderation_status==='pending'?'Nur für dich · in Prüfung':'Familien-Tipp'}</Text></View><Text style={styles.chevron}>›</Text>
+    </Pressable>)}
+    <Pressable accessibilityRole="button" accessibilityState={{expanded:showCatalog}} onPress={()=>setShowCatalog(v=>!v)}
+      style={styles.catalogToggle}>
+      <Text style={styles.catalogToggleTitle}>{showCatalog?'Weniger Vorschläge anzeigen':'Weitere Ausflugsziele entdecken'}</Text>
+      <Text style={styles.catalogToggleText}>Region Oder-Spree, Brandenburg und ganz Deutschland {showCatalog?'−':'+'}</Text>
+    </Pressable>
+    {showCatalog?<>
     <View style={styles.curatedBox}>
       <View style={[styles.row,{justifyContent:'space-between',alignItems:'center',gap:10}]}>
         <View style={{flex:1}}>
@@ -684,37 +722,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
         </ScrollView>}
       <Text style={[styles.micro,{marginTop:12}]}>Recherchestand November 2026. Saison, Preise, Altersgrenzen und Öffnungszeiten bitte auf den verlinkten Anbieterseiten prüfen.</Text>
     </View>
-    <Text style={styles.section}>Stadt auswählen</Text>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:15}}>
-      {CENTERS.map(c=><Chip key={c.name} label={c.name} selected={false} onPress={()=>visit(c)}/>)}
-    </ScrollView>
-    <View style={[styles.row,{marginTop:12,gap:9,alignItems:'stretch'}]}>
-      <Pressable accessibilityRole="button" disabled={loading} onPress={()=>loadAround()}
-       style={[styles.mainBtn,{flex:1,opacity:loading?.6:1}]}>
-        <Text style={styles.mainBtnText}>{loading?'Orte werden gesucht …':'⌕  Hier nach Orten suchen'}</Text>
-      </Pressable>
-      <Pressable accessibilityRole="button" onPress={()=>{setCenter({latitude:51.2,longitude:10.45,zoom:5.3});setOsm([]);
-       if(ready)map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo(51.2,10.45,5.3);true;');}}
-       accessibilityLabel="Kartenausschnitt auf Deutschland zurücksetzen" style={styles.outlineBtn}><Text style={styles.outlineText}>DE</Text></Pressable>
-    </View>
-    {loading?<ActivityIndicator color={C.teal} style={{marginTop:9}}/>:null}
-    {searchError?<View accessibilityLiveRegion="assertive" style={styles.warn}><Text style={styles.warnText}>{searchError}</Text></View>:null}
-    {notice?<View accessibilityLiveRegion="polite" style={styles.tip}><Text style={styles.tipText}>{notice}</Text></View>:null}
-    <Text style={styles.section}>Was sucht ihr?</Text>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:15}}>
-      {TYPES.map(([id,label,icon])=><Chip key={id} label={icon+' '+label} selected={types===id} onPress={()=>{setTypes(id);setSelectedId(null);}}/>)}
-    </ScrollView>
-    <Text style={[styles.micro,{marginTop:12}]}>Orte aus OpenStreetMap sind nicht von Familienfunke überprüft. Ein Wickeltisch ist nur dann als vorhanden markiert, wenn die Quelle oder der Eintrag das ausdrücklich angibt.</Text>
-    <View style={[styles.row,{justifyContent:'space-between',marginTop:24}]}>
-      <Text style={styles.sectionNoMargin}>Orte im Kartenausschnitt</Text>
-      <Text style={styles.micro}>{list.length} angezeigt</Text>
-    </View>
-    {!list.length?<View style={styles.empty}><Text style={styles.emptyTitle}>Noch keine Orte in dieser Ansicht</Text>
-      <Text style={styles.micro}>Wähle eine Stadt, tippe auf „Hier nach Orten suchen“ oder trage einen neuen Ort ein.</Text>
-    </View>:list.map(p=><Pressable key={p.id} accessibilityRole="button" accessibilityLabel={p.title+', '+typeLabel(p.category)+', Details öffnen'} onPress={()=>showPlace(p)} style={styles.placeRow}>
-      <View style={styles.placeGlyph}><Text style={{fontSize:23,color:C.coral}}>{typeGlyph(p.category)}</Text></View>
-      <View style={{flex:1}}><Text style={styles.placeTitle}>{p.title}</Text><Text style={styles.micro}>{typeLabel(p.category)} · {p.source==='osm'?'OpenStreetMap':p.source==='curated'?'Recherchierter Ausflugstipp':p.source==='national'?(p.kind_label||'Deutschlandweiter Ausflugstipp'):p.moderation_status==='pending'?'Nur für dich · in Prüfung':'Familien-Tipp'}</Text></View><Text style={styles.chevron}>›</Text>
-    </Pressable>)}
+    </>:null}
     <View style={styles.suggestCard}>
       <Text style={styles.sectionNoMargin}>Kennt ihr noch einen tollen Ort?</Text>
       <Text style={[styles.micro,{marginTop:7}]}>Ihr könnt öffentlich zugängliche Spielplätze, Wickelmöglichkeiten und Ausflugsorte vorschlagen. Jeder neue Eintrag wird vor Veröffentlichung geprüft.</Text>
@@ -763,22 +771,25 @@ const styles=StyleSheet.create({
 accessibilitySection:{marginTop:17,borderWidth:1,borderColor:C.line,
   borderRadius:17,backgroundColor:C.mint,padding:15,gap:6},
 accessibilityTitle:{fontSize:18,fontWeight:'800',color:C.ink},
-accessibilityStatus:{fontSize:12.5,fontWeight:'800',color:C.accentDark,marginTop:3},
-accessibilityText:{fontSize:13,color:C.ink,lineHeight:20},
+accessibilityStatus:{fontSize:14,fontWeight:'800',color:C.accentDark,marginTop:3},
+accessibilityText:{fontSize:15,color:C.ink,lineHeight:20},
 accessibilityLabel:{fontSize:13.5,fontWeight:'800',color:C.ink,marginTop:8},
 accessibilitySource:{minHeight:44,borderRadius:12,backgroundColor:C.paper,
   marginTop:7,paddingHorizontal:12,justifyContent:'center'},
-accessibilitySourceText:{fontSize:12.5,fontWeight:'800',color:C.accentDark},
-accessibilityDisclaimer:{fontSize:11.5,color:C.muted,lineHeight:18,marginTop:8},
+accessibilitySourceText:{fontSize:14,fontWeight:'800',color:C.accentDark},
+accessibilityDisclaimer:{fontSize:14,color:C.muted,lineHeight:18,marginTop:8},
 
+ catalogToggle:{minHeight:60,backgroundColor:C.sunPale,borderRadius:16,padding:15,marginTop:18,justifyContent:'center',gap:5},
+ catalogToggleTitle:{fontSize:16,fontWeight:'800',color:C.ink},
+ catalogToggleText:{fontSize:14,color:C.accentDark},
  page:{flex:1,backgroundColor:C.bg},body:{padding:16,paddingBottom:40},
  nationalBox:{backgroundColor:'#F0F6F4',borderWidth:1,borderColor:'#D9EDE8',borderRadius:22,padding:16,marginTop:17},
- nationalLabel:{fontSize:12,fontWeight:'900',color:C.ink,marginBottom:8},
+ nationalLabel:{fontSize:14,fontWeight:'900',color:C.ink,marginBottom:8},
  nationalCount:{fontSize:12,fontWeight:'900',color:C.dark},
  nationalReset:{fontSize:12,fontWeight:'900',color:C.teal,textDecorationLine:'underline'},
  nationalPlace:{width:236,minHeight:224,borderRadius:17,backgroundColor:C.paper,borderWidth:1,borderColor:'#DDEAE6',padding:14},
  nationalPlaceIcon:{fontSize:21},
- nationalKind:{fontSize:11,fontWeight:'900',color:C.teal,flexShrink:1},
+ nationalKind:{fontSize:14,fontWeight:'900',color:C.teal,flexShrink:1},
  nationalPlaceButton:{paddingHorizontal:12,paddingVertical:10,backgroundColor:C.pale,borderRadius:11,marginTop:11},
  nationalPlaceButtonText:{fontSize:12,fontWeight:'900',color:C.dark,textAlign:'center'},
  navigationRow:{flexDirection:'row',gap:9,alignItems:'stretch'},
@@ -789,7 +800,7 @@ accessibilityDisclaimer:{fontSize:11.5,color:C.muted,lineHeight:18,marginTop:8},
  hero:{backgroundColor:C.sun,borderRadius:25,padding:19,marginBottom:12},
  eyebrow:{fontSize:10,fontWeight:'900',color:C.dark,letterSpacing:1.3,marginBottom:6},
  title:{fontSize:25,fontWeight:'900',color:C.ink},
- sub:{fontSize:13.5,color:C.ink,lineHeight:20,marginTop:7},
+ sub:{fontSize:15,color:C.ink,lineHeight:20,marginTop:7},
  locationSearch:{backgroundColor:C.paper,borderRadius:18,borderWidth:1,borderColor:C.line,padding:16,marginBottom:12},
  searchResultPanel:{marginTop:12,padding:14,backgroundColor:C.paper,borderRadius:18,borderWidth:1,borderColor:C.line},
  searchResultSelected:{backgroundColor:C.sunPale,borderColor:C.teal},
@@ -798,13 +809,13 @@ accessibilityDisclaimer:{fontSize:11.5,color:C.muted,lineHeight:18,marginTop:8},
  mapFrame:{height:350,backgroundColor:'#E7F0ED',borderRadius:20,overflow:'hidden',borderWidth:1,borderColor:C.line,position:'relative'},
  map:{flex:1,backgroundColor:'#E7F0ED'},mapLoading:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',gap:10,backgroundColor:'#E7F0ED'},
  mapTag:{position:'absolute',top:12,left:11,backgroundColor:'#FFFFFFEE',paddingHorizontal:11,paddingVertical:7,borderRadius:12},
- mapTagText:{fontSize:11,fontWeight:'900',color:C.dark},
- micro:{fontSize:11.8,color:C.muted,lineHeight:18},section:{fontSize:18,fontWeight:'900',color:C.ink,marginTop:23,marginBottom:11},sectionNoMargin:{fontSize:17,fontWeight:'900',color:C.ink},
+ mapTagText:{fontSize:14,fontWeight:'900',color:C.dark},
+ micro:{fontSize:14,color:C.muted,lineHeight:18},section:{fontSize:18,fontWeight:'900',color:C.ink,marginTop:23,marginBottom:11},sectionNoMargin:{fontSize:17,fontWeight:'900',color:C.ink},
  row:{flexDirection:'row',alignItems:'center'},
  chip:{backgroundColor:C.pale,borderRadius:25,paddingHorizontal:14,paddingVertical:10,borderWidth:1,borderColor:'#CDE8E0'},
- chipActive:{backgroundColor:C.teal,borderColor:C.teal},chipText:{fontSize:12,fontWeight:'800',color:C.dark},
+ chipActive:{backgroundColor:C.teal,borderColor:C.teal},chipText:{fontSize:14,fontWeight:'800',color:C.dark},
  mainBtn:{minHeight:46,borderRadius:15,backgroundColor:C.teal,alignItems:'center',justifyContent:'center',paddingHorizontal:13,paddingVertical:12},
- mainBtnText:{color:C.paper,fontWeight:'900',fontSize:13},
+ mainBtnText:{color:C.paper,fontWeight:'900',fontSize:15},
  outlineBtn:{borderRadius:15,minWidth:50,borderWidth:1.5,borderColor:C.teal,padding:11,alignItems:'center'},
  outlineText:{color:C.dark,fontWeight:'900'},
  warn:{backgroundColor:'#FFF0DA',padding:13,borderRadius:13,marginTop:11},warnText:{fontSize:12.2,color:'#80521A',lineHeight:19},
@@ -812,11 +823,11 @@ accessibilityDisclaimer:{fontSize:11.5,color:C.muted,lineHeight:18,marginTop:8},
  selectedCard:{backgroundColor:C.paper,borderRadius:18,padding:17,marginTop:15,borderWidth:1,borderColor:C.line},
  cardEyebrow:{fontSize:11,fontWeight:'900',color:C.teal,marginBottom:5},selectedTitle:{fontSize:19,fontWeight:'900',color:C.ink,marginBottom:7},
  tagGood:{color:C.dark,fontWeight:'800',fontSize:12,marginTop:9},
- minorBtn:{backgroundColor:C.pale,borderRadius:12,padding:10,alignSelf:'flex-start',marginTop:13},minorBtnText:{fontSize:12,fontWeight:'900',color:C.dark},
+ minorBtn:{backgroundColor:C.pale,borderRadius:12,padding:10,alignSelf:'flex-start',marginTop:13},minorBtnText:{fontSize:14,fontWeight:'900',color:C.dark},
  empty:{borderRadius:18,backgroundColor:C.paper,padding:19,marginTop:11},emptyTitle:{fontSize:15,fontWeight:'900',color:C.ink,marginBottom:7},
  placeRow:{flexDirection:'row',alignItems:'center',gap:11,backgroundColor:C.paper,padding:12,borderRadius:15,marginTop:9,borderWidth:1,borderColor:C.line},
  placeGlyph:{width:39,height:39,borderRadius:13,backgroundColor:'#FFF1DA',alignItems:'center',justifyContent:'center'},
- placeTitle:{fontWeight:'900',fontSize:14,color:C.ink,marginBottom:4},chevron:{fontSize:24,color:C.teal},
+ placeTitle:{fontWeight:'900',fontSize:16,color:C.ink,marginBottom:4},chevron:{fontSize:24,color:C.teal},
  curatedBox:{backgroundColor:'#FFF1DE',borderWidth:1,borderColor:'#F5DEBA',borderRadius:22,padding:16,marginTop:15},
  curatedEyebrow:{fontSize:10,fontWeight:'900',letterSpacing:1.2,color:C.teal,marginBottom:4},
  curatedTitle:{fontSize:17.5,fontWeight:'900',color:C.ink},

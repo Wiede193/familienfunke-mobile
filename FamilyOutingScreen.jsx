@@ -125,7 +125,7 @@ export default function FamilyOutingScreen({draft,onSave,onMap,onCalendar}){
 const s=StyleSheet.create({
  page:{padding:16,paddingBottom:40,gap:13,backgroundColor:C.bg},hero:{backgroundColor:C.sun,borderRadius:24,padding:20,gap:10},
  title:{fontSize:27,fontWeight:'900',color:C.ink},heading:{fontSize:19,fontWeight:'900',color:C.ink},label:{fontSize:16,fontWeight:'800',color:C.ink},
- text:{fontSize:15,lineHeight:23,color:C.ink},muted:{fontSize:13,lineHeight:19,color:C.muted},
+ text:{fontSize:15,lineHeight:23,color:C.ink},muted:{fontSize:14,lineHeight:21,color:C.muted},
  card:{backgroundColor:C.paper,borderRadius:22,padding:16,borderWidth:1,borderColor:C.line,gap:12},
  input:{minHeight:48,padding:12,borderRadius:13,borderWidth:1,borderColor:C.line,fontSize:16,color:C.ink},
  group:{gap:8},chips:{flexDirection:'row',flexWrap:'wrap',gap:8},chip:{minHeight:44,justifyContent:'center',paddingHorizontal:13,paddingVertical:8,borderRadius:20,backgroundColor:C.mint},active:{backgroundColor:C.accentDark},chipText:{fontSize:14,fontWeight:'700',color:C.ink},

@@ -4,6 +4,7 @@ import {FAMILY_COLORS} from './FamilyTheme';
 
 const C=FAMILY_COLORS;
 const topics=[
+  ['Anmeldung & Konto','Wie komme ich an eine Einladung?','Familienfunke ist derzeit eine geschlossene Testversion. Es gibt noch keinen allgemein verfügbaren Registrierungsprozess. Sobald ein Konto vom Betreiber eingerichtet wurde, kannst du dich mit E-Mail und Passwort anmelden.'],
   ['Anmeldung & Konto','Wie melde ich mich an?','Öffne Familienfunke, gib deine E-Mail-Adresse und dein Passwort ein und tippe auf „Anmelden“. Du benötigst ein bereits eingerichtetes Konto.'],
   ['Anmeldung & Konto','Warum funktioniert meine Anmeldung nicht?','Prüfe die Schreibweise deiner E-Mail-Adresse und deines Passworts sowie deine Internetverbindung. Wenn du eine Meldung zur E-Mail-Bestätigung erhältst, schließe diese zuerst ab.'],
   ['Anmeldung & Konto','Wie ändere ich mein Passwort?','Öffne „Mehr“ → „Mein Profil“ → „Konto & Sicherheit“. Gib ein neues Passwort mit mindestens zwölf Zeichen ein und tippe auf „Passwort ändern“. Dafür musst du angemeldet sein.'],
