@@ -858,6 +858,9 @@ function selectMenuItem(id){
   if(id==='info'){setDetailFamily(null);setSelectedContact(null);setShowInfo(true);return;}
   if(id==='inbox'){openInbox();return;}
   if(!MORE_ITEMS.some(item=>item[0]===id)&&id!=='more')return;
+  // Menu navigation opens topic overviews; global search keeps its own deep-link query.
+  if(id==='healthy')setHealthyQuery('');
+  if(id==='inclusion')setInclusionQuery('');
   if(tab===id&&!detailFamily&&!selectedContact&&!showInfo)return;
   const previous=TABS.some(t=>t[0]===tab)||tab==='more'?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:'home');
   setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);setMapIntent(null);setCalendarSeed(null);setEventIntent(null);setFocusContactId(null);setShowEventForm(false);
@@ -1032,7 +1035,7 @@ blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} openInfo={()=>setShowInfo(true)} signOut={()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.'))}/>}
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');setTab(id);setShowEventForm(false);}}
+{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');if(id==='guide')setGuideQuery('');setTab(id);setShowEventForm(false);}}
 accessibilityLabel={title} accessibilityState={{selected:tab===id}} style={[styles.tab,(tab===id)&&styles.tabActive]}><View style={[styles.tabIcon,(tab===id)&&styles.tabIconSelected]}>
   <FamilyIcon name={glyph} size={24} color={tab===id?C.accentDark:C.muted}/>
 </View><Text style={[styles.tabLabel,(tab===id)&&{color:C.accentDark,fontWeight:'900'}]}>{title}</Text></Pressable>)}
