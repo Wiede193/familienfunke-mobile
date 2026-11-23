@@ -50,7 +50,13 @@ export function findHomeRoutes(value){
  if(!terms.length)return HOME_ROUTES.slice(0,4);
  return HOME_ROUTES.map(route=>{
    const full=normalize(route.title+' '+route.subtitle+' '+route.words);
-   const score=terms.reduce((acc,term)=>acc+(full.includes(term)?(['finden','suchen','machen','zeigen'].includes(term)?0.1:1):0),0);
+   // Avoid accidental partial-word matches such as "ändern" inside "wandern".
+   const tokens=new Set(full.split(' ').filter(Boolean));
+   const score=terms.reduce((acc,term)=>{
+     if(tokens.has(term))return acc+3;
+     if(term.length>=5&&[...tokens].some(word=>word.startsWith(term)))return acc+1;
+     return acc;
+   },0);
    return {...route,score};
  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,6);
 }
