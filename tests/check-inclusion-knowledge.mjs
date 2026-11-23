@@ -3,8 +3,8 @@ import {readFileSync} from 'node:fs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const {INCLUSION_CATEGORIES,INCLUSION_ARTICLES,findInclusionArticles}=
  await import('data:text/javascript;base64,'+Buffer.from(read('InclusionKnowledge.js')).toString('base64'));
-assert.equal(INCLUSION_ARTICLES.length,14);
-assert.equal(new Set(INCLUSION_ARTICLES.map(x=>x.id)).size,14);
+assert.equal(INCLUSION_ARTICLES.length,18);
+assert.equal(new Set(INCLUSION_ARTICLES.map(x=>x.id)).size,18);
 assert.equal(INCLUSION_CATEGORIES.length,6);
 for(const a of INCLUSION_ARTICLES){
  assert.ok(a.title.length>=10,a.id+' title');
@@ -17,7 +17,7 @@ for(const a of INCLUSION_ARTICLES){
  assert.ok(a.sources.every(x=>x.title&&x.url.startsWith('https://')));
  assert.ok(INCLUSION_CATEGORIES.some(x=>x.id===a.category),a.id+' category');
 }
-assert.equal(findInclusionArticles().length,14);
+assert.equal(findInclusionArticles().length,18);
 assert.ok(findInclusionArticles('pflegegrad').some(x=>x.id==='care-grade'));
 assert.ok(findInclusionArticles('fRüHföRDERUNG').some(x=>x.id==='early-intervention'));
 assert.ok(findInclusionArticles('Widerspruch').some(x=>x.id==='objections'));
@@ -30,6 +30,7 @@ assert.ok(INCLUSION_ARTICLES.some(x=>x.id==='school-support'));
 assert.ok(INCLUSION_ARTICLES.some(x=>x.id==='inclusive-kita'));
 assert.ok(INCLUSION_ARTICLES.some(x=>x.id==='personal-budget'));
 assert.ok(INCLUSION_ARTICLES.some(x=>x.id==='kindergeld-disability'));
+for(const id of ['respite-care','relief-services','parental-assistance','disability-tax'])assert.ok(INCLUSION_ARTICLES.some(x=>x.id===id),id);
 const ui=read('InclusionKnowledgeScreen.jsx'),app=read('App.jsx');
 assert.match(ui,/findInclusionArticles\(search,category\)/);
 assert.match(ui,/accessibilityLabel="Inklusionswissen durchsuchen"/);
