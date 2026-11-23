@@ -10,7 +10,7 @@
     "check": "expo install --check",
     "fix": "expo install --fix",
     "check:box-ux": "node tests/check-box-ux.mjs",
-    "check:home": "node tests/check-home-assistant.mjs && node tests/check-healthy-map.mjs",
+    "check:home": "node tests/check-home-assistant.mjs && node tests/check-healthy-map.mjs && node tests/check-official-decisions.mjs",
     "check:design": "node tests/check-design-system.mjs",
     "check:accessibility": "node tests/check-accessibility.mjs",
     "check:map-photo-a11y": "node tests/check-map-photo-a11y.mjs",
@@ -42,7 +42,8 @@
     "check:blocks": "node tests/check-block-pages.mjs && node tests/check-block-contact-app.mjs",
     "check:design-refresh": "node tests/check-home-personalization.mjs && node tests/check-design-refresh.mjs",
     "check:knowledge": "node tests/check-regional-knowledge.mjs && node tests/check-inclusion-knowledge.mjs && node tests/check-map-accessibility.mjs",
-    "check:family-topics": "node tests/check-family-topics.mjs"
+    "check:family-topics": "node tests/check-family-topics.mjs",
+    "check:decisions": "node tests/check-official-decisions.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",

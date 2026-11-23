@@ -9,10 +9,12 @@ const copy={
  message:['Neue Nachricht','Du hast eine neue private Nachricht erhalten.','Unterhaltung öffnen','✉'],
  price:['Preis gesenkt','Ein gemerkter Artikel wurde günstiger.','Angebot öffnen','€'],
  search:['Neuer Basar-Treffer','Ein neu freigegebenes Angebot passt zu einem deiner Suchaufträge.','Angebot öffnen','♡'],
+ decision:['Neuer amtlicher Beschluss','Ein neuer amtlich belegter Beschluss wurde veröffentlicht.','Beschluss lesen','§'],
  market:['Basar-Prüfung','Der Prüfstatus deiner Anzeige wurde aktualisiert.','Meine Anzeige öffnen','♧']
 };
 function eventCopy(row){
  const base=copy[row.kind]||['Neuigkeit','Es gibt eine Aktualisierung.','Ansehen','•'];
+ if(row.kind==='decision'&&row.decision_title)return [base[0],row.decision_title,base[2],base[3]];
  if(row.kind==='price'&&Number.isInteger(row.old_price_cents)&&Number.isInteger(row.new_price_cents)){
   const money=v=>(v/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
   return [base[0],'Bei einem gemerkten Angebot sank der veröffentlichte Preis von '+money(row.old_price_cents)+' auf '+money(row.new_price_cents)+'. Öffne das Angebot für den aktuellen Preis.',base[2],base[3]];
@@ -64,8 +66,8 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
   </View>
   <Text accessibilityRole="header" style={s.cardTitle}>Kategorie</Text>
   <View style={s.filters}>
-   {[['all','Alle Neuigkeiten'],['price','Preisalarme']].map(([kind,label])=><Pressable key={kind} accessibilityRole="button" accessibilityLabel={label+(kind==='price'&&inbox.priceUnread!=null?', '+inbox.priceUnread+' ungelesen':'')} accessibilityState={{selected:inbox.kind===kind,disabled:busy}} disabled={busy} onPress={()=>inbox.refresh({kind})} style={[s.chip,inbox.kind===kind&&s.selected]}>
-    <Text style={[s.text,inbox.kind===kind&&{color:C.white,fontWeight:'800'}]}>{label}{kind==='price'&&inbox.priceUnread>0?' ('+inbox.priceUnread+')':''}</Text>
+   {[['all','Alle Neuigkeiten'],['decision','Amtliche Beschlüsse'],['price','Preisalarme']].map(([kind,label])=><Pressable key={kind} accessibilityRole="button" accessibilityLabel={label+(kind==='price'&&inbox.priceUnread!=null?', '+inbox.priceUnread+' ungelesen':'')} accessibilityState={{selected:inbox.kind===kind,disabled:busy}} disabled={busy} onPress={()=>inbox.refresh({kind})} style={[s.chip,inbox.kind===kind&&s.selected]}>
+    <Text style={[s.text,inbox.kind===kind&&{color:C.white,fontWeight:'800'}]}>{label}{kind==='price'&&inbox.priceUnread>0?' ('+inbox.priceUnread+')':kind==='decision'&&inbox.decisionUnread>0?' ('+inbox.decisionUnread+')':''}</Text>
    </Pressable>)}
   </View>
   {inbox.kind==='price'?<PriceAlertPreference key={inbox.owner} userId={inbox.owner} active={active}/>:null}
@@ -74,7 +76,7 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
     onPress={()=>setOnlyUnread(value)} style={[s.chip,value===onlyUnread&&s.selected]}><Text style={[s.text,value===onlyUnread&&{color:C.white,fontWeight:'800'}]}>{label}</Text></Pressable>)}
   </View>
   {inbox.error?<View><Text accessibilityLiveRegion="assertive" style={s.note}>{inbox.error}</Text><Action onPress={()=>inbox.refresh()}>Erneut laden</Action></View>:null}
-  {rows.length===0&&!inbox.loading&&!inbox.error?<Text style={s.note}>{onlyUnread?'Keine ungelesenen Hinweise auf dieser Seite.':inbox.kind==='price'?'Noch keine Preisalarme.':'Noch keine Neuigkeiten.'}</Text>:null}
+  {rows.length===0&&!inbox.loading&&!inbox.error?<Text style={s.note}>{onlyUnread?'Keine ungelesenen Hinweise auf dieser Seite.':inbox.kind==='price'?'Noch keine Preisalarme.':inbox.kind==='decision'?'Noch keine neuen amtlichen Beschlüsse.':'Noch keine Neuigkeiten.'}</Text>:null}
   {rows.map(row=>{const [title,description,action,icon]=eventCopy(row);return <View key={row.id} style={[s.card,!row.read_at&&s.unread]}>
    <View style={s.row}><View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.icon}><Text style={s.symbol}>{icon}</Text></View>
     <View style={{flex:1}}><Text style={s.cardTitle}>{title}</Text>
@@ -86,7 +88,7 @@ export default function NotificationCenterScreen({inbox,onOpen,onSettings,active
    <Action disabled={busy} onPress={()=>open(row)}>{action}</Action>
    {!row.read_at?<Action disabled={busy} onPress={async()=>{if(busy)return;setBusy(true);try{await inbox.markRead(row.id);}finally{setBusy(false);}}}>Als gelesen markieren</Action>:null}
   </View>;})}
-  {inbox.hasMore?<Action disabled={inbox.loading||busy} onPress={()=>inbox.refresh({more:true})} >{inbox.kind==='price'?'Ältere Preisalarme laden':'Ältere Neuigkeiten laden'}</Action>:null}
+  {inbox.hasMore?<Action disabled={inbox.loading||busy} onPress={()=>inbox.refresh({more:true})} >{inbox.kind==='price'?'Ältere Preisalarme laden':inbox.kind==='decision'?'Weitere amtliche Hinweise laden':'Ältere Neuigkeiten laden'}</Action>:null}
   <Action onPress={onSettings}>Push-Benachrichtigungen einstellen</Action>
  </ScrollView>;
 }
