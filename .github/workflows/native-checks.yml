@@ -41,6 +41,8 @@ jobs:
         run: npm run check:geocoding
       - name: Erweiterte Brandenburg-Stellen, Inklusionswissen und Barrierefreiheit prüfen
         run: npm run check:knowledge
+      - name: Allgemeine Familienthemen und neue Ausflugskategorien prüfen
+        run: npm run check:family-topics
       - name: Server-Sicherheitsregeln auf Regressionen prüfen
         run: npm run check:security
       - name: Zweiten Faktor und KI-Schutzgrenzen prüfen
