@@ -3,6 +3,7 @@ import {Alert,AppState,Pressable,ScrollView,StyleSheet,Text,TextInput,View,useWi
 import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import OfficialFamilyEvents from './OfficialFamilyEvents';
+import FamilyDateFields from './FamilyDateFields';
 import {dayKey,monthDays,moveMonth,entryDay,entryTime,compareEntries,calendarFields} from './CalendarDates';
 
 async function verifyAccount(userId){
@@ -107,8 +108,7 @@ export default function FamilyCalendar({userId,seed,onOpenEvent,onOpenPlace}){
   {form?<View style={s.card}>
    <Text accessibilityRole="header" style={s.heading}>{form.id?'Termin bearbeiten':form.kind==='outing'?'Ausflug einplanen':'Neuer privater Termin'}</Text>
    <Text style={s.sub}>Titel</Text><TextInput accessibilityLabel="Termintitel" style={s.input} value={form.title} maxLength={100} onChangeText={v=>change('title',v)}/>
-   <Text style={s.sub}>Datum (JJJJ-MM-TT)</Text><TextInput accessibilityLabel="Datum" style={s.input} value={form.day} maxLength={10} placeholder="2026-12-05" onChangeText={v=>change('day',v)}/>
-   <Text style={s.sub}>Uhrzeit (optional, HH:MM)</Text><TextInput accessibilityLabel="Uhrzeit" style={s.input} value={form.time} maxLength={5} placeholder="10:00" onChangeText={v=>change('time',v)}/>
+   <FamilyDateFields title="Terminzeit auswählen" date={form.day} onDateChange={v=>change('day',v)} time={form.time} onTimeChange={v=>change('time',v)} timeOptional/>
    <Text style={s.sub}>Private Notiz (optional)</Text><TextInput accessibilityLabel="Private Notiz" multiline maxLength={500} style={[s.input,{minHeight:80,textAlignVertical:'top'}]} value={form.note} onChangeText={v=>change('note',v)}/>
    <Action disabled={busy} onPress={save}>{busy?'Wird gespeichert …':'Termin speichern'}</Action><Action secondary disabled={busy} onPress={()=>setForm(null)}>Abbrechen</Action>
   </View>:null}
