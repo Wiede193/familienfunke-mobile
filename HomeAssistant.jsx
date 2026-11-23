@@ -198,16 +198,25 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
     const request=++requestSeq.current;pending.current=true;setSearchBusy(true);
     try{
       // Searches run independently, so one unavailable service does not erase other results.
-      const [eventResponse,marketResponse]=await Promise.allSettled([
+      const [eventResponse,marketResponse,officialResponse]=await Promise.allSettled([
         supabase.rpc('ff_search_events',{p_query:query.slice(0,160)}),
         marketIntent?supabase.rpc('ff_market_search',{
           p_query:query.slice(0,160),p_category:'Alle',p_trade_type:'all',
           p_sort:'relevance',p_limit:5,p_offset:0
-        }):Promise.resolve(null)
+        }):Promise.resolve(null),
+        supabase.from('ff_official_family_events')
+          .select('id,title,city,start_date,source_name')
+          .eq('published',true)
+          .gte('end_date',new Date().toISOString().slice(0,10))
+          .ilike('title','%'+query.slice(0,80).replace(/[%_\\,()]/g,'')+'%')
+          .order('start_date',{ascending:true}).limit(5)
       ]);
       if(!alive.current||request!==requestSeq.current)return;
       const eventData=eventResponse.status==='fulfilled'?eventResponse.value:null;
       const marketData=marketResponse.status==='fulfilled'?marketResponse.value:null;
+      const officialData=officialResponse.status==='fulfilled'?officialResponse.value:null;
+      const officialEvents=officialData&&!officialData.error&&Array.isArray(officialData.data)?officialData.data:[];
+      const officialError=!officialData||!!officialData.error;
       const eventsError=!eventData||!!eventData.error||!Array.isArray(eventData.data);
       const events=eventsError?[]:eventData.data.filter(row=>['family','partner'].includes(row.kind)&&row.id&&new Date(row.starts_at)>new Date());
       const offersError=marketIntent&&(!marketData||!!marketData.error||!Array.isArray(marketData.data));
@@ -216,8 +225,8 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         price:row.listing.trade_type==='gift'?'Zu verschenken':row.listing.trade_type==='swap'?'Tausch':
           (Number(row.listing.price_cents||0)/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'})
       })):null;
-      setSearchResult({query,offers,events,eventsError,offersError});
-      AccessibilityInfo.announceForAccessibility(events.length+' Veranstaltungstreffer und '+(offers?.length||0)+' Basar-Treffer in der Vorschau.');
+      setSearchResult({query,offers,events,eventsError,offersError,officialEvents,officialError});
+      AccessibilityInfo.announceForAccessibility((events.length+officialEvents.length)+' Veranstaltungstreffer und '+(offers?.length||0)+' Basar-Treffer in der Vorschau.');
     }catch{if(alive.current&&request===requestSeq.current)setError('Die Online-Suche konnte nicht geladen werden. App-Bereiche und Katalogorte bleiben verfügbar.');}
     finally{if(alive.current&&request===requestSeq.current){pending.current=false;setSearchBusy(false);}}
   }
@@ -271,6 +280,17 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
             <Text style={s.areaTitle}>{resource.title}</Text>
             <Text style={s.areaSubtitle}>{resource.source} · {resource.region}</Text>
           </View><Text style={s.areaArrow}>›</Text></Pressable>)}</>:null}
+      {visibleSearch?.officialError?<Text style={s.mutedSmall}>Offizielle Veranstaltungstermine konnten nicht geladen werden.</Text>:null}
+      {visibleSearch?.officialEvents?.length?<View style={s.offerGroup}>
+        <Text accessibilityRole="header" style={s.offerHeading}>Offizielle Familienveranstaltungen</Text>
+        {visibleSearch.officialEvents.map(event=><Pressable key={event.id} accessibilityRole="button"
+          accessibilityLabel={event.title+' im Veranstaltungskalender öffnen'}
+          onPress={()=>onNavigate('events')} style={s.offerItem}>
+          <Text style={s.offerTitle}>{event.title}</Text>
+          <Text style={s.mutedSmall}>{event.city||'Brandenburg'} · {event.source_name||'Offizieller Veranstalter'}</Text>
+          <Text style={s.offerPrice}>{event.start_date}</Text>
+        </Pressable>)}
+      </View>:null}
       {visibleSearch?.eventsError?<Text style={s.mutedSmall}>Veranstaltungen konnten gerade nicht geladen werden.</Text>:null}
       {visibleSearch?.events&&!visibleSearch.eventsError?<View style={s.offerGroup}>
         <Text accessibilityRole="header" style={s.offerHeading}>Anstehende Veranstaltungen</Text>
