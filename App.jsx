@@ -1230,6 +1230,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
   const [maxPrice,setMaxPrice]=useState('');
   const [filterOpen,setFilterOpen]=useState(false);
   const [showMarketTrust,setShowMarketTrust]=useState(false);
+const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   const [savingSearch,setSavingSearch]=useState(false);
   const [buyerFocus,setBuyerFocus]=useState(null);
   const [selectedListing,setSelectedListing]=useState(null);
@@ -1873,7 +1874,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
         <Text style={styles.marketTopTitle}>Dein Familienbasar</Text>
         <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
       </View>
-      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){resetForm();setOpen(false);}else{startQuick();}}}/>
+      <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':sellChoicesOpen?'Auswahl schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){resetForm();setOpen(false);}else{setSellChoicesOpen(v=>!v);}}}/>
     </View>
     <Pressable accessibilityRole="button" accessibilityLabel="Informationen zu Gebühren und Datenschutz"
       accessibilityState={{expanded:showMarketTrust}} onPress={()=>setShowMarketTrust(v=>!v)}
@@ -1894,10 +1895,15 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
         onPress={()=>{setBuyerFocus(null);setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
     {onlyFavorites&&!open&&!boxOpen?<PriceAlertPreference key={me} userId={me} active={active}/>:null}
-    {!open&&!boxOpen&&active?<Card style={{marginBottom:15,backgroundColor:'#FFF4DA'}}>
-      <Text style={styles.sectionTitle}>Kistenmodus</Text>
+    {sellChoicesOpen&&!open&&!boxOpen&&active?<Card style={{marginBottom:13,backgroundColor:C.sunPale}}>
+      <Text style={styles.sectionTitle}>Was möchtest du anbieten?</Text>
+      <Text style={[styles.body,{marginBottom:12}]}>Wähle den passenden Weg: einen Artikel einzeln einstellen oder mehrere Kleidungsstücke gemeinsam fotografieren.</Text>
+      <Button title="Einzelnen Artikel einstellen" onPress={()=>{setSellChoicesOpen(false);startQuick();}}/>
+    </Card>:null}
+    {sellChoicesOpen&&!open&&!boxOpen&&active?<Card style={{marginBottom:15,backgroundColor:'#FFF4DA'}}>
+      <Text style={styles.sectionTitle}>Mehrere Kleidungsstücke erfassen</Text>
       <Text style={[styles.micro,{marginBottom:10}]}>Viele Sachen auf einmal erfassen. Ein Foto, mehrere Entwürfe – einzeln oder im Paket.</Text>
-      <Button title={boxDrafts.length?'Kiste weiterbearbeiten ('+boxDrafts.length+')':'✦ Kiste erfassen'} disabled={busy||choosing||scanBusy||boxStorage==='loading'} onPress={showBox}/>
+      <Button title={boxDrafts.length?'Kiste weiterbearbeiten ('+boxDrafts.length+')':'✦ Kiste erfassen'} disabled={busy||choosing||scanBusy||boxStorage==='loading'} onPress={()=>{setSellChoicesOpen(false);showBox();}}/>
     </Card>:null}
     {boxOpen&&boxPending?<Card style={{marginBottom:18,backgroundColor:'#FFF4DA'}}>
       <Text style={styles.sectionTitle}>Unterbrochene Einreichung</Text>
@@ -2289,7 +2295,7 @@ function MarketScreen({entryIntent,onSavedSearches,listings,marketPhotos,me,acti
         </View>
       </View>
       {filterOpen?<Card style={{marginBottom:15,padding:15}}>
-        <MarketCategoryDropdown label="Kategorie" value={filter} onChange={setFilter} options={MARKET_CATEGORIES} allOption/>
+        <Text style={[styles.sub,{marginBottom:10}]}>Die Kategorie kannst du bereits oberhalb dieser Filter auswählen.</Text>
         <Text style={styles.label}>Art des Angebots</Text>
         <View style={[styles.chipsRow,{marginTop:0,marginBottom:14}]}>
           {[['all','Alle'],['sell','Verkaufen'],['gift','Verschenken'],['swap','Tauschen']].map(([id,label])=>
