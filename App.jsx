@@ -24,6 +24,7 @@ import WelcomeIntro from './WelcomeIntro';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
+import SearchResultFeedback from './SearchResultFeedback';
 import {FamilyEmptyState,FamilySkeleton} from './FamilyFeedback';
 import FamilyGuideScreen from './FamilyGuide';
 import InclusionKnowledgeScreen from './InclusionKnowledgeScreen';
@@ -2329,6 +2330,10 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
           <Text style={{fontSize:20,color:C.muted}}>×</Text>
         </Pressable>:null}
       </View>
+      <SearchResultFeedback active={!!(query.trim()||filter!=='Alle'||tradeFilter!=='all'||minPrice||maxPrice||onlyMine||onlyFavorites)}
+        query={query} count={shown.length} loading={remoteBusy||!!(onlyMine&&ownLoading)} error={remoteError||ownError}
+        hasMore={remoteHasMore||ownHasMore} context="Familienbasar"
+        hint="Tippe auf eine Anzeige, um Fotos, Details und Kontaktmöglichkeiten zu sehen."/>
       <Text style={styles.marketFilterHeading}>Kategorie auswählen</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}}
         contentContainerStyle={{gap:7,paddingRight:15}}>
@@ -2711,6 +2716,8 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 {!active?<Info warning>Dein Konto wartet noch auf persönliche Erwachsenenprüfung oder Profilfreigabe. Profilstatus: {myProfile?.moderation_status||'–'} · Verifizierung: {verification?.status||'–'}.</Info>:null}
 <H sub="Nur freigegebene, freiwillig sichtbare Familienprofile.">Familien entdecken</H>
 <Input label="Suche nach Familie, Region oder Interesse" placeholder="z. B. Natur, Beeskow …" value={query} onChangeText={value=>updateFilter(setQuery,value)} />
+<SearchResultFeedback active={!!(query.trim()||interest!=='Alle'||onlyRegion||onlyShared)} query={query} count={filtered.length}
+ context="Familien entdecken" hasMore={hasMore} loading={loadingMore} hint="Nur freigegebene, freiwillig sichtbare Familienprofile."/>
 <Pressable accessibilityRole="button" accessibilityState={{expanded:showInterestFilter}}
  onPress={()=>setShowInterestFilter(v=>!v)}
  style={[styles.marketFilterToggle,{minHeight:48,marginBottom:12,alignSelf:'stretch'}]}>
