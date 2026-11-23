@@ -41,7 +41,7 @@ function Chip({label,selected,onPress}){
   style={[styles.chip,selected&&styles.chipSelected]}><Text style={[styles.chipText,selected&&styles.chipSelectedText]}>{label}</Text></Pressable>;
 }
 export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=null}){
- const [rows,setRows]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const [rows,setRows]=useState([]),[history,setHistory]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const [area,setArea]=useState('all'),[query,setQuery]=useState(initialQuery);
  const [subscribed,setSubscribed]=useState(false),[preferenceLoading,setPreferenceLoading]=useState(true),[saving,setSaving]=useState(false);
  const [expanded,setExpanded]=useState(null);
@@ -52,17 +52,25 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
   setLoading(true);setError('');
   try{
    const {data,error:e}=await supabase.from('ff_official_decisions')
-    .select('id,level,family_topic,decision_status,decision_date,status_checked_at,title,source_name,source_url,published_at,official_excerpt,simple_summary,family_impact,next_step,editorial_reviewed')
+    .select('id,level,family_topic,decision_status,decision_date,status_checked_at,last_official_check_at,status_review_pending,title,source_name,source_url,published_at,official_excerpt,simple_summary,family_impact,next_step,editorial_reviewed')
     .eq('published',true).order('published_at',{ascending:false}).limit(100);
    if(e)throw e;
    let results=data||[];
    if(focusId&&!results.some(x=>x.id===focusId)){
     const focused=await supabase.from('ff_official_decisions')
-     .select('id,level,family_topic,decision_status,decision_date,status_checked_at,title,source_name,source_url,published_at,official_excerpt,simple_summary,family_impact,next_step,editorial_reviewed')
+     .select('id,level,family_topic,decision_status,decision_date,status_checked_at,last_official_check_at,status_review_pending,title,source_name,source_url,published_at,official_excerpt,simple_summary,family_impact,next_step,editorial_reviewed')
      .eq('id',focusId).eq('published',true).maybeSingle();
     if(!focused.error&&focused.data)results=[focused.data,...results];
    }
    setRows(results);
+   if(results.length){
+    const ids=results.map(item=>item.id);
+    const {data:events,error:historyError}=await supabase.from('ff_decision_status_history')
+      .select('id,decision_id,status,previous_status,event_kind,evidence_note,evidence_url,verified_at')
+      .in('decision_id',ids).order('verified_at',{ascending:false}).limit(300);
+    if(historyError)throw historyError;
+    setHistory(events||[]);
+   }else setHistory([]);
   }catch{setError('Die amtlichen Beschlüsse konnten nicht geladen werden. Bitte Verbindung prüfen.');}
   finally{setLoading(false);}
  },[userId,focusId]);
@@ -143,6 +151,7 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
     {item.decision_date?<Text style={styles.small}>Entscheidung vom {date(item.decision_date)}</Text>:null}
     <Text accessibilityRole="header" style={styles.cardHeading}>{item.title}</Text>
     <Text style={styles.status}>{STATUS[item.decision_status]||STATUS.unklar}</Text>
+    {item.status_review_pending?<Text style={styles.note}>Die amtliche Quelle wurde aktualisiert. Ob sich dadurch der Rechtsstand ändert, wird noch geprüft. Angezeigt wird bis dahin der zuletzt bestätigte Stand.</Text>:null}
     {item.status_checked_at&&Date.now()-new Date(item.status_checked_at).getTime()>21*86400000?<Text style={styles.note}>Die letzte Prüfung des Verfahrensstands liegt über drei Wochen zurück. Bitte die amtliche Quelle auf neuere Entscheidungen prüfen.</Text>:null}
     <Text style={styles.body}>{item.editorial_reviewed&&item.simple_summary?item.simple_summary:HELP[item.decision_status]||HELP.unklar}</Text>
     {!item.editorial_reviewed?<Text style={styles.small}>Allgemeine Erklärung des Verfahrens. Eine geprüfte Erläuterung dieses konkreten Beschlusses liegt noch nicht vor.</Text>:null}
@@ -150,7 +159,18 @@ export default function OfficialDecisionsScreen({userId,initialQuery='',focusId=
       {item.editorial_reviewed&&item.family_impact?<><Text style={styles.section}>Was bedeutet das für Familien?</Text><Text style={styles.body}>{item.family_impact}</Text></>:null}
       {item.editorial_reviewed&&item.next_step?<><Text style={styles.section}>Wie geht es weiter?</Text><Text style={styles.body}>{item.next_step}</Text></>:null}
       {item.official_excerpt?<><Text style={styles.section}>Kurztext der amtlichen Quelle</Text><Text style={styles.body}>{item.official_excerpt}</Text></>:null}
-      {item.status_checked_at?<Text style={styles.small}>Verfahrensstand zuletzt überprüft: {date(item.status_checked_at)}</Text>:null}
+      {item.status_checked_at?<Text style={styles.small}>Rechtsstand redaktionell geprüft: {date(item.status_checked_at)}</Text>:null}
+      {item.last_official_check_at?<Text style={styles.small}>Amtliche Quelle technisch abgerufen: {date(item.last_official_check_at)}. Dieser Abruf bestätigt nicht automatisch den Rechtsstand.</Text>:null}
+      {history.some(event=>event.decision_id===item.id)?<>
+       <Text accessibilityRole="header" style={styles.section}>Dokumentierter Verfahrensverlauf</Text>
+       {history.filter(event=>event.decision_id===item.id).map(event=><View key={event.id} style={styles.historyRow}>
+        <Text style={styles.meta}>{event.event_kind==='baseline'?'Erfasster Ausgangsstand':'Geprüfte Statusänderung'} · {date(event.verified_at)}</Text>
+        <Text style={styles.body}>{STATUS[event.status]||STATUS.unklar}</Text>
+        <Text style={styles.small}>{event.evidence_note}</Text>
+        {trusted(event.evidence_url)?<Pressable accessibilityRole="link" onPress={()=>Linking.openURL(event.evidence_url)} style={styles.preferencesButton}>
+         <Text style={styles.link}>Beleg für diesen Verfahrensstand</Text></Pressable>:null}
+       </View>)}
+      </>:null}
       <Text style={styles.small}>Ein Veröffentlichungsdatum ist nicht automatisch das Datum des Inkrafttretens. Einzelne Wirkungen und Fristen müssen aus der amtlichen Quelle hervorgehen.</Text>
     </View>:null}
     <View style={styles.actions}>
@@ -184,7 +204,7 @@ const styles=StyleSheet.create({
  input:{backgroundColor:C.paper,borderRadius:15,padding:14,fontSize:15,color:C.ink,borderWidth:1,borderColor:C.line,minHeight:48},
  filters:{gap:8,paddingVertical:2},preferencesButton:{paddingVertical:10,minHeight:44,justifyContent:'center'},preferencesLabel:{fontWeight:'800',color:C.accentDark,fontSize:14},preferenceTopics:{flexDirection:'row',flexWrap:'wrap',gap:7},chip:{paddingVertical:10,paddingHorizontal:15,borderRadius:22,backgroundColor:C.paper,borderWidth:1,borderColor:C.line,minHeight:44,justifyContent:'center'},
  chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{fontSize:13,color:C.ink,fontWeight:'700'},chipSelectedText:{color:C.white},
- details:{gap:8,marginTop:6,borderTopWidth:1,borderTopColor:C.line,paddingTop:12},section:{fontSize:15,fontWeight:'800',color:C.ink},
+ details:{gap:8,marginTop:6,borderTopWidth:1,borderTopColor:C.line,paddingTop:12},historyRow:{backgroundColor:C.bg,borderRadius:12,padding:12,gap:5},section:{fontSize:15,fontWeight:'800',color:C.ink},
  actions:{flexDirection:'row',gap:8,flexWrap:'wrap'},action:{borderRadius:14,backgroundColor:C.sunPale,paddingVertical:11,paddingHorizontal:14,minHeight:44,justifyContent:'center'},
  actionText:{fontSize:13,fontWeight:'800',color:C.accentDark},source:{fontSize:12,color:C.muted}
 });
