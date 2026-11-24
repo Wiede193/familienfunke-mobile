@@ -109,7 +109,9 @@ export function findStateServices(code,topics=[]){
 const CITY_HINTS={
  BE:['Berlin'],SN:['Leipzig','Dresden','Chemnitz'],BY:['München','Muenchen','Nürnberg','Nuernberg','Augsburg','Regensburg'],
  MV:['Schwerin','Rostock','Stralsund','Neubrandenburg','Greifswald'],HH:['Hamburg'],
- NW:['Köln','Koeln','Düsseldorf','Duesseldorf','Dortmund','Essen','Bochum','Bonn','Bielefeld']
+ NW:['NRW','Nordrhein Westfalen','Köln','Koeln','Düsseldorf','Duesseldorf','Dortmund','Essen','Bochum','Bonn','Bielefeld'],
+ HE:['Frankfurt am Main','Frankfurt Main','Kassel','Darmstadt'],
+ BB:['Frankfurt Oder','Frankfurt an der Oder','Cottbus','Beeskow','Eisenhüttenstadt']
 };
 const clean=s=>String(s||'').toLowerCase().normalize('NFD')
  .replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss')
@@ -121,8 +123,12 @@ export function matchGermanState(question,states=[]){
  // Explizite Bundeslandnennung vor Stadt-Heuristik; absichtlich keine Abkürzungen
  // wie "BB", "BE" oder "MV": Verwechslung mit normalen Wörtern vermeiden.
  const matches=states.filter(s=>phrase(s.name,q));
- if(matches.length===1)return matches[0];
- if(matches.length>1)return null;
+ if(matches.length){
+   // „Sachsen-Anhalt“ enthält zwar „Sachsen“, ist aber das längere volle Bundesland.
+   const longest=Math.max(...matches.map(s=>clean(s.name).length));
+   const selected=matches.filter(s=>clean(s.name).length===longest);
+   return selected.length===1?selected[0]:null;
+ }
  const hints=[];
  for(const state of states){
    if(phrase(state.capital,q)||CITY_HINTS[state.code]?.some(city=>phrase(city,q)))
