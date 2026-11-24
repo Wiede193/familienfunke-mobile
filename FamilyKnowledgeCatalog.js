@@ -42,14 +42,14 @@ export const KNOWLEDGE_ALIASES=[
 {"kind":"topic","id":"kindergeld-antrag","terms":["kindergeld beantragen","kindergeldantrag","kindergeld formulare","kindergeld für baby","kindergeld nach der geburt","kindergeld familienkasse","kindergeld für volljährige kinder","kindergeld unterlagen","kindergeld nachweisen"]},
 {"kind":"topic","id":"mutterschutz-mutterschaftsgeld","terms":["mutterschutz","mutterschaftsgeld","mutterschutzgeld","mutterschutz arbeitgeber","schutzfristen schwangerschaft","mutterschaftsgeld beantragen","mutterschutz im job","wer zahlt mutterschaftsgeld"]},
 {"kind":"topic","id":"schwangerschaftsberatung","terms":["schwangerschaftsberatung","beratung in der schwangerschaft","schwanger und hilflos","ungeplant schwanger","schwangere beratung","vertrauliche geburt hilfe","schwangerschaftshilfe","finanzielle hilfen schwangerschaft"]},
-{"kind":"topic","id":"geburt-checkliste","terms":["checkliste nach geburt","was nach der geburt erledigen","bürokratie nach geburt","behörden nach der geburt","baby anmeldung","kind geboren was nun","geburtsurkunde beantragen","baby krankenversicherung","standesamt geburt"]},
+{"kind":"topic","id":"geburt-checkliste","terms":["checkliste nach geburt","was nach der geburt erledigen","bürokratie nach geburt","behörden nach der geburt","baby anmeldung","kind geboren was nun","was muss ich nach der entbindung erledigen","was nach entbindung erledigen","geburtsurkunde beantragen","baby krankenversicherung","standesamt geburt"]},
 {"kind":"topic","id":"studium-ausbildung-mit-kind","terms":["studieren mit kind","studium mit baby","studium und kind","ausbildung mit kind","azubi mit kind","studenten mit kind","bafög mit kind","bafog kinderbetreuungszuschlag","university familienservice"]},
 {"kind":"topic","id":"schulden-beratung-familien","terms":["schuldnerberatung","schulden familie","mietschulden","mietrückstände","wohnungsverlust wegen schulden","räumungsklage","mahnungen geldprobleme","hilfe bei schulden","familie pleite"]},
 {"kind":"topic","id":"pflegefamilie-werden","terms":["pflegefamilie werden","pflegeeltern werden","pflegekind aufnehmen","pflegeelternschaft","pflegekinderdienst","wer kann pflegeeltern werden","eignung pflegefamilie"]},
 {"kind":"topic","id":"adoption-beratung","terms":["adoption","kind adoptieren","adoptivkind","adoptionsvermittlung","adoptionsvermittlungsstelle","adoptionsberatung","adoption beantragen","unterschied adoption pflegekind"]},
 {"kind":"topic","id":"kinderschutz-beratung","terms":["kinderschutz","kindeswohlgefährdung","kindeswohl gefahr","kind wird vernachlässigt","kind wird misshandelt","verdacht auf kindesmisshandlung","kinderschutz jugendamt","kindeswohl schützen"]},
 {"kind":"topic","id":"beratung-kinder-jugendliche","terms":["nummer gegen kummer","kindertelefon","jugendtelefon","116111","116 111","hilfe bei mobbing","cybermobbing kind","jugendberatung","jugendnotmail","kind wird gemobbt"]},
-{"kind":"topic","id":"aerztlicher-bereitschaftsdienst-kinder","terms":["116117","116 117","ärztlicher bereitschaftsdienst","kinderarzt notdienst","kind krank am wochenende","kinderarzt nachts","arztnotdienst kind","wann 112 wann 116117","notdienst kinder"]},
+{"kind":"topic","id":"aerztlicher-bereitschaftsdienst-kinder","terms":["116117","116 117","ärztlicher bereitschaftsdienst","kinderarzt notdienst","kind krank am wochenende","kinderarzt nachts","wo sind kinderärzte am wochenende","wo finde ich kinderarzt am wochenende","arztnotdienst kind","wann 112 wann 116117","notdienst kinder"]},
 {"kind":"topic","id":"jugendamt-familienhilfen","terms":["familienhilfen","hilfen zur erziehung","sozialpädagogische familienhilfe","jugendamt unterstützt familie","familienhilfe jugendamt","familienbetreuer","ambulante familienhilfe","familienunterstützung jugendamt"]},
 {"kind":"topic","id":"hilfen-junge-volljaehrige","terms":["hilfen für junge volljährige","jugendhilfe ab 18","jugendamt nach 18","hilfe für 18 jährige","jugendhilfe nach volljährigkeit","betreutes wohnen junger erwachsener","jugendamt für erwachsene"]}
 ];
@@ -57,6 +57,10 @@ export const KNOWLEDGE_ALIASES=[
 // Sorgfältig begrenzte Kinder-/Elternfragen mit überprüfbaren Fachquellen.
 // Keine individuellen Diagnosen, Ansprüche, Live-Daten oder Preisversprechen.
 export const KNOWLEDGE_FACTS=[
+ {id:'elternzeit-dauer',topic:'Elternzeit',questions:['wie lange darf ich elternzeit machen','wie lang darf ich elternzeit machen','wie lange kann ich elternzeit nehmen','wie lange dauert elternzeit','wieviel elternzeit pro kind','maximale elternzeit','dauer elternzeit'],
+  answer:'Wer Anspruch auf Elternzeit hat, kann grundsätzlich pro Kind bis zu drei Jahre Elternzeit beanspruchen. Ein Teil kann zwischen dem dritten und dem achten Geburtstag liegen; dabei gelten Aufteilungsregeln und Anmeldefristen. Bei der Mutter wird die Mutterschutzzeit nach der Geburt angerechnet. Die Elternzeit selbst ist grundsätzlich unbezahlt und nicht mit dem Elterngeld-Bezugszeitraum identisch.',
+  sources:[{title:'Familienportal – Dauer der Elternzeit',url:'https://familienportal.de/familienportal/familienleistungen/elternzeit/faq/wie-kann-ich-die-dauer-der-elternzeit-berechnen--124832'}]},
+
  {id:'sun-size',topic:'Weltall',questions:['wie groß ist die sonne','durchmesser der sonne','wie breit ist die sonne','sonne größe','größe sonne'],
   answer:'Die Sonne hat einen Durchmesser von rund 1,4 Millionen Kilometern – ungefähr 109-mal so viel wie die Erde.',
   sources:[{title:'NASA Science – Sun Facts',url:'https://science.nasa.gov/sun/facts/'}]},
