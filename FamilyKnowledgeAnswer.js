@@ -323,6 +323,28 @@ export function answerFamilyQuestion(question,ctx={}){
     /\b(lesen|weiss|weist|steht|anzeigen|sag|zeigen|kenn)\b/.test(q))
     return result('Ich kann keine privaten Nachrichten, Kontodaten oder Passwörter einsehen. Öffne dafür den entsprechenden geschützten App-Bereich.',{
       kind:'privacy',pageId:/\bpasswort\b/.test(q)?'profile':'chat'});
+ // Ein eng begrenzter Kontext aus dem vorherigen redaktionellen Treffer
+ // beantwortet typische Folgefragen, ohne persönliche Daten zu verarbeiten.
+ const previous=ctx.previousContext;
+ const isGenericFollowup=(/\b(und|dazu|dafur|dabei|hierzu|das|diesem|diese)\b/.test(q)&&ts.length<=3)||
+   (ts.length>0&&ts.length<=3&&ts.every(x=>
+    ['unterlagen','dokumente','nachweise','formulare','antrag','beantragen','zustandig','ansprechpartner','voraussetzungen','schritte','fristen','frist','beachten','widerspruch'].includes(x)));
+ if(previous&&isGenericFollowup&&['topic','inclusion'].includes(previous.kind)){
+   const collection=previous.kind==='topic'?ctx.topics:ctx.inclusion;
+   const item=(collection||[]).find(x=>x.id===previous.id);
+   if(item){
+     const entry={kind:previous.kind,item};
+     return result(textForArticle(entry,findIntent(q),q),{
+       kind:'article',pageId:previous.kind==='topic'?'guide':'inclusion',
+       navigationQuery:item.title,contextRef:{kind:previous.kind,id:item.id},
+       sources:articleSource(item),
+       related:[
+         {label:'Welche Unterlagen brauche ich?',question:'Welche Unterlagen brauche ich?'},
+         {label:'Wer ist dafür zuständig?',question:'Wer ist dafür zuständig?'},
+         {label:'Was muss ich beachten?',question:'Was muss ich beachten?'}
+       ]});
+   }
+ }
  const factMatches=rankFacts(q,ts,ctx.facts);
  // Geprüfte Wissensfragen vor Navigationswörtern wie „Regen“ behandeln.
  if(factMatches.length&&factMatches[0].score>=45){
@@ -384,9 +406,14 @@ export function answerFamilyQuestion(question,ctx={}){
        kind:'clarify',related:docs.slice(0,3).map(d=>({label:d.item.title,question:d.item.title}))});
      return result(textForArticle(best,findIntent(q),q),{
        kind:'article',pageId:best.kind==='topic'?'guide':'inclusion',navigationQuery:best.item.title,
+       contextRef:{kind:best.kind,id:best.item.id},
        sources:articleSource(best.item),
-       related:docs.filter(d=>d!==best&&d.kind===best.kind&&d.score>=20)
-         .slice(0,2).map(d=>({label:d.item.title,question:d.item.title}))
+       related:[
+         {label:'Welche Unterlagen brauche ich?',question:'Welche Unterlagen brauche ich?'},
+         {label:'Wer ist dafür zuständig?',question:'Wer ist dafür zuständig?'},
+         ...docs.filter(d=>d!==best&&d.kind===best.kind&&d.score>=20)
+           .slice(0,1).map(d=>({label:d.item.title,question:d.item.title}))
+       ]
      });
    }
    if(best.kind==='health'){
