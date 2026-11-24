@@ -3502,7 +3502,7 @@ function toggle(i){
 }
 function addCustomInterest(){
  const value=normalizeInterest(customInterest);
- if(value.length<2||/[\\n\\r@]|https?:\\/\\//i.test(value)){
+ if(value.length<2||/[\n\r@]|https?:\/\//i.test(value)){
   Alert.alert('Hobby prüfen','Bitte ein kurzes Hobby ohne Kontaktdaten, Links oder Namen von Kindern eingeben.');return;
  }
  if((form.interests||[]).length>=MAX_PROFILE_INTERESTS){
