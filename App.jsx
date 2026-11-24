@@ -1190,7 +1190,7 @@ reportEvent={(id)=>report('event',id)}/>:
 photos={ownPhotos} photosUrls={photosUrls} busy={busy}
  photoBusy={photoBusy} photoBusyMore={photoBusyMore} photoHasMore={photoHasMore} photoLoadError={photoLoadError} loadMorePhotos={loadMorePhotos} retryPhotos={()=>setPhotoEpoch(n=>n+1)}
 save={(value)=>execute(async()=>{
-  await moderateTextOrThrow([value.display_name,value.region_label,value.about]);
+  await moderateTextOrThrow([value.display_name,value.region_label,value.about,...(value.interests||[])]);
   assertResult(await supabase.from('profiles').update(value).eq('user_id',me));
 },'Profil gespeichert. Textänderungen benötigen eine neue Freigabe.')}
 uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,executePhoto)}
