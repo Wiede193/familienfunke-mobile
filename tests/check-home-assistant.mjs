@@ -5,13 +5,14 @@ const source=readFileSync(new URL('../HomeNavigation.js',import.meta.url),'utf8'
 const {HOME_ROUTES,HOME_PAGE_IDS,findHomeRoutes}=await import(
   'data:text/javascript;base64,'+Buffer.from(source).toString('base64')
 );
-assert.equal(HOME_ROUTES.length,22,'Expected 22 real, navigable functions including own listings');
+assert.equal(HOME_ROUTES.length,23,'Expected 23 real navigable areas including own listings and favorites');
 assert.equal(new Set(HOME_PAGE_IDS).size,HOME_PAGE_IDS.length,'Page IDs must be unique');
 for(const [phrase,id] of [
   ['Kistenmodus','box'],
   ['Paket erfassen','box'],
   ['einzelnen Artikel verkaufen','sell'],
   ['Meine Anzeigen','myListings'],
+  ['Merkliste','favorites'],
   ['Spielplatz finden','map'],
   ['Wochenendausflug planen','outing'],
   ['Familien kennenlernen','discover'],
@@ -91,6 +92,7 @@ const server=readFileSync(new URL('../supabase/functions/ff-app-assistant/index.
 // be added to its obsolete allowlist. Validate their actual client wiring.
 assert.match(app,/id==='myListings'\?\{type:'myListings'\}/);
 assert.match(app,/entryIntent\?\.type!=='myListings'/);
+assert.match(app,/entryIntent\?\.type!=='favorites'/);
 assert.match(home,/onNavigate\('myListings'\)/);
 assert.match(server,/auth:"user"/,'The assistant endpoint must require authenticated users');
 assert.match(server,/ff_app_assistant_claim/,'Budget check must be mandatory');
