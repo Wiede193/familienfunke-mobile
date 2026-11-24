@@ -1441,11 +1441,22 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
           ]);
         return;
       }
-      if(boxEditor){
-        Alert.alert('Kistenentwurf bearbeiten',
-          'Deine Änderungen sind noch im Formular. Behalte sie, bevor du den Bereich verlässt.',[
-            {text:'Weiter bearbeiten',style:'cancel'},
-            {text:'Zwischenstand behalten',onPress:()=>{saveBoxEditor();next();}}
+      if(boxEditor||boxOpen){
+        Alert.alert('Kiste lokal speichern?',
+          'Die Änderungen in deiner Kiste sollen vor dem Wechsel auf diesem Gerät gesichert werden. Das ist kein Cloud-Backup.',[
+            {text:'In der Kiste bleiben',style:'cancel'},
+            {text:'Sichern & wechseln',onPress:async()=>{
+              if(boxStorage!=='ready'){
+                Alert.alert('Kiste nicht bereit','Bitte warte, bis die lokale Kiste geladen ist.');return;
+              }
+              try{
+                await saveBoxSnapshot(me,boxSnapshot());
+                next();
+              }catch{
+                Alert.alert('Speichern fehlgeschlagen',
+                  'Der Zwischenstand wurde nicht zuverlässig gesichert. Prüfe bitte den Gerätespeicher und bleibe in der Kiste.');
+              }
+            }}
           ]);
         return;
       }
