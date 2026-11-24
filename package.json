@@ -10,7 +10,7 @@
     "check": "expo install --check",
     "fix": "expo install --fix",
     "check:box-ux": "node tests/check-box-ux.mjs",
-    "check:home": "node tests/check-home-assistant.mjs && node tests/check-healthy-map.mjs && node tests/check-official-decisions.mjs",
+    "check:home": "node tests/check-offline-knowledge.mjs && node tests/check-home-assistant.mjs && node tests/check-healthy-map.mjs && node tests/check-official-decisions.mjs",
     "check:design": "node tests/check-design-system.mjs",
     "check:accessibility": "node tests/check-accessibility.mjs",
     "check:map-photo-a11y": "node tests/check-map-photo-a11y.mjs",
