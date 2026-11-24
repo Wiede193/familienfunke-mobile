@@ -71,7 +71,7 @@ export function SparkleIntro({onFinish}){
 }
 const TOUR=[
  {id:'search',title:'Hier beginnen deine Fragen',text:'Gib ein Thema ein. „Antwort finden“ nutzt unsere geprüften Ratgeber; „Suchen“ findet Angebote und App-Bereiche.',placement:'search',route:'home'},
- {id:'market',title:'Basar: weitergeben statt wegwerfen',text:'Suche Kinderartikel oder lege eine Anzeige mit Kategorie, Zustand, Preis und Standortregion an. Neue Anzeigen werden geprüft.',placement:1,route:'market'},
+ {id:'market',title:'Basar: weitergeben statt wegwerfen',text:'Suche Kinderartikel oder stelle selbst etwas ein. Anzeigen sind nach dem Hochladen grundsätzlich sofort sichtbar; Probleme kannst du melden.',placement:1,route:'market'},
  {id:'discover',title:'Familien kennenlernen',text:'Suche nach gemeinsamen Interessen. Kontakte und Nachrichten entstehen nur mit freiwilliger Zustimmung.',placement:2,route:'discover'},
  {id:'map',title:'Ausflugsziele auf der Karte',text:'Entdecke Ausflüge, Spielplätze und Hinweise zur Barrierefreiheit. Öffnungszeiten bitte beim Anbieter kontrollieren.',placement:3,route:'map'},
  {id:'guide',title:'Familienwissen und Hilfen',text:'Finde Ratgeber, zuständige Stellen und offizielle Antragswege, mit Quellen und Einschränkungen.',placement:4,route:'guide'},
