@@ -15,13 +15,17 @@ import {findHealthyResources,HEALTH_RESOURCES} from './FamilyHealthyContent';
 import {findFamilyTopics,FAMILY_TOPIC_ARTICLES} from './FamilyTopicsKnowledge';
 import {findInclusionArticles,INCLUSION_ARTICLES} from './InclusionKnowledge';
 import {answerFamilyQuestion} from './FamilyKnowledgeAnswer';
+import {KNOWLEDGE_ALIASES,KNOWLEDGE_FACTS,KNOWLEDGE_PROMPTS} from './FamilyKnowledgeCatalog';
+import {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES} from './BrandenburgFamilyRegions';
+import {GERMANY_FAMILY_STATES,GERMANY_FAMILY_RESOURCES} from './GermanyFamilyDirectory';
+import {VERIFIED_GUIDE_DETAILS} from './FamilyGuideVerified';
 import {CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {BRANDENBURG_FAMILY_PLACES} from './FamilyMapBrandenburg';
 import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
 
 const C=FAMILY_COLORS;
 const FEATURED=['discover','map','market','guide'];
-const SUGGESTIONS=['Wie groß ist die Sonne?','Wie beantrage ich Kinderzuschlag?','Wo finde ich einen Spielplatz?','Wie lerne ich andere Familien kennen?'];
+const FULL_PLACE_CATALOG=[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES,...NATIONAL_FAMILY_PLACES];
 function SunMark(){
   return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.sunWrap}>
     {Array.from({length:8},(_,i)=><View key={i} style={[s.ray,{
@@ -44,7 +48,7 @@ function AreaCard({route,onNavigate,query,compact=false}){
     <FamilyIcon name="chevron-right" size={19} color={C.accentDark}/>
   </Pressable>;
 }
-function AssistantReply({entry,onNavigate}){
+function AssistantReply({entry,onNavigate,onAsk}){
   return <View accessibilityLiveRegion="polite" style={s.answerCard}>
     <Text style={s.youLabel}>DEINE FRAGE</Text>
     <Text style={s.questionText}>{entry.question}</Text>
@@ -52,11 +56,22 @@ function AssistantReply({entry,onNavigate}){
     <Text style={s.assistantLabel}>AUS DER WISSENSDATENBANK</Text>
     <Text style={s.answerText}>{entry.answer}</Text>
     {entry.sources?.length?<View style={s.offerGroup}>
-      <Text style={s.offerHeading}>Offizielle Quellen</Text>
+      <Text style={s.offerHeading}>Quellen und weiterführende Informationen</Text>
       {entry.sources.map(src=><Pressable key={src.url} accessibilityRole="link"
         accessibilityLabel={src.title+' öffnen'}
         onPress={()=>Linking.openURL(src.url).catch(()=>{})} style={s.offerItem}>
         <Text style={s.answerActionLabel}>{src.title} ›</Text>
+      </Pressable>)}
+    </View>:null}
+    {entry.related?.length?<View style={s.related}>
+      <Text style={s.relatedTitle}>{entry.kind==='places'?'Weitere Katalogziele':'Das könnte auch helfen'}</Text>
+      {entry.related.slice(0,3).map((item,i)=><Pressable key={(item.placeId||item.question||item.label)+i}
+        accessibilityRole="button"
+        accessibilityLabel={item.label+' öffnen'}
+        onPress={()=>item.placeId?onNavigate('map','',item.placeId):onAsk(item.question||item.label)}
+        style={s.relatedButton}>
+        <Text style={s.relatedLabel}>{item.label}</Text>
+        <FamilyIcon name="chevron-right" size={17} color={C.accentDark}/>
       </Pressable>)}
     </View>:null}
     {entry.searchQuery&&!entry.offersError&&Array.isArray(entry.offers)?
@@ -92,6 +107,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [showAll,setShowAll]=useState(false);
+  const [selectedTopicGroup,setSelectedTopicGroup]=useState(KNOWLEDGE_PROMPTS[0].title);
   const [showMoreFeed,setShowMoreFeed]=useState(false);
   const scrollRef=useRef(null);
   const searchResultOffset=useRef(0);
@@ -155,8 +171,8 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   useEffect(()=>{if(visibleSearch)scrollRef.current?.scrollTo({y:Math.max(0,searchResultOffset.current-8),animated:true});},[visibleSearch]);
   const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
   const moreRoutes=HOME_ROUTES.filter(route=>!FEATURED.includes(route.id));
-  function askAssistant(){
-    const prompt=needle.slice(0,600);
+  function askAssistant(input=needle){
+    const prompt=String(input||'').trim().slice(0,600);
     if(prompt.length<3||pending.current)return;
     const request=++requestSeq.current;
     pending.current=true;Keyboard.dismiss();setError('');
@@ -164,7 +180,12 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       // Lokal berechnete Antwort: keine API-Abfrage und keine serverseitige Speicherung.
       const reply=answerFamilyQuestion(prompt,{
         topics:FAMILY_TOPIC_ARTICLES,inclusion:INCLUSION_ARTICLES,
-        health:HEALTH_RESOURCES,routes:HOME_ROUTES,places
+        health:HEALTH_RESOURCES,routes:HOME_ROUTES,places,
+        allPlaces:FULL_PLACE_CATALOG,region,
+        aliases:KNOWLEDGE_ALIASES,facts:KNOWLEDGE_FACTS,
+        brandenburgRegions:BRANDENBURG_REGIONS,brandenburgResources:BRANDENBURG_FAMILY_RESOURCES,
+        germanyStates:GERMANY_FAMILY_STATES,germanyResources:GERMANY_FAMILY_RESOURCES,
+        guideDetails:VERIFIED_GUIDE_DETAILS
       });
       if(!alive.current||request!==requestSeq.current)return;
       setConversation(old=>[{question:prompt,...reply},...old].slice(0,6));
@@ -175,6 +196,11 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
     }finally{
       if(alive.current&&request===requestSeq.current)pending.current=false;
     }
+  }
+  function askSuggested(questionText){
+    updateQuestion(questionText);
+    askAssistant(questionText);
+    scrollRef.current?.scrollTo({y:0,animated:false});
   }
   async function searchApp(){
     const query=needle;
@@ -230,7 +256,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       <Text style={s.tagline}>Finden. Fragen. Entdecken.</Text>
       <View style={s.inputShell}>
         <FamilyIcon name="search" size={23} color={C.accentDark}/>
-        <TextInput accessibilityLabel="Familienfunke durchsuchen oder eine KI-Frage eingeben"
+        <TextInput accessibilityLabel="Familienfunke durchsuchen oder Wissensfrage stellen"
           style={s.input} value={question} onChangeText={updateQuestion} editable={!busy&&!searchBusy}
           placeholder="Was möchtest du finden?"
           placeholderTextColor={C.muted} maxLength={600}
@@ -321,19 +347,19 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         </Pressable>):<Text style={s.mutedSmall}>Keine passenden freigegebenen Angebote gefunden.</Text>}
         <Pressable accessibilityRole="button" onPress={()=>onNavigate('market',needle)} style={s.answerAction}><Text style={s.answerActionLabel}>Alle Basar-Ergebnisse ansehen ›</Text></Pressable>
       </View>:null}
-      {!matches.length&&!places.length&&!healthMatches.length&&!topicMatches.length&&!inclusionMatches.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Stelle deine Frage der KI oder ändere die Suche.</Text>:null}
+      {!matches.length&&!places.length&&!healthMatches.length&&!topicMatches.length&&!inclusionMatches.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Tippe auf „Antwort finden“ oder ändere die Suchbegriffe.</Text>:null}
       {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>Tippe auf „Suchen“, um aktuelle Basar-Angebote und Termine abzurufen.</Text>:null}
     </View>:null}
     {conversation.length?<View style={s.section}>
       <View style={s.replyHeader}>
         <Text style={s.sectionTitle}>Antworten aus der Wissensdatenbank</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="KI-Verlauf in dieser Ansicht löschen"
+        <Pressable accessibilityRole="button" accessibilityLabel="Wissensantworten dieser Ansicht löschen"
           onPress={()=>{requestSeq.current++;pending.current=false;setBusy(false);setSearchBusy(false);setConversation([]);}} style={s.clearHistory}>
           <Text style={s.clearHistoryLabel}>Verlauf leeren</Text>
         </Pressable>
       </View>
       {conversation.map((entry,i)=><AssistantReply key={i+'-'+entry.question}
-        entry={entry} onNavigate={onNavigate}/>)}
+        entry={entry} onNavigate={onNavigate} onAsk={askSuggested}/>)}
     </View>:null}
     {!needle?<View style={s.welcomeSection}>
       <Text style={s.welcomeEyebrow}>EURE FAMILIENWELT</Text>
@@ -468,14 +494,25 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       </View></>:null}
     </View>:null}
     {!needle?<View style={s.section}>
-      <Text style={s.sectionTitle}>Du könntest fragen</Text>
-      <View style={s.suggestionList}>
-        {SUGGESTIONS.map(topic=><Pressable key={topic} accessibilityRole="button"
-          accessibilityLabel={'Frage eingeben: '+topic}
-          onPress={()=>{updateQuestion(topic);scrollRef.current?.scrollTo({y:0,animated:false});}} style={({pressed})=>[s.suggestion,pressed&&s.pressed]}>
-          <Text style={s.suggestionText}>{topic}</Text>
-          <Text style={s.suggestionArrow}>›</Text>
+      <Text accessibilityRole="header" style={s.sectionTitle}>Fragen an Familienfunke</Text>
+      <Text style={s.sectionSubtitle}>Wähle ein Thema und tippe auf eine Frage. Die Antwort kommt direkt aus unserer Wissensdatenbank.</Text>
+      <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.topicGroupList}>
+        {KNOWLEDGE_PROMPTS.map(group=><Pressable key={group.title} accessibilityRole="button"
+          accessibilityState={{selected:selectedTopicGroup===group.title}}
+          onPress={()=>setSelectedTopicGroup(group.title)}
+          style={[s.topicGroupChip,selectedTopicGroup===group.title&&s.topicGroupSelected]}>
+          <Text style={[s.topicGroupText,selectedTopicGroup===group.title&&s.topicGroupSelectedText]}>{group.title}</Text>
         </Pressable>)}
+      </ScrollView>
+      <View style={s.suggestionList}>
+        {(KNOWLEDGE_PROMPTS.find(g=>g.title===selectedTopicGroup)?.questions||[]).map(topic=>
+          <Pressable key={topic} accessibilityRole="button"
+            accessibilityLabel={'Frage beantworten: '+topic}
+            onPress={()=>askSuggested(topic)} style={({pressed})=>[s.suggestion,pressed&&s.pressed]}>
+            <Text style={s.suggestionText}>{topic}</Text>
+            <Text style={s.suggestionArrow}>›</Text>
+          </Pressable>)}
       </View>
     </View>:null}
     <Text style={s.disclaimer}>
@@ -601,5 +638,16 @@ const s=StyleSheet.create({
   disclaimer:{fontSize:14,lineHeight:18,color:C.muted,marginTop:1},
   outingCard:{backgroundColor:C.mint,borderColor:C.line,borderWidth:1,borderRadius:22,padding:16,marginTop:12,minHeight:48,flexDirection:'row',alignItems:'center'},
   outingTitle:{fontSize:19,fontWeight:'900',color:C.ink},outingSubtitle:{fontSize:14,lineHeight:21,color:C.ink,marginTop:6},outingLink:{fontSize:14,fontWeight:'900',color:C.accentDark,marginTop:12},
+  related:{marginTop:14,gap:7},
+  relatedTitle:{fontWeight:'800',fontSize:14,color:C.ink},
+  relatedButton:{minHeight:44,padding:10,borderWidth:1,borderColor:C.line,
+    borderRadius:12,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
+  relatedLabel:{flex:1,fontSize:14,color:C.accentDark,fontWeight:'700'},
+  topicGroupList:{gap:9,paddingVertical:8,paddingRight:10},
+  topicGroupChip:{minHeight:44,justifyContent:'center',paddingHorizontal:14,
+    borderRadius:20,backgroundColor:C.paper,borderColor:C.line,borderWidth:1},
+  topicGroupSelected:{backgroundColor:C.teal,borderColor:C.teal},
+  topicGroupText:{color:C.accentDark,fontWeight:'800',fontSize:13.5},
+  topicGroupSelectedText:{color:C.white},
   pressed:{opacity:.72}
 });
