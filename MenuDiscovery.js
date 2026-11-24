@@ -3,10 +3,10 @@
 export const MENU_ENTRY_AREAS = Object.freeze([
  {id:'home',title:'Startseite',subtitle:'Suche, Fragen und Familienideen',keywords:'start zurück hauptseite suche frage fragen'},
  {id:'market',title:'Familienbasar',subtitle:'Alle Kinderartikel und Angebote',keywords:'flohmarkt kaufen tauschen verschenken einkaufen'},
- {id:'sell',title:'Anzeige erstellen',subtitle:'Kinderartikel sofort anbieten',keywords:'verkaufen einstellen inserieren hochladen foto inserat'},
- {id:'myListings',title:'Meine Anzeigen',subtitle:'Eigene Angebote bearbeiten und abschließen',keywords:'meine inserate eigene angebote entwurf veröffentlichen status'},
+ {id:'sell',title:'Anzeige erstellen',subtitle:'Kinderartikel sofort anbieten',keywords:'verkaufen einstellen inserieren hochladen foto inserat kleidung spielzeug babyartikel'},
+ {id:'myListings',title:'Meine Anzeigen',subtitle:'Eigene Angebote bearbeiten und abschließen',keywords:'meine inserate eigene angebote entwurf veröffentlichen status ansehen sehen überprüfen prüfen'},
  {id:'favorites',title:'Merkliste',subtitle:'Gespeicherte Basar-Angebote wiederfinden',keywords:'favoriten favoritenliste herz gemerkte angebote speichern artikel'},
- {id:'discover',title:'Familien entdecken',subtitle:'Familien nach Region und Interessen kennenlernen',keywords:'familien finden freunde swipe tinder suchen menschen'},
+ {id:'discover',title:'Familien entdecken',subtitle:'Familien nach Region und Interessen kennenlernen',keywords:'familien finden freunde swipe tinder suchen menschen nähe umkreis wohnort'},
  {id:'map',title:'Familienkarte',subtitle:'Spielplätze und Ausflugsziele finden',keywords:'karte spielplatz schwimmbad freizeitbad indoor ausflug ausflüge'},
  {id:'guide',title:'Wissen & Anträge',subtitle:'Hilfen, Wegweiser und Anlaufstellen',keywords:'wissen ratgeber elterngeld kindergeld kinderzuschlag amt behörde antrag formulare'}
 ]);
@@ -33,7 +33,7 @@ const ALIASES={
  decisions:'beschluss beschlüsse gesetz gesetzesänderung',
  more:'übersicht alle funktionen'
 };
-const STOP=new Set(['wo','ist','sind','wie','ich','mir','die','der','das','ein','eine','den',
+const STOP=new Set(['wo','ist','sind','wie','ich','mir','die','der','das','ein','eine','den','im','in','am','bei','meiner','meinem','meines','denn','den','es',
  'meine','meinen','mit','und','zu','kann','finde','öffnen','oeffnen','bitte','was','für','fuer']);
 export const normalizeMenuText=value=>String(value||'').toLocaleLowerCase('de-DE')
  .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss')
