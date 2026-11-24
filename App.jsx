@@ -3734,7 +3734,7 @@ smallBrand:{fontSize:19,fontWeight:'900',color:C.ink,letterSpacing:-.7},tagline:
 loginPage:{flexGrow:1,alignItems:'center',justifyContent:'center',padding:20,backgroundColor:C.bg},
 loginMark:{width:95,height:95,borderRadius:31,backgroundColor:C.sun,alignItems:'center',justifyContent:'center',marginBottom:22,transform:[{rotate:'-7deg'}]},
 topBar:{minHeight:64,borderBottomWidth:1,borderBottomColor:C.line,backgroundColor:C.white,paddingHorizontal:12,flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:6,paddingVertical:8},
-headerMenuButton:{minWidth:62,minHeight:44,paddingHorizontal:8,flexDirection:'row',gap:3,alignItems:'center',justifyContent:'center',borderRadius:13,backgroundColor:C.mint},
+headerMenuButton:{minWidth:44,minHeight:44,paddingHorizontal:8,flexDirection:'row',gap:3,alignItems:'center',justifyContent:'center',borderRadius:13,backgroundColor:C.mint},
 headerMenuLabel:{fontSize:12.5,fontWeight:'800',color:C.accentDark},
 headerBackButton:{minHeight:48,minWidth:83,paddingHorizontal:9,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:3,borderRadius:13,borderWidth:1.5,borderColor:C.accentDark,backgroundColor:C.sunPale},
 headerBackArrow:{fontSize:33,lineHeight:35,color:C.accentDark,fontWeight:'800'},headerBackLabel:{fontSize:15,color:C.accentDark,fontWeight:'800'},
