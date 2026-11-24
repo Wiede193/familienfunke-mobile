@@ -38,13 +38,12 @@ export const MENU_GROUPS=[
 export const MORE_ITEMS=MENU_GROUPS.flatMap(g=>g.items).filter(([id])=>!['info','refresh','more'].includes(id));
 
 export function MenuIcon(){return <FamilyIcon name="menu" size={25} color={C.ink}/>;}
+// Die vier Hauptziele entsprechen exakt der unteren Navigation.
 const QUICK_ITEMS=[
-  ['market','Basar','bag'],
-  ['sell','Anzeige erstellen','plus'],
-  ['myListings','Meine Anzeigen','bag'],
-  ['chat','Nachrichten','message'],
-  ['profile','Mein Profil','users'],
-  ['inbox','Neuigkeiten','bell']
+  ['discover','Familien finden','users'],
+  ['map','Ausflüge entdecken','map'],
+  ['market','Basar entdecken','bag'],
+  ['guide','Rat & Hilfe','book']
 ];
 const SEARCH_ICONS={sell:'bag',myListings:'bag',favorites:'heart',home:'home',guide:'book',market:'bag',map:'map',discover:'users'};
 function MenuResult({entry,onSelect,activeTab,unread}){
@@ -65,7 +64,7 @@ function MenuResult({entry,onSelect,activeTab,unread}){
 export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}){
  const {width:screenWidth,fontScale}=useWindowDimensions();
  const oneColumn=screenWidth<360||fontScale>=1.5;
- const [expanded,setExpanded]=useState('Mein Bereich');
+ const [expanded,setExpanded]=useState(null);
  const [search,setSearch]=useState('');
  useEffect(()=>{if(!visible)setSearch('');},[visible]);
  const searching=search.trim().length>0;
@@ -77,7 +76,7 @@ export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}
     <View style={s.header}>
      <View style={{flex:1}}>
        <Text accessibilityRole="header" style={s.title}>Dein Familienfunke</Text>
-       <Text style={s.headerSub}>Schnell finden, was ihr braucht</Text>
+       <Text style={s.headerSub}>Vier Hauptbereiche. Alles Weitere über die Suche.</Text>
      </View>
      <Pressable accessibilityRole="button" accessibilityLabel="Menü schließen"
        onPress={onClose} style={s.close}><FamilyIcon name="close" size={21}/></Pressable>
@@ -110,7 +109,7 @@ export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}
             style={s.helpAction}><Text style={s.helpActionText}>Hilfe & FAQ öffnen</Text></Pressable>
         </View>}
       </View>:<>
-      <Text style={s.group}>Häufig gebraucht</Text>
+      <Text style={s.group}>Direkt zu deinem Ziel</Text>
       <View style={s.quickGrid}>
         {QUICK_ITEMS.map(([id,title,icon])=><Pressable key={id} accessibilityRole="button"
           accessibilityLabel={title+(id==='inbox'&&unread>0?', '+unread+' ungelesen':'')}
@@ -122,7 +121,7 @@ export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}
           {id==='inbox'&&unread>0?<Text style={s.unread}>{unread} neu</Text>:null}
         </Pressable>)}
       </View>
-      <Text style={[s.group,{marginTop:22}]}>Alle Bereiche</Text>
+      <Text style={[s.group,{marginTop:22}]}>Weitere Funktionen – nur bei Bedarf</Text>
       {MENU_GROUPS.map(group=>{
         const open=expanded===group.title;
         return <View key={group.title} style={s.groupCard}>
