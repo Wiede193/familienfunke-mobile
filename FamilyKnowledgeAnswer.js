@@ -393,7 +393,10 @@ export function answerFamilyQuestion(question,ctx={}){
         !/\b(wann|frist|fristen|wie lange|wochen|beginn|dauer)\b/.test(q))||
        (id==='birth_certificate'&&best.item.id==='geburt-checkliste'&&
         !/\b(wann|frist|fristen|wie lange|tage)\b/.test(q))))&&
-     !(id==='child_benefit'&&best?.alias>=50&&best?.item?.id!=='kindergeld')){
+     !(id==='child_benefit'&&(
+       (best?.kind==='topic'&&best.item.id==='kindergeld-antrag'&&
+        !/\b(wann|frist|fristen|ruckwirkend)\b/.test(q))||
+       (best?.alias>=50&&best?.item?.id!=='kindergeld')))){
     const d=ctx.guideDetails[id],intent=findIntent(q);
     let ans=intent==='documents'?d.documents:intent==='office'?d.where:d.when;
     if(!ans)ans=d.when||d.where||d.documents;
