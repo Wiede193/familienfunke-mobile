@@ -18,6 +18,7 @@ import {answerFamilyQuestion} from './FamilyKnowledgeAnswer';
 import {KNOWLEDGE_ALIASES,KNOWLEDGE_FACTS,KNOWLEDGE_PROMPTS} from './FamilyKnowledgeCatalog';
 import {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES} from './BrandenburgFamilyRegions';
 import {GERMANY_FAMILY_STATES,GERMANY_FAMILY_RESOURCES} from './GermanyFamilyDirectory';
+import {GERMANY_STATE_SERVICES,matchGermanState} from './GermanyFamilyServices';
 import {VERIFIED_GUIDE_DETAILS} from './FamilyGuideVerified';
 import {CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {BRANDENBURG_FAMILY_PLACES} from './FamilyMapBrandenburg';
@@ -185,6 +186,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         aliases:KNOWLEDGE_ALIASES,facts:KNOWLEDGE_FACTS,
         brandenburgRegions:BRANDENBURG_REGIONS,brandenburgResources:BRANDENBURG_FAMILY_RESOURCES,
         germanyStates:GERMANY_FAMILY_STATES,germanyResources:GERMANY_FAMILY_RESOURCES,
+        stateServices:GERMANY_STATE_SERVICES,stateMatch:matchGermanState(prompt,GERMANY_FAMILY_STATES),
         guideDetails:VERIFIED_GUIDE_DETAILS,
         previousContext:contextRef||conversation[0]?.contextRef||null
       });
