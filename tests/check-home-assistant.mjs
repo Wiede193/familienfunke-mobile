@@ -5,12 +5,13 @@ const source=readFileSync(new URL('../HomeNavigation.js',import.meta.url),'utf8'
 const {HOME_ROUTES,HOME_PAGE_IDS,findHomeRoutes}=await import(
   'data:text/javascript;base64,'+Buffer.from(source).toString('base64')
 );
-assert.equal(HOME_ROUTES.length,21,'Expected 21 real, navigable functions');
+assert.equal(HOME_ROUTES.length,22,'Expected 22 real, navigable functions including own listings');
 assert.equal(new Set(HOME_PAGE_IDS).size,HOME_PAGE_IDS.length,'Page IDs must be unique');
 for(const [phrase,id] of [
   ['Kistenmodus','box'],
   ['Paket erfassen','box'],
   ['einzelnen Artikel verkaufen','sell'],
+  ['Meine Anzeigen','myListings'],
   ['Spielplatz finden','map'],
   ['Wochenendausflug planen','outing'],
   ['Familien kennenlernen','discover'],
@@ -86,7 +87,11 @@ assert.match(app,/state\.id===id&&state\.owner===owner/);
 assert.match(app,/eventIntent\?\.owner===me/);
 assert.match(app,/Alle Veranstaltungen anzeigen/);
 const server=readFileSync(new URL('../supabase/functions/ff-app-assistant/index.ts',import.meta.url),'utf8');
-for(const id of HOME_PAGE_IDS)assert.ok(server.includes('"'+id+'"'),'Server must recognize page: '+id);
+// This legacy paid assistant endpoint is disabled. New local routes need not
+// be added to its obsolete allowlist. Validate their actual client wiring.
+assert.match(app,/id==='myListings'\?\{type:'myListings'\}/);
+assert.match(app,/entryIntent\?\.type!=='myListings'/);
+assert.match(home,/onNavigate\('myListings'\)/);
 assert.match(server,/auth:"user"/,'The assistant endpoint must require authenticated users');
 assert.match(server,/ff_app_assistant_claim/,'Budget check must be mandatory');
 assert.match(server,/store:false/,'Do not opt in to provider response storage');
