@@ -20,8 +20,8 @@ assert.match(review,/itemDecision==="review"/,'Uncertain results must not auto-p
 assert.match(review,/flagged && itemDecision!=="block"/,'Flagged content must not auto-publish');
 assert.match(review,/const newStatus=itemDecision==="block"\?"rejected":"approved"/,'Ordinary listings must automatically become approved');
 assert.match(review,/eq\("review_version",listing\.review_version\)/,'Stale review results must not publish changed listings');
-assert.match(app,/retryReview=\{\(id\)=>execute/,'Owners must be able to retry a failed check');
-assert.match(app,/KI-Prüfung erneut starten/,'Retry control must exist in the listing details');
-assert.match(app,/Die KI konnte keine sichere Freigabe erteilen/,'Review cases must be visible');
-assert.match(app,/die automatische KI-Prüfung ist gerade nicht verfügbar/,'Technical errors must not masquerade as human review');
-console.log('Automatische Basarfreigabe: Dienstrechte, KI-Grenzfälle und Fehlerwiederholung geprüft.');
+assert.doesNotMatch(app,/functions\.invoke\('ff-market-review'/,'App must never trigger priced automatic review');
+assert.match(app,/bis zur manuellen Freigabe/,'Listings must remain unpublished pending a human review');
+assert.match(review,/if\(true\)return Response\.json\(\{checked:0,paused:true\}/,'Scheduled jobs must pause before paid review');
+assert.match(review,/if\(true\)return Response\.json\(\{status:"review_required"/,'New listings must await manual review');
+console.log('Basarprüfung: bisherige Sicherheitsregeln und kostenfreie manuelle Freigabe geprüft.');
