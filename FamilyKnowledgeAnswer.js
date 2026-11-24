@@ -384,8 +384,15 @@ export function answerFamilyQuestion(question,ctx={}){
   if(reg)return reg;
  }
  // Landesweite Orientierung: nur recherchierte Fachseiten, niemals fiktive Ortsstellen.
- const state=ctx.stateMatch||(ctx.germanyStates||[]).find(s=>
-   exactPhrase(q,s.name)||exactPhrase(q,s.capital))||null;
+ const state=Object.prototype.hasOwnProperty.call(ctx,'stateMatch')?ctx.stateMatch:
+   (()=>{
+     const matches=(ctx.germanyStates||[]).filter(s=>
+       exactPhrase(q,s.name)||exactPhrase(q,s.capital));
+     if(!matches.length)return null;
+     const longest=Math.max(...matches.map(s=>norm(s.name).length));
+     const exact=matches.filter(s=>norm(s.name).length===longest);
+     return exact.length===1?exact[0]:null;
+   })();
  const matchingGroup=state?(ctx.stateServices||[]).find(g=>g.code===state.code):null;
  if(state&&service.length){
   const office=matchingGroup?.services?.find(o=>service.includes(o.topic));
