@@ -274,7 +274,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Wissensdatenbank um Antwort fragen"
           accessibilityState={{disabled:busy||searchBusy||needle.length<3,busy}}
-          disabled={busy||searchBusy||needle.length<3} onPress={askAssistant}
+          disabled={busy||searchBusy||needle.length<3} onPress={()=>askAssistant()}
           style={[s.askButton,(busy||searchBusy||needle.length<3)&&s.disabled]}>
           {busy?<ActivityIndicator color={C.white} style={{marginRight:8}}/>:null}
           <Text style={s.askButtonLabel}>{busy?'Suche läuft …':'Antwort finden'}</Text>
