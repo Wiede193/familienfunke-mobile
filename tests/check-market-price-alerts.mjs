@@ -18,7 +18,9 @@ assert.match(sql,/limit 100/);
 assert.match(sql,/old_price_cents,new_price_cents/);
 assert.match(sql,/private\.ff_market_price_preferences enable row level security/);
 assert.match(app,/row\.kind==='search'\|\|row\.kind==='price'/);
-assert.match(app,/onlyFavorites&&!open&&!boxOpen\?<PriceAlertPreference/);
+// Price alerts belong to the favorites overview, not to article or selling subpages.
+assert.match(app,/onlyFavorites&&!inMarketSubpage\?<PriceAlertPreference/);
+assert.match(app,/const inMarketSubpage=boxOpen\|\|open\|\|!!boxEditor\|\|!!selectedListing\|\|sellChoicesOpen/);
 assert.match(read('PushSettings.jsx'),/<PriceAlertPreference/);
 assert.match(ui,/ff_market_price_alert_status/);
 assert.match(ui,/ff_market_price_alert_set/);
