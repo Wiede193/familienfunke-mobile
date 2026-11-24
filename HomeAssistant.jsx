@@ -305,8 +305,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       <Text style={s.searchHint}>Ein Suchfeld für alles: Familien, Angebote, Ausflüge und Fragen.</Text>
       {needle.length>=2&&!visibleReplies.length?<View style={s.instantResults}>
         <Text style={s.instantTitle}>Direkt gefunden</Text>
-        {matches[0]?<AreaCard route={matches[0]} onNavigate={onNavigate} query={needle} compact/>:
-          places[0]?<Pressable accessibilityRole="button"
+        {places[0]?<Pressable accessibilityRole="button"
             accessibilityLabel={places[0].title+' auf der Karte öffnen'}
             onPress={()=>onNavigate('map','',places[0].place.id)} style={s.areaRow}>
               <View style={{flex:1}}><Text style={s.areaTitle}>{places[0].title}</Text>
@@ -320,6 +319,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
               <Text style={s.areaSubtitle}>{topicMatches[0].short}</Text></View>
               <Text style={s.areaArrow}>›</Text>
             </Pressable>:
+          matches[0]?<AreaCard route={matches[0]} onNavigate={onNavigate} query={needle} compact/>:
           <Text style={s.mutedSmall}>Noch kein direkter Treffer. Suche starten, um weitere Ergebnisse zu laden.</Text>}
       </View>:null}
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
