@@ -1298,6 +1298,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   const [photo,setPhoto]=useState([]);
   const [choosing,setChoosing]=useState(false);
   const [quick,setQuick]=useState(false);
+  const [draftTemplateId,setDraftTemplateId]=useState(null);
   const [facts,setFacts]=useState({...EMPTY_FACTS});
   const [scanBusy,setScanBusy]=useState(false);
   const [proposal,setProposal]=useState(null);
@@ -1483,7 +1484,16 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   function resetForm(){
     setBoxEditor(null);setEditingId(null);setTitle('');setDescription('');setRegion('');setCategory('Kleidung');
     setCondition('Gut');setTrade('sell');setPrice('');setOrganizationId('');setPhoto([]);
-    setQuick(false);setFacts({...EMPTY_FACTS});setProposal(null);setScanNotice('');setConfirmed(false);setExpandFacts(false);setScanned(false);setAskSize(false);
+    setQuick(false);setDraftTemplateId(null);setFacts({...EMPTY_FACTS});setProposal(null);setScanNotice('');setConfirmed(false);setExpandFacts(false);setScanned(false);setAskSize(false);
+  }
+  function chooseMarketDraft(template){
+    const draft=applyMarketDraft(template);if(!draft)return;
+    const apply=()=>{setDraftTemplateId(template.id);setQuick(false);setTitle('');
+      setDescription(draft.description);setCategory(draft.category);
+      setFacts({...EMPTY_FACTS});setCondition('Gut');setConfirmed(false);};
+    if(title.trim()||description.trim())Alert.alert('Entwurf ersetzen?','Titel und Beschreibung werden ersetzt.',[
+      {text:'Weiter bearbeiten',style:'cancel'},{text:'Vorlage verwenden',onPress:apply}
+    ]);else apply();
   }
   function beginEdit(x){
     setBoxOpen(false);resetForm();setEditingId(x.id);setOnlyMine(true);setOnlyFavorites(false);
@@ -1854,6 +1864,8 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   }
   async function submit(){
     if(!active||scanBusy||busy||submitLock.current)return;
+    if(hasTemplatePlaceholders(title)||hasTemplatePlaceholders(description))
+      return Alert.alert('Vorlage vervollständigen','Ersetze alle Felder mit [ergänzen] oder entferne die nicht benötigten Zeilen.');
     if(boxEditor?.packageIds&&(!packageForm||packageForm.rows.length!==boxEditor.packageIds.length))return Alert.alert('Paket prüfen','Bitte kehre zur Kiste zurück und erstelle die Paketliste erneut.');
     if(boxEditor&&!photo.length)return Alert.alert('Artikelfoto fehlt',boxEditor.packageIds?'Bitte füge ein Foto des vollständigen Pakets hinzu.':'Bitte füge ein eigenes Foto dieses einzelnen Artikels hinzu.');
     if(!['Neu','Sehr gut','Gut','Gebraucht'].includes(condition))return Alert.alert('Zustand wählen','Wie ist der tatsächliche Zustand des Artikels?');
@@ -2142,7 +2154,12 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
     {open?<Card style={{marginBottom:18}}>
       <Text style={styles.sectionTitle}>{boxEditor?(boxEditor.packageIds?'Kistenpaket bearbeiten':'Kistenartikel bearbeiten'):editingId?'Anzeige bearbeiten':'Schnellverkauf'}</Text>
       {boxEditor?<Info>{boxEditor.packageIds?'Prüfe, ob alle Artikel in der Paketliste und auf den Fotos enthalten sind.':'Bitte zeige auf den Verkaufsfotos nur diesen einzelnen Artikel. Du kannst jederzeit zur Kiste zurückkehren.'}</Info>:null}
-      {!editingId&&!boxEditor?<View style={{flexDirection:'row',gap:8,marginVertical:10,flexWrap:'wrap'}}>
+      {!editingId&&!boxEditor?<DraftTemplatePicker
+        title="Anzeige mit Steckbrief-Vorlage erstellen"
+        templates={MARKET_DRAFT_TEMPLATES} selectedId={draftTemplateId}
+        onPick={chooseMarketDraft}
+        hint="Einheitliche Beschreibungen helfen später beim Auswerten. Kategorie, Zustand, Preis und Größen werden zusätzlich in den vorhandenen Formularfeldern gespeichert."/>:null}
+       {!editingId&&!boxEditor?<View style={{flexDirection:'row',gap:8,marginVertical:10,flexWrap:'wrap'}}>
         <Chip text="Foto & Steckbrief" selected={quick} onPress={scanBusy?undefined:()=>{setQuick(true);setCondition('');setConfirmed(false);}}/>
         <Chip text="Manuell schreiben" selected={!quick} onPress={scanBusy?undefined:()=>{setQuick(false);setCondition(condition||'Gut');setProposal(null);setConfirmed(false);}}/>
       </View>:null}
@@ -3084,6 +3101,7 @@ const [loadError,setLoadError]=useState('');
 const [revision,setRevision]=useState(0);
 const seqRef=useRef(0);
 const [title,setTitle]=useState('');const [description,setDescription]=useState('');const [region,setRegion]=useState('');
+const [eventTemplateId,setEventTemplateId]=useState(null);
 const [date,setDate]=useState('');const [time,setTime]=useState('15:00');const [count,setCount]=useState('10');const [visibility,setVisibility]=useState('community');
 async function ownRequestsFor(rows){
  const ids=rows.map(row=>row.id).slice(0,EVENT_PAGE_SIZE);
@@ -3135,11 +3153,13 @@ async function loadMoreEvents(){
  finally{if(seqRef.current===seq)setLoadingMore(false);}
 }
 async function submit(){
+ if(hasTemplatePlaceholders(description)||hasTemplatePlaceholders(title))
+   return Alert.alert('Vorlage ergänzen','Ersetze alle Felder mit [ergänzen] vor dem Einreichen oder entferne nicht benötigte Angaben.');
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time))return Alert.alert('Termin prüfen','Bitte Datum als JJJJ-MM-TT und Zeit als HH:MM eingeben.');
  const start=givenDate(date,time);const max=parseInt(count,10);
  if(!start||start<=new Date()||title.trim().length<4||max<2||max>50)return Alert.alert('Bitte prüfen','Titel, zukünftigen Beginn und Teilnehmerzahl (2–50) korrigieren.');
  const ok=await createEvent({title:safeString(title,100),description:safeString(description,1000),region_label:safeString(region,80),starts_at:start.toISOString(),ends_at:new Date(start.getTime()+2*60*60*1000).toISOString(),max_participants:max,visibility});
- if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');setRevision(n=>n+1);}
+ if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');setEventTemplateId(null);setRevision(n=>n+1);}
 }
 async function requestAndRefresh(id){
  const ok=await requestEvent(id);
@@ -3151,6 +3171,17 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Button title={showForm?'Formular schließen':'＋ Aktivität erstellen'} disabled={!active} onPress={()=>setShowForm(!showForm)}/>
 {showForm?<Card style={{marginTop:14}}>
 <Text style={styles.cardTitle}>Neue Aktivität</Text><Text style={[styles.sub,{marginBottom:15}]}>Vor Veröffentlichung wird der Termin geprüft. Bitte keine Privatadressen veröffentlichen.</Text>
+ <DraftTemplatePicker title="Treffen mit Vorlage planen" templates={EVENT_DRAFT_TEMPLATES}
+    selectedId={eventTemplateId}
+    onPick={template=>{
+      const draft=applyEventDraft(template);if(!draft)return;
+      const apply=()=>{setEventTemplateId(template.id);setTitle('');
+        setDescription(draft.description);setRegion('');setDate('');};
+      if(title.trim()||description.trim())Alert.alert('Entwurf ersetzen?','Titel und Beschreibung des bisherigen Entwurfs werden ersetzt.',[
+        {text:'Weiter bearbeiten',style:'cancel'},{text:'Vorlage nutzen',onPress:apply}
+      ]);else apply();
+    }}
+    hint="Standardfelder für Alter, öffentlichen Treffpunkt, Programm, Kosten, Barrierefreiheit und Mitbringen."/>
 <Input label="Titel" placeholder="Spielplatztreffen am Samstag" maxLength={100} value={title} onChangeText={setTitle}/>
 <Input label="Beschreibung" multiline maxLength={1000} value={description} onChangeText={setDescription}/>
 <Input label="Grobe Region" placeholder="z. B. Potsdam" maxLength={80} value={region} onChangeText={setRegion}/>
