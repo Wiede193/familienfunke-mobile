@@ -42,6 +42,8 @@ export function findHomeRoutes(value){
  if(/^(dame|dame spielen|dame spiel)$/.test(intent))return [HOME_ROUTES.find(x=>x.id==='play')];
  if(/\b(quiz|familienquiz|familienzeit|ratsel|raetsel|knobeln|spielideen|sudoku|sodoku|solitar|solitaer|solitaire|worterratsel|woerterraetsel|wortratsel|wortsuche|vier gewinnt|4 gewinnt|schach|damenspiel|kreuzwortratsel|kreuzwortraetsel|bilderpuzzle|puzzle)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='play')];
  if(/\b(kalender|familienkalender|wochenplan)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='calendar')];
+ if(/\b(merkliste|favoriten|favoritenliste)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='favorites')];
+ if(/\b(meine anzeigen|meine inserate|eigene anzeigen|eigene inserate)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='myListings')];
  if(/^(treffen|veranstaltungen|veranstaltung|events)$/.test(intent))return [HOME_ROUTES.find(x=>x.id==='events')];
  if(/\b(kita|kindergarten|kitaplatz)\b/.test(intent)&&/\b(antrag|anmeldung|formular|frist)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='guide'),HOME_ROUTES.find(x=>x.id==='partners')];
  if(/^(chat|chats|private nachrichten|unterhaltungen)$/.test(intent))return [HOME_ROUTES.find(x=>x.id==='chat')];
