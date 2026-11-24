@@ -108,7 +108,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
   const regionStepOffices=(!pickedStateCode||pickedStateCode==='BB')?officeForGuideStep(selectedRegion,stepId):[];
    const stepStateTopics=stepId==='parental_allowance'?['parental_allowance']:
      ['childcare_search','kita_application'].includes(stepId)?['childcare_search']:[];
-   const stateStepServices=findStateServices(pickedStateCode,stepStateTopics);
+   const stateStepServices=stepStateTopics.length?findStateServices(pickedStateCode,stepStateTopics):[];
   const storageKey='familienfunke.guide.status.v1.'+userId;
   useEffect(()=>{
     let active=true;
@@ -166,6 +166,19 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
               <Text style={st.localLink}>Verfahren, Formulare und Kontakt öffnen ↗</Text>
             </Pressable>
           </View>)}
+        </View>:null}
+        {stateStepServices.length?<View style={st.localNotice}>
+          <Text style={st.question}>Amtlicher Antragsweg für {pickedState?.name}</Text>
+          {stateStepServices.map(item=><View key={item.topic} style={st.officeCard}>
+            <Text style={st.question}>{item.title}</Text>
+            <Text style={st.small}>Anlaufstelle: {item.authority}</Text>
+            <Text style={[st.small,{marginTop:6}]}>{item.description}</Text>
+            <Pressable accessibilityRole="link" accessibilityLabel={item.title+' öffnen'}
+              style={st.officeLink} onPress={()=>openLink(item.url)}>
+              <Text style={st.localLink}>Offizielle Fachseite und Unterlagen ↗</Text>
+            </Pressable>
+          </View>)}
+          <Text style={st.small}>Landesweiter Einstieg; den zuständigen Ort in der offiziellen Quelle prüfen.</Text>
         </View>:null}
         <View style={st.detailDivider}/>
         {[
