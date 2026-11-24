@@ -283,6 +283,17 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       <Text style={s.searchHint}>App-Funktionen und Angebote suchen oder Fragen aus unserer geprüften Wissensdatenbank beantworten lassen.</Text>
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
     </View>
+    {conversation.length?<View style={s.section}>
+      <View style={s.replyHeader}>
+        <Text style={s.sectionTitle}>Antworten aus der Wissensdatenbank</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Wissensantworten dieser Ansicht löschen"
+          onPress={()=>{requestSeq.current++;pending.current=false;setBusy(false);setSearchBusy(false);setConversation([]);}} style={s.clearHistory}>
+          <Text style={s.clearHistoryLabel}>Verlauf leeren</Text>
+        </Pressable>
+      </View>
+      {conversation.map((entry,i)=><AssistantReply key={i+'-'+entry.question}
+        entry={entry} onNavigate={onNavigate} onAsk={askSuggested}/>)}
+    </View>:null}
     {needle?<View style={s.section} onLayout={event=>{searchResultOffset.current=event.nativeEvent.layout.y;}}>
       <SearchResultFeedback active context={visibleSearch?'Familienfunke-Suche':'Direkte Suchtreffer'} query={needle} count={searchCount} loading={searchBusy}
         hint={visibleSearch?'Passenden Eintrag antippen, um ihn zu öffnen.':'Für aktuelle Angebote, Veranstaltungen und Beschlüsse auf „Suchen“ tippen.'}/>
@@ -350,17 +361,6 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       </View>:null}
       {!matches.length&&!places.length&&!healthMatches.length&&!topicMatches.length&&!inclusionMatches.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Tippe auf „Antwort finden“ oder ändere die Suchbegriffe.</Text>:null}
       {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>Tippe auf „Suchen“, um aktuelle Basar-Angebote und Termine abzurufen.</Text>:null}
-    </View>:null}
-    {conversation.length?<View style={s.section}>
-      <View style={s.replyHeader}>
-        <Text style={s.sectionTitle}>Antworten aus der Wissensdatenbank</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="Wissensantworten dieser Ansicht löschen"
-          onPress={()=>{requestSeq.current++;pending.current=false;setBusy(false);setSearchBusy(false);setConversation([]);}} style={s.clearHistory}>
-          <Text style={s.clearHistoryLabel}>Verlauf leeren</Text>
-        </Pressable>
-      </View>
-      {conversation.map((entry,i)=><AssistantReply key={i+'-'+entry.question}
-        entry={entry} onNavigate={onNavigate} onAsk={askSuggested}/>)}
     </View>:null}
     {!needle?<View style={s.welcomeSection}>
       <Text style={s.welcomeEyebrow}>EURE FAMILIENWELT</Text>
