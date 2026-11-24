@@ -9,7 +9,7 @@ const STOP=new Set(('ich wir du ihr unsere meiner meinen meinem deinen deine die
  'und oder mit zu wo wie was warum welche welcher welches welche wieviel wieso kann konnen konnte sind ist von '+
  'bei nach auf aus fur uber im am an um in als wer wenn dann mir mich uns bitte nun denn eigentlich '+
  'jetzt suche suchen finden mochte will wurde mochten brauche brauchen kann man gibt es soll sollt '+
- 'bekomme bekommen haben hat mein meine ihnen hier mehr dazu antwort hilfe frage informationen finde stelle viel andere '+
+ 'bekomme bekommen haben hat mein meine ihnen hier mehr dazu antwort hilfe frage informationen finde stelle viel andere muss mussen sollte '+
  'familie familien kind kinder kindern kindes fur unsere wir').split(' '));
 const TERM_MAP={
  kita:'kita',kitaplatz:'kita',kitaplatze:'kita',kindergartenplatz:'kita',kindergarten:'kita',krippenplatz:'kita',tagesmutter:'kita',
@@ -411,7 +411,7 @@ export function answerFamilyQuestion(question,ctx={}){
        related:[
          {label:'Welche Unterlagen brauche ich?',question:'Welche Unterlagen brauche ich?'},
          {label:'Wer ist dafür zuständig?',question:'Wer ist dafür zuständig?'},
-         ...docs.filter(d=>d!==best&&d.kind===best.kind&&d.score>=20)
+         ...docs.filter(d=>d!==best&&d.kind===best.kind&&(d.alias>=18||(d.hit>=2&&d.score>=best.score*.55)))
            .slice(0,1).map(d=>({label:d.item.title,question:d.item.title}))
        ]
      });
