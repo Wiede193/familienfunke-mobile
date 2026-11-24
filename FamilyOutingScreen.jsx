@@ -48,27 +48,20 @@ export default function FamilyOutingScreen({draft,onSave,onMap,onCalendar}){
   }catch{if(alive.current&&request===seq.current)setNotice('Ortssuche gerade nicht verfügbar. Wähle einen vorhandenen Ortsvorschlag oder versuche es später.');}
   finally{if(alive.current&&request===seq.current){locked.current=false;setLooking(false);}}
  }
- async function generate(useAI){
-  const snapshot=current.current;
-  if(locked.current||!snapshot.origin||!snapshot.prefs.ages.length)return;
-  const candidates=selectOutings(snapshot.origin,CATALOG,snapshot.prefs);
-  const request=++seq.current;locked.current=true;setBusy(true);setNotice('');
-  try{
-   let selected=candidates.slice(0,3),mode='local';
-   if(useAI&&candidates.length){
-     const {ages,budget,interest,duration}=snapshot.prefs;
-     try{
-       const {data,error}=await supabase.functions.invoke('ff-app-assistant',{body:{mode:'outing',preferences:{ages,budget,interest,duration},candidate_ids:candidates.map(p=>p.id)}});
-       if(!alive.current||request!==seq.current)return;
-       const ranked=orderOutings(candidates,data?.outing_ids);
-       if(!error&&ranked.length){selected=ranked;mode='ai';}
-       else setNotice('KI-Auswahl gerade nicht verfügbar oder Kontingent erreicht. Stattdessen werden passende Katalogtreffer angezeigt.');
-     }catch{if(alive.current&&request===seq.current)setNotice('KI-Auswahl gerade nicht verfügbar. Stattdessen werden Katalogtreffer angezeigt.');}
+ function generate(){
+   const snapshot=current.current;
+   if(locked.current||!snapshot.origin||!snapshot.prefs.ages.length)return;
+   const candidates=selectOutings(snapshot.origin,CATALOG,snapshot.prefs);
+   const selected=candidates.slice(0,3);
+   const request=++seq.current;
+   locked.current=true;setBusy(true);setNotice('');
+   try{
+     if(!alive.current||request!==seq.current)return;
+     save({...snapshot,result:{ids:selected.map(p=>p.id),mode:'local',candidateCount:candidates.length}});
+     AccessibilityInfo.announceForAccessibility(selected.length?selected.length+' Ausflugsvorschläge verfügbar.':'Keine passenden Katalogziele gefunden.');
+   }finally{
+     if(alive.current&&request===seq.current){locked.current=false;setBusy(false);}
    }
-   if(!alive.current||request!==seq.current)return;
-   save({...snapshot,result:{ids:selected.map(p=>p.id),mode,candidateCount:candidates.length}});
-   AccessibilityInfo.announceForAccessibility(selected.length?selected.length+' Ausflugsvorschläge verfügbar.':'Keine passenden Katalogziele gefunden.');
-  }finally{if(alive.current&&request===seq.current){locked.current=false;setBusy(false);}}
  }
  const local=form.origin?[]:localOrigins(form.query);
  const originSuggestions=[...local,...remote.filter(p=>!local.some(x=>x.title===p.title))];
@@ -76,7 +69,7 @@ export default function FamilyOutingScreen({draft,onSave,onMap,onCalendar}){
  const results=form.result?orderOutings(candidates,form.result.ids):[];
  return <ScrollView ref={scrollRef} keyboardShouldPersistTaps="handled" contentContainerStyle={s.page}>
   <View style={s.hero}><Text accessibilityRole="header" style={s.title}>Euer nächster Familienausflug</Text>
-   <Text style={s.text}>Wählt eure Wünsche. Die KI sortiert vorhandene Ausflugsziele passend zu eurem Familienalltag.</Text>
+   <Text style={s.text}>Wählt eure Wünsche. Der Ausflugsplaner sortiert gespeicherte Familienziele ohne KI und ohne zusätzliche Modellkosten.</Text>
   </View>
   <View style={s.card}>
    <Text accessibilityRole="header" style={s.heading}>1. Wo startet ihr?</Text>
@@ -100,9 +93,8 @@ export default function FamilyOutingScreen({draft,onSave,onMap,onCalendar}){
    <Pick title="Gesamtbudget für den Ausflug" items={BUDGETS.map(x=>[x,x===0?'0 €':'bis '+x+' €'])} selected={form.prefs.budget} onChange={v=>pref('budget',v)}/>
    <Pick title="Was möchtet ihr erleben?" items={INTERESTS} selected={form.prefs.interest} onChange={v=>pref('interest',v)}/>
    <Pick title="Wie viel Zeit habt ihr?" items={DURATIONS} selected={form.prefs.duration} onChange={v=>pref('duration',v)}/>
-   <Text style={s.muted}>Das sind Wünsche, keine Preis- oder Altersgarantie. Bei 0 € werden nur mögliche öffentliche Natur- und Spielziele berücksichtigt. Die KI erhält nur Altersgruppen, Budget, Interesse, Dauer und öffentliche Zielkandidaten, nicht eure Kontodaten oder Ausgangskoordinaten.</Text>
-   <Action disabled={busy||looking||!form.origin||!form.prefs.ages.length} onPress={()=>generate(true)}>{busy?'Ausflug wird geplant …':'Ausflug mit KI planen'}</Action>
-   <Action secondary disabled={busy||looking||!form.origin||!form.prefs.ages.length} onPress={()=>generate(false)}>Ohne KI passende Ziele finden</Action>
+   <Text style={s.muted}>Das sind Wünsche, keine Preis- oder Altersgarantie. Bei 0 € werden nur mögliche öffentliche Natur- und Spielziele berücksichtigt. Die Auswahl erfolgt lokal auf deinem Gerät.</Text>
+   <Action disabled={busy||looking||!form.origin||!form.prefs.ages.length} onPress={generate}>{busy?'Ziele werden gesucht …':'Passende Ziele finden'}</Action>
   </View>
   {notice?<Text accessibilityLiveRegion="polite" style={s.note}>{notice}</Text>:null}
   {busy?<ActivityIndicator color={C.accent}/>:null}
@@ -110,7 +102,7 @@ export default function FamilyOutingScreen({draft,onSave,onMap,onCalendar}){
     const key=form.result.ids.join('|')+form.result.mode;
     if(lastScrolledResult.current!==key){lastScrolledResult.current=key;scrollRef.current?.scrollTo({y:Math.max(0,event.nativeEvent.layout.y-12),animated:true});}
    }}>
-   <Text accessibilityRole="header" style={s.heading}>{form.result.mode==='ai'?'Eure KI-Auswahl':'Passende Ziele aus dem Katalog'}</Text>
+   <Text accessibilityRole="header" style={s.heading}>Passende Ziele aus dem Katalog</Text>
    <SearchResultFeedback active context="Ausflugsvorschläge" count={results.length} hint="Tippe auf Familienkarte oder Kalender, um mit einem Ziel weiterzumachen."/>
    <Text style={s.muted}>{form.result.candidateCount} passende Katalogziele im gewählten Radius; bis zu drei Vorschläge. Keine Live-Prüfung von Wetter, Öffnungszeiten, Fahrzeiten oder Preisen.</Text>
    {!results.length?<Text style={s.note}>Der bisherige Ausflugskatalog enthält keine passenden Ziele. Erweitert den Radius, ändert das Interesse oder Budget oder nutzt die Familienkarte.</Text>:null}
