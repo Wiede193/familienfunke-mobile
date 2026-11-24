@@ -323,6 +323,9 @@ export function answerFamilyQuestion(question,ctx={}){
     /\b(lesen|weiss|weist|steht|anzeigen|sag|zeigen|kenn)\b/.test(q))
     return result('Ich kann keine privaten Nachrichten, Kontodaten oder Passwörter einsehen. Öffne dafür den entsprechenden geschützten App-Bereich.',{
       kind:'privacy',pageId:/\bpasswort\b/.test(q)?'profile':'chat'});
+ if(/\bpasswort\b/.test(q)&&/\b(mein|meine|meinen|mir|ich|du|dein)\b/.test(q)&&
+    /\b(weisst|weiss|kennst|lautet|sag|zeige|steht|anzeigen|vergessen|zurucksetzen)\b/.test(q))
+   return result('Ich kenne dein Passwort nicht und kann es nicht einsehen. Über die Kontoeinstellungen kannst du den vorgesehenen Weg zum Ändern oder Zurücksetzen nutzen.',{kind:'privacy',pageId:'profile'});
  // Ein eng begrenzter Kontext aus dem vorherigen redaktionellen Treffer
  // beantwortet typische Folgefragen, ohne persönliche Daten zu verarbeiten.
  const previous=ctx.previousContext;
@@ -357,6 +360,11 @@ export function answerFamilyQuestion(question,ctx={}){
   return result(PAGE_TEXT[earlyRoute.id],{kind:'navigation',pageId:earlyRoute.id,
     searchQuery:earlyRoute.id==='market'?raw:''});
  if(!ts.length)return result('Wähle am besten ein konkretes Thema wie Kita, Kinderzuschlag, Familienausflug oder Quiz.',{kind:'clarify',related:genericRelated(ctx)});
+ // Ohne benannte Verwaltungsleistung keine zuständige Behörde erfinden.
+ if(/\b(zustandig|zustandigkeit|welcher landkreis|welche region)\b/.test(q)&&
+    !/\b(elterngeld|kindergeld|kita|betreuung|pflegegrad|eingliederungshilfe|teilhabe|unterhalt|wohngeld|schulbegleitung|geburt|standesamt|jugendamt|behinderung)\b/.test(q)&&
+    !ctx.previousContext)
+    return result('Für welche Leistung oder welchen Antrag suchst du eine zuständige Stelle? Bitte nenne zum Beispiel Elterngeld, Kita, Pflegegrad oder Wohngeld und den betreffenden Wohnort.',{kind:'clarify'});
  const docs=rankDocuments(q,ts,ctx),best=docs[0];
  if(amount.test(q))return safeDateSensitiveAnswer(q,null,ctx);
  // Bei allgemeinen Themen nicht zufällig einen hochspezialisierten Antrag wählen.
@@ -396,6 +404,7 @@ export function answerFamilyQuestion(question,ctx={}){
      !(id==='child_benefit'&&(
        (best?.kind==='topic'&&best.item.id==='kindergeld-antrag'&&
         !/\b(wann|frist|fristen|ruckwirkend)\b/.test(q))||
+       (best?.item?.id==='kindergeld-disability'&&/\b(behinderung|behindert|25)\b/.test(q))||
        (best?.alias>=50&&best?.item?.id!=='kindergeld')))){
     const d=ctx.guideDetails[id],intent=findIntent(q);
     let ans=intent==='documents'?d.documents:intent==='office'?d.where:d.when;
