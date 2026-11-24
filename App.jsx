@@ -3470,7 +3470,7 @@ const [photoPickerBusy,setPhotoPickerBusy]=useState(false);
 const [newPassword,setNewPassword]=useState('');
 const [profileSection,setProfileSection]=useState('about');
 const [interestQuery,setInterestQuery]=useState('');
-const [interestGroup,setInterestGroup]=useState('Alle');
+const [interestGroup,setInterestGroup]=useState('Draußen & Natur');
 const [customInterest,setCustomInterest]=useState('');
 useEffect(()=>{if(profile)setForm({...blankProfile,...profile,interests:Array.isArray(profile.interests)?profile.interests:[]});},[profile?.updated_at,profile?.user_id]);
 const initialProfile={...blankProfile,...profile};
@@ -3504,6 +3504,9 @@ function addCustomInterest(){
  const value=normalizeInterest(customInterest);
  if(value.length<2||/[\n\r@]|https?:\/\//i.test(value)){
   Alert.alert('Hobby prüfen','Bitte ein kurzes Hobby ohne Kontaktdaten, Links oder Namen von Kindern eingeben.');return;
+ }
+ if((form.interests||[]).some(item=>item.toLocaleLowerCase('de-DE')===value.toLocaleLowerCase('de-DE'))){
+  Alert.alert('Schon ausgewählt','Dieses Hobby steht bereits in eurer Liste.');return;
  }
  if((form.interests||[]).length>=MAX_PROFILE_INTERESTS){
   Alert.alert('Auswahl voll','Entferne zuerst ein Hobby aus deiner Auswahl.');return;
