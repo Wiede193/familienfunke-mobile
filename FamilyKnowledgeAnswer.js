@@ -323,17 +323,18 @@ export function answerFamilyQuestion(question,ctx={}){
     /\b(lesen|weiss|weist|steht|anzeigen|sag|zeigen|kenn)\b/.test(q))
     return result('Ich kann keine privaten Nachrichten, Kontodaten oder Passwörter einsehen. Öffne dafür den entsprechenden geschützten App-Bereich.',{
       kind:'privacy',pageId:/\bpasswort\b/.test(q)?'profile':'chat'});
+ const factMatches=rankFacts(q,ts,ctx.facts);
+ // Geprüfte Wissensfragen vor Navigationswörtern wie „Regen“ behandeln.
+ if(factMatches.length&&factMatches[0].score>=45){
+  const fact=factMatches[0].item;
+  return result(fact.answer,{kind:'fact',sources:articleSource(fact),related:[]});
+ }
  // Eindeutige App-Fragen funktionieren auch ohne fachliche Suchbegriffe.
  const earlyRoute=routeFor(q,ts,ctx.routes||[]);
  if(earlyRoute&&ACTIONS.some(([id,pattern])=>id===earlyRoute.id&&pattern.test(q))&&PAGE_TEXT[earlyRoute.id])
   return result(PAGE_TEXT[earlyRoute.id],{kind:'navigation',pageId:earlyRoute.id,
     searchQuery:earlyRoute.id==='market'?raw:''});
  if(!ts.length)return result('Wähle am besten ein konkretes Thema wie Kita, Kinderzuschlag, Familienausflug oder Quiz.',{kind:'clarify',related:genericRelated(ctx)});
- const factMatches=rankFacts(q,ts,ctx.facts);
- if(factMatches.length&&factMatches[0].score>=45){
-  const fact=factMatches[0].item;
-  return result(fact.answer,{kind:'fact',sources:articleSource(fact),related:[]});
- }
  const docs=rankDocuments(q,ts,ctx),best=docs[0];
  if(amount.test(q))return safeDateSensitiveAnswer(q,null,ctx);
  // Bei allgemeinen Themen nicht zufällig einen hochspezialisierten Antrag wählen.
