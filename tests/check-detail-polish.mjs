@@ -8,8 +8,8 @@ const profile=app.slice(app.indexOf('function ProfileScreen('),app.indexOf('func
 for(const label of ['1 · Fotos','2 · Artikel & Eigenschaften','3 · Preis & Zustand','4 · Prüfen & veröffentlichen'])assert.ok(market.includes(label));
 assert.doesNotMatch(market,/title="Fotoerkennung vorerst deaktiviert"/);
 assert.ok(market.indexOf('1 · Fotos')<market.indexOf('CompletionPrompt title="Deine Anzeige'));
-assert.match(chat,/sendingRef\.current=true/);assert.match(chat,/editable=\{!sending\}/);assert.match(chat,/Versand nicht bestätigt\. Dein Text bleibt erhalten/);assert.match(chat,/Gesprächsoptionen/);assert.match(chat,/if\(ok\)\{setText\(''\)/);
-assert.match(profile,/previewOpen\?<View/);assert.match(profile,/customOpen\?<View/);assert.match(profile,/noch nicht gespeicherte Änderungen/);
+assert.match(app,/if\(selectedContact&&busy\)\{Alert\.alert/);assert.match(chat,/sendingRef\.current=true/);assert.match(chat,/editable=\{!sending\}/);assert.match(chat,/Versand nicht bestätigt\. Dein Text bleibt erhalten/);assert.match(chat,/Gesprächsoptionen/);assert.match(chat,/if\(ok\)\{setText\(''\)/);
+assert.ok(profile.indexOf('Eigenes Hobby ergänzen')<profile.indexOf('FAMILY_INTEREST_GROUPS.filter'));assert.match(profile,/!!customInterest\.trim\(\)/);assert.match(profile,/previewOpen\?<View/);assert.match(profile,/customOpen\?<View/);assert.match(profile,/noch nicht gespeicherte Änderungen/);
 assert.ok(guide.indexOf('<FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>')<guide.indexOf('Eure Zeitleiste'));
 assert.match(guide,/showTimeline\?<\>/);assert.match(topics,/items\.slice\(0,visibleCount\)/);assert.match(topics,/Weitere Ratgeber anzeigen/);
 console.log('Article, chat, profile and knowledge UX checks passed.');

@@ -1008,6 +1008,7 @@ function back(){
  if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab))setTab(extraReturnTab==='more'?'home':extraReturnTab);
 }
 function guardProfileExit(next){
+ if(selectedContact&&busy){Alert.alert('Vorgang läuft','Bitte warte auf die Rückmeldung, bevor du dieses Gespräch verlässt.');return;}
  if(selectedContact&&chatDraftDirty){
    Alert.alert('Nachricht noch nicht gesendet',
      'Dein angefangener Nachrichtentext würde beim Verlassen des Gesprächs verloren gehen.',[
@@ -2444,7 +2445,8 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       </View></>:null}
       {packageForm?<Text style={[styles.micro,{marginBottom:11}]}>Dein Paket wird nach dem Hochladen sofort veröffentlicht, sofern die Grundregeln erfüllt sind.</Text>
          :<Info>Erlaubt sind Kuscheltiere, Tierfiguren und harmloses Kinderspielzeug. Verboten sind echte Tiere, Waffen, Drogen, Medikamente, 18+-Artikel und andere gefährliche oder illegale Waren. Einfache Regeln werden automatisch geprüft; problematische Anzeigen können Mitglieder melden.</Info>}
-      <Pressable accessibilityRole="checkbox" accessibilityLabel="Marktplatzregeln für diese Anzeige bestätigen"
+      <Text accessibilityRole="header" style={styles.sectionTitle}>4 · Prüfen & veröffentlichen</Text>
+       <Pressable accessibilityRole="checkbox" accessibilityLabel="Marktplatzregeln für diese Anzeige bestätigen"
          accessibilityState={{checked:rulesConfirmed}} onPress={()=>setRulesConfirmed(v=>!v)}
          style={({pressed})=>[styles.marketRulesCheck,pressed&&styles.buttonPress]}>
          <Text style={{fontSize:21,color:C.accentDark}}>{rulesConfirmed?'☑':'☐'}</Text>
@@ -2454,7 +2456,6 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         <Text style={{fontSize:19,color:C.accentDark}}>{confirmed?'☑':'☐'}</Text>
         <Text style={[styles.body,{flex:1}]}>{packageForm?'Ich habe Paketinhalt und Zustand geprüft.':'Ich habe die Angaben geprüft. Der Steckbrief beschreibt mein Angebot korrekt.'}</Text>
       </Pressable>:null}
-      <Text accessibilityRole="header" style={styles.sectionTitle}>4 · Prüfen & veröffentlichen</Text>
       <CompletionPrompt title="Deine Anzeige – diese Angaben fehlen noch"
         items={[
           {label:'Titel mit mindestens vier Zeichen',done:title.trim().length>=4},
@@ -3503,7 +3504,7 @@ const dirty=!!profile&&(form.display_name!==String(initialProfile.display_name||
  form.about!==String(initialProfile.about||'')||
  !!form.is_discoverable!==!!initialProfile.is_discoverable||
  JSON.stringify(form.interests||[])!==JSON.stringify(Array.isArray(initialProfile.interests)?initialProfile.interests:[])||
- !!selectedPhoto||!!photoCaption||!!newPassword);
+ !!selectedPhoto||!!photoCaption||!!newPassword||!!customInterest.trim());
 useEffect(()=>{onDirtyChange?.(dirty);},[dirty,onDirtyChange]);
 function switchSection(next){
  if(next===profileSection)return;
@@ -3513,7 +3514,7 @@ function switchSection(next){
  {text:'Bereich wechseln',onPress:()=>setProfileSection(next)}
  ]);
 }
-async function submit(){if((form.display_name||'').trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
+async function submit(){if(busy)return;if(customInterest.trim())return Alert.alert('Hobby noch nicht hinzugefügt','Füge dein eigenes Hobby zuerst zur Auswahl hinzu oder lösche die Eingabe.');if((form.display_name||'').trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
 await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,MAX_PROFILE_INTERESTS),is_discoverable:!!form.is_discoverable});}
 function toggle(i){
  if((form.interests||[]).includes(i)){
@@ -3529,7 +3530,7 @@ function addCustomInterest(){
  if(value.length<2||/[\n\r@]|https?:\/\//i.test(value)){
   Alert.alert('Hobby prüfen','Bitte ein kurzes Hobby ohne Kontaktdaten, Links oder Namen von Kindern eingeben.');return;
  }
- if((form.interests||[]).some(item=>item.toLocaleLowerCase('de-DE')===value.toLocaleLowerCase('de-DE'))){
+ if(addFamilyInterest(form.interests,value,MAX_PROFILE_INTERESTS+1).length===(form.interests||[]).length){
   Alert.alert('Schon ausgewählt','Dieses Hobby steht bereits in eurer Liste.');return;
  }
  if((form.interests||[]).length>=MAX_PROFILE_INTERESTS){
@@ -3602,6 +3603,13 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
  {(form.interests||[]).map(i=><Chip key={i} text={i+' ×'} selected onPress={()=>toggle(i)}/>)}
 </View>:<Text style={[styles.micro,{marginBottom:15}]}>Noch nichts ausgewählt. Tippe einfach auf ein Hobby.</Text>}
 <Input label="Hobby finden" placeholder="z. B. Reiten, Malen, Bibliothek" value={interestQuery} onChangeText={setInterestQuery}/>
+{interestQuery.trim()&&!filterFamilyInterests(interestQuery,INTERESTS).length?<Text style={styles.micro}>Dieses Hobby steht noch nicht in der Liste. Ergänze es als eigenes Hobby.</Text>:null}
+<Pressable accessibilityRole="button" accessibilityState={{expanded:customOpen}} onPress={()=>{setCustomOpen(v=>!v);if(!customOpen&&!customInterest&&interestQuery.trim()&&!filterFamilyInterests(interestQuery,INTERESTS).length)setCustomInterest(interestQuery.trim().slice(0,40));}} style={{minHeight:48,paddingVertical:12,flexDirection:'row',alignItems:'center',gap:8}}><Text style={[styles.label,{flex:1,marginBottom:0}]}>Eigenes Hobby ergänzen</Text><FamilyIcon name={customOpen?'chevron-up':'plus'} size={20}/></Pressable>
+{customOpen?<View>
+<Input label="Weiteres Hobby (freiwillig)" placeholder="z. B. Origami" value={customInterest} onChangeText={setCustomInterest} maxLength={40}/>
+<Text style={[styles.micro,{marginBottom:12}]}>Bitte keine Kontaktdaten oder Angaben zu einzelnen Kindern eingeben. Freie Hobbys sind nach Profilfreigabe für andere sichtbar.</Text>
+<Button title="Hobby hinzufügen" mode="outline" disabled={!customInterest.trim()||busy} onPress={addCustomInterest}/>
+</View>:null}
 {!interestQuery.trim()?<View style={[styles.chipsRow,{marginBottom:10}]}>
  <Chip text="Alle" selected={interestGroup==='Alle'} onPress={()=>setInterestGroup('Alle')}/>
  {FAMILY_INTEREST_GROUPS.map(group=><Chip key={group.title} text={group.title} selected={interestGroup===group.title} onPress={()=>setInterestGroup(group.title)}/>)}
@@ -3613,14 +3621,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
   <View style={styles.chipsRow}>{options.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
  </View>:null;
 })}
-{interestQuery.trim()&&!filterFamilyInterests(interestQuery,INTERESTS).length?<Text style={styles.micro}>Dieses Hobby steht noch nicht in der Liste. Ergänze es als eigenes Hobby.</Text>:null}
-<Pressable accessibilityRole="button" accessibilityState={{expanded:customOpen}} onPress={()=>{setCustomOpen(v=>!v);if(!customOpen&&!customInterest&&interestQuery.trim()&&!filterFamilyInterests(interestQuery,INTERESTS).length)setCustomInterest(interestQuery.trim().slice(0,40));}} style={{minHeight:48,paddingVertical:12,flexDirection:'row',alignItems:'center',gap:8}}><Text style={[styles.label,{flex:1,marginBottom:0}]}>Eigenes Hobby ergänzen</Text><FamilyIcon name={customOpen?'chevron-up':'plus'} size={20}/></Pressable>
-{customOpen?<View>
-<Input label="Weiteres Hobby (freiwillig)" placeholder="z. B. Origami" value={customInterest} onChangeText={setCustomInterest} maxLength={40}/>
-<Text style={[styles.micro,{marginBottom:12}]}>Bitte keine Kontaktdaten oder Angaben zu einzelnen Kindern eingeben. Freie Hobbys sind nach Profilfreigabe für andere sichtbar.</Text>
-<Button title="Hobby hinzufügen" mode="outline" disabled={!customInterest.trim()||busy} onPress={addCustomInterest}/>
-</View>:null}
-<View style={{marginTop:16}}><Button title={busy?'Bitte warten …':'Interessen speichern'} disabled={busy} onPress={submit}/></View>
+<View style={{marginTop:16}}><Button title={busy?'Speichert …':'Interessen speichern'} disabled={busy||!dirty} onPress={submit}/></View>
 </Card>:null}
 {profileSection==='privacy'?<Card>
 <Text style={styles.sectionTitle}>Privatsphäre & Sichtbarkeit</Text>

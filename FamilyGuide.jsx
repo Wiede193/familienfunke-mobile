@@ -214,12 +214,6 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
       <Text style={st.heroDescription}>Antworten, Anträge und nächste Schritte für euren Familienalltag.</Text>
       <Text style={st.region}>⌖ {regionLabel?.trim()?regionLabel.trim():'Deutschland'} · örtliche Regeln beachten</Text>
     </View>
-    {onOpenHealthy?<Pressable accessibilityRole="button" accessibilityLabel="Sport und Gesundheit öffnen"
-      onPress={onOpenHealthy}
-      style={{backgroundColor:P.sunPale,borderRadius:16,padding:16,marginTop:12,marginBottom:5,borderWidth:1,borderColor:P.line,minHeight:70,justifyContent:'center'}}>
-       <Text style={{fontSize:17,fontWeight:'800',color:P.ink}}>Sport & Gesundheit ›</Text>
-       <Text style={{fontSize:13,lineHeight:20,color:P.muted,marginTop:4}}>Sportvereine, Bewegung, Ernährung, Videos und Rad- & Wanderwege</Text>
-     </Pressable>:null}
      {linkedStateCode&&pickedState?<View style={st.regionCard}>
        <Text accessibilityRole="header" style={st.regionTitle}>Amtliche Antragswege in {pickedState.name}</Text>
        <Text style={st.small}>Wähle im amtlichen Portal deinen konkreten Wohnort und prüfe die aktuellen Unterlagen.</Text>
@@ -236,6 +230,12 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
        </Pressable>
      </View>:null}
      {!linkedStateCode?<FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>:<FamilyTopicsSection/>}
+    {onOpenHealthy?<Pressable accessibilityRole="button" accessibilityLabel="Sport und Gesundheit öffnen"
+      onPress={onOpenHealthy}
+      style={{backgroundColor:P.sunPale,borderRadius:16,padding:16,marginTop:12,marginBottom:5,borderWidth:1,borderColor:P.line,minHeight:70,justifyContent:'center'}}>
+       <Text style={{fontSize:17,fontWeight:'800',color:P.ink}}>Sport & Gesundheit ›</Text>
+       <Text style={{fontSize:13,lineHeight:20,color:P.muted,marginTop:4}}>Sportvereine, Bewegung, Ernährung, Videos und Rad- & Wanderwege</Text>
+     </Pressable>:null}
      <Pressable accessibilityRole="button" accessibilityState={{expanded:showTimeline}} onPress={()=>setShowTimeline(v=>!v)} style={st.directoryToggle}><Text style={st.directoryToggleTitle}>Eure Zeitleiste {showTimeline?'−':'+'}</Text><Text style={st.small}>Von der Schwangerschaft bis zur Kita · {doneCount} von {relevantCount} Aufgaben erledigt</Text></Pressable>
      {showTimeline?<>
      <View style={st.progressCard}>
