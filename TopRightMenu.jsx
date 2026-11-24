@@ -1,8 +1,9 @@
-import React,{useState} from 'react';
-import {Modal,Pressable,SafeAreaView,ScrollView,StyleSheet,Text,View} from 'react-native';
+import React,{useEffect,useState} from 'react';
+import {Modal,Pressable,SafeAreaView,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
+import {searchMenuEntries} from './MenuDiscovery';
 
 export const MENU_GROUPS=[
  {title:'Mein Bereich',items:[
@@ -37,13 +38,35 @@ export const MORE_ITEMS=MENU_GROUPS.flatMap(g=>g.items).filter(([id])=>!['info',
 
 export function MenuIcon(){return <FamilyIcon name="menu" size={25} color={C.ink}/>;}
 const QUICK_ITEMS=[
-  ['profile','Mein Profil','users'],
+  ['market','Basar','bag'],
+  ['sell','Anzeige erstellen','plus'],
+  ['myListings','Meine Anzeigen','bag'],
   ['chat','Nachrichten','message'],
-  ['inbox','Neuigkeiten','bell'],
-  ['market','Basar','bag']
+  ['profile','Mein Profil','users'],
+  ['inbox','Neuigkeiten','bell']
 ];
+const SEARCH_ICONS={sell:'bag',myListings:'bag',home:'home',guide:'book',market:'bag',map:'map',discover:'users'};
+function MenuResult({entry,onSelect,activeTab,unread}){
+ const {id,title,subtitle}=entry;
+ return <Pressable accessibilityRole="button"
+   accessibilityLabel={title+(id==='inbox'&&unread>0?', '+unread+' ungelesen':'')}
+   accessibilityHint={subtitle+' – Bereich öffnen'}
+   accessibilityState={{selected:id===activeTab}}
+   onPress={()=>onSelect(id)}
+   style={({pressed})=>[s.item,id===activeTab&&s.selected,pressed&&s.pressed]}>
+   <View style={s.glyphWrap}><FamilyIcon name={SEARCH_ICONS[id]||FAMILY_ROUTE_ICONS[id]||'compass'} size={20}/></View>
+   <View style={{flex:1,minWidth:0}}>
+      <Text style={s.name}>{title}</Text><Text style={s.subtitle}>{subtitle}</Text>
+   </View>
+   <FamilyIcon name="chevron-right" size={19}/>
+ </Pressable>;
+}
 export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}){
- const [expanded,setExpanded]=useState(null);
+ const [expanded,setExpanded]=useState('Mein Bereich');
+ const [search,setSearch]=useState('');
+ useEffect(()=>{if(!visible)setSearch('');},[visible]);
+ const searching=search.trim().length>0;
+ const matches=searchMenuEntries(search,MENU_GROUPS);
  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
   <SafeAreaView style={s.shade}>
    <Pressable accessible={false} importantForAccessibility="no" onPress={onClose} style={StyleSheet.absoluteFill}/>
@@ -56,8 +79,35 @@ export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}
      <Pressable accessibilityRole="button" accessibilityLabel="Menü schließen"
        onPress={onClose} style={s.close}><FamilyIcon name="close" size={21}/></Pressable>
     </View>
+    <View style={s.searchWrap}>
+      <View style={s.searchLine}>
+        <FamilyIcon name="search" size={21} color={C.accentDark}/>
+        <TextInput accessibilityLabel="Funktion im Menü suchen"
+          accessibilityHint="Suche Bereiche wie Anzeigen, Kalender, Familien oder Einstellungen"
+          placeholder="Was suchst du? z. B. Anzeigen, Kalender"
+          placeholderTextColor={C.muted} value={search} onChangeText={setSearch}
+          autoCorrect={false} returnKeyType="search" style={s.searchInput}
+          onSubmitEditing={()=>{if(matches.length===1)onSelect(matches[0].id);}}/>
+        {searching?<Pressable accessibilityRole="button" accessibilityLabel="Menüsuche löschen"
+          onPress={()=>setSearch('')} style={s.clearSearch}><FamilyIcon name="close" size={18}/></Pressable>:null}
+      </View>
+      {searching?<Text accessibilityLiveRegion="polite" style={s.searchCount}>
+        {matches.length} {matches.length===1?'Bereich gefunden':'Bereiche gefunden'}
+      </Text>:null}
+    </View>
     <ScrollView style={s.scroll} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-      <Text style={s.group}>Schnellzugriff</Text>
+      {searching?<View>
+        {matches.length?<View style={s.searchResults}>
+          {matches.map(entry=><MenuResult key={entry.id} entry={entry} onSelect={onSelect}
+            activeTab={activeTab} unread={unread}/>)}
+        </View>:<View style={s.noResults}>
+          <Text style={s.noResultsTitle}>Keinen passenden Bereich gefunden</Text>
+          <Text style={s.noResultsDescription}>Probiere ein kürzeres Wort oder öffne die Hilfe.</Text>
+          <Pressable accessibilityRole="button" onPress={()=>onSelect('help')}
+            style={s.helpAction}><Text style={s.helpActionText}>Hilfe & FAQ öffnen</Text></Pressable>
+        </View>}
+      </View>:<>
+      <Text style={s.group}>Häufig gebraucht</Text>
       <View style={s.quickGrid}>
         {QUICK_ITEMS.map(([id,title,icon])=><Pressable key={id} accessibilityRole="button"
           accessibilityLabel={title+(id==='inbox'&&unread>0?', '+unread+' ungelesen':'')}
@@ -98,6 +148,7 @@ export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}
           }):null}
         </View>;
       })}
+      </>}
     </ScrollView>
    </View>
   </SafeAreaView>
@@ -113,10 +164,26 @@ const s=StyleSheet.create({
  headerSub:{fontSize:T.small,color:C.muted,marginTop:4},
  close:{minWidth:S.touch,minHeight:S.touch,justifyContent:'center',alignItems:'center',
    backgroundColor:C.sunPale,borderRadius:14},
+ searchWrap:{paddingHorizontal:16,paddingTop:12,paddingBottom:7,
+   borderBottomWidth:1,borderBottomColor:C.line},
+ searchLine:{minHeight:53,borderRadius:15,borderWidth:1.5,borderColor:'#AACCC4',
+   backgroundColor:C.white,paddingLeft:13,paddingRight:6,
+   flexDirection:'row',gap:9,alignItems:'center'},
+ searchInput:{flex:1,fontSize:16,color:C.ink,minHeight:51,minWidth:0},
+ clearSearch:{width:44,height:44,justifyContent:'center',alignItems:'center'},
+ searchCount:{fontSize:13,fontWeight:'800',color:C.accentDark,marginVertical:7},
+ searchResults:{overflow:'hidden',borderRadius:16,borderColor:C.line,
+   borderWidth:1,backgroundColor:C.white},
+ noResults:{padding:19,backgroundColor:C.bg,borderRadius:16},
+ noResultsTitle:{fontSize:16,fontWeight:'900',color:C.ink},
+ noResultsDescription:{fontSize:14,lineHeight:21,marginTop:8,color:C.muted},
+ helpAction:{minHeight:48,alignSelf:'flex-start',justifyContent:'center',
+   marginTop:10,paddingHorizontal:15,backgroundColor:C.mint,borderRadius:13},
+ helpActionText:{fontSize:14,color:C.accentDark,fontWeight:'900'},
  scroll:{flexShrink:1},content:{padding:16,paddingBottom:28},
  group:{fontSize:T.small,fontWeight:'800',color:C.accentDark,marginBottom:10,paddingHorizontal:3},
  quickGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:10},
- quick:{width:'48%',minHeight:101,backgroundColor:C.bg,borderWidth:1,borderColor:C.line,
+ quick:{width:'48%',minHeight:85,backgroundColor:C.bg,borderWidth:1,borderColor:C.line,
    borderRadius:17,padding:13,gap:8,justifyContent:'space-between'},
  quickActive:{backgroundColor:C.sunPale,borderColor:C.sun},
  quickIcon:{width:36,height:36,borderRadius:12,backgroundColor:C.paper,
