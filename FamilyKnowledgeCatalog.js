@@ -122,5 +122,7 @@ export const KNOWLEDGE_PROMPTS=[
  {title:'Inklusion',questions:['Wo finde ich unabhängige Teilhabeberatung?','Wie beantrage ich einen Pflegegrad für mein Kind?','Welche Ausflüge sind barrierearm?']},
  {title:'Freizeit und Familie',questions:['Was können wir bei Regen spielen?','Welche Ausflugsziele gibt es in Storkow?','Wo finde ich Kinderturnen in Brandenburg?']},
  {title:'Kinderfragen',questions:['Wie groß ist die Sonne?','Warum leuchtet der Mond?','Warum ist der Himmel blau?','Warum gibt es Jahreszeiten?','Wie entsteht Regen?','Wie viele Planeten gibt es?']},
- {title:'App benutzen',questions:['Wie finde ich andere Familien?','Wie kann ich einen Artikel verkaufen?','Wie stelle ich Benachrichtigungen ein?']}
+ {title:'Baby & Elternzeit',questions:['Wie beantrage ich Elterngeld?','Wo finde ich eine Schwangerschaftsberatung?','Was muss ich nach der Geburt erledigen?','Wo bekomme ich Mutterschaftsgeld?']},
+ {title:'Unterstützung & Beratung',questions:['Wo finde ich eine Schuldnerberatung?','Wie werde ich Pflegefamilie?','Wo finde ich Hilfe bei Mobbing?','Kinderarzt Notdienst']},
+  {title:'App benutzen',questions:['Wie finde ich andere Familien?','Wie kann ich einen Artikel verkaufen?','Wie stelle ich Benachrichtigungen ein?']}
 ];
