@@ -218,6 +218,21 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
        <Text style={{fontSize:17,fontWeight:'800',color:P.ink}}>Sport & Gesundheit ›</Text>
        <Text style={{fontSize:13,lineHeight:20,color:P.muted,marginTop:4}}>Sportvereine, Bewegung, Ernährung, Videos und Rad- & Wanderwege</Text>
      </Pressable>:null}
+     {linkedStateCode&&pickedState?<View style={st.regionCard}>
+       <Text accessibilityRole="header" style={st.regionTitle}>Amtliche Antragswege in {pickedState.name}</Text>
+       <Text style={st.small}>Wähle im amtlichen Portal deinen konkreten Wohnort und prüfe die aktuellen Unterlagen.</Text>
+       {pickedStateServices.map(item=><View key={item.topic} style={st.officeCard}>
+         <Text style={st.question}>{item.title}</Text>
+         <Text style={st.small}>{item.authority}</Text>
+         <Pressable accessibilityRole="link" onPress={()=>openLink(item.url)} style={st.officeLink}>
+           <Text style={st.localLink}>Offizielle Fachseite öffnen ↗</Text>
+         </Pressable>
+       </View>)}
+       {!pickedStateServices.length?<Text style={[st.small,{marginTop:8}]}>Hier ist bisher nur das amtliche Landesportal erfasst. Die Fachstelle muss dort ermittelt werden.</Text>:null}
+       <Pressable accessibilityRole="link" onPress={()=>openLink(pickedState.portal_url)} style={st.officeLink}>
+         <Text style={st.localLink}>Landesportal öffnen ↗</Text>
+       </Pressable>
+     </View>:null}
      {initialKnowledgeQuery.trim()&&!linkedStateCode?<FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>:null}
      <View style={st.progressCard}>
       <View style={st.flexRow}><View style={{flex:1}}><Text style={st.progressTitle}>Euer persönlicher Überblick</Text><Text style={st.small}>{doneCount} von {relevantCount} passenden Aufgaben erledigt</Text></View><Text style={st.progressNumber}>{pct}%</Text></View>
