@@ -18,19 +18,57 @@ keine GPT-Modellkosten, aber normale Hosting-Kontingente sind zu beachten.
 
 | Bestand | Umfang in dieser Version |
 |---|---:|
-| Allgemeine Familienratgeber mit offiziellen Quellen | 17 Artikel |
+| Allgemeine Familienratgeber mit offiziellen Quellen | 31 Artikel |
 | Inklusion / Behinderung / Leistungen | 18 Artikel |
 | Sport, Ernährung und Bewegung | 20 Ressourceneinträge |
 | Ausflugsziele in Oder-Spree, Brandenburg und Deutschland | 76 redaktionell erfasste Ziele |
 | Regionale Brandenburg-Behörden | 18 Regionen plus amtliche Einstiegsquellen |
 | Bundesländer mit amtlichem Serviceportal | 16 |
-| Redaktionelle FAQ mit Fachquellen, vorwiegend Naturwissenschaft und Gesundheit | 19 |
-| Zusätzliche Zuordnungen umgangssprachlicher Suchfragen | 189 Formulierungen |
-| Wählbare Themen für Beispielfragen | 7 |
+| Redaktionelle FAQ mit Fachquellen, darunter Naturwissenschaft, Elternzeit und Gesundheit | 20 |
+| Zusätzliche Zuordnungen umgangssprachlicher Suchfragen | 312 Formulierungen |
+| Wählbare Themen für Beispielfragen | 9 |
 
 Die Zahlen beziehen sich auf die einprogrammierten Daten. Ein erfasster Eintrag ist
 **keine Bestätigung**, dass Öffnungszeiten, Preise, Anspruchsvoraussetzungen oder
 Kontaktdaten aktuell sind. Amtliche Quellen verweisen auf externe Webseiten.
+
+## Erweiterung und Quellenprüfung vom 24. November 2026
+
+Vierzehn neue Ratgeber wurden in den normalen Familienwegweiser und die lokale
+Antwortsuche integriert: Elterngeld, Kindergeld, Mutterschutz, Schwangerschaftsberatung,
+Checkliste nach der Geburt, Ausbildung/Studium mit Kind, Schuldnerberatung,
+Pflegefamilien, Adoption, Kinderschutz, Kinder- und Jugendberatung,
+ärztlicher Bereitschaftsdienst, Jugendamt-Familienhilfen und junge Volljährige.
+
+Die Inhalte orientieren sich an offiziellen Seiten des Familienportals des Bundes,
+der Bundesagentur für Arbeit und von gesund.bund.de. Jeder Artikel enthält einen
+Überblick, mindestens vier Handlungsschritte, mögliche Anlaufstellen und
+Unterlagen, Einschränkungen sowie Originalquellen.
+
+**Aktualitätskorrektur:** Das bislang in der Brandenburg-Wissensbasis genannte
+„ElterngeldDigital“ heißt inzwischen „mein-elterngeldantrag.de“. Die Antragsseite
+ist nun über
+https://familienportal.de/familienportal/rechner-antraege/elterngeld-online-beantragen-127692
+verlinkt. Ob eine vollständig digitale Einreichung möglich ist, hängt von der
+jeweiligen zuständigen Stelle ab.
+
+**Sachliche Korrektur:** Die *Dauer* von Elternzeit ist etwas anderes als die
+*Anmeldefrist*. Der lokale Wissenskatalog enthält daher eine gesonderte,
+amtlich belegte Antwort zur Dauer und Aufteilung der Elternzeit:
+https://familienportal.de/familienportal/familienleistungen/elternzeit/faq/wie-kann-ich-die-dauer-der-elternzeit-berechnen--124832
+
+**Redaktionelle Grenzen:** Es wurden keine aktuellen Eurobeträge, persönlichen
+Leistungszusagen oder verbindlichen Rechtsentscheidungen in die Offline-Antworten
+übernommen. Bei Notfallfragen wird zwischen dringlicher Behandlung (116117)
+und lebensbedrohlichen Situationen (112) unterschieden. Die App führt
+keine medizinische Triage durch.
+
+**Laufender Qualitätssicherungsbedarf:** Rechts- und Sozialleistungsseiten sowie
+regionale Antragswege müssen vor Veröffentlichung und nach Änderungen erneut
+geprüft werden. Ein erfolgreicher automatischer Test kann externe Webseiten
+nicht dauerhaft auf inhaltliche Aktualität prüfen. Die 312 hinterlegten
+Aliasformulierungen sind durch Regressionstests auf den vorgesehenen Ratgeber
+abgesichert; frei formulierte Fragen können weiterhin anders ausfallen.
 
 ## Antworttypen und Grenzen
 
