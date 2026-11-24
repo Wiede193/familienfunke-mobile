@@ -26,6 +26,7 @@ import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 import SearchResultFeedback from './SearchResultFeedback';
 import {FamilyEmptyState,FamilySkeleton} from './FamilyFeedback';
+import {ActionNotice,CompletionPrompt,ContextHelp} from './FamilyInteraction';
 import {SparkleIntro,FamilyAppTour,SoftTabIcon} from './FamilyMotion';
 import DraftTemplatePicker from './DraftTemplatePicker';
 import {MARKET_DRAFT_TEMPLATES,EVENT_DRAFT_TEMPLATES,MESSAGE_DRAFT_TEMPLATES,applyMarketDraft,applyEventDraft,hasTemplatePlaceholders} from './FamilyDraftTemplates';
@@ -146,34 +147,64 @@ async function moderateTextOrThrow(parts) {
   }
 }
 
-function Button({title, onPress, mode='primary', disabled=false, small=false, style,accessibilityLabel}) {
-return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||title} accessibilityState={{disabled:!!disabled}} onPress={onPress} disabled={disabled}
-style={({pressed})=>[styles.button,styles[`button_${mode}`],small&&styles.buttonSmall,disabled&&{opacity:0.46},pressed&&{opacity:.8},style]}>
-<Text style={[styles.buttonText,mode!=='primary'&&styles.buttonTextDark,small&&{fontSize:13}]}>{title}</Text>
-</Pressable>;
+function Button({title,onPress,mode='primary',disabled=false,small=false,style,accessibilityLabel,hint}){
+ return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||title}
+   accessibilityHint={hint} accessibilityState={{disabled:!!disabled}}
+   onPress={onPress} disabled={disabled} hitSlop={2}
+   style={({pressed})=>[styles.button,styles['button_'+mode],small&&styles.buttonSmall,
+     disabled&&{opacity:.48},pressed&&!disabled&&styles.buttonPress,style]}>
+   <Text style={[styles.buttonText,mode!=='primary'&&styles.buttonTextDark,
+     small&&{fontSize:14}]}>{title}</Text>
+ </Pressable>;
 }
-function Chip({text,selected,onPress}) {
-if(!onPress)return <View style={[styles.chip,selected&&styles.chipSelected]}>
-<Text style={[styles.chipText,selected&&{color:C.white}]}>{text}</Text></View>;
-return <Pressable accessibilityRole="button" accessibilityLabel={text} accessibilityState={{selected:!!selected}} onPress={onPress} style={[styles.chip,selected&&styles.chipSelected]}>
-<Text style={[styles.chipText,selected&&{color:C.white}]}>{selected?'✓ ':''}{text}</Text>
-</Pressable>;
+function Chip({text,selected,onPress}){
+ if(!onPress)return <View style={[styles.chip,selected&&styles.chipSelected]}>
+   <Text style={[styles.chipText,selected&&{color:C.white}]}>{text}</Text></View>;
+ return <Pressable accessibilityRole="button" accessibilityLabel={text}
+   accessibilityState={{selected:!!selected}} onPress={onPress}
+   style={({pressed})=>[styles.chip,selected&&styles.chipSelected,
+     pressed&&{transform:[{scale:.975}],opacity:.82}]}>
+   <Text style={[styles.chipText,selected&&{color:C.white}]}>{selected?'✓ ':''}{text}</Text>
+ </Pressable>;
 }
-function Card({children,style}) {return <View style={[styles.card,style]}>{children}</View>;}
-function H({children,sub}) {return <View style={styles.headingWrap}>
-  <View style={styles.headingBar}/>
-  <View style={{flex:1}}>
-    <Text accessibilityRole="header" style={styles.h}>{children}</Text>
-    {sub?<Text style={styles.sub}>{sub}</Text>:null}
-  </View>
-</View>;}
-function Info({children,warning=false}) {return <View style={[styles.info,warning&&styles.warning]}><Text style={[styles.infoText,warning&&{color:C.warningText}]}>{children}</Text></View>;}
+function Card({children,style}){return <View style={[styles.card,style]}>{children}</View>;}
+function H({children,sub}){return <View style={styles.headingWrap}>
+   <View style={styles.headingBar}/>
+   <View style={{flex:1}}>
+     <Text accessibilityRole="header" style={styles.h}>{children}</Text>
+     {sub?<Text style={styles.sub}>{sub}</Text>:null}
+   </View>
+ </View>;}
+function Info({children,warning=false}){return <View style={[styles.info,warning&&styles.warning]}>
+   <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+     style={[styles.infoMark,warning&&styles.infoMarkWarning]}>
+     <FamilyIcon name={warning?'shield':'check'} size={18}
+       color={warning?C.warningText:C.accentDark}/>
+   </View>
+   <Text style={[styles.infoText,warning&&{color:C.warningText}]}>{children}</Text>
+ </View>;}
 function Avatar({name,size=52,uri}) {return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.avatar,{width:size,height:size,borderRadius:size/2}]}>{uri?<Image source={{uri}} style={{width:size,height:size,borderRadius:size/2}}/>:<Text style={[styles.avatarText,{fontSize:size*.30}]}>{initial(name)}</Text>}</View>;}
 function Row({children,style}) {return <View style={[{flexDirection:'row',alignItems:'center',gap:10},style]}>{children}</View>;}
-function Input({label,multiline=false,style,...props}) {
-return <View style={[{marginBottom:13},style]}><Text style={styles.label}>{label}</Text><TextInput
-accessibilityLabel={label} placeholderTextColor={C.muted} style={[styles.input,multiline&&{minHeight:95,textAlignVertical:'top',paddingTop:12}]}
-multiline={multiline} {...props}/></View>;
+function Input({label,multiline=false,style,onFocus,onBlur,helpText,errorText,...props}){
+ const [focused,setFocused]=useState(false);
+ const length=typeof props.value==='string'?props.value.length:0;
+ const maxLength=props.maxLength;
+ return <View style={[{marginBottom:14},style]}>
+   <Text style={[styles.label,focused&&{color:C.accentDark}]}>{label}</Text>
+   <TextInput accessibilityLabel={label} placeholderTextColor={C.muted}
+     style={[styles.input,focused&&styles.inputFocused,
+       !!errorText&&styles.inputInvalid,
+       multiline&&{minHeight:100,textAlignVertical:'top',paddingTop:12}]}
+     multiline={multiline}
+     {...props}
+     onFocus={event=>{setFocused(true);onFocus?.(event);}}
+     onBlur={event=>{setFocused(false);onBlur?.(event);}}/>
+   {errorText?<Text accessibilityRole="alert" style={styles.inputError}>{errorText}</Text>:null}
+   {(helpText||focused&&maxLength)?<View style={styles.inputFoot}>
+     {helpText?<Text style={styles.inputHint}>{helpText}</Text>:<View style={{flex:1}}/>}
+     {focused&&maxLength?<Text style={styles.inputCounter}>{length}/{maxLength}</Text>:null}
+   </View>:null}
+ </View>;
 }
 function RegionPicker({value,onChange}) {
 const [open,setOpen]=useState(false);
@@ -3521,16 +3552,28 @@ micro:{fontSize:14,color:C.muted,lineHeight:17},
 sectionTitle:{fontSize:18,color:C.ink,fontWeight:'800',marginBottom:13},
 cardTitle:{fontSize:17,fontWeight:'800',color:C.ink},
 label:{fontSize:14,color:C.ink,fontWeight:'800',marginBottom:8},
-input:{backgroundColor:C.white,borderColor:'#D9DED6',borderWidth:1,borderRadius:15,paddingHorizontal:15,paddingVertical:13,fontSize:15,color:C.ink,minHeight:48},
-button:{minHeight:50,paddingHorizontal:18,paddingVertical:12,borderRadius:15,justifyContent:'center',alignItems:'center',flexDirection:'row'},
+input:{backgroundColor:C.white,borderColor:'#B7CECA',borderWidth:1.5,borderRadius:16,
+   paddingHorizontal:15,paddingVertical:13,fontSize:16,color:C.ink,minHeight:52},
+ inputFocused:{borderColor:C.accentDark,borderWidth:2,backgroundColor:'#FAFFF9'},
+ inputInvalid:{borderColor:C.danger},
+ inputFoot:{flexDirection:'row',alignItems:'flex-start',marginTop:6,gap:8},
+ inputHint:{fontSize:13.5,lineHeight:19,color:C.muted,flex:1},
+ inputCounter:{fontSize:13,color:C.accentDark,fontWeight:'700'},
+ inputError:{fontSize:13.5,color:C.danger,marginTop:6},
+button:{minHeight:52,paddingHorizontal:18,paddingVertical:12,borderRadius:16,justifyContent:'center',alignItems:'center',flexDirection:'row'},
+buttonPress:{transform:[{scale:.985}],opacity:.89},
 button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#AEDBDD',borderWidth:1.5},
 button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:44,paddingVertical:9,paddingHorizontal:13},
 buttonText:{color:C.white,fontSize:14,fontWeight:'800'},buttonTextDark:{color:C.accentDark},
-chip:{minHeight:44,justifyContent:'center',borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:13,paddingVertical:8},
+chip:{minHeight:46,justifyContent:'center',borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:14,paddingVertical:8},
 chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{color:C.accentDark,fontSize:14,fontWeight:'800'},
 chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},
-info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:17,paddingVertical:14,marginHorizontal:0,marginTop:7,marginBottom:12},
-warning:{backgroundColor:C.warning},infoText:{fontSize:14,lineHeight:20,color:C.accentDark},
+info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:14,paddingVertical:14,
+   marginHorizontal:0,marginTop:7,marginBottom:12,
+   flexDirection:'row',alignItems:'flex-start',gap:10},
+ infoMark:{width:30,height:30,borderRadius:11,backgroundColor:'#D9EEE3',alignItems:'center',justifyContent:'center'},
+ infoMarkWarning:{backgroundColor:'#F9DFA8'},
+warning:{backgroundColor:C.warning},infoText:{fontSize:14,lineHeight:21,color:C.accentDark,flex:1},
 avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
 tabBar:{minHeight:80,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:8,paddingBottom:3},
