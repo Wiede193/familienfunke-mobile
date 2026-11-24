@@ -17,7 +17,8 @@ assert.match(home,/import \{recommendFamilyPlaces,selectHomeOffers,selectHomeEve
 assert.match(home,/function SunMark\(/,'Keep the distinctive natural sun mark');
 assert.match(home,/const FEATURED=\['discover','map','market','guide'\]/);
 assert.match(home,/onSubmitEditing=\{searchApp\}/,'Google-like direct search must remain keyboard-first');
-assert.match(home,/supabase\.functions\.invoke\('ff-app-assistant'/,'Do not remove AI assistant');
+assert.match(home,/answerFamilyQuestion\(prompt/,'Use the local knowledge assistant');
+assert.doesNotMatch(home,/functions\.invoke\('ff-app-assistant'/,'No priced assistant calls');
 assert.match(home,/ff_market_search/,'Only show server-verified listings');
 assert.match(home,/ff_search_events/,'Only show real approved future events');
 assert.match(home,/p_sort:'newest',p_limit:10,p_offset:0/,'Bound homepage read volume');
@@ -55,4 +56,4 @@ assert.match(app,/familyDetailActions/);
 assert.match(app,/filtered\.length===0\?<Blank title="Noch keine passenden Familien"/);
 assert.match(app,/Filter zurücksetzen/);
 assert.match(app,/FamilySkeleton rows=\{2\} label="Suche im gesamten Familienbasar/);
-console.log('Six-part visual refresh integration verified without removing core search, AI, privacy or market workflows.');
+console.log('Visual refresh: offline knowledge, privacy and market workflows verified.');
