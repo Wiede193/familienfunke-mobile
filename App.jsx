@@ -27,7 +27,7 @@ import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 import SearchResultFeedback from './SearchResultFeedback';
 import {FamilyEmptyState,FamilySkeleton} from './FamilyFeedback';
 import {ActionNotice,CompletionPrompt,ContextHelp} from './FamilyInteraction';
-import {SparkleIntro,FamilyAppTour,SoftTabIcon} from './FamilyMotion';
+import {SparkleIntro,FamilyAppTour,SoftTabIcon,GentleReveal} from './FamilyMotion';
 import DraftTemplatePicker from './DraftTemplatePicker';
 import {MARKET_DRAFT_TEMPLATES,EVENT_DRAFT_TEMPLATES,MESSAGE_DRAFT_TEMPLATES,applyMarketDraft,applyEventDraft,hasTemplatePlaceholders} from './FamilyDraftTemplates';
 import FamilyGuideScreen from './FamilyGuide';
@@ -1016,10 +1016,12 @@ function guardProfileExit(next){
    <Button title={loading?'Verbindung wird geprüft …':'Daten erneut laden'}
      disabled={loading} mode="outline" onPress={()=>load()}/>
  </View>:null}
-{error?<Pressable accessibilityRole="button" accessibilityLabel={'Fehlermeldung schließen. '+error} accessibilityLiveRegion="assertive" onPress={()=>setError('')}><Info warning>{error} · Schließen ×</Info></Pressable>:null}
-{notice?<Pressable accessibilityRole="button" accessibilityLabel={'Hinweis schließen. '+notice} accessibilityLiveRegion="polite" onPress={()=>setNotice('')}><Info>{notice} · Schließen ×</Info></Pressable>:null}
+<ActionNotice kind="error" message={error} onDismiss={()=>setError('')}/>
+<ActionNotice message={notice} onDismiss={()=>setNotice('')}/>
 {loading?<View style={{padding:4}}><ActivityIndicator color={C.accent}/></View>:null}
 <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'padding':undefined} keyboardVerticalOffset={0}>
+<GentleReveal key={tab+'-'+(detailFamily?'family':selectedContact?'chat':showInfo?'info':'screen')}
+  style={{flex:1}} distance={10}>
 {detailFamily?<FamilyDetail p={db.profiles.find(p=>p.user_id===detailFamily)}
 imageUrl={photosUrls[photoOf(detailFamily)?.id]} photos={db.photos.filter(p=>p.owner_id===detailFamily&&p.moderation_status==='approved')}
 photosUrls={photosUrls} photoBusy={photoBusy} photoBusyMore={photoBusyMore} photoHasMore={photoHasMore} photoLoadError={photoLoadError} loadMorePhotos={loadMorePhotos} retryPhotos={()=>setPhotoEpoch(n=>n+1)}
@@ -1153,10 +1155,21 @@ uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,executePhoto)}
 reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,executePhoto)}
 blocks={db.blocks} onUnblock={unblockUser}
 changePassword={changePassword} onDirtyChange={setProfileDirty} openInfo={()=>guardProfileExit(()=>setShowInfo(true))} signOut={()=>guardProfileExit(()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.')))}/>}
+</GentleReveal>
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>guardProfileExit(()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');if(id==='guide')setGuideQuery('');setTab(id);setShowEventForm(false);})}
-accessibilityLabel={title} accessibilityState={{selected:selectedMainTab===id}} style={[styles.tab,(selectedMainTab===id)&&styles.tabActive]}><View style={[styles.tabIcon,(selectedMainTab===id)&&styles.tabIconSelected]}>
+accessibilityLabel={title} accessibilityState={{selected:selectedMainTab===id}}
+accessibilityHint="Länger drücken, um eine Erklärung zu erhalten"
+onLongPress={()=>Alert.alert(title,({
+  home:'Fragen stellen, Angebote finden und zur Familienzeit springen.',
+  market:'Kinderartikel suchen oder eigene Anzeigen direkt einstellen.',
+  discover:'Andere Familien mit passenden Interessen entdecken.',
+  map:'Familienausflüge auf der Karte entdecken.',
+  guide:'Offizielle Informationen und Ratgeber für Familien finden.'
+})[id])}
+style={({pressed})=>[styles.tab,(selectedMainTab===id)&&styles.tabActive,
+  pressed&&{transform:[{scale:.96}],opacity:.84}]}><View style={[styles.tabIcon,(selectedMainTab===id)&&styles.tabIconSelected]}>
   <SoftTabIcon name={glyph} selected={selectedMainTab===id}/>
 </View><Text style={[styles.tabLabel,(selectedMainTab===id)&&{color:C.accentDark,fontWeight:'800'}]}>{title}</Text></Pressable>)}
 </View>:null}
