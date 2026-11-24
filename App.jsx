@@ -920,7 +920,7 @@ async function openInboxEvent(event){
  }
 }
 function navigateFromHome(id,marketQuery='',placeId=null){
-  const routes=['box','sell','myListings','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar','play','healthy','decisions'];
+  const routes=['box','sell','myListings','favorites','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar','play','healthy','decisions'];
   if(!routes.includes(id))return;
   if(id==='inbox'){openInbox();return;}
   if(id==='healthy')setHealthyQuery(String(marketQuery||'').slice(0,160));
@@ -930,12 +930,12 @@ function navigateFromHome(id,marketQuery='',placeId=null){
   setCalendarSeed(null);
   setMapIntent(id==='map'&&typeof placeId==='string'?{id:placeId,returnTab:'home'}:null);
   setEventIntent(['events','partners'].includes(id)&&typeof placeId==='string'?{id:placeId,tab:id,owner:me}:null);
-  setMarketIntent(id==='myListings'?{type:'myListings'}:id==='box'||id==='sell'?id:
+  setMarketIntent(id==='favorites'?{type:'favorites'}:id==='myListings'?{type:'myListings'}:id==='box'||id==='sell'?id:
     id==='market'&&typeof placeId==='string'&&/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(placeId)?
       {type:'buyerListing',id:placeId}:
     id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null);
   setExtraReturnTab('home');
-  setTab(id==='box'||id==='sell'||id==='myListings'?'market':id);
+  setTab(id==='box'||id==='sell'||id==='myListings'||id==='favorites'?'market':id);
 }
 function planCalendarPlace(place){
   setCalendarSeed({owner:me,place:{id:place.id,title:place.title}});
@@ -964,10 +964,10 @@ function selectMenuItem(id){
  if(tab===id&&!detailFamily&&!selectedContact&&!showInfo)return;
  const previous=tabIds.includes(tab)||tab==='more'?tab:(tabIds.includes(extraReturnTab)?extraReturnTab:'home');
  setDetailFamily(null);setSelectedContact(null);setShowInfo(false);
- setMarketIntent(id==='sell'?'sell':id==='myListings'?{type:'myListings'}:null);
+ setMarketIntent(id==='sell'?'sell':id==='myListings'?{type:'myListings'}:id==='favorites'?{type:'favorites'}:null);
  setMapIntent(null);setCalendarSeed(null);setEventIntent(null);setFocusContactId(null);setShowEventForm(false);
  setExtraReturnTab(previous===id?'home':previous);
- setTab(id==='sell'||id==='myListings'?'market':id);
+ setTab(id==='sell'||id==='myListings'||id==='favorites'?'market':id);
 }
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
 if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
@@ -1502,6 +1502,13 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
     setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');
     setSortBy('relevance');setOnlyMine(false);setOnlyFavorites(false);
     setOpen(false);setBoxOpen(false);setSelectedListing(null);
+  },[entryIntent]);
+  useEffect(()=>{
+    if(entryIntent?.type!=='favorites')return;
+    setBuyerFocus(null);setQuery('');setFilter('Alle');setTradeFilter('all');
+    setMinPrice('');setMaxPrice('');
+    setOnlyMine(false);setOnlyFavorites(true);
+    setOpen(false);setBoxOpen(false);setSellChoicesOpen(false);setSelectedListing(null);
   },[entryIntent]);
   useEffect(()=>{
     if(entryIntent?.type!=='myListings')return;
