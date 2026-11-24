@@ -20,7 +20,8 @@ assert.match(app,/p_offset:searchPage\*40/,'Results must be paginated');
 assert.match(app,/Passender Artikel:/,'Show which package item matched');
 assert.match(app,/entryIntent\?\.type!=='search'/,'Allow AI home to open the prefilled bazaar search');
 assert.match(home,/looksLikeMarketProductQuery/,'Home direct function search must recognize products');
-assert.match(home,/data\?\.search_query/,'AI must return precise product query');
+assert.match(home,/answerFamilyQuestion\(prompt/,'Offline assistant must handle questions locally');
+assert.match(home,/entry\.searchQuery/,'A bazaar question must retain its search query');
 assert.match(ai,/search_query:\{type:"string"\}/,'AI schema must contain normalized product search term');
 assert.match(sql,/private\.not_blocked/,'Blocked sellers must never be returned');
 assert.match(sql,/l\.moderation_status='approved'/,'Pending listings must stay private');
@@ -28,4 +29,4 @@ assert.match(sql,/private\.is_active_adult/,'Verify adults before sharing result
 assert.match(sql,/using gin\(search_vector\)/,'Use indexed full-text search');
 assert.match(sql,/item_no integer/,'Index a package as separate item rows');
 assert.match(sql,/x\.search_vector @@ words/,'All query terms must belong to one item');
-console.log('Familienbasar KI- und Merkmalsuche: navigation, paginierte Suche und Schutzregeln geprüft.');
+console.log('Familienbasar: lokale Wissenssuche, paginierte Suche und Schutzregeln geprüft.');

@@ -29,4 +29,7 @@ for(const [cond,msg] of [
   [admin.includes('private.is_active_adult(l.seller_id)'),'Seller verification must be rechecked before approval']
 ])assert.ok(cond,msg);
 assert.match(api,/if\(true\)return Response\.json\(\{checked:0,paused:true\}/,'Costly cron processing must be paused');
-console.log('Basar: HMAC-Cron, Admin-Prüfregeln und Entwicklungsphasen-Sperre geprüft.');
+const manual=read('database/ff_market_zero_cost_manual_review.sql');
+assert.match(manual,/state='manual'/,'New listings go directly to manual review');
+assert.match(manual,/review_version=new\.review_version/,'Edits preserve version checks');
+console.log('Basar: HMAC-Cron, Admin-Prüfregeln und dauerhafte manuelle Warteschlange geprüft.');
