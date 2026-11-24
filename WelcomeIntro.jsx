@@ -1,6 +1,7 @@
 import React from 'react';
 import {Modal, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {FAMILY_COLORS} from './FamilyTheme';
+import {GentleReveal} from './FamilyMotion';
 
 const P=FAMILY_COLORS;
 
@@ -14,7 +15,7 @@ export default function WelcomeIntro({visible,onClose}){
   return <Modal visible={!!visible} transparent animationType="fade" onRequestClose={onClose}
     statusBarTranslucent>
     <View accessibilityViewIsModal style={styles.overlay}>
-      <View style={styles.dialog}>
+      <GentleReveal active={visible} style={styles.dialog} distance={28}>
         <ScrollView contentContainerStyle={styles.content} bounces={false}>
           <View style={styles.sunArea}>
             <View style={styles.sunCircle}><Text style={styles.sunHeart}>♥</Text></View>
@@ -22,7 +23,7 @@ export default function WelcomeIntro({visible,onClose}){
           </View>
           <Text style={styles.eyebrow}>SCHÖN, DASS IHR DA SEID!</Text>
           <Text accessibilityRole="header" style={styles.title}>Willkommen bei Familienfunke</Text>
-          <Text style={styles.subtitle}>Ein Platz für Familien. Ein Funke für neue Freundschaften.</Text>
+          <Text style={styles.subtitle}>Lerne kurz die Idee und die Menschen dahinter kennen.</Text>
           <View style={styles.highlights}>
             {highlights.map(([glyph,title,body])=>
               <View key={title} style={styles.item}>
@@ -35,7 +36,7 @@ export default function WelcomeIntro({visible,onClose}){
             )}
           </View>
           <View style={styles.story}>
-            <Text style={styles.storyTitle}>Von Familie zu Familie</Text>
+            <Text style={styles.storyTitle}>Unser Steckbrief · Das steckt hinter Familienfunke</Text>
             <Text style={styles.storyBody}>Wir sind beide berufstätig und wissen, wie schwer es sein kann, im vollen Familienalltag oder nach einem Umzug neue Kontakte zu finden. Darum haben wir Familienfunke ins Leben gerufen: damit der Alltag gemeinsam ein bisschen leichter wird.</Text>
           </View>
           <Pressable accessibilityRole="button" accessibilityLabel="Familienfunke entdecken und Willkommen schließen"
@@ -44,7 +45,7 @@ export default function WelcomeIntro({visible,onClose}){
           </Pressable>
           <Text style={styles.footer}>Diese Begrüßung bleibt geöffnet, bis du „Familienfunke entdecken“ auswählst. Du kannst sie unter „Mehr“ erneut öffnen.</Text>
         </ScrollView>
-      </View>
+      </GentleReveal>
     </View>
   </Modal>;
 }
