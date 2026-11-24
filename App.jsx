@@ -1370,6 +1370,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   const [photo,setPhoto]=useState([]);
   const [choosing,setChoosing]=useState(false);
   const [quick,setQuick]=useState(false);
+  const [rulesConfirmed,setRulesConfirmed]=useState(false);
   const [draftTemplateId,setDraftTemplateId]=useState(null);
   const [facts,setFacts]=useState({...EMPTY_FACTS});
   const [scanBusy,setScanBusy]=useState(false);
@@ -1556,7 +1557,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   function resetForm(){
     setBoxEditor(null);setEditingId(null);setTitle('');setDescription('');setRegion('');setCategory('Kleidung');
     setCondition('Gut');setTrade('sell');setPrice('');setOrganizationId('');setPhoto([]);
-    setQuick(false);setDraftTemplateId(null);setFacts({...EMPTY_FACTS});setProposal(null);setScanNotice('');setConfirmed(false);setExpandFacts(false);setScanned(false);setAskSize(false);
+    setQuick(false);setRulesConfirmed(false);setDraftTemplateId(null);setFacts({...EMPTY_FACTS});setProposal(null);setScanNotice('');setConfirmed(false);setExpandFacts(false);setScanned(false);setAskSize(false);
   }
   function chooseMarketDraft(template){
     const draft=applyMarketDraft(template);if(!draft)return;
@@ -1936,6 +1937,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   }
   async function submit(){
     if(!active||scanBusy||busy||submitLock.current)return;
+    if(!rulesConfirmed)return Alert.alert('Bitte kurz bestätigen','Bestätige die Regeln für sichere und wahrheitsgemäße Anzeigen.');
     if(hasTemplatePlaceholders(title)||hasTemplatePlaceholders(description))
       return Alert.alert('Vorlage vervollständigen','Ersetze alle Felder mit [ergänzen] oder entferne die nicht benötigten Zeilen.');
     if(boxEditor?.packageIds&&(!packageForm||packageForm.rows.length!==boxEditor.packageIds.length))return Alert.alert('Paket prüfen','Bitte kehre zur Kiste zurück und erstelle die Paketliste erneut.');
@@ -2338,12 +2340,19 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         <Chip text="Privat" selected={!organizationId} onPress={()=>setOrganizationId('')}/>
         {myOrgs.map(o=><Chip key={o.id} text={o.name} selected={organizationId===o.id} onPress={()=>setOrganizationId(o.id)}/>)}
       </View></>:null}
-      {packageForm?<Text style={[styles.micro,{marginBottom:11}]}>Deine Anzeige wird vor Veröffentlichung geprüft.</Text>:<Info>Erlaubt sind auch Kuscheltiere, Tierfiguren und eindeutig harmloses Kinderspielzeug. Echte Tiere sind bei uns ausnahmslos verboten – ebenso Waffen, Drogen, Medikamente, 18+-Waren und andere gefährliche oder illegale Artikel. Die Anzeige erscheint erst nach Prüfung.</Info>}
-      {quick?<Pressable accessibilityRole="checkbox" accessibilityState={{checked:confirmed}} onPress={()=>setConfirmed(v=>!v)} style={{flexDirection:'row',gap:10,padding:12,marginBottom:12,borderRadius:12,borderWidth:1,borderColor:C.line}}>
+      {packageForm?<Text style={[styles.micro,{marginBottom:11}]}>Dein Paket wird nach dem Hochladen sofort veröffentlicht, sofern die Grundregeln erfüllt sind.</Text>
+         :<Info>Erlaubt sind Kuscheltiere, Tierfiguren und harmloses Kinderspielzeug. Verboten sind echte Tiere, Waffen, Drogen, Medikamente, 18+-Artikel und andere gefährliche oder illegale Waren. Einfache Regeln werden automatisch geprüft; problematische Anzeigen können Mitglieder melden.</Info>}
+      <Pressable accessibilityRole="checkbox" accessibilityLabel="Marktplatzregeln für diese Anzeige bestätigen"
+         accessibilityState={{checked:rulesConfirmed}} onPress={()=>setRulesConfirmed(v=>!v)}
+         style={({pressed})=>[styles.marketRulesCheck,pressed&&styles.buttonPress]}>
+         <Text style={{fontSize:21,color:C.accentDark}}>{rulesConfirmed?'☑':'☐'}</Text>
+         <Text style={[styles.body,{flex:1}]}>Ich bestätige, dass mein Angebot erlaubt und korrekt beschrieben ist. Die Fotos zeigen keine Personen, Privatadressen oder Dokumente.</Text>
+       </Pressable>
+       {quick?<Pressable accessibilityRole="checkbox" accessibilityState={{checked:confirmed}} onPress={()=>setConfirmed(v=>!v)} style={{flexDirection:'row',gap:10,padding:12,marginBottom:12,borderRadius:12,borderWidth:1,borderColor:C.line}}>
         <Text style={{fontSize:19,color:C.accentDark}}>{confirmed?'☑':'☐'}</Text>
         <Text style={[styles.body,{flex:1}]}>{packageForm?'Ich habe Paketinhalt und Zustand geprüft.':'Ich habe die Angaben geprüft. Der Steckbrief beschreibt mein Angebot korrekt.'}</Text>
       </Pressable>:null}
-      <Button title={busy?'Wird gespeichert …':editingId?'Änderungen zur Prüfung einreichen':packageForm?'Paket zur Prüfung einreichen':'Anzeige kostenlos einreichen'} disabled={busy||choosing||scanBusy||!active||(quick&&!confirmed)} onPress={submit}/>
+      <Button title={busy?'Wird veröffentlicht …':editingId?'Änderungen direkt veröffentlichen':packageForm?'Paket jetzt veröffentlichen':'Anzeige jetzt veröffentlichen'} disabled={busy||choosing||scanBusy||!active||!rulesConfirmed||(quick&&!confirmed)} onPress={submit}/>
       {boxEditor?<Button title="Entwurf behalten und zurück zur Kiste" mode="outline" disabled={busy||choosing||scanBusy} onPress={saveBoxEditor}/>:null}
       {!editingId&&!boxEditor?<Button title="Viele Artikel? Zum Kistenmodus" mode="ghost" disabled={busy||choosing||scanBusy} onPress={()=>Alert.alert('Zum Kistenmodus wechseln?','Die Angaben dieser einzelnen Anzeige werden verworfen.',[{text:'Abbrechen',style:'cancel'},{text:'Wechseln',onPress:()=>{resetForm();showBox();}}])}/>:null}
     </Card>:null}
@@ -3503,6 +3512,9 @@ marketHeroTitle:{fontSize:27,color:C.ink,fontWeight:'800',marginTop:5},
 marketHeroText:{fontSize:13.5,color:C.ink,lineHeight:19,marginTop:5},
 marketHeroIcon:{width:59,height:59,borderRadius:19,backgroundColor:C.white,
   alignItems:'center',justifyContent:'center'},
+marketRulesCheck:{flexDirection:'row',gap:10,alignItems:'flex-start',
+   borderWidth:1.5,borderColor:'#B7D6C8',backgroundColor:'#F0F9F3',
+   borderRadius:14,padding:13,marginTop:8,marginBottom:13,minHeight:60},
 marketReportButton:{marginTop:18,minHeight:48,paddingHorizontal:10,borderRadius:14,
   borderColor:C.line,borderWidth:1,backgroundColor:'#FFF5F2',
   flexDirection:'row',gap:9,alignItems:'center',justifyContent:'center'},
