@@ -113,6 +113,7 @@ function faqDestination(category,question){
  return FAQ_DEFAULT_ROUTES[category]||null;
 }
 export function TechnicalHelpScreen({initialCategory='Alle',onNavigate}){
+  const [searchFocused,setSearchFocused]=useState(false);
   const [category,setCategory]=useState(initialCategory);
   const [search,setSearch]=useState('');
   const [open,setOpen]=useState(null);
@@ -124,8 +125,9 @@ export function TechnicalHelpScreen({initialCategory='Alle',onNavigate}){
     <View style={styles.card}>
       <Text style={styles.label}>Wie können wir dir helfen?</Text>
       <TextInput accessibilityLabel="Hilfe durchsuchen" value={search} onChangeText={setSearch}
-        placeholder="z. B. Inserat einstellen oder Passwort" placeholderTextColor="#8D9EA0"
-        style={styles.input}/>
+        placeholder="z. B. Inserat einstellen oder Passwort" placeholderTextColor={C.muted}
+        onFocus={()=>setSearchFocused(true)} onBlur={()=>setSearchFocused(false)}
+        returnKeyType="search" style={[styles.input,searchFocused&&styles.inputFocused]}/>
     </View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories}>
       {categories.map(c=><Pressable key={c} accessibilityRole="button"
@@ -178,7 +180,8 @@ const styles=StyleSheet.create({
   body:{fontSize:15,lineHeight:23,color:C.ink},
   caption:{fontSize:13.5,lineHeight:21,color:C.muted},
   label:{fontSize:13,fontWeight:'800',color:C.ink,marginBottom:9},
-  input:{minHeight:50,borderWidth:1,borderColor:'#D0DFDE',borderRadius:15,paddingHorizontal:14,fontSize:15,color:C.ink,backgroundColor:C.white},
+  input:{minHeight:52,borderWidth:1.5,borderColor:'#A9CCC4',borderRadius:15,paddingHorizontal:14,fontSize:16,color:C.ink,backgroundColor:C.white},
+  inputFocused:{borderColor:C.accentDark,borderWidth:2,backgroundColor:'#FAFFF9'},
   categories:{gap:8,paddingVertical:5,paddingBottom:15},
   chip:{borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,borderRadius:22,paddingHorizontal:14,paddingVertical:11,minHeight:44},
   activeChip:{backgroundColor:C.accentDark,borderColor:C.accentDark},
