@@ -2232,6 +2232,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
           {label:'Artikelzustand auswählen',done:['Neu','Sehr gut','Gut','Gebraucht'].includes(condition)},
           {label:'Preis korrekt angeben',done:trade!=='sell'||parsePrice(price)!==null&&parsePrice(price)>=0},
           {label:'Alle markierten Entwurfsfelder ergänzen',done:!hasTemplatePlaceholders(title)&&!hasTemplatePlaceholders(description)},
+          {label:'Marktplatzregeln bestätigen',done:rulesConfirmed},
           ...(quick?[{label:'Steckbrief und bekannte Mängel prüfen',done:!!confirmed&&DEFECTS.includes(facts.defect)}]:[])
         ]}/>
       <ContextHelp title="Wann ist die Anzeige sichtbar?">
