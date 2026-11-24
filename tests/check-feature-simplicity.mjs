@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const app=read('App.jsx'),map=read('FamilyMap.jsx'),events=read('OfficialFamilyEvents.jsx');
+const market=app.slice(app.indexOf('function MarketScreen('),app.indexOf('function MarketSortSelect('));
+const family=app.slice(app.indexOf('function DiscoverScreen('),app.indexOf('function FamilyDetail('));
+assert.match(market,/!inMarketSubpage\?<\/>|!inMarketSubpage\?<\>/);
+assert.match(market,/!boxOpen&&!boxEditor&&!sellChoicesOpen/);
+assert.match(family,/\[mode,setMode\]=useState\('list'\)/);
+assert.match(family,/showInterestFilter\?<View style=\{styles.filterPanel\}/);
+assert.match(app,/\[eventView,setEventView\]=useState\('official'\)/);
+assert.match(map,/accessibilityLabel="Ortsdetails schließen"/);
+assert.match(events,/expandedEvents\[event.id\]/);
+assert.match(events,/Originalquelle öffnen/);
+console.log('Simplified feature navigation: source checks passed.');

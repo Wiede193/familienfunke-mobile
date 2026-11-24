@@ -23,6 +23,8 @@ function SelectRow({label,options,value,onChange}){
 }
 export default function OfficialFamilyEvents({userId,month=null,compact=false,onSaved,onEventsLoaded}){
  const [district,setDistrict]=useState('all'),[category,setCategory]=useState('all');
+ const [filtersOpen,setFiltersOpen]=useState(false);
+ const [expandedEvents,setExpandedEvents]=useState({});
  const [events,setEvents]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const [revision,setRevision]=useState(0),[savingKey,setSavingKey]=useState(null);
  const seq=useRef(0),lock=useRef(false);
@@ -73,8 +75,12 @@ export default function OfficialFamilyEvents({userId,month=null,compact=false,on
  return <View style={s.section}>
   <Text accessibilityRole="header" style={s.heading}>{compact?'Offizielle Familienveranstaltungen im Monat':'Offizielle Familienveranstaltungen in der Region'}</Text>
   <Text style={s.description}>Öffentlich angekündigte, redaktionell ausgewählte Familienangebote mit Originalquelle. Nicht alle Termine aus Google oder regionalen Kalendern werden automatisch erfasst. Preise, Uhrzeiten und Absagen beim Veranstalter prüfen.</Text>
+  <Pressable accessibilityRole="button" accessibilityState={{expanded:filtersOpen}} style={[s.btn,s.secondary]} onPress={()=>setFiltersOpen(v=>!v)}><Text style={s.secondaryText}>Ort &amp; Kategorie {filtersOpen?'−':'+'}{district!=='all'||category!=='all'?' · aktiv':''}</Text></Pressable>
+  {filtersOpen?<>
   <SelectRow label="Landkreis oder Stadt" options={OFFICIAL_EVENT_DISTRICTS} value={district} onChange={setDistrict}/>
   <SelectRow label="Was möchtet ihr unternehmen?" options={OFFICIAL_EVENT_CATEGORIES} value={category} onChange={setCategory}/>
+  <Pressable accessibilityRole="button" style={[s.btn,s.secondary]} onPress={()=>{setDistrict('all');setCategory('all');}}><Text style={s.secondaryText}>Filter zurücksetzen</Text></Pressable>
+  </>:null}
   {loading?<View style={s.loading}><ActivityIndicator color={C.accentDark}/><Text style={s.sub}>Offizielle Termine laden …</Text></View>:null}
   {!loading&&error?<View style={s.card}><Text style={s.description}>{error}</Text><Pressable accessibilityRole="button" onPress={()=>setRevision(n=>n+1)} style={s.btn}><Text style={s.btnText}>Erneut laden</Text></Pressable></View>:null}
   <SearchResultFeedback active={district!=='all'||category!=='all'||!loading} count={shown.length} loading={loading} error={error} context="Familienveranstaltungen" hint={month?'Ausgewählter Monat: '+month:'Geprüfte Veranstaltungen im aktuellen Zeitraum; weitere Termine können beim Veranstalter stehen.'}/>
@@ -84,11 +90,14 @@ export default function OfficialFamilyEvents({userId,month=null,compact=false,on
     <Text style={s.eventTitle}>{event.title}</Text>
     <Text style={s.date}>{officialEventDateLabel(event)}</Text>
     <Text style={s.sub}>{event.venue} · {event.city}</Text>
-    <Text style={s.description}>{event.summary}</Text>
+    <Text style={s.description} numberOfLines={expandedEvents[event.id]?undefined:3}>{event.summary}</Text>
+    <Pressable accessibilityRole="button" accessibilityState={{expanded:!!expandedEvents[event.id]}} accessibilityLabel={'Details zu '+event.title} onPress={()=>setExpandedEvents(old=>({...old,[event.id]:!old[event.id]}))} style={[s.btn,s.secondary]}><Text style={s.secondaryText}>{expandedEvents[event.id]?'Weniger Details −':'Mehr Details +'}</Text></Pressable>
+    {expandedEvents[event.id]?<>
     {!!event.age_note&&<Text style={s.sub}>Alter: {event.age_note}</Text>}
     {!!event.cost_note&&<Text style={s.sub}>Kosten: {event.cost_note}</Text>}
     {!!event.booking_note&&<Text style={s.sub}>Hinweis: {event.booking_note}</Text>}
     <Text style={s.sub}>Barrierefreiheit: {event.accessibility_note||'Nicht geprüft; bitte erfragen.'}</Text>
+    </>:<Text style={s.sub} numberOfLines={2}>Barrierefreiheit: {event.accessibility_note||'Nicht geprüft; bitte erfragen.'}</Text>}
     <Text style={s.source}>Quelle: {event.source_name} · geprüft am {officialEventDay(event.checked_on)}</Text>
     <View style={s.actions}>
      <Pressable accessibilityRole="link" accessibilityLabel={'Offizielle Quelle zu '+event.title+' öffnen'}

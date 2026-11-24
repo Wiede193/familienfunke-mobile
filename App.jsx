@@ -2106,21 +2106,22 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   const shownImage=gallery[Math.min(galleryIndex,Math.max(0,gallery.length-1))]?.uri;
   const imageDescription=selected?marketPhotoAlt(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length):'';
   return <ScrollView ref={marketScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-    <View style={styles.marketHero}>
+    {!inMarketSubpage?<>
+    <View style={[styles.marketHero,{padding:14,marginBottom:10}]}>
       <View style={{flex:1}}>
-        <Text style={styles.marketEyebrow}>VON FAMILIEN FÜR FAMILIEN</Text>
+        
         <Text accessibilityRole="header" style={styles.marketHeroTitle}>Familienbasar</Text>
-        <Text style={styles.marketHeroText}>Entdecken, weitergeben, nachhaltig handeln.</Text>
+        <Text style={styles.marketHeroText}>Kaufen, tauschen und verschenken.</Text>
       </View>
       <View style={styles.marketHeroIcon}><FamilyIcon name="bag" size={30}/></View>
     </View>
     <View style={styles.marketTopActions}>
       <View style={{flex:1}}>
-        <Text style={styles.marketTopTitle}>Dein Familienbasar</Text>
-        <Text style={styles.micro}>Faire Angebote von geprüften Erwachsenen</Text>
+        <Text style={styles.marketTopTitle}>Etwas weitergeben?</Text>
       </View>
       <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':sellChoicesOpen?'Auswahl schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){navigationBackRef.current?.();}else{setSellChoicesOpen(v=>!v);}}}/>
     </View>
+    </>:null}
     {sellChoicesOpen&&!open&&!boxOpen&&active?<Card style={{marginBottom:13,backgroundColor:C.sunPale}}>
       <Text style={styles.sectionTitle}>Was möchtest du anbieten?</Text>
       <Text style={[styles.body,{marginBottom:12}]}>Wähle den passenden Weg: einen Artikel einzeln einstellen oder mehrere Kleidungsstücke gemeinsam fotografieren.</Text>
@@ -2131,6 +2132,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       <Text style={[styles.micro,{marginBottom:10}]}>Viele Sachen auf einmal erfassen. Ein Foto, mehrere Entwürfe – einzeln oder im Paket.</Text>
       <Button title={boxDrafts.length?'Kiste weiterbearbeiten ('+boxDrafts.length+')':'✦ Kiste erfassen'} disabled={busy||choosing||scanBusy||boxStorage==='loading'} onPress={()=>{setSellChoicesOpen(false);showBox();}}/>
     </Card>:null}
+    {!inMarketSubpage?<>
     <Pressable accessibilityRole="button" accessibilityLabel="Informationen zu Gebühren und Datenschutz"
       accessibilityState={{expanded:showMarketTrust}} onPress={()=>setShowMarketTrust(v=>!v)}
       style={styles.marketTrust}>
@@ -2149,7 +2151,8 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         mode={onlyFavorites?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
-    {onlyFavorites&&!open&&!boxOpen?<PriceAlertPreference key={me} userId={me} active={active}/>:null}
+    </>:null}
+    {onlyFavorites&&!inMarketSubpage?<PriceAlertPreference key={me} userId={me} active={active}/>:null}
     {boxOpen&&boxPending?<Card style={{marginBottom:18,backgroundColor:'#FFF4DA'}}>
       <Text style={styles.sectionTitle}>Unterbrochene Einreichung</Text>
       <Text style={[styles.body,{marginBottom:12}]}>Wir prüfen zuerst, ob deine Anzeige bereits beim Server angekommen ist. So werden dieselben Artikel nicht versehentlich zweimal eingestellt.</Text>
@@ -2547,7 +2550,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         </View>;})()}
         <Text style={[styles.micro,{marginTop:20}]}>Keine Zahlung über Familienfunke möglich. Prüfe Artikel und Übergabe sorgfältig.</Text>
       </Card>
-    </View>:!boxOpen&&!boxEditor?<>
+    </View>:!boxOpen&&!boxEditor&&!sellChoicesOpen?<>
       <View style={styles.marketSearchBox}>
         <Text style={{fontSize:19,color:C.accentDark,marginRight:10}}>⌕</Text>
         <TextInput accessibilityLabel="Angebote durchsuchen" style={styles.marketSearchInput}
@@ -2570,14 +2573,11 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         <Pressable accessibilityRole="button" accessibilityState={{expanded:filterOpen}} onPress={()=>setFilterOpen(v=>!v)}
           style={[styles.marketFilterToggle,filterOpen&&{borderColor:C.accent}]}>
           <Row style={{gap:5}}><FamilyIcon name="filter" size={17}/>
-          <Text style={styles.marketFilterLabel}>Filter {filterOpen?'ausblenden':'anzeigen'}</Text></Row>
+          <Text style={styles.marketFilterLabel}>Filter &amp; Sortierung{filterOpen?' −':' +'}{tradeFilter!=='all'||minPrice||maxPrice||sortBy!=='relevance'?' · aktiv':''}</Text></Row>
         </Pressable>
-        <View style={{flex:1}}>
-          <MarketSortSelect value={sortBy} onChange={setSortBy}/>
         </View>
-      </View>
       {filterOpen?<Card style={{marginBottom:15,padding:15}}>
-        <Text style={[styles.sub,{marginBottom:10}]}>Die Kategorie kannst du bereits oberhalb dieser Filter auswählen.</Text>
+        <MarketSortSelect value={sortBy} onChange={setSortBy}/>
         <Text style={styles.label}>Art des Angebots</Text>
         <View style={[styles.chipsRow,{marginTop:0,marginBottom:14}]}>
           {[['all','Alle'],['sell','Verkaufen'],['gift','Verschenken'],['swap','Tauschen']].map(([id,label])=>
@@ -2590,8 +2590,10 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         <Button mode="ghost" title="Filter zurücksetzen" small
           onPress={()=>{setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');setSortBy('relevance');}}/>
       </Card>:null}
-      {!onlyMine&&!onlyFavorites&&!buyerFocus?<Button title={savingSearch?'Speichert …':'♡ Suche speichern'} mode="outline" disabled={savingSearch||!active} onPress={saveCurrentSearch}/>:null}
-      <View style={{marginTop:8,marginBottom:12}}><Button title="Meine Suchaufträge" mode="ghost" onPress={onSavedSearches}/></View>
+      {filterOpen?<View style={{gap:8,marginBottom:12}}>
+        {!onlyMine&&!onlyFavorites&&!buyerFocus?<Button title={savingSearch?'Speichert …':'♡ Suche speichern'} mode="outline" disabled={savingSearch||!active} onPress={saveCurrentSearch}/>:null}
+        <Button title="Meine Suchaufträge" mode="ghost" onPress={onSavedSearches}/>
+      </View>:null}
       <Row style={{justifyContent:'space-between',marginBottom:12}}>
         <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length}{serverSearchActive&&remoteHasMore?'+':''} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
         <Text style={styles.micro}>Neu und gebraucht</Text>
@@ -2891,7 +2893,7 @@ const [query,setQuery]=useState('');
 const [interest,setInterest]=useState('Alle');
 const [onlyRegion,setOnlyRegion]=useState(false);
 const [onlyShared,setOnlyShared]=useState(false);
-const [mode,setMode]=useState('cards');
+const [mode,setMode]=useState('list');
 const [showInterestFilter,setShowInterestFilter]=useState(false);
 const [interestFilterQuery,setInterestFilterQuery]=useState('');
 const [cardIndex,setCardIndex]=useState(0);
@@ -2932,26 +2934,18 @@ return <Card key={p.user_id} style={{marginBottom:12,padding:0,overflow:'hidden'
 </Card>;
 }
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-<View style={styles.hero}>
-<View style={styles.heroDecorationOne} pointerEvents="none"/>
-<View style={styles.heroDecorationTwo} pointerEvents="none"/>
-<View style={styles.heroPill}><Text style={styles.heroPillText}>✦ GEMEINSAM MEHR ERLEBEN</Text></View>
-<Text style={styles.heroTitle}>Familien entdecken, die zu euch passen.</Text>
-<Text style={styles.heroText}>Findet andere Familien mit gemeinsamen Interessen – freiwillig und ohne genaue Standortfreigabe.</Text>
-<View style={styles.heroTagline}><Text style={styles.heroTaglineText}>♥  Aus Nachbarschaft wird Freundschaft.</Text></View>
-</View>
 {!active?<Info warning>Dein Konto wartet noch auf persönliche Erwachsenenprüfung oder Profilfreigabe. Profilstatus: {myProfile?.moderation_status||'–'} · Verifizierung: {verification?.status||'–'}.</Info>:null}
-<H sub="Nur freigegebene, freiwillig sichtbare Familienprofile.">Familien entdecken</H>
+<H sub="Gemeinsame Interessen, neue Bekanntschaften.">Familien finden</H>
 <Input label="Suche nach Familie, Region oder Interesse" placeholder="z. B. Natur, Beeskow …" value={query} onChangeText={value=>updateFilter(setQuery,value)} />
 <SearchResultFeedback active={!!(query.trim()||interest!=='Alle'||onlyRegion||onlyShared)} query={query} count={filtered.length}
  context="Familien entdecken" hasMore={hasMore} loading={loadingMore} hint="Nur freigegebene, freiwillig sichtbare Familienprofile."/>
 <Pressable accessibilityRole="button" accessibilityState={{expanded:showInterestFilter}}
  onPress={()=>{Keyboard.dismiss();setShowInterestFilter(v=>!v);}}
  style={[styles.marketFilterToggle,{minHeight:48,marginBottom:12,alignSelf:'stretch'}]}>
- <Text style={styles.marketFilterLabel}>Interessen auswählen: {interest==='Alle'?'Alle Interessen':interest} {showInterestFilter?'−':'+'}</Text>
+ <Text style={styles.marketFilterLabel}>Filter {showInterestFilter?'−':'+'}{interest!=='Alle'||onlyRegion||onlyShared?' · aktiv':''}</Text>
  </Pressable>
  {showInterestFilter?<Card>
- <Text style={styles.sub}>Suche ein Hobby, statt eine lange Liste durchzuscrollen.</Text>
+ <Text style={styles.label}>Interessen auswählen</Text>
  <Input label="Hobby suchen" placeholder="z. B. Bouldern, Töpfern, Brettspiele" value={interestFilterQuery}
    onChangeText={setInterestFilterQuery}/>
  <View style={[styles.chipsRow,{marginTop:8,marginBottom:12}]}>
@@ -2960,7 +2954,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
  </View>
  {filterFamilyInterests(interestFilterQuery,INTERESTS).length>24?<Text style={styles.micro}>Weitere Hobbys über das Suchfeld finden.</Text>:null}
  </Card>:null}
-<View style={styles.filterPanel}>
+{showInterestFilter?<View style={styles.filterPanel}>
 <Row style={{justifyContent:'space-between',marginBottom:10}}>
 <View style={{flex:1}}><Text style={styles.label}>Nur meine Region</Text><Text style={styles.micro}>{myRegion?'Gleiche Region oder bekannter Ort im selben Landkreis':'Bitte zuerst deine Region im Profil auswählen'}</Text></View>
 <Switch accessibilityLabel="Nur Familien aus meiner Region anzeigen" disabled={!myRegion} value={onlyRegion&&!!myRegion} onValueChange={value=>updateFilter(setOnlyRegion,value)} trackColor={{true:C.accent}}/>
@@ -2969,8 +2963,9 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <View style={{flex:1}}><Text style={styles.label}>Gemeinsame Hobbys</Text><Text style={styles.micro}>Mindestens ein gemeinsames Interesse</Text></View>
 <Switch accessibilityLabel="Nur Familien mit gemeinsamen Hobbys anzeigen" value={onlyShared} onValueChange={value=>updateFilter(setOnlyShared,value)} trackColor={{true:C.accent}}/>
 </Row>
-</View>
-<Row style={{justifyContent:'space-between',marginBottom:14,marginTop:5}}>
+<Button title="Filter zurücksetzen" mode="ghost" small onPress={()=>{setInterest('Alle');setOnlyRegion(false);setOnlyShared(false);setCardIndex(0);}}/>
+ </View>:null}
+ <Row style={{justifyContent:'space-between',marginBottom:14,marginTop:5,flexWrap:'wrap'}}>
 <Text style={[styles.micro,{fontWeight:'800'}]}>{filtered.length} {filtered.length===1?'Familie':'Familien'} in geladenen Ergebnissen</Text>
 <Row><Chip text="Einzelansicht" selected={mode==='cards'} onPress={()=>setMode('cards')}/><Chip text="Liste" selected={mode==='list'} onPress={()=>setMode('list')}/></Row>
 </Row>
@@ -3324,6 +3319,7 @@ return <View style={{marginTop:12}}>
 function EventsScreen({focusId,clearFocus,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent,onDraftChange}){
 const focus=useFocusedEvent('events',focusId,me);
 const [events,setEvents]=useState([]);
+ const [eventView,setEventView]=useState('official');
 const [myRequests,setMyRequests]=useState([]);
 const [focusedRequest,setFocusedRequest]=useState(null);
 const [focusedRequestBusy,setFocusedRequestBusy]=useState(false);
@@ -3403,8 +3399,12 @@ async function requestAndRefresh(id){
 }
 const upcoming=focusId?(focus.row?[focus.row]:[]):events.filter(e=>new Date(e.ends_at)>new Date());
 return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-<Info>{SECTION_MESSAGES.events}</Info><H sub="Gemeinsame Aktivitäten statt öffentlicher Diskussionen.">Treffen & Veranstaltungen</H>
-<Button title={showForm?'Formular schließen':'＋ Aktivität erstellen'} disabled={!active} onPress={()=>setShowForm(!showForm)}/>
+<H sub="Ausflüge und gemeinsame Zeit planen.">Veranstaltungen</H>
+ {!showForm&&!focusId?<View style={[styles.chipsRow,{marginTop:0,marginBottom:12}]}>
+  <Chip text="Öffentliche Termine" selected={eventView==='official'} onPress={()=>setEventView('official')}/>
+  <Chip text="Familientreffen" selected={eventView==='family'} onPress={()=>setEventView('family')}/>
+ </View>:null}
+{!focusId&&(showForm||eventView==='family')?<Button title={showForm?'Zum Überblick':'＋ Treffen erstellen'} disabled={!active} mode={showForm?'outline':'primary'} onPress={()=>{if(!showForm){setShowForm(true);return;}if(title.trim()||description.trim()||region.trim()||date||time!=='15:00'||count!=='10'||visibility!=='community'){Alert.alert('Entwurf verwerfen?','Deine Eingaben werden gelöscht.',[{text:'Weiter bearbeiten',style:'cancel'},{text:'Verwerfen',style:'destructive',onPress:()=>{setTitle('');setDescription('');setRegion('');setDate('');setTime('15:00');setCount('10');setVisibility('community');setEventTemplateId(null);setShowForm(false);}}]);}else setShowForm(false);}}/>:null}
 {showForm?<Card style={{marginTop:14}}>
 <Text style={styles.cardTitle}>Neue Aktivität</Text>
 <Text style={[styles.sub,{marginBottom:15}]}>Gemeinsame Treffen werden weiterhin vor einer öffentlichen Veröffentlichung geprüft. Bitte keine Privatadressen veröffentlichen.</Text>
@@ -3436,7 +3436,9 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Text style={styles.label}>Wer soll den Termin sehen?</Text><Row style={{marginBottom:15}}><Chip text="Alle geprüften Familien" selected={visibility==='community'} onPress={()=>setVisibility('community')}/><Chip text="Nur Kontakte" selected={visibility==='contacts'} onPress={()=>setVisibility('contacts')}/></Row>
 <Button title="Zur Freigabe einreichen" disabled={busy} onPress={submit}/>
 </Card>:null}
-{!focusId?<OfficialFamilyEvents userId={me}/>:null}
+{!showForm&&eventView==='official'?<>{!focusId?<OfficialFamilyEvents userId={me}/>:null}</>:null}
+ {!showForm&&(focusId||eventView==='family')?<>
+ <Info>{SECTION_MESSAGES.events}</Info>
 <Text style={[styles.sectionTitle,{marginTop:22}]}>Anstehende Treffen</Text>
 {focusId?<FocusedEventStatus focus={focus} clearFocus={clearFocus}/>:null}
 {!focusId&&loading?<ActivityIndicator color={C.accent}/>:null}
@@ -3460,6 +3462,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
  </Card>;
 })}
 {!focusId&&hasMore?<Button title={loadingMore?'Weitere Veranstaltungen werden geladen …':'Weitere Veranstaltungen laden'} mode="outline" disabled={loadingMore} onPress={loadMoreEvents}/>:null}
+ </>:null}
 </ScrollView>;
 }
 function ProfileScreen({userId,profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,onDirtyChange,openInfo,signOut}){

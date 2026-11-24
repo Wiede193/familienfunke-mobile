@@ -141,6 +141,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
   const [nationalArea,setNationalArea]=useState('all');
   const [brandenburgFocus,setBrandenburgFocus]=useState('all');
   const [showCatalog,setShowCatalog]=useState(false);
+  const [showMapOptions,setShowMapOptions]=useState(entryLayer!=='none');
   const [openForm,setOpenForm]=useState(false);
   const [draftPoint,setDraftPoint]=useState(null);
   const [latitudeInput,setLatitudeInput]=useState('');
@@ -417,15 +418,9 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
     catch{Alert.alert('Karten-App nicht erreichbar','Der Kartendienst konnte nicht geöffnet werden. Bitte versuche es erneut.');}
   }
   return <ScrollView ref={scroll} style={styles.page} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-    <View style={styles.hero}><Text style={styles.eyebrow}>FAMILIENFUNKE ENTDECKT DEUTSCHLAND</Text>
-      <Text style={styles.title}>Familienkarte ♡</Text>
-      <Text style={styles.sub}>Spielplätze, Wickelmöglichkeiten in Restaurants und Cafés sowie Ausflugsziele – direkt auf der Karte entdecken.</Text>
-    </View>
     <View style={styles.locationSearch}>
       <Text accessibilityRole="header" style={styles.sectionNoMargin}>Ort oder Ausflugsziel suchen</Text>
-      <Text style={[styles.micro,{marginTop:7,marginBottom:11}]}>
-        Suche nach Orten, Postleitzahlen, Straßen und öffentlichen Adressen in ganz Deutschland. Familienfunke-Tipps erscheinen direkt beim Tippen.
-      </Text>
+      <Text style={[styles.micro,{marginTop:7,marginBottom:11}]}>Ausflugsziele und öffentliche Orte direkt finden.</Text>
       <TextInput accessibilityLabel="Stadt oder Ausflugsziel suchen" accessibilityHint="Auch Postleitzahl, Straße und öffentliche Adresse möglich. Deutschlandweite Suche mit der Suchtaste starten."
         value={placeQuery} onChangeText={changePlaceQuery}
         style={styles.field} placeholder="z. B. 15230, Rathausplatz oder Berlin"
@@ -467,7 +462,8 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
         {geoStatus==='quota'?'Suchlimit erreicht oder Dienst ausgelastet. Bitte später erneut versuchen.':geoStatus==='error'?'Die deutschlandweite Suche ist gerade nicht erreichbar. Familienfunke-Tipps bleiben verfügbar.':'Keine weiteren Kartentreffer gefunden. Prüfe die Schreibweise oder ergänze die Stadt.'}
       </Text>:null}
     </View>
-    <View style={{marginTop:16,marginBottom:12}}>
+    <Pressable accessibilityRole="button" accessibilityState={{expanded:showMapOptions}} onPress={()=>setShowMapOptions(v=>!v)} style={[styles.outlineBtn,{marginTop:10,marginBottom:8,minHeight:44}]}><Text style={styles.outlineText}>Kartenoptionen {showMapOptions?'−':'+'}{pathLayer!=='none'?' · Wege aktiv':''}</Text></Pressable>
+    {showMapOptions?<View style={{marginTop:4,marginBottom:12}}>
       <Text accessibilityRole="header" style={styles.sectionNoMargin}>Kartenebene: Bewegung & Natur</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingTop:10,paddingRight:15}}>
         <Chip label="Normale Karte" selected={pathLayer==='none'} onPress={()=>setPathLayer('none')}/>
@@ -481,7 +477,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
       {pathsError?<Text accessibilityRole="alert" style={[styles.micro,{color:C.danger,marginTop:6}]}>
         Die zusätzliche Wegeebene ist beim Kartendienst derzeit nicht verfügbar. Die Familienorte bleiben nutzbar.
       </Text>:null}
-    </View>
+    </View>:null}
     <View style={styles.mapFrame} onLayout={event=>{mapOffset.current=event.nativeEvent.layout.y;}}>
       <WebView ref={map} originWhitelist={['*']} source={{html:MAP_HTML}}
        accessible={false} importantForAccessibility="no-hide-descendants"
@@ -506,6 +502,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
        </Pressable>:null}
     </View>:null}
     {selected?<View style={styles.selectedCard}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Ortsdetails schließen" onPress={()=>{setSelectedId(null);setSelectedSearchId(null);}} style={[styles.outlineBtn,{alignSelf:'flex-end',marginBottom:10,minHeight:44}]}><Text style={styles.outlineText}>Schließen ×</Text></Pressable>
       <Text style={styles.cardEyebrow}>{typeLabel(selected.category)} · {selected.source==='osm'?'OpenStreetMap':selected.source==='curated'?'Redaktioneller Ausflugstipp':selected.source==='national'?'Deutschlandweiter Ausflugstipp':selected.moderation_status==='pending'?'Dein Vorschlag in Prüfung':'Familien-Tipp'}</Text>
       <Text style={styles.selectedTitle}>{selected.title}</Text>
       <Text style={styles.micro}>{selected.description||'Keine Beschreibung hinterlegt.'}</Text>
