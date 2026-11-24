@@ -23,6 +23,9 @@ Datenbankmigrationen erfolgreich angewandt:
   über **Meine → Jetzt veröffentlichen** wiederholen.
 - Es werden für diese Freigabe **keine kostenpflichtigen KI-API-Aufrufe**
   ausgelöst.
+- Vor dem Veröffentlichen bestätigt der Verkäufer mit einer Checkbox,
+  dass das Angebot erlaubt ist, seine Angaben stimmen und die Bilder keine
+  Personen, privaten Dokumente oder genauen Adressen zeigen.
 
 ## Serverregeln und Missbrauchsgrenzen
 
