@@ -2977,6 +2977,7 @@ async function loadOlder(){
 }
 async function submit(){
   const body=text.trim();if(!body)return;
+  if(hasTemplatePlaceholders(body))return Alert.alert('Nachrichtenvorlage ergänzen','Bitte ersetze alle markierten Angaben vor dem Senden.');
   const ok=await send(body);
   if(ok){setText('');setRefreshToken(x=>x+1);}
 }
