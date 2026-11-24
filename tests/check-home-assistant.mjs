@@ -48,11 +48,11 @@ assert.match(home,/ref=\{scrollRef\}/,'Suggestions must return to the input');
 assert.match(home,/showAll\?moreRoutes\.map/,'The user must reach all real app areas');
 assert.match(home,/onSubmitEditing=\{searchApp\}/,'Search keyboard must submit ordinary search, not charge AI');
 assert.match(home,/findHomeRoutes\(needle\)/,'Direct local function search must remain available');
-assert.match(home,/conversation\.slice\(0,3\)\.reverse\(\)/,'Assistant history must include recent replies in order');
+assert.match(home,/answerFamilyQuestion\(prompt/,'Knowledge replies must come from the local answer engine');
 assert.match(home,/setConversation\(old=>\[\{/,'Chat history must update after a successful reply');
-assert.match(home,/rows\.filter\(row=>row\?\.listing\?\.moderation_status==='approved'\)/,
-  'The assistant may preview only actual approved listings');
-assert.match(home,/onPress=\{askAssistant\}/,'AI calls require explicit action');
+assert.match(home,/entry\.sources\.map/,'Verified source links must be shown');
+assert.doesNotMatch(home,/functions\.invoke\('ff-app-assistant'/,'Knowledge answers must never invoke the priced model');
+assert.match(home,/onPress=\{askAssistant\}/,'Offline answers must require an explicit tap');
 assert.match(home,/borderRadius:30,backgroundColor:C\.paper/,'Search bar should be the rounded central control');
 assert.match(home,/findFamilyMapLocations\(needle/,'Real catalog places are searchable from home');
 assert.match(home,/onNavigate\('map','',hit\.place\.id\)/,'Map result opens exact real destination');
@@ -91,4 +91,5 @@ assert.match(server,/auth:"user"/,'The assistant endpoint must require authentic
 assert.match(server,/ff_app_assistant_claim/,'Budget check must be mandatory');
 assert.match(server,/store:false/,'Do not opt in to provider response storage');
 assert.match(server,/Cache-Control":"no-store"/,'Do not cache private answers');
-console.log('KI-Startseite: navigation, deep links, privacy and API contracts passed');
+assert.match(server,/if\(true\)return response\(\{error:"Kostenpflichtige KI/,'Server must block paid AI during development');
+console.log('Offline-Wissensstartseite: Navigation, geprüfte Quellen und gesperrte Modellaufrufe geprüft');
