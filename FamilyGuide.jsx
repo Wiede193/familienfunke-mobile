@@ -2,6 +2,7 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {ActivityIndicator, Keyboard, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {FAMILY_COLORS} from './FamilyTheme';
+import {FAMILY_UI as UI,FAMILY_RADII as R} from './FamilyTheme';
 import {VERIFIED_GUIDE_DETAILS, ODER_SPREE_GUIDE} from './FamilyGuideVerified';
 import {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES,
   guessBrandenburgRegion,findBrandenburgRegions,officeForGuideStep,REGIONAL_DIRECTORY_URL} from './BrandenburgFamilyRegions';
@@ -411,7 +412,7 @@ const st=StyleSheet.create({
   heroDescription:{fontSize:15,color:P.ink,lineHeight:21,marginTop:8},
   region:{fontSize:14,fontWeight:'700',color:P.tealDark,marginTop:13},
   flexRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:10},
-  progressCard:{backgroundColor:P.paper,borderRadius:20,borderWidth:1,borderColor:P.line,padding:16,marginBottom:14},
+  progressCard:{...UI.card,padding:16,marginBottom:14},
   progressTitle:{fontSize:15,fontWeight:'900',color:P.ink,marginBottom:3},
   progressNumber:{fontSize:21,fontWeight:'900',color:P.tealDark},
   progressTrack:{height:9,backgroundColor:P.pale,borderRadius:8,marginTop:13,overflow:'hidden'},
@@ -439,13 +440,13 @@ const st=StyleSheet.create({
   stepTitle:{fontSize:16,color:P.ink,fontWeight:'900',marginBottom:3},
   arrow:{fontSize:24,color:P.teal},
   back:{minHeight:44,justifyContent:'center',paddingVertical:10,marginBottom:11},backText:{fontWeight:'900',fontSize:14.5,color:P.tealDark},
-  detailCard:{backgroundColor:P.paper,borderRadius:24,padding:18,borderWidth:1,borderColor:P.line},
+  detailCard:{...UI.card,padding:18},
   detailTitle:{fontSize:24,fontWeight:'900',color:P.ink,marginBottom:13},
   body:{fontSize:16,color:P.ink,lineHeight:21},
   detailDivider:{height:1,backgroundColor:P.line,marginVertical:16},
   detailSection:{marginBottom:16},question:{fontSize:14,fontWeight:'900',color:P.ink,marginBottom:7},
   source:{backgroundColor:P.pale,borderRadius:15,padding:14,marginTop:5},
-  sourceButton:{backgroundColor:P.teal,borderRadius:13,padding:12,alignItems:'center',justifyContent:'center',minHeight:44,marginTop:12},
+  sourceButton:{...UI.primary,padding:12,marginTop:12},
   sourceButtonText:{fontSize:15,fontWeight:'900',color:P.paper},
   statusRow:{flexDirection:'row',flexWrap:'wrap',gap:7},
   statusButton:{minHeight:44,justifyContent:'center',paddingHorizontal:11,paddingVertical:10,borderRadius:13,backgroundColor:'#EDF3F2'},
@@ -457,9 +458,9 @@ const st=StyleSheet.create({
   deadlineHint:{fontSize:14,lineHeight:18,color:P.muted,marginTop:9},
   localNotice:{borderWidth:1,borderColor:'#D2E8E0',backgroundColor:'#F4FBF8',borderRadius:15,padding:14,marginTop:15},
   localLink:{fontSize:15,fontWeight:'900',color:P.tealDark,marginTop:9},
-  regionCard:{backgroundColor:P.paper,borderWidth:1,borderColor:P.line,borderRadius:19,padding:15,marginBottom:21},
+  regionCard:{...UI.card,padding:15,marginBottom:21},
   regionTitle:{fontSize:16,fontWeight:'900',color:P.ink,marginBottom:6},
-  regionButton:{backgroundColor:P.teal,paddingVertical:12,paddingHorizontal:12,borderRadius:12,alignItems:'center',marginTop:12},
+  regionButton:{...UI.primary,padding:12,marginTop:12},
   regionButtonText:{fontWeight:'900',color:P.paper,fontSize:15},
   regionDetails:{marginTop:15},
   regionInput:{borderWidth:1,borderColor:P.line,borderRadius:12,backgroundColor:P.paper,padding:12,minHeight:48,fontSize:14,color:P.ink,marginVertical:8},

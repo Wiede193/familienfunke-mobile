@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../HomePersonalization.js',import.meta.url),'utf8');
 const {normalizeFamilyRegion,regionMatches,recommendFamilyPlaces,
-  selectHomeOffers,selectHomeEvents,missingFamilyProfileStep,homeGreeting}=
+  selectHomeOffers,selectHomeEvents,missingFamilyProfileStep,homeGreeting,matchingPlaceInterests,placeRecommendationReason}=
   await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
 assert.equal(normalizeFamilyRegion('  Fürstenwalde/Spree  '),'furstenwalde spree');
 assert.equal(regionMatches('Frankfurt (Oder) · Umgebung','Frankfurt (Oder)'),true);
@@ -46,4 +46,15 @@ assert.equal(missingFamilyProfileStep({region_label:'Berlin',interests:['Natur']
 assert.equal(missingFamilyProfileStep({region_label:'Berlin',interests:['Natur'],about:'Unsere Familie'}),null);
 assert.equal(homeGreeting({display_name:'Familie Sonne'}),'Hallo, Familie Sonne!');
 assert.equal(homeGreeting(null),'Schön, dass ihr da seid!');
+assert.equal(regionMatches('Berliner Umland','Berlin'),false);
+assert.equal(regionMatches('Halle','Hall'),false);
+const bath={id:'bath',title:'Erlebnisbad',region_label:'Potsdam',kind:'water'};
+const pool=matchingPlaceInterests(bath,['schwimmen','Schwimmen','Töpfern']);
+assert.deepEqual(pool.matched,['schwimmen']);
+assert.equal(recommendFamilyPlaces([places[0],bath],{interests:['Schwimmen']},1)[0].place.id,'bath');
+assert.equal(recommendFamilyPlaces([bath,bath],{},3).length,1);
+assert.equal(placeRecommendationReason({isLocal:false,matchedInterests:[]}), 'Ausflugstipp aus dem Katalog');
+assert.equal(placeRecommendationReason({isLocal:true,matchedInterests:['Schwimmen']}),'Eure Region · Schwimmen');
+assert.equal(placeRecommendationReason({isLocal:false,matchedInterests:['Schwimmen']}),'Interesse: Schwimmen');
+assert.deepEqual(matchingPlaceInterests(bath,['frei erfunden']).matched,[]);
 console.log('Personalized home: verified content filters, region specificity, profile prompts and greeting passed.');

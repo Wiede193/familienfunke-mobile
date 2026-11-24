@@ -22,7 +22,7 @@ import { AboutFamilienfunkeScreen, TechnicalHelpScreen } from './AboutAndHelp';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import WelcomeIntro from './WelcomeIntro';
 import {FAMILY_COLORS} from './FamilyTheme';
-import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
+import {FAMILY_TYPE as T,FAMILY_SPACE as S,FAMILY_UI as UI,FAMILY_RADII as R} from './FamilyTheme';
 import {FAMILY_INTERESTS,FAMILY_INTEREST_GROUPS,MAX_PROFILE_INTERESTS,addFamilyInterest,removeFamilyInterest,filterFamilyInterests,normalizeInterest} from './FamilyInterests';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 import SearchResultFeedback from './SearchResultFeedback';
@@ -2929,7 +2929,7 @@ return <Card key={p.user_id} style={{marginBottom:12,padding:0,overflow:'hidden'
 </Row>
 {p.about?<Text style={[styles.body,{marginTop:13}]} numberOfLines={mode==='cards'?5:3}>{p.about}</Text>:null}
 <View style={styles.chipsRow}>{(p.interests||[]).slice(0,mode==='cards'?8:5).map(i=><Chip key={i} text={i}/>)}</View>
-<Row style={{marginTop:16}}>
+<Row style={{marginTop:14,flexWrap:'wrap'}}>
 <Button title="Profil ansehen" mode="outline" small style={{flex:1}} onPress={()=>showFamily(p.user_id)}/>
 <Button title={existing?existing.status==='accepted'?'Verbunden':existing.status==='pending'?'Anfrage offen':'Angefragt':'Kontakt anfragen'} small disabled={busy||!!existing} style={{flex:1}} onPress={()=>onContact(p.user_id)}/>
 </Row>
@@ -3665,7 +3665,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 </ScrollView>;
 }
 const styles=StyleSheet.create({
-familyCardAccent:{height:6,backgroundColor:C.sun},
+familyCardAccent:{height:4,backgroundColor:C.sun},
 familyRegionBadge:{color:C.accentDark,fontSize:11.5,fontWeight:'700',marginTop:6},
 familyDetailHero:{backgroundColor:C.sunPale,borderRadius:22,paddingVertical:30,
   paddingHorizontal:18,marginBottom:13,alignItems:'center',overflow:'hidden'},
@@ -3678,7 +3678,7 @@ familyDetailBody:{padding:18,marginBottom:18},
 familyDetailActions:{borderTopWidth:1,borderTopColor:C.line,marginTop:19,paddingTop:17},
 familyDetailBlocked:{color:C.warningText,fontSize:13,marginBottom:7},
 
-marketHero:{backgroundColor:C.sunPale,borderRadius:22,padding:18,flexDirection:'row',
+marketHero:{backgroundColor:C.sunPale,borderRadius:R.hero,padding:18,flexDirection:'row',
   alignItems:'center',gap:12,marginBottom:13},
 marketEyebrow:{color:'#6C4A18',fontSize:10.5,letterSpacing:1.2,fontWeight:'800'},
 marketHeroTitle:{fontSize:27,color:C.ink,fontWeight:'800',marginTop:5},
@@ -3702,7 +3702,7 @@ marketGiftPill:{position:'absolute',top:9,left:8,backgroundColor:C.sunPale,
 marketGiftText:{color:'#6C4A18',fontSize:11,fontWeight:'800'},
 
 
-marketTopActions:{flexDirection:'row',alignItems:'center',gap:12,backgroundColor:C.white,padding:15,borderRadius:20,borderWidth:1,borderColor:C.line,marginBottom:17},
+marketTopActions:{...UI.card,flexDirection:'row',alignItems:'center',gap:12,padding:14,marginBottom:12},
 marketTopTitle:{fontSize:17,fontWeight:'900',color:C.ink,marginBottom:3},
 marketDropdown:{minHeight:50,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:15,paddingVertical:10,backgroundColor:C.white,borderRadius:14,borderWidth:1,borderColor:'#D0DFDE'},
 marketDropdownOptions:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:14,marginTop:4,overflow:'hidden'},
@@ -3714,7 +3714,7 @@ marketFilterToggle:{minHeight:47,borderRadius:14,borderWidth:1,borderColor:'#D0D
 marketFilterLabel:{fontSize:14,fontWeight:'800',color:C.accentDark},
 marketSortOptions:{backgroundColor:C.white,borderColor:C.line,borderWidth:1,borderRadius:14,marginTop:5},
 marketGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:13},
-marketTile:{width:'48.3%',borderRadius:19,borderWidth:1,borderColor:C.line,backgroundColor:C.white,overflow:'hidden',minHeight:262,shadowColor:'#986D52',shadowOpacity:0.05,shadowRadius:6,shadowOffset:{width:0,height:2},elevation:1},
+marketTile:{...UI.card,width:'48.3%',overflow:'hidden',minHeight:262},
 marketTileImage:{width:'100%',height:184,backgroundColor:'#F1F3EF',position:'relative'},
 marketTilePhoto:{width:'100%',height:'100%'},
 marketImagePlaceholder:{backgroundColor:'#F4F1EB',alignItems:'center',justifyContent:'center',gap:5},
@@ -3749,10 +3749,10 @@ inboxBell:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',
 inboxBadge:{position:'absolute',top:0,right:0,backgroundColor:C.accentDark,minWidth:20,borderRadius:12,paddingHorizontal:4,paddingVertical:2},
 inboxBadgeText:{fontSize:12,fontWeight:'900',color:C.white,textAlign:'center'},
 headerIdentity:{flex:1,minWidth:125,flexDirection:'row',alignItems:'center',gap:6},
-headerHeartBadge:{width:37,height:37,borderRadius:13,backgroundColor:C.sun,alignItems:'center',justifyContent:'center'},
+headerHeartBadge:{width:37,height:37,borderRadius:14,backgroundColor:C.sunPale,alignItems:'center',justifyContent:'center'},
 headerHeart:{fontSize:21,fontWeight:'900',color:'#9A4A43'},
 topHint:{fontSize:12,color:C.muted,marginTop:1,fontWeight:'600'},
-card:{backgroundColor:C.white,borderRadius:22,padding:18,borderColor:C.line,borderWidth:1,shadowColor:'#C28368',shadowOpacity:0.07,shadowRadius:11,shadowOffset:{width:0,height:3},elevation:2},
+card:{...UI.card,padding:16},
 hero:{backgroundColor:C.sun,borderRadius:25,paddingHorizontal:23,paddingVertical:27,marginBottom:25,overflow:'hidden',minHeight:238},
 heroDecorationOne:{position:'absolute',width:165,height:165,borderRadius:83,backgroundColor:'#FFE9A3',top:-64,right:-64},
 heroDecorationTwo:{position:'absolute',width:88,height:88,borderRadius:44,backgroundColor:C.peach,opacity:0.65,bottom:-37,right:22},
@@ -3772,7 +3772,7 @@ micro:{fontSize:14,color:C.muted,lineHeight:17},
 sectionTitle:{fontSize:18,color:C.ink,fontWeight:'800',marginBottom:13},
 cardTitle:{fontSize:17,fontWeight:'800',color:C.ink},
 label:{fontSize:14,color:C.ink,fontWeight:'800',marginBottom:8},
-input:{backgroundColor:C.white,borderColor:'#B7CECA',borderWidth:1.5,borderRadius:16,
+input:{...UI.field,
    paddingHorizontal:15,paddingVertical:13,fontSize:16,color:C.ink,minHeight:52},
  inputFocused:{borderColor:C.accentDark,borderWidth:2,backgroundColor:'#FAFFF9'},
  inputInvalid:{borderColor:C.danger},
@@ -3780,11 +3780,11 @@ input:{backgroundColor:C.white,borderColor:'#B7CECA',borderWidth:1.5,borderRadiu
  inputHint:{fontSize:13.5,lineHeight:19,color:C.muted,flex:1},
  inputCounter:{fontSize:13,color:C.accentDark,fontWeight:'700'},
  inputError:{fontSize:13.5,color:C.danger,marginTop:6},
-button:{minHeight:52,paddingHorizontal:18,paddingVertical:12,borderRadius:16,justifyContent:'center',alignItems:'center',flexDirection:'row'},
+button:{minHeight:52,paddingHorizontal:18,paddingVertical:12,borderRadius:R.button,justifyContent:'center',alignItems:'center',flexDirection:'row'},
 buttonPress:{transform:[{scale:.985}],opacity:.89},
-button_primary:{backgroundColor:C.accent},button_outline:{backgroundColor:C.white,borderColor:'#AEDBDD',borderWidth:1.5},
+button_primary:{backgroundColor:UI.primary.backgroundColor},button_outline:{backgroundColor:UI.secondary.backgroundColor,borderColor:UI.secondary.borderColor,borderWidth:UI.secondary.borderWidth},
 button_ghost:{backgroundColor:C.pale},buttonSmall:{minHeight:44,paddingVertical:9,paddingHorizontal:13},
-buttonText:{color:C.white,fontSize:14,fontWeight:'800'},buttonTextDark:{color:C.accentDark},
+buttonText:{color:C.white,fontSize:15,fontWeight:'800',textAlign:'center',flexShrink:1},buttonTextDark:{color:C.accentDark},
 chip:{minHeight:46,justifyContent:'center',borderRadius:50,borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,paddingHorizontal:14,paddingVertical:8},
 chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},chipText:{color:C.accentDark,fontSize:14,fontWeight:'800'},
 chipsRow:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:12},
@@ -3794,7 +3794,7 @@ info:{backgroundColor:C.pale,borderRadius:18,paddingHorizontal:14,paddingVertica
  infoMark:{width:30,height:30,borderRadius:11,backgroundColor:'#D9EEE3',alignItems:'center',justifyContent:'center'},
  infoMarkWarning:{backgroundColor:'#F9DFA8'},
 warning:{backgroundColor:C.warning},infoText:{fontSize:14,lineHeight:21,color:C.accentDark,flex:1},
-avatar:{backgroundColor:'#FFE7D8',alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
+avatar:{backgroundColor:C.peach,alignItems:'center',justifyContent:'center',overflow:'hidden'},avatarText:{fontWeight:'900',color:C.coralDeep},
 match:{backgroundColor:C.sunny,borderRadius:12,paddingHorizontal:10,paddingVertical:7},matchText:{fontSize:10.5,fontWeight:'900',color:'#674516'},
 tabBar:{minHeight:80,borderTopWidth:1,borderTopColor:C.line,backgroundColor:C.white,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:8,paddingBottom:3},
 tab:{flex:1,alignItems:'center',justifyContent:'center',minHeight:62,paddingVertical:6,borderRadius:16,marginHorizontal:2},tabActive:{backgroundColor:C.sunPale},tabIcon:{width:35,height:29,alignItems:'center',justifyContent:'center'},tabIconSelected:{borderRadius:10},tabLabel:{fontSize:12.5,color:C.muted,marginTop:3,fontWeight:'700',textAlign:'center'},

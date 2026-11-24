@@ -4,6 +4,7 @@ import {WebView} from 'react-native-webview';
 import {supabase} from './supabase';
 import SearchResultFeedback from './SearchResultFeedback';
 import {FAMILY_COLORS} from './FamilyTheme';
+import {FAMILY_UI as UI,FAMILY_RADII as R} from './FamilyTheme';
 import {CURATED_REGION,CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {BRANDENBURG_FAMILY_PLACES,BRANDENBURG_FAMILY_FOCUS,describePlaceAccessibility} from './FamilyMapBrandenburg';
 import {NATIONAL_FAMILY_PLACES,NATIONAL_TYPES,NATIONAL_AREAS} from './FamilyMapNational';
@@ -804,7 +805,7 @@ accessibilityDisclaimer:{fontSize:14,color:C.muted,lineHeight:18,marginTop:8},
  eyebrow:{fontSize:10,fontWeight:'900',color:C.dark,letterSpacing:1.3,marginBottom:6},
  title:{fontSize:25,fontWeight:'900',color:C.ink},
  sub:{fontSize:15,color:C.ink,lineHeight:20,marginTop:7},
- locationSearch:{backgroundColor:C.paper,borderRadius:18,borderWidth:1,borderColor:C.line,padding:16,marginBottom:12},
+ locationSearch:{...UI.card,padding:16,marginBottom:12},
  searchResultPanel:{marginTop:12,padding:14,backgroundColor:C.paper,borderRadius:18,borderWidth:2,borderColor:C.accentDark},
  searchResultSelected:{backgroundColor:C.sunPale,borderColor:C.teal},
  mapSelectedInfo:{marginTop:12,padding:15,backgroundColor:C.sunPale,borderRadius:17,borderWidth:1,borderColor:C.line},
@@ -817,18 +818,18 @@ accessibilityDisclaimer:{fontSize:14,color:C.muted,lineHeight:18,marginTop:8},
  row:{flexDirection:'row',alignItems:'center'},
  chip:{backgroundColor:C.pale,borderRadius:25,paddingHorizontal:14,paddingVertical:10,borderWidth:1,borderColor:'#CDE8E0'},
  chipActive:{backgroundColor:C.teal,borderColor:C.teal},chipText:{fontSize:14,fontWeight:'800',color:C.dark},
- mainBtn:{minHeight:46,borderRadius:15,backgroundColor:C.teal,alignItems:'center',justifyContent:'center',paddingHorizontal:13,paddingVertical:12},
+ mainBtn:{...UI.primary,paddingHorizontal:13,paddingVertical:12},
  mainBtnText:{color:C.paper,fontWeight:'900',fontSize:15},
- outlineBtn:{borderRadius:15,minWidth:50,borderWidth:1.5,borderColor:C.teal,padding:11,alignItems:'center'},
+ outlineBtn:{...UI.secondary,minWidth:50,padding:11},
  outlineText:{color:C.dark,fontWeight:'900'},
  warn:{backgroundColor:'#FFF0DA',padding:13,borderRadius:13,marginTop:11},warnText:{fontSize:12.2,color:'#80521A',lineHeight:19},
  tip:{backgroundColor:C.pale,padding:13,borderRadius:13,marginTop:11},tipText:{fontSize:12.5,color:C.dark,lineHeight:19},
- selectedCard:{backgroundColor:C.paper,borderRadius:18,padding:17,marginTop:15,borderWidth:1,borderColor:C.line},
+ selectedCard:{...UI.card,padding:16,marginTop:15},
  cardEyebrow:{fontSize:11,fontWeight:'900',color:C.teal,marginBottom:5},selectedTitle:{fontSize:19,fontWeight:'900',color:C.ink,marginBottom:7},
  tagGood:{color:C.dark,fontWeight:'800',fontSize:12,marginTop:9},
  minorBtn:{backgroundColor:C.pale,borderRadius:12,padding:10,alignSelf:'flex-start',marginTop:13},minorBtnText:{fontSize:14,fontWeight:'900',color:C.dark},
  empty:{borderRadius:18,backgroundColor:C.paper,padding:19,marginTop:11},emptyTitle:{fontSize:15,fontWeight:'900',color:C.ink,marginBottom:7},
- placeRow:{flexDirection:'row',alignItems:'center',gap:11,backgroundColor:C.paper,padding:12,borderRadius:15,marginTop:9,borderWidth:1,borderColor:C.line},
+ placeRow:{...UI.card,flexDirection:'row',alignItems:'center',gap:11,padding:12,marginTop:9},
  placeGlyph:{width:39,height:39,borderRadius:13,backgroundColor:'#FFF1DA',alignItems:'center',justifyContent:'center'},
  placeTitle:{fontWeight:'900',fontSize:16,color:C.ink,marginBottom:4},chevron:{fontSize:24,color:C.teal},
  curatedBox:{backgroundColor:'#FFF1DE',borderWidth:1,borderColor:'#F5DEBA',borderRadius:22,padding:16,marginTop:15},
@@ -844,6 +845,6 @@ accessibilityDisclaimer:{fontSize:14,color:C.muted,lineHeight:18,marginTop:8},
  suggestCard:{backgroundColor:C.paper,borderRadius:20,borderWidth:1,borderColor:C.line,padding:17,marginTop:24},
  form:{marginTop:15,borderTopWidth:1,borderTopColor:C.line,paddingTop:15},formTitle:{fontSize:15,fontWeight:'900',color:C.ink,marginBottom:6},
  label:{fontSize:12.5,fontWeight:'900',color:C.ink,marginBottom:7},
- field:{borderWidth:1,borderColor:'#DDDDD6',borderRadius:14,minHeight:47,backgroundColor:'#FFFEFC',color:C.ink,paddingHorizontal:13,paddingVertical:12,fontSize:14},
+ field:{...UI.field,color:C.ink,paddingHorizontal:13,paddingVertical:12,fontSize:14},
  coordinate:{fontSize:12,fontWeight:'900',color:C.teal},
 });

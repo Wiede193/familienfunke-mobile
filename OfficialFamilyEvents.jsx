@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {ActivityIndicator,Alert,AppState,Linking,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import {FAMILY_UI as UI,FAMILY_RADII as R} from './FamilyTheme';
 import SearchResultFeedback from './SearchResultFeedback';
 import {OFFICIAL_EVENT_DISTRICTS,OFFICIAL_EVENT_CATEGORIES,officialEventRange,officialEventDay,officialEventDateLabel,officialEventVisible} from './OfficialFamilyEventUtils';
 
@@ -119,12 +120,12 @@ const s=StyleSheet.create({
  chip:{minHeight:44,paddingHorizontal:12,paddingVertical:10,justifyContent:'center',backgroundColor:C.paper,borderColor:C.line,borderWidth:1,borderRadius:22},
  chipSelected:{backgroundColor:C.accentDark,borderColor:C.accentDark},
  chipText:{fontSize:13,fontWeight:'700',color:C.ink},chipTextSelected:{color:C.white},
- card:{padding:15,borderWidth:1,borderColor:C.line,borderRadius:17,backgroundColor:C.paper,gap:7},
+ card:{...UI.card,padding:16,gap:8},
  kicker:{fontSize:12,fontWeight:'800',color:C.accentDark},eventTitle:{fontSize:17,fontWeight:'800',color:C.ink},
  date:{fontSize:15,fontWeight:'800',color:C.ink},source:{fontSize:12,lineHeight:17,color:C.muted,marginTop:3},
  actions:{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:7},
- btn:{paddingVertical:12,paddingHorizontal:13,borderRadius:12,minHeight:44,backgroundColor:C.accentDark,justifyContent:'center'},
- btnText:{fontSize:13,fontWeight:'800',color:C.white},secondary:{backgroundColor:C.mint},
+ btn:{...UI.primary,paddingVertical:12,paddingHorizontal:13},
+ btnText:{fontSize:13,fontWeight:'800',color:C.white},secondary:{...UI.secondary},
  secondaryText:{fontSize:13,fontWeight:'800',color:C.accentDark},
  loading:{padding:16,alignItems:'center',gap:8}
 });

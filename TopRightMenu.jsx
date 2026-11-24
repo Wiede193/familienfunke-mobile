@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {Modal,Pressable,SafeAreaView,ScrollView,StyleSheet,Text,TextInput,View,useWindowDimensions} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import {FAMILY_UI as UI,FAMILY_RADII as R} from './FamilyTheme';
 import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 import {searchMenuEntries} from './MenuDiscovery';
@@ -159,7 +160,7 @@ export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}
 const s=StyleSheet.create({
  shade:{flex:1,backgroundColor:'#253D4373',alignItems:'flex-end',paddingHorizontal:10,paddingBottom:10},
  panel:{width:'100%',maxWidth:380,maxHeight:'96%',flexShrink:1,backgroundColor:C.paper,
-   borderRadius:24,marginTop:8,overflow:'hidden',borderWidth:1,borderColor:C.line},
+   borderRadius:R.hero,marginTop:8,overflow:'hidden',borderWidth:1,borderColor:C.line},
  header:{flexDirection:'row',alignItems:'center',gap:12,padding:20,
    borderBottomWidth:1,borderBottomColor:C.line},
  title:{fontSize:T.title,fontWeight:'800',color:C.ink},
@@ -185,8 +186,7 @@ const s=StyleSheet.create({
  scroll:{flexShrink:1},content:{padding:16,paddingBottom:28},
  group:{fontSize:T.small,fontWeight:'800',color:C.accentDark,marginBottom:10,paddingHorizontal:3},
  quickGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:10},
- quick:{width:'48%',minHeight:85,backgroundColor:C.bg,borderWidth:1,borderColor:C.line,
-   borderRadius:17,padding:13,gap:8,justifyContent:'space-between'},
+ quick:{...UI.card,width:'48%',minHeight:85,backgroundColor:C.bg,padding:13,gap:8,justifyContent:'space-between'},
  quickWide:{width:'100%',minHeight:66},
  quickActive:{backgroundColor:C.sunPale,borderColor:C.sun},
  quickIcon:{width:36,height:36,borderRadius:12,backgroundColor:C.paper,

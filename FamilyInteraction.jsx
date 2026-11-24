@@ -1,6 +1,7 @@
 import React,{useState} from 'react';
 import {Pressable,StyleSheet,Text,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
+import {FAMILY_UI as UI,FAMILY_RADII as R} from './FamilyTheme';
 import FamilyIcon from './FamilyIcon';
 import {GentleReveal} from './FamilyMotion';
 
@@ -13,7 +14,7 @@ export function ActionNotice({message,kind='success',onDismiss,actionLabel,onAct
        <FamilyIcon name={danger?'shield':'check'} size={21} color={danger?C.danger:C.accentDark}/>
      </View>
      <View style={{flex:1}}>
-       <Text style={a.noticeTitle}>{danger?'Das hat nicht geklappt':'Rückmeldung von Familienfunke'}</Text>
+       <Text style={a.noticeTitle}>{danger?'Das hat nicht geklappt':'Gut zu wissen'}</Text>
        <Text style={a.noticeText}>{message}</Text>
        {actionLabel&&onAction?<Pressable accessibilityRole="button" onPress={onAction}
          style={a.noticeAction}><Text style={a.noticeActionText}>{actionLabel}</Text></Pressable>:null}
@@ -62,8 +63,7 @@ const a=StyleSheet.create({
  noticeAction:{minHeight:40,justifyContent:'center',marginTop:4,alignSelf:'flex-start'},
  noticeActionText:{fontWeight:'900',fontSize:14,color:C.accentDark},
  close:{width:44,height:44,alignItems:'center',justifyContent:'center'},
- progressCard:{borderRadius:17,borderColor:C.line,borderWidth:1,
-   backgroundColor:C.white,padding:14,marginVertical:13},
+ progressCard:{...UI.card,padding:14,marginVertical:13},
  progressTop:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:9},
  progressTitle:{fontSize:16,fontWeight:'900',color:C.ink,flex:1},
  progressCount:{fontSize:14,fontWeight:'800',color:C.accentDark},

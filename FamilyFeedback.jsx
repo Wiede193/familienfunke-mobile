@@ -1,6 +1,7 @@
 import React from 'react';
 import {ActivityIndicator,Pressable,StyleSheet,Text,View} from 'react-native';
 import {FAMILY_COLORS as C,FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
+import {FAMILY_UI as UI,FAMILY_RADII as R} from './FamilyTheme';
 import FamilyIcon from './FamilyIcon';
 
 // Quiet, actionable empty states. No cartoon that implies unavailable content.
@@ -45,17 +46,17 @@ export function FamilySectionTitle({title,subtitle,actionLabel,onAction}){
   </View>;
 }
 const styles=StyleSheet.create({
-  empty:{backgroundColor:C.paper,borderRadius:22,borderColor:C.line,borderWidth:1,
+  empty:{...UI.card,
     padding:24,alignItems:'center',gap:9,minHeight:170,justifyContent:'center'},
   compact:{padding:16,minHeight:125},
   iconBubble:{width:54,height:54,borderRadius:27,backgroundColor:C.sunPale,
     justifyContent:'center',alignItems:'center'},
   emptyTitle:{fontSize:T.card,fontWeight:'800',color:C.ink,textAlign:'center'},
   emptyBody:{fontSize:T.small,lineHeight:19,color:C.muted,textAlign:'center',maxWidth:290},
-  action:{backgroundColor:C.accentDark,borderRadius:14,minHeight:S.touch,
+  action:{...UI.primary,
     paddingHorizontal:16,flexDirection:'row',alignItems:'center',gap:6,marginTop:5},
   actionText:{color:C.white,fontSize:T.small,fontWeight:'800'},
-  skeleton:{backgroundColor:C.paper,borderRadius:18,padding:14,gap:12,borderColor:C.line,borderWidth:1},
+  skeleton:{...UI.card,padding:14,gap:12},
   placeholderRow:{flexDirection:'row',gap:11,alignItems:'center'},
   placeholderPhoto:{height:60,width:60,borderRadius:12,backgroundColor:C.sunPale},
   placeholderText:{flex:1,gap:9},

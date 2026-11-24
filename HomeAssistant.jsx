@@ -4,11 +4,11 @@ import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {GentleReveal,useReducedMotion} from './FamilyMotion';
 import {ContextHelp} from './FamilyInteraction';
-import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
+import {FAMILY_TYPE as T,FAMILY_SPACE as S,FAMILY_UI as UI,FAMILY_RADII as R} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 import SearchResultFeedback from './SearchResultFeedback';
 import {FamilyEmptyState,FamilySkeleton,FamilySectionTitle} from './FamilyFeedback';
-import {recommendFamilyPlaces,selectHomeOffers,selectHomeEvents,missingFamilyProfileStep,homeGreeting} from './HomePersonalization';
+import {recommendFamilyPlaces,selectHomeOffers,selectHomeEvents,missingFamilyProfileStep,homeGreeting,placeRecommendationReason} from './HomePersonalization';
 import {retryRead} from './NetworkResilience';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery,looksLikeKnowledgeQuestion} from './HomeNavigation';
 
@@ -28,6 +28,7 @@ import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
 
 const C=FAMILY_COLORS;
 const FEATURED=['discover','map','market','guide'];
+const ROUTE_TINTS={discover:UI.motif.community,map:UI.motif.nature,market:UI.motif.play,guide:UI.motif.discover};
 const FULL_PLACE_CATALOG=[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES,...NATIONAL_FAMILY_PLACES];
 function SunMark(){
   return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.sunWrap}>
@@ -43,7 +44,7 @@ function AreaCard({route,onNavigate,query,compact=false}){
     accessibilityLabel={route.title+' öffnen'}
     onPress={()=>onNavigate(route.id,['healthy','guide','inclusion','decisions'].includes(route.id)?query.trim():productSearch?query.trim():'')}
     style={({pressed})=>[compact?s.areaGrid:s.areaRow,pressed&&s.pressed]}>
-    <View style={s.areaIcon}><FamilyIcon name={FAMILY_ROUTE_ICONS[route.id]||'compass'} size={compact?25:23}/></View>
+    <View style={[s.areaIcon,{backgroundColor:ROUTE_TINTS[route.id]||C.mint}]}><FamilyIcon name={FAMILY_ROUTE_ICONS[route.id]||'compass'} size={compact?25:23}/></View>
     <View style={{flex:1}}>
       <Text style={[s.areaTitle,compact&&{fontSize:15}]}>{route.title}</Text>
       <Text style={s.areaSubtitle} numberOfLines={compact?3:2}>{route.subtitle}</Text>
@@ -131,11 +132,11 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   const region=profile?.region_label||'';
   const profileStep=missingFamilyProfileStep(profile);
   const suggestedPlaces=recommendFamilyPlaces(
-    [...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES],{region,interests:profile?.interests||[]},3
+    FULL_PLACE_CATALOG,{region,interests:profile?.interests||[]},3
   );
   useEffect(()=>{
     let live=true;
-    if(!userId||!active){
+    if(!userId||!active||!showMoreFeed){
       setHomeFeed({offers:[],events:[]});setFeedLoading(false);
       return()=>{live=false;};
     }
@@ -162,7 +163,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
     })().catch(()=>{if(live)setHomeFeed({offers:null,events:null});})
       .finally(()=>{if(live)setFeedLoading(false);});
     return()=>{live=false;};
-  },[userId,active,region,feedRetry]);
+  },[userId,active,region,feedRetry,showMoreFeed]);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;requestSeq.current++;};},[]);
   function updateQuestion(value){
     requestSeq.current++;pending.current=false;
@@ -280,8 +281,8 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         opacity:reducedMotion?1:scrollY.interpolate({inputRange:[0,180],outputRange:[1,.85],extrapolate:'clamp'}),
         transform:[{translateY:reducedMotion?0:scrollY.interpolate({inputRange:[0,200],outputRange:[0,16],extrapolate:'clamp'})}]}}>
         <SunMark/>
-        <Text accessibilityRole="header" style={s.wordmark}>Was möchtet ihr heute entdecken?</Text>
-        <Text style={s.tagline}>Für gemeinsame Unternehmungen, Fragen und kleine Alltagsideen.</Text>
+        <Text accessibilityRole="header" style={s.wordmark}>{needle?'Familienfunke durchsuchen':homeGreeting(profile)}</Text>
+        <Text style={s.tagline}>{needle?'Was möchtest du finden?':'Was möchtet ihr heute entdecken?'}</Text>
       </Animated.View>
       <View style={s.inputShell}>
         <FamilyIcon name="search" size={23} color={C.accentDark}/>
@@ -400,13 +401,10 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         </Pressable>):<Text style={s.mutedSmall}>Keine passenden freigegebenen Angebote gefunden.</Text>}
         <Pressable accessibilityRole="button" onPress={()=>onNavigate('market',needle)} style={s.answerAction}><Text style={s.answerActionLabel}>Alle Basar-Ergebnisse ansehen ›</Text></Pressable>
       </View>:null}
-      {!matches.length&&!places.length&&!healthMatches.length&&!topicMatches.length&&!inclusionMatches.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Tippe auf „Antwort finden“ oder ändere die Suchbegriffe.</Text>:null}
+      {!matches.length&&!places.length&&!healthMatches.length&&!topicMatches.length&&!inclusionMatches.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Tippe auf „Ergebnisse anzeigen“ oder ändere die Suchbegriffe.</Text>:null}
       {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>Tippe auf „Suchen“, um aktuelle Basar-Angebote und Termine abzurufen.</Text>:null}
     </View>:null}
-    {!needle?<View style={s.welcomeSection}>
-      <Text style={s.welcomeEyebrow}>EURE FAMILIENWELT</Text>
-      <Text accessibilityRole="header" style={s.welcomeTitle}>{homeGreeting(profile)}</Text>
-      <Text style={s.welcomeSubtitle}>Entdeckt, was euch als Familie heute Freude macht.</Text>
+    {!needle&&(profileStep||(typeof inboxUnread==='number'&&inboxUnread>0))?<View style={s.welcomeSection}>
       {typeof inboxUnread==='number'&&inboxUnread>0?
         <Pressable accessibilityRole="button" accessibilityLabel={inboxUnread+' ungelesene Neuigkeiten öffnen'}
           onPress={()=>onNavigate('inbox')} style={s.inboxCallout}>
@@ -428,10 +426,39 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         <FamilyIcon name="chevron-right" size={18}/>
       </Pressable>:null}
     </View>:null}
+    {!needle?<View style={s.section}>
+      <View style={s.personalSection}>
+        <FamilySectionTitle title="Ausflugsideen für euch"
+          subtitle={region||profile?.interests?.length?'Nach euren Profilangaben sortiert. Keine Standortabfrage.':'Redaktionell ausgewählte Orte. Im Profil könnt ihr Interessen ergänzen.'}
+          actionLabel="Karte öffnen" onAction={()=>onNavigate('map')}/>
+        <View style={s.placesList}>
+          {suggestedPlaces.map(({place,isLocal,matchedInterests})=>
+            <Pressable key={place.id} accessibilityRole="button"
+              accessibilityLabel={place.title+' auf der Familienkarte öffnen'}
+              onPress={()=>onNavigate('map','',place.id)} style={s.placeCard}>
+              <View style={[s.placeIcon,{backgroundColor:matchedInterests.length?UI.motif.nature:UI.motif.play}]}><FamilyIcon name={matchedInterests.length?'heart':'compass'} size={24}/></View>
+              <View style={{flex:1}}>
+                <Text style={s.placeTitle} numberOfLines={2}>{place.title}</Text>
+                <Text style={s.placeSubtitle} numberOfLines={2}>
+                  {place.region_label}
+                </Text>
+                <Text style={s.placeDescription} numberOfLines={2}>{place.description}</Text>
+                <Text style={s.placeReason}>{placeRecommendationReason({isLocal,matchedInterests})}</Text>
+              </View>
+              <FamilyIcon name="chevron-right" size={19}/>
+            </Pressable>)}
+        </View>
+        {suggestedPlaces.length===0?
+          <FamilyEmptyState title="Hier entstehen eure Ausflugsideen"
+            description="Die Familienkarte enthält Orte und Ausflugsziele zum Stöbern."
+            icon="compass" actionLabel="Familienkarte ansehen"
+            onAction={()=>onNavigate('map')} compact/>:null}
+        <Pressable accessibilityRole="button" onPress={()=>onNavigate('profile')} style={s.personalSettings}><FamilyIcon name="users" size={18}/><Text style={s.personalSettingsText}>Region & Hobbys anpassen</Text><FamilyIcon name="chevron-right" size={16}/></Pressable>
+      </View>
+    </View>:null}
     {!needle?<GentleReveal delay={110} distance={12} style={s.quickActionSection}>
-      <Text accessibilityRole="header" style={s.sectionTitle}>Was möchtest du heute machen?</Text>
-      <Text style={s.sectionSubtitle}>Ein Tipp genügt. Familienfunke öffnet direkt den passenden Bereich.</Text>
-      <View style={[s.quickActions,singleColumn&&{flexDirection:'column'}]}>
+      <Text accessibilityRole="header" style={s.sectionTitle}>Schnell erledigt</Text>
+      <View style={s.quickActions}>
         {[
           {id:active?'sell':'profile',icon:'bag',title:active?'Anzeige erstellen':'Profil vervollständigen',hint:active?'Kinderartikel kostenlos und sofort anbieten.':'Für das Inserieren ist ein freigegebenes Profil nötig.'},
           {id:'chat',icon:'message',title:'Nachrichten',hint:'Private Unterhaltungen mit bestätigten Kontakten.'},
@@ -440,9 +467,9 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
           accessibilityLabel={item.title+' öffnen'} accessibilityHint={item.hint}
           onPress={()=>onNavigate(item.id)} style={({pressed})=>[s.quickTile,pressed&&s.quickTilePress]}>
           <View style={s.quickIcon}><FamilyIcon name={item.icon} size={22} color={C.accentDark}/></View>
-          <Text style={s.quickTitle}>{item.title}</Text>
-          <Text style={s.quickHint}>{item.hint}</Text>
-          <Text style={s.quickOpen}>Öffnen ›</Text>
+          <View style={{flex:1}}><Text style={s.quickTitle}>{item.title}</Text>
+          <Text style={s.quickHint}>{item.hint}</Text></View>
+          <FamilyIcon name="chevron-right" size={18} color={C.accentDark}/>
         </Pressable>)}
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel="Meine Anzeigen öffnen"
@@ -461,7 +488,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       </ContextHelp>
     </GentleReveal>:null}
     {!needle?<View style={s.section}>
-      <FamilySectionTitle title="Direkt zu" subtitle="Eure beliebtesten Wege durch Familienfunke"/>
+      <FamilySectionTitle title="Direkt zu" subtitle="Die vier wichtigsten Bereiche"/>
 
       <Animated.View style={[s.featuredGrid,singleColumn&&{flexDirection:'column'},
         {transform:[{translateY:reducedMotion?0:scrollY.interpolate({
@@ -480,32 +507,6 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       </Pressable>
     </View>:null}
     {!needle?<View style={s.section}>
-      <View style={s.personalSection}>
-        <FamilySectionTitle title={region?'Ideen für eure Region':'Ausflüge zum Entdecken'}
-          subtitle={region?'Aus der Familienkarte, nach eurer Region und euren Interessen sortiert':'Redaktionell ausgewählte Orte aus der Familienkarte'}
-          actionLabel="Karte öffnen" onAction={()=>onNavigate('map')}/>
-        <View style={s.placesList}>
-          {suggestedPlaces.map(({place,isLocal})=>
-            <Pressable key={place.id} accessibilityRole="button"
-              accessibilityLabel={place.title+' auf der Familienkarte öffnen'}
-              onPress={()=>onNavigate('map','',place.id)} style={s.placeCard}>
-              <View style={s.placeIcon}><FamilyIcon name="compass" size={24}/></View>
-              <View style={{flex:1}}>
-                <Text style={s.placeTitle} numberOfLines={2}>{place.title}</Text>
-                <Text style={s.placeSubtitle} numberOfLines={2}>
-                  {isLocal?'Eure Region · ':'Aus der Familienkarte · '}{place.region_label}
-                </Text>
-                <Text style={s.placeDescription} numberOfLines={2}>{place.description}</Text>
-              </View>
-              <FamilyIcon name="chevron-right" size={19}/>
-            </Pressable>)}
-        </View>
-        {suggestedPlaces.length===0?
-          <FamilyEmptyState title="Hier entstehen eure Ausflugsideen"
-            description="Die Familienkarte enthält Orte und Ausflugsziele zum Stöbern."
-            icon="compass" actionLabel="Familienkarte ansehen"
-            onAction={()=>onNavigate('map')} compact/>:null}
-      </View>
       {active?<Pressable accessibilityRole="button" accessibilityState={{expanded:showMoreFeed}}
         onPress={()=>setShowMoreFeed(v=>!v)} style={s.moreHighlights}>
         <Text style={s.moreHighlightsTitle}>{showMoreFeed?'Zusätzliche Empfehlungen schließen':'Weitere Empfehlungen für euch'}</Text>
@@ -609,12 +610,12 @@ const s=StyleSheet.create({
   page:{flex:1,backgroundColor:C.bg},
   content:{paddingHorizontal:18,paddingTop:14,paddingBottom:45},
   searchCenter:{alignItems:'center',paddingVertical:12,marginBottom:12},
-  searchCenterIdle:{paddingTop:14,paddingBottom:13},
-  wordmark:{fontSize:31,fontWeight:'800',letterSpacing:-1.1,color:C.ink,textAlign:'center',marginTop:6},
+  searchCenterIdle:{paddingTop:4,paddingBottom:8},
+  wordmark:{fontSize:28,fontWeight:'800',letterSpacing:-.7,color:C.ink,textAlign:'center',marginTop:6},
   tagline:{fontSize:15,color:C.muted,textAlign:'center',marginTop:5,marginBottom:18},
-  sunWrap:{width:54,height:54,alignItems:'center',justifyContent:'center'},
-  sunCore:{position:'absolute',width:28,height:28,borderRadius:14,backgroundColor:'#F5B644'},
-  ray:{position:'absolute',height:9,width:2.5,borderRadius:2,backgroundColor:'#E8A942'},
+  sunWrap:{width:50,height:50,alignItems:'center',justifyContent:'center'},
+  sunCore:{position:'absolute',width:28,height:28,borderRadius:14,backgroundColor:C.sun},
+  ray:{position:'absolute',height:9,width:2.5,borderRadius:2,backgroundColor:'#C99139'},
   eyebrow:{fontWeight:'900',fontSize:12,letterSpacing:1.8,color:'#845721',marginBottom:15},
   heroTitle:{color:C.ink,fontSize:29,fontWeight:'900',lineHeight:35,maxWidth:'82%',letterSpacing:-.6},
   heroSubtitle:{color:'#66512F',fontSize:15,lineHeight:21,marginTop:11,maxWidth:'80%'},
@@ -626,14 +627,13 @@ const s=StyleSheet.create({
     borderWidth:1.5,borderColor:C.accentDark,backgroundColor:C.paper},
   instantTitle:{fontSize:15,fontWeight:'900',color:C.accentDark,marginBottom:8},
   inputShell:{width:'100%',maxWidth:680,flexDirection:'row',alignItems:'center',minHeight:58,borderWidth:1.5,
-    borderColor:'#ADC6BE',borderRadius:30,backgroundColor:C.paper,paddingHorizontal:15},
+    borderColor:UI.field.borderColor,borderRadius:R.input,backgroundColor:C.paper,paddingHorizontal:15},
   searchGlyph:{fontSize:29,color:C.tealDark,marginRight:7,marginTop:-5},
   input:{flex:1,minHeight:51,paddingVertical:10,fontSize:15,color:C.ink},
   clear:{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center',paddingHorizontal:9,paddingVertical:5},
   clearText:{color:C.muted,fontSize:24},
   searchActions:{width:'100%',maxWidth:680,marginTop:14,flexDirection:'row',alignItems:'center',justifyContent:'center',flexWrap:'wrap',gap:10},
-  askButton:{backgroundColor:C.teal,alignItems:'center',justifyContent:'center',
-    minHeight:48,paddingHorizontal:24,borderRadius:24,flexDirection:'row'},
+  askButton:{...UI.primary,paddingHorizontal:24,flexDirection:'row'},
   askButtonLabel:{color:'#FFFFFF',fontWeight:'900',fontSize:15},
   disabled:{opacity:.52},
   directButton:{borderColor:'#D7E7E0',borderWidth:1,backgroundColor:C.paper,
@@ -651,16 +651,15 @@ const s=StyleSheet.create({
   myListingsTitle:{fontSize:15,fontWeight:'900',color:C.ink},
   myListingsSub:{fontSize:12.5,lineHeight:17,color:C.muted,marginTop:3},
   quickActionSection:{marginBottom:23,marginTop:4},
-  quickActions:{flexDirection:'row',gap:9,justifyContent:'space-between'},
-  quickTile:{flex:1,minWidth:0,backgroundColor:C.paper,borderWidth:1,
-    borderColor:'#BED8CF',borderRadius:18,padding:12,minHeight:154},
+  quickActions:{gap:8},
+  quickTile:{...UI.card,minWidth:0,padding:12,minHeight:64,flexDirection:'row',alignItems:'center',gap:12},
   quickTilePress:{transform:[{scale:.98}],backgroundColor:'#EDF8EF'},
   quickIcon:{width:42,height:42,backgroundColor:'#E3F2E9',borderRadius:14,
-    alignItems:'center',justifyContent:'center',marginBottom:8},
+    alignItems:'center',justifyContent:'center'},
   quickTitle:{fontSize:14.5,fontWeight:'900',color:C.ink,lineHeight:19},
-  quickHint:{fontSize:12.5,color:C.muted,lineHeight:17,marginTop:6,flex:1},
+  quickHint:{fontSize:13.5,color:C.muted,lineHeight:19,marginTop:3},
   quickOpen:{fontSize:13.5,color:C.accentDark,fontWeight:'900',marginTop:10},
-  welcomeSection:{backgroundColor:C.sunPale,borderRadius:21,padding:18,marginBottom:21},
+  welcomeSection:{...UI.card,backgroundColor:C.sunPale,padding:10,marginBottom:12},
   welcomeEyebrow:{fontSize:10.5,letterSpacing:1.3,fontWeight:'800',color:'#6C4A18'},
   welcomeTitle:{fontSize:24,fontWeight:'800',letterSpacing:-0.5,color:C.ink,marginTop:5},
   welcomeSubtitle:{fontSize:14,lineHeight:21,color:C.ink,marginTop:5,marginBottom:5},
@@ -674,17 +673,18 @@ const s=StyleSheet.create({
     marginTop:11,flexDirection:'row',alignItems:'center',gap:10},
   promptTitle:{fontSize:14,fontWeight:'800',color:C.ink},
   promptSubtitle:{fontSize:14,lineHeight:17,color:C.muted,marginTop:3},
-  personalSection:{marginTop:18,marginBottom:6},
+  personalSection:{marginTop:6,marginBottom:6},
   placesList:{gap:9},
-  placeCard:{backgroundColor:C.paper,borderWidth:1,borderColor:C.line,
-    borderRadius:17,padding:12,minHeight:94,flexDirection:'row',alignItems:'center',gap:10},
+  placeCard:{...UI.card,padding:14,minHeight:94,flexDirection:'row',alignItems:'center',gap:12},
   placeIcon:{width:54,height:54,backgroundColor:C.mint,borderRadius:15,
     alignItems:'center',justifyContent:'center'},
   placeTitle:{fontSize:15,fontWeight:'800',color:C.ink},
   placeSubtitle:{fontSize:14,color:C.accentDark,marginTop:3,fontWeight:'700'},
-  placeDescription:{fontSize:14,lineHeight:17,color:C.muted,marginTop:3},
-  feedCard:{backgroundColor:C.paper,borderWidth:1,borderColor:C.line,
-    borderRadius:16,padding:12,flexDirection:'row',alignItems:'center',
+  placeDescription:{fontSize:14,lineHeight:19,color:C.muted,marginTop:3},
+  placeReason:{fontSize:13,lineHeight:18,color:C.accentDark,fontWeight:'700',marginTop:5},
+  personalSettings:{minHeight:S.touch,flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:10,marginTop:5},
+  personalSettingsText:{flex:1,fontSize:14,color:C.accentDark,fontWeight:'700'},
+  feedCard:{...UI.card,padding:12,flexDirection:'row',alignItems:'center',
     gap:10,minHeight:80,marginBottom:9},
   feedIcon:{width:46,height:46,backgroundColor:C.sunPale,borderRadius:14,
     alignItems:'center',justifyContent:'center'},
@@ -699,11 +699,9 @@ const s=StyleSheet.create({
   sectionTitle:{color:C.ink,fontWeight:'900',fontSize:19,marginBottom:4},
   sectionSubtitle:{color:C.muted,fontSize:14,lineHeight:19,marginBottom:12},
   featuredGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:10},
-  areaGrid:{width:'48.4%',minHeight:114,backgroundColor:C.paper,borderColor:C.line,
-    borderWidth:1,borderRadius:19,padding:14,justifyContent:'space-between'},
+  areaGrid:{...UI.card,width:'48.4%',minHeight:114,padding:14,justifyContent:'space-between'},
   areaGridAccent:{width:29,height:5,borderRadius:5,backgroundColor:C.sun,marginBottom:10},
-  areaRow:{backgroundColor:C.paper,borderRadius:16,borderWidth:1,borderColor:C.line,
-    paddingHorizontal:15,paddingVertical:14,marginBottom:9,flexDirection:'row',alignItems:'center'},
+  areaRow:{...UI.card,paddingHorizontal:15,paddingVertical:14,marginBottom:9,flexDirection:'row',alignItems:'center',gap:9},
   areaAccent:{width:5,height:39,borderRadius:4,backgroundColor:C.sun,marginRight:12},
   areaTitle:{color:C.ink,fontSize:15.5,fontWeight:'900',lineHeight:20},
   areaSubtitle:{fontSize:14,lineHeight:18,color:C.muted,marginTop:5},

@@ -2,28 +2,28 @@
 // A warm, sunny background plus restrained teal actions keeps contrast clear.
 // Legacy aliases intentionally coexist so every feature uses the same palette.
 export const FAMILY_COLORS = Object.freeze({
-  bg:'#FFF9F0',
-  background:'#FFF9F0',
-  cream:'#FFF9F0',
+  bg:'#FFF8F2',
+  background:'#FFF8F2',
+  cream:'#FFF8F2',
   white:'#FFFFFF',
   paper:'#FFFFFF',
-  ink:'#253D43',
-  muted:'#52666B',
-  accent:'#0B777A',
-  teal:'#0B777A',
-  accentDark:'#075A60',
-  tealDark:'#075A60',
-  dark:'#075A60',
-  pale:'#E8F3E9',
-  mint:'#E8F3E9',
-  line:'#EAE4D9',
-  coral:'#EE7867',
+  ink:'#293E3D',
+  muted:'#526562',
+  accent:'#146F68',
+  teal:'#146F68',
+  accentDark:'#0B5751',
+  tealDark:'#0B5751',
+  dark:'#0B5751',
+  pale:'#E8F2E8',
+  mint:'#E8F2E8',
+  line:'#E9DED4',
+  coral:'#E98A76',
   coralDeep:'#B9474C',
-  peach:'#F9D9C9',
-  sun:'#FFDD79',
-  sunny:'#FFDD79',
-  yellow:'#FFDD79',
-  sunPale:'#FFF0B8',
+  peach:'#F8DFD2',
+  sun:'#F8D68A',
+  sunny:'#F8D68A',
+  yellow:'#F8D68A',
+  sunPale:'#FFF1D4',
   lavender:'#F2EEFF',
   warn:'#FFF1D6',
   warning:'#FFF1D6',
@@ -32,11 +32,11 @@ export const FAMILY_COLORS = Object.freeze({
 });
 
 export const FAMILY_RADII = Object.freeze({
-  card:22,
-  hero:25,
-  button:15,
-  input:15,
-  chip:22
+  card:20,
+  hero:24,
+  button:16,
+  input:16,
+  chip:24
 });
 
 
@@ -66,4 +66,14 @@ export const FAMILY_SURFACE = Object.freeze({
   card:FAMILY_COLORS.paper,
   mutedCard:'#FCF8EF',
   softTeal:FAMILY_COLORS.mint
+});
+
+// Flat shared surfaces keep elevation subtle and touch targets consistent.
+// Spread these into StyleSheet declarations; screen-specific layout stays local.
+export const FAMILY_UI=Object.freeze({
+  card:Object.freeze({backgroundColor:FAMILY_COLORS.paper,borderRadius:FAMILY_RADII.card,borderWidth:1,borderColor:FAMILY_COLORS.line}),
+  primary:Object.freeze({backgroundColor:FAMILY_COLORS.accentDark,borderRadius:FAMILY_RADII.button,minHeight:FAMILY_SPACE.touch,justifyContent:'center',alignItems:'center'}),
+  secondary:Object.freeze({backgroundColor:FAMILY_COLORS.paper,borderRadius:FAMILY_RADII.button,borderWidth:1.5,borderColor:FAMILY_COLORS.accentDark,minHeight:FAMILY_SPACE.touch,justifyContent:'center',alignItems:'center'}),
+  field:Object.freeze({backgroundColor:FAMILY_COLORS.paper,borderRadius:FAMILY_RADII.input,borderColor:'#A5BEB4',borderWidth:1.5,minHeight:FAMILY_SPACE.touch}),
+  motif:Object.freeze({nature:FAMILY_COLORS.mint,play:FAMILY_COLORS.sunPale,discover:FAMILY_COLORS.lavender,community:FAMILY_COLORS.peach})
 });

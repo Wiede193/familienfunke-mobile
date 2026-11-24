@@ -13,22 +13,57 @@ const WORD_GROUPS={
   'Spielplatz':['spiel','park','mitmach'],
   'Ausflüge':['ausflug','park','burg','museum','natur'],
   'Radfahren':['rad','natur','park'],
-  'Lesen':['museum','burg','besucherzentrum']
+  'Lesen':['museum','burg','besucherzentrum','bibliothek','buch'],
+  'Schwimmen':['schwimm','erlebnisbad','therme','bade','wasserpark','water'],
+  'Schwimmbäder':['schwimm','erlebnisbad','therme','bade','wasserpark','water'],
+  'Indoorspielplätze':['indoorspiel','indoor spiel','spielhalle','trampolin','indoor'],
+  'Trampolinparks':['trampolin','sprunghalle'],
+  'Freizeitparks':['freizeitpark','erlebnispark','mitmachpark','theme'],
+  'Tierpark & Zoo':['tierpark','zoo','wildpark','tierhof'],
+  'Tierbeobachtung':['wildpark','tierpark','vogel','naturpark'],
+  'Bauernhof':['bauernhof','tierhof','erlebnishof'],
+  'Strand & See':['badesee','strand','badestelle','seebad'],
+  'Fahrradtouren':['radweg','radfahren','fahrrad','radtour'],
+  'Spazierengehen':['spazier','wanderweg','naturpfad','park'],
+  'Gemeinsame Spaziergänge':['spazier','wanderweg','naturpfad','park'],
+  'Klettern':['kletter','seilgarten','hochseil'],
+  'Bouldern':['boulder','kletterhalle'],
+  'Familiencafés':['familiencafe','spielcafe','food play','spielbereich'],
+  'Bibliotheken':['bibliothek','bucherei'],
+  'Theater':['theater','puppenspiel','buhne'],
+  'Kino':['kino','lichtspiel'],
+  'Basteln':['werkstatt','bastel','mitmach'],
+  'Technik & Tüfteln':['technikmuseum','experiment','science center','mitmachlabor']
 };
+const interestKeywords=new Map(Object.entries(WORD_GROUPS).map(([label,words])=>[normalizeFamilyRegion(label),words.map(normalizeFamilyRegion)]));
 export function regionMatches(placeRegion,profileRegion) {
   const a=normalizeFamilyRegion(placeRegion),b=normalizeFamilyRegion(profileRegion);
   if(!a||!b)return false;
-  return a===b||a.includes(b)||b.includes(a);
+  return a===b||((a.length>=3&&b.length>=3)&&((' '+a+' ').includes(' '+b+' ')||(' '+b+' ').includes(' '+a+' ')));
+}
+// Only explicit profile choices and real catalogue metadata; no click tracking.
+export function matchingPlaceInterests(place,interests=[]){
+  const text=normalizeFamilyRegion([place?.title,place?.description,place?.category,place?.kind,place?.kind_label,place?.family_focus].filter(Boolean).join(' '));
+  const matched=[];let score=0;const seen=new Set();
+  for(const label of Array.isArray(interests)?interests:[]){
+    if(typeof label!=='string')continue;
+    const key=normalizeFamilyRegion(label);if(seen.has(key))continue;seen.add(key);
+    const hits=(interestKeywords.get(key)||[]).filter(word=>text.includes(word)).length;
+    if(hits){matched.push(label);score+=hits;}
+  }
+  return {matched,score};
+}
+export function placeRecommendationReason({isLocal,matchedInterests=[]}){
+  const hobbies=matchedInterests.slice(0,2).join(' & ');
+  return isLocal?(hobbies?'Eure Region · '+hobbies:'Eure angegebene Region'):hobbies?'Interesse: '+hobbies:'Ausflugstipp aus dem Katalog';
 }
 export function recommendFamilyPlaces(places,{region='',interests=[]}={},count=3){
-  const interestsList=Array.isArray(interests)?interests.filter(x=>typeof x==='string'):[];
-  const scored=(Array.isArray(places)?places:[]).filter(p=>p?.id&&p?.title)
+  const seen=new Set();
+  const scored=(Array.isArray(places)?places:[]).filter(p=>{if(!p?.id||!p?.title||seen.has(p.id))return false;seen.add(p.id);return true;})
     .map((p,index)=>{
-      const local=regionMatches(p.region_label,region);
-      const text=normalizeFamilyRegion([p.title,p.description,p.category].join(' '));
-      const interestScore=interestsList.reduce((sum,i)=>sum+
-        (WORD_GROUPS[i]||[]).filter(keyword=>text.includes(keyword)).length,0);
-      return {place:p,isLocal:local,score:Number(local)*100+Math.min(interestScore,8)*10,index};
+      const local=[p.region_label,p.district,p.state].some(label=>regionMatches(label,region));
+      const {matched,score:interestScore}=matchingPlaceInterests(p,interests);
+      return {place:p,isLocal:local,matchedInterests:matched,score:Number(local)*100+Math.min(interestScore,8)*10,index};
     });
   scored.sort((a,b)=>b.score-a.score||a.index-b.index);
   return scored.slice(0,Math.max(0,Math.min(count,5)));
