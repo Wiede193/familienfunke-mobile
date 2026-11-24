@@ -70,6 +70,64 @@ nicht dauerhaft auf inhaltliche Aktualität prüfen. Die 312 hinterlegten
 Aliasformulierungen sind durch Regressionstests auf den vorgesehenen Ratgeber
 abgesichert; frei formulierte Fragen können weiterhin anders ausfallen.
 
+## Erweiterung: Landesweite Fachstellen und Antragswege (24. November 2026)
+
+Die zusätzliche Datei `GermanyFamilyServices.js` umfasst **21 recherchierte
+landesweite Fach- und Antragswege in 10 Bundesländern**: Baden-Württemberg,
+Bayern, Berlin, Hamburg, Hessen, Mecklenburg-Vorpommern, Niedersachsen,
+Nordrhein-Westfalen, Sachsen und Schleswig-Holstein.
+
+Jeweils für **Elterngeld** und **Kita / Kindertagesbetreuung** ist eine
+amtliche Quelle hinterlegt. Für Sachsen kommt ein separater amtlicher Weg
+zu den Hilfen zur Erziehung hinzu. Der Datenbestand enthält für jeden
+Eintrag eine Beschreibung, erste Ansprechpartner, Handlungsschritte,
+typische Unterlagen, Einschränkungen und den URL zur amtlichen Fachseite.
+
+**Wichtig:**
+- Die Angabe eines Bundeslandes allein weist **keine örtliche Jugendamts-,
+  Bezirks- oder Elterngeldstelle eindeutig** zu. Die Portale nennen
+  weitere Auswahlkriterien, insbesondere Wohnort des Kindes.
+- Die App verweist bei nicht geprüften Verwaltungsleistungen und bei den
+  noch nicht vertieft erfassten Bundesländern auf amtliche Landesportale.
+  Alle 16 Bundesländer sind weiterhin auswählbar.
+- Benutzeranfragen wie „Elterngeld in Leipzig“ oder „Kita in München“
+  können dem Bundesland zugeordnet werden, **nicht** automatisch einer
+  individuellen kommunalen Sachbearbeitung. Zwei gleichzeitig genannte
+  widersprüchliche Regionen lösen keine automatische Zuständigkeitswahl aus.
+- **Kindergeld und Kinderzuschlag** gehören grundsätzlich zur Familienkasse
+  der Bundesagentur für Arbeit, nicht zu einer frei erfundenen Landesstelle.
+- Nur die Navigationsauswahl (Landeskennzeichen) wird an den
+  Familienwegweiser übergeben. Das ist keine Speicherung des Wohnortes.
+
+Die neuen Daten sind im Familienwegweiser unter „Stellen und Formulare
+nach Wohnort finden“ sichtbar; geprüfte Fachstellen und reine Landesportale
+werden unterschiedlich beschriftet. Ein Suchergebnis aus der lokalen
+Wissensfunktion kann den konkreten Landesbereich öffnen.
+
+Amtliche Quellen für die neue Ergänzung (Auswahl):
+
+- Berlin: https://service.berlin.de/dienstleistung/326079/
+  und https://service.berlin.de/dienstleistung/324873/
+- Sachsen: https://www.ksv-sachsen.de/elterngeld-landeserziehungsgeld
+  und https://amt24.sachsen.de/zufi/lebenslagen/5000516
+- Bayern: https://www.zbfs.bayern.de/familienleistungen/elterngeld/
+- Mecklenburg-Vorpommern:
+  https://www.lagus.mv-regierung.de/Soziales/Elterngeld_ElterngeldPlus/
+- Hamburg: https://www.hamburg.de/service/info/11981756/n0/
+- Nordrhein-Westfalen: https://www.familienportal.nrw/de/elterngeld
+- Baden-Württemberg: https://www.l-bank.de/produkte/familienfoerderung/elterngeld.html
+- Hessen: https://rp-giessen.hessen.de/versorgung-und-familie/elterngeld/faq-elterngeld
+- Niedersachsen: https://www.ms.niedersachsen.de/themen/familie/elterngeld/das-elterngeld-13791.html
+- Schleswig-Holstein:
+  https://www.schleswig-holstein.de/DE/landesregierung/ministerien-behoerden/LASG/Aufgaben/KinderUndEltern/KinderUndElternArtikelElterngeld
+  und https://www.kitaportal-sh.de/de/home
+
+CI führt jetzt zusätzlich `tests/check-germany-state-services.mjs` aus.
+Die Testfälle prüfen Zuordnung, Verweise, Quellenfelder, irreführende
+Ortsangaben und den Fallback auf ein amtliches Landesportal.
+**Es sind Struktur- und Verhaltensprüfungen, keine Garantie, dass externe
+Websites dauerhaft erreichbar oder behördliche Verfahren unverändert sind.**
+
 ## Antworttypen und Grenzen
 
 - **Wissensfrage**: Vorab fachlich geprüfte Antwort, beispielsweise zur Sonne,
