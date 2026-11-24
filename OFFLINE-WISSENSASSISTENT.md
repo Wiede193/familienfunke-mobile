@@ -25,7 +25,7 @@ keine GPT-Modellkosten, aber normale Hosting-Kontingente sind zu beachten.
 | Regionale Brandenburg-Behörden | 18 Regionen plus amtliche Einstiegsquellen |
 | Bundesländer mit amtlichem Serviceportal | 16 |
 | Redaktionelle FAQ mit Fachquellen, vorwiegend Naturwissenschaft und Gesundheit | 19 |
-| Zusätzliche Zuordnungen umgangssprachlicher Suchfragen | Mehr als 150 Formulierungen |
+| Zusätzliche Zuordnungen umgangssprachlicher Suchfragen | 189 Formulierungen |
 | Wählbare Themen für Beispielfragen | 7 |
 
 Die Zahlen beziehen sich auf die einprogrammierten Daten. Ein erfasster Eintrag ist
