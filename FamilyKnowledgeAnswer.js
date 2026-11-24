@@ -20,7 +20,7 @@ const TERMS={
 const termsOf=q=>[...new Set(normalize(q).split(' ').filter(x=>x.length>2&&!STOP.has(x)).map(x=>TERMS[x]||x))].slice(0,12);
 const wordMatch=(text,term)=>{
  const words=normalize(text).split(' ');
- return words.some(w=>w===term||(term.length>=5&&w.length>=5&&(w.startsWith(term)||term.startsWith(w))));
+ return words.some(w=>w===term||(term.length>=5&&w.length>=5&&Math.abs(w.length-term.length)<=3&&(w.startsWith(term)||term.startsWith(w))));
 };
 const weighted=(item,terms,fields)=>{
  return terms.reduce((total,term)=>total+fields.reduce((sum,[field,weight])=>
@@ -70,6 +70,8 @@ export function answerFamilyQuestion(question,{topics=[],inclusion=[],health=[],
      sources:[{title:'NASA Science – Sun Facts',url:'https://science.nasa.gov/sun/facts/'}]});
  }
  if(terms.length===0)return out('Bitte nenne ein konkretes Thema, zum Beispiel Kinderzuschlag, Kita, Spielplatz oder Familienquiz.');
+ if(terms.length===1&&['behinderung','inklusion','teilhabe'].includes(terms[0]))
+   return out(PAGE_TEXT.inclusion,{pageId:'inclusion'});
  const scored=[];
  for(const a of topics){
    const score=weighted(a,terms,[['title',18],['short',7],['overview',2],['responsible',2]])+
