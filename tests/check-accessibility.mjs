@@ -35,8 +35,11 @@ assert.match(app,/accessibilityLabel="Nur Familien mit gemeinsamen Hobbys anzeig
   'Interest filter switch needs an explicit label');
 assert.match(app,/accessibilityLabel="Familienprofil für andere Familien sichtbar"/,
   'Privacy switch needs an explicit label');
-assert.match(app,/accessibilityLiveRegion="assertive"/,
-  'Errors should be announced when they appear');
+const interactions=read('FamilyInteraction.jsx');
+assert.match(app,/<ActionNotice kind="error" message=\{error\}/,
+  'App must render explicit error feedback');
+assert.match(interactions,/accessibilityLiveRegion=\{danger\?'assertive':'polite'\}/,
+  'Errors must be announced assertively');
 assert.match(app,/accessibilityViewIsModal style=\{styles\.modalShade\}/,
   'Report dialog should isolate its contents');
 assert.match(app,/<Modal visible=\{!!reportTarget\}/,
