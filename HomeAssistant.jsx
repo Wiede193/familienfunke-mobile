@@ -3,6 +3,7 @@ import {AccessibilityInfo, ActivityIndicator, Animated, Keyboard, Linking, Press
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {GentleReveal,useReducedMotion} from './FamilyMotion';
+import {ContextHelp} from './FamilyInteraction';
 import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 import SearchResultFeedback from './SearchResultFeedback';
@@ -408,6 +409,27 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         <FamilyIcon name="chevron-right" size={18}/>
       </Pressable>:null}
     </View>:null}
+    {!needle?<GentleReveal delay={110} distance={12} style={s.quickActionSection}>
+      <Text accessibilityRole="header" style={s.sectionTitle}>Was möchtest du heute machen?</Text>
+      <Text style={s.sectionSubtitle}>Ein Tipp genügt. Familienfunke öffnet direkt den passenden Bereich.</Text>
+      <View style={[s.quickActions,singleColumn&&{flexDirection:'column'}]}>
+        {[
+          {id:active?'sell':'profile',icon:'bag',title:active?'Anzeige erstellen':'Profil vervollständigen',hint:active?'Kinderartikel kostenlos und sofort anbieten.':'Für das Inserieren ist ein freigegebenes Profil nötig.'},
+          {id:'contacts',icon:'message',title:'Nachrichten',hint:'Mit bestätigten Kontakten schreiben.'},
+          {id:'events',icon:'calendar',title:'Treffen planen',hint:'Familientermin vorschlagen und organisieren.'}
+        ].map(item=><Pressable key={item.title} accessibilityRole="button"
+          accessibilityLabel={item.title+' öffnen'} accessibilityHint={item.hint}
+          onPress={()=>onNavigate(item.id)} style={({pressed})=>[s.quickTile,pressed&&s.quickTilePress]}>
+          <View style={s.quickIcon}><FamilyIcon name={item.icon} size={22} color={C.accentDark}/></View>
+          <Text style={s.quickTitle}>{item.title}</Text>
+          <Text style={s.quickHint}>{item.hint}</Text>
+          <Text style={s.quickOpen}>Öffnen ›</Text>
+        </Pressable>)}
+      </View>
+      <ContextHelp title="Was passiert, wenn ich etwas einstelle?">
+        Anzeigen im Familienbasar werden nach dem Hochladen grundsätzlich direkt sichtbar. Mitglieder können problematische Angebote melden. Persönliche Gespräche bleiben privat; Veranstaltungen und manche anderen Inhalte werden weiterhin separat geprüft.
+      </ContextHelp>
+    </GentleReveal>:null}
     {!needle?<View style={s.section}>
       <FamilySectionTitle title="Direkt zu" subtitle="Eure beliebtesten Wege durch Familienfunke"/>
 
@@ -588,6 +610,16 @@ const s=StyleSheet.create({
   error:{color:C.danger,fontSize:13,lineHeight:19,marginTop:12},
   areaIcon:{width:37,height:37,borderRadius:13,backgroundColor:C.sunPale,alignItems:'center',
     justifyContent:'center',marginBottom:8},
+  quickActionSection:{marginBottom:23,marginTop:4},
+  quickActions:{flexDirection:'row',gap:9,justifyContent:'space-between'},
+  quickTile:{flex:1,minWidth:0,backgroundColor:C.paper,borderWidth:1,
+    borderColor:'#BED8CF',borderRadius:18,padding:12,minHeight:154},
+  quickTilePress:{transform:[{scale:.98}],backgroundColor:'#EDF8EF'},
+  quickIcon:{width:42,height:42,backgroundColor:'#E3F2E9',borderRadius:14,
+    alignItems:'center',justifyContent:'center',marginBottom:8},
+  quickTitle:{fontSize:14.5,fontWeight:'900',color:C.ink,lineHeight:19},
+  quickHint:{fontSize:12.5,color:C.muted,lineHeight:17,marginTop:6,flex:1},
+  quickOpen:{fontSize:13.5,color:C.accentDark,fontWeight:'900',marginTop:10},
   welcomeSection:{backgroundColor:C.sunPale,borderRadius:21,padding:18,marginBottom:21},
   welcomeEyebrow:{fontSize:10.5,letterSpacing:1.3,fontWeight:'800',color:'#6C4A18'},
   welcomeTitle:{fontSize:24,fontWeight:'800',letterSpacing:-0.5,color:C.ink,marginTop:5},
