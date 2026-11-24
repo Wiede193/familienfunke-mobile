@@ -415,7 +415,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       <View style={[s.quickActions,singleColumn&&{flexDirection:'column'}]}>
         {[
           {id:active?'sell':'profile',icon:'bag',title:active?'Anzeige erstellen':'Profil vervollständigen',hint:active?'Kinderartikel kostenlos und sofort anbieten.':'Für das Inserieren ist ein freigegebenes Profil nötig.'},
-          {id:'contacts',icon:'message',title:'Nachrichten',hint:'Mit bestätigten Kontakten schreiben.'},
+          {id:'chat',icon:'message',title:'Nachrichten',hint:'Private Unterhaltungen mit bestätigten Kontakten.'},
           {id:'events',icon:'calendar',title:'Treffen planen',hint:'Familientermin vorschlagen und organisieren.'}
         ].map(item=><Pressable key={item.title} accessibilityRole="button"
           accessibilityLabel={item.title+' öffnen'} accessibilityHint={item.hint}
@@ -426,6 +426,17 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
           <Text style={s.quickOpen}>Öffnen ›</Text>
         </Pressable>)}
       </View>
+      <Pressable accessibilityRole="button" accessibilityLabel="Meine Anzeigen öffnen"
+        accessibilityHint="Eigene Angebote, Entwürfe und den Veröffentlichungsstatus ansehen"
+        onPress={()=>onNavigate('myListings')}
+        style={({pressed})=>[s.myListingsLink,pressed&&{backgroundColor:C.sunPale}]}>
+        <View style={s.myListingsIcon}><FamilyIcon name="bag" size={21} color={C.accentDark}/></View>
+        <View style={{flex:1}}>
+          <Text style={s.myListingsTitle}>Meine Anzeigen</Text>
+          <Text style={s.myListingsSub}>Entwürfe, veröffentlichte Angebote und Verkäufe</Text>
+        </View>
+        <FamilyIcon name="chevron-right" size={20} color={C.accentDark}/>
+      </Pressable>
       <ContextHelp title="Was passiert, wenn ich etwas einstelle?">
         Anzeigen im Familienbasar werden nach dem Hochladen grundsätzlich direkt sichtbar. Mitglieder können problematische Angebote melden. Persönliche Gespräche bleiben privat; Veranstaltungen und manche anderen Inhalte werden weiterhin separat geprüft.
       </ContextHelp>
@@ -610,6 +621,13 @@ const s=StyleSheet.create({
   error:{color:C.danger,fontSize:13,lineHeight:19,marginTop:12},
   areaIcon:{width:37,height:37,borderRadius:13,backgroundColor:C.sunPale,alignItems:'center',
     justifyContent:'center',marginBottom:8},
+  myListingsLink:{flexDirection:'row',alignItems:'center',gap:10,minHeight:61,
+    paddingVertical:9,paddingHorizontal:12,marginTop:10,borderWidth:1,
+    borderColor:'#BFD5CF',borderRadius:16,backgroundColor:C.paper},
+  myListingsIcon:{width:38,height:38,alignItems:'center',justifyContent:'center',
+    backgroundColor:C.mint,borderRadius:12},
+  myListingsTitle:{fontSize:15,fontWeight:'900',color:C.ink},
+  myListingsSub:{fontSize:12.5,lineHeight:17,color:C.muted,marginTop:3},
   quickActionSection:{marginBottom:23,marginTop:4},
   quickActions:{flexDirection:'row',gap:9,justifyContent:'space-between'},
   quickTile:{flex:1,minWidth:0,backgroundColor:C.paper,borderWidth:1,
