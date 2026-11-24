@@ -16,10 +16,10 @@ const {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES}=await load('Brandenburg
 const {VERIFIED_GUIDE_DETAILS}=await load('FamilyGuideVerified.js');
 
 assert.equal(GERMANY_FAMILY_STATES.length,16);
-assert.equal(REVIEWED_STATE_CODES.length,10);
-assert.deepEqual([...REVIEWED_STATE_CODES].sort(),['BE','BW','BY','HE','HH','MV','NI','NW','SH','SN'].sort());
-assert.equal(GERMANY_STATE_SERVICES.reduce((sum,g)=>sum+g.services.length,0),21);
-assert.equal(new Set(REVIEWED_STATE_CODES).size,10);
+assert.equal(REVIEWED_STATE_CODES.length,15);
+assert.deepEqual([...REVIEWED_STATE_CODES].sort(),['BE','BW','BY','HB','HE','HH','MV','NI','NW','RP','SH','SL','SN','ST','TH'].sort());
+assert.equal(GERMANY_STATE_SERVICES.reduce((sum,g)=>sum+g.services.length,0),31);
+assert.equal(new Set(REVIEWED_STATE_CODES).size,15);
 const topics=['parental_allowance','childcare_search','family_support'];
 for(const g of GERMANY_STATE_SERVICES){
  assert.ok(GERMANY_FAMILY_STATES.some(s=>s.code===g.code),g.code);
@@ -39,7 +39,8 @@ for(const g of GERMANY_STATE_SERVICES){
   assert.equal(service.checked,'2026-11-24');
  }
 }
-assert.deepEqual(findStateServices('TH'),[]);
+assert.equal(findStateServices('TH').length,2);
+assert.deepEqual(findStateServices('BB'),[]);
 assert.equal(findStateServices('SN',['family_support']).length,1);
 assert.equal(findStateServices('SN',['childcare_search']).length,1);
 
@@ -73,6 +74,16 @@ for(const [question,code,sourceHost] of [
  ['Kita in Niedersachsen','NI','service.niedersachsen.de'],
  ['Elterngeld in Kiel','SH','schleswig-holstein.de'],
  ['Kita in Schleswig-Holstein','SH','kitaportal-sh.de'],
+ ['Elterngeld in Bremen','HB','service.bremen.de'],
+ ['Kita in Bremen','HB','service.bremen.de'],
+ ['Elterngeld in Rheinland-Pfalz','RP','mkbwk.rlp.de'],
+ ['Kita in Rheinland-Pfalz','RP','service.rlp.de'],
+ ['Elterngeld im Saarland','SL','saarland.de'],
+ ['Kita im Saarland','SL','saarland.de'],
+ ['Elterngeld in Sachsen-Anhalt','ST','las.sachsen-anhalt.de'],
+ ['Kita in Sachsen-Anhalt','ST','las.sachsen-anhalt.de'],
+ ['Elterngeld in Thüringen','TH','soziales.thueringen.de'],
+ ['Kita in Thüringen','TH','verwaltung.thueringen.de'],
 ]){
  const answer=ask(question);
  assert.equal(answer.pageId,'guide',question);
@@ -82,11 +93,8 @@ for(const [question,code,sourceHost] of [
  assert.match(answer.answer,/Wohnort|Wohnbezirksjugendamt|Wohnbezirks|Wohnbezirk|Ort|Betreuungsumfang|Landkreise|Kommune|Bezirksamt|zuständig|ZBFS|LAGuS/i);
 }
 for(const [q,code] of [
- ['Elterngeld in Sachsen-Anhalt beantragen','ST'],
- ['Elterngeld in Saarland beantragen','SL'],
- ['Kita in Thüringen anmelden','TH'],
- ['Kita in Bremen anmelden','HB'],
- ['Elterngeld in Rheinland-Pfalz','RP']
+ ['Elterngeld im Bundesland Brandenburg','BB'],
+ ['Kita im Bundesland Brandenburg','BB']
 ]){
  assert.equal(matchGermanState(q,GERMANY_FAMILY_STATES)?.code,code,q);
  const a=ask(q);
@@ -113,4 +121,4 @@ assert.match(guide,/Landesportal öffnen/);
 assert.match(home,/matchGermanState\(prompt,GERMANY_FAMILY_STATES\)/);
 assert.match(home,/stateServices:GERMANY_STATE_SERVICES/);
 assert.doesNotMatch(read('GermanyFamilyServices.js'),/fetch\s*\(|supabase|api\.openai\.com/);
-console.log('Landesweite Antragswege: 10 geprüfte Länder, 21 Dienste, 16 Landesportale und sichere Stadtauflösung geprüft.');
+console.log('Landesweite Antragswege: 15 recherchierte Länder, 31 Dienste, Brandenburg regional und 16 Landesportale geprüft.');
