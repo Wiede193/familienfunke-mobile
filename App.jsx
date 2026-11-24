@@ -269,6 +269,7 @@ const [session,setSession]=useState(undefined);
 const [tab,setTab]=useState('home');
 const [menuOpen,setMenuOpen]=useState(false);
 const [profileDirty,setProfileDirty]=useState(false);
+const [chatDraftDirty,setChatDraftDirty]=useState(false);
 const [marketSubpage,setMarketSubpage]=useState(false);
 const marketBackRef=useRef(null);
 const marketLeaveRef=useRef(null);
@@ -336,6 +337,7 @@ const me=session?.user?.id;
 const photoTarget=detailFamily||(tab==='profile'?me:null);
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
+useEffect(()=>{if(!selectedContact)setChatDraftDirty(false);},[selectedContact]);
 const detailFamilyRef=useRef(detailFamily);detailFamilyRef.current=detailFamily;
 const loadSeq=useRef(0);
 const actionGate=useRef(createActionGate());
@@ -999,6 +1001,16 @@ function back(){
  if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab))setTab(extraReturnTab==='more'?'home':extraReturnTab);
 }
 function guardProfileExit(next){
+ if(selectedContact&&chatDraftDirty){
+   Alert.alert('Nachricht noch nicht gesendet',
+     'Dein angefangener Nachrichtentext würde beim Verlassen des Gesprächs verloren gehen.',[
+       {text:'Weiter schreiben',style:'cancel'},
+       {text:'Entwurf verwerfen',style:'destructive',onPress:()=>{
+         setChatDraftDirty(false);next();
+       }}
+     ]);
+   return;
+ }
  if(tab==='market'&&marketLeaveRef.current){
    marketLeaveRef.current(next);return;
  }
@@ -1046,7 +1058,7 @@ active={active} disabled={busy} blocked={blocked(detailFamily)}
 connection={db.contacts.find(c=>c.sender_id===detailFamily||c.recipient_id===detailFamily)}
 onContact={()=>sendRequest(detailFamily)} onBlock={()=>blockUser(detailFamily)} onUnblock={()=>unblockUser(detailFamily)}
 onReport={()=>report('profile',detailFamily)} onChat={(cid)=>{setChatReturnTab('discover');setDetailFamily(null);setSelectedContact(cid);setTab('chat');}}/>:
-selectedContact?<ChatScreen contact={accepted.find(c=>c.id===selectedContact)} me={me} nameOf={findName}
+selectedContact?<ChatScreen onDraftChange={setChatDraftDirty} contact={accepted.find(c=>c.id===selectedContact)} me={me} nameOf={findName}
 disabled={busy} blocked={blocked}
 send={(body)=>sendChatMessage(body,selectedContact)}
 onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
@@ -3111,8 +3123,9 @@ function ChatList({contacts,me,nameOf,onChat,blocked,hasMore,loadingMore,onLoadM
         disabled={loadingMore} mode="outline" onPress={onLoadMore}/>
     </View>:null}/>;
 }
-function ChatScreen({contact,me,nameOf,disabled,blocked,send,onReport,onBlock}) {
+function ChatScreen({contact,me,nameOf,disabled,blocked,send,onReport,onBlock,onDraftChange}) {
 const [text,setText]=useState('');
+useEffect(()=>{onDraftChange?.(!!text.trim());},[text,onDraftChange]);
 const [showMessageTemplates,setShowMessageTemplates]=useState(false);
 const [messageTemplateId,setMessageTemplateId]=useState(null);
 const [messages,setMessages]=useState([]);
