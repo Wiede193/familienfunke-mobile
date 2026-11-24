@@ -3549,6 +3549,14 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <View style={styles.progressTrack}><View style={[styles.progressFill,{width:(completed*25)+'%'}]}/></View>
 </View>
 {!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
+<View style={{marginTop:17,padding:14,borderRadius:17,backgroundColor:C.paper,borderWidth:1,borderColor:C.line}}>
+ <Text style={styles.sectionTitle}>Euer Steckbrief – Vorschau</Text>
+ <Text style={[styles.micro,{marginTop:4,marginBottom:9}]}>So könnten eure freiwilligen Angaben nach Freigabe aussehen.</Text>
+ <Text style={styles.body}>{form.about?.trim()||'Erzählt ein wenig von euch: Welche Ausflüge, Spiele oder Hobbys mögt ihr?'}</Text>
+ {form.region_label?<Text style={[styles.micro,{marginTop:10}]}>Region: {form.region_label}</Text>:null}
+ {(form.interests||[]).length?<View style={[styles.chipsRow,{marginTop:9}]}>{form.interests.slice(0,6).map(i=><Chip key={i} text={i}/>)}</View>:null}
+ {(form.interests||[]).length>6?<Text style={[styles.micro,{marginTop:6}]}>und weitere {(form.interests||[]).length-6} Interessen</Text>:null}
+</View>
 </Card>
 <View style={{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:11,marginBottom:14}}>
 {[['about','Über uns'],['hobbies','Hobbys'],['privacy','Sichtbarkeit'],['photos','Fotos'],['security','Konto & Sicherheit']].map(([id,title])=><Chip key={id} text={title} selected={profileSection===id} onPress={()=>switchSection(id)}/>)}
@@ -3558,7 +3566,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Text style={[styles.sub,{marginBottom:14}]}>Ein paar freiwillige Angaben helfen beim Kennenlernen.</Text>
 <Input label="Anzeigename" value={form.display_name} onChangeText={x=>setForm(p=>({...p,display_name:x}))} maxLength={60}/>
 <RegionPicker value={form.region_label} onChange={x=>setForm(p=>({...p,region_label:x}))}/>
-<Input label="Über uns" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Was macht ihr gern? Was möchtet ihr gemeinsam erleben?"/>
+<Input label="Über uns" multiline value={form.about} onChangeText={x=>setForm(p=>({...p,about:x}))} maxLength={500} placeholder="Wir lieben ... Am Wochenende machen wir gern ... Wir würden gern andere Familien kennenlernen für ..."/>
 <Button title={busy?'Bitte warten …':'Angaben speichern'} disabled={busy} onPress={submit}/>
 </Card>:null}
 {profileSection==='hobbies'?<Card>
