@@ -52,7 +52,7 @@ assert.match(home,/answerFamilyQuestion\(prompt/,'Knowledge replies must come fr
 assert.match(home,/setConversation\(old=>\[\{/,'Chat history must update after a successful reply');
 assert.match(home,/entry\.sources\.map/,'Verified source links must be shown');
 assert.doesNotMatch(home,/functions\.invoke\('ff-app-assistant'/,'Knowledge answers must never invoke the priced model');
-assert.match(home,/onPress=\{askAssistant\}/,'Offline answers must require an explicit tap');
+assert.match(home,/onPress=\{\(\)=>askAssistant\(\)\}/,'Answer button must invoke the function without passing a press event as question');
 assert.match(home,/borderRadius:30,backgroundColor:C\.paper/,'Search bar should be the rounded central control');
 assert.match(home,/findFamilyMapLocations\(needle/,'Real catalog places are searchable from home');
 assert.match(home,/onNavigate\('map','',hit\.place\.id\)/,'Map result opens exact real destination');
