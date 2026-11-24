@@ -68,7 +68,7 @@ function AssistantReply({entry,onNavigate,onAsk}){
       {entry.related.slice(0,3).map((item,i)=><Pressable key={(item.placeId||item.question||item.label)+i}
         accessibilityRole="button"
         accessibilityLabel={item.label+' öffnen'}
-        onPress={()=>item.placeId?onNavigate('map','',item.placeId):onAsk(item.question||item.label)}
+        onPress={()=>item.placeId?onNavigate('map','',item.placeId):onAsk(item.question||item.label,entry.contextRef||null)}
         style={s.relatedButton}>
         <Text style={s.relatedLabel}>{item.label}</Text>
         <FamilyIcon name="chevron-right" size={17} color={C.accentDark}/>
@@ -171,7 +171,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   useEffect(()=>{if(visibleSearch)scrollRef.current?.scrollTo({y:Math.max(0,searchResultOffset.current-8),animated:true});},[visibleSearch]);
   const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
   const moreRoutes=HOME_ROUTES.filter(route=>!FEATURED.includes(route.id));
-  function askAssistant(input=needle){
+  function askAssistant(input=needle,contextRef=null){
     const prompt=String(input||'').trim().slice(0,600);
     if(prompt.length<3||pending.current)return;
     const request=++requestSeq.current;
@@ -185,7 +185,8 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         aliases:KNOWLEDGE_ALIASES,facts:KNOWLEDGE_FACTS,
         brandenburgRegions:BRANDENBURG_REGIONS,brandenburgResources:BRANDENBURG_FAMILY_RESOURCES,
         germanyStates:GERMANY_FAMILY_STATES,germanyResources:GERMANY_FAMILY_RESOURCES,
-        guideDetails:VERIFIED_GUIDE_DETAILS
+        guideDetails:VERIFIED_GUIDE_DETAILS,
+        previousContext:contextRef||conversation[0]?.contextRef||null
       });
       if(!alive.current||request!==requestSeq.current)return;
       setConversation(old=>[{question:prompt,...reply},...old].slice(0,6));
@@ -197,9 +198,9 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       if(alive.current&&request===requestSeq.current)pending.current=false;
     }
   }
-  function askSuggested(questionText){
+  function askSuggested(questionText,contextRef=null){
     updateQuestion(questionText);
-    askAssistant(questionText);
+    askAssistant(questionText,contextRef);
     scrollRef.current?.scrollTo({y:0,animated:false});
   }
   async function searchApp(){
