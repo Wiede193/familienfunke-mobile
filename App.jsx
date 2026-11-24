@@ -26,6 +26,9 @@ import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 import SearchResultFeedback from './SearchResultFeedback';
 import {FamilyEmptyState,FamilySkeleton} from './FamilyFeedback';
+import {SparkleIntro,FamilyAppTour,SoftTabIcon} from './FamilyMotion';
+import DraftTemplatePicker from './DraftTemplatePicker';
+import {MARKET_DRAFT_TEMPLATES,EVENT_DRAFT_TEMPLATES,MESSAGE_DRAFT_TEMPLATES,applyMarketDraft,applyEventDraft,hasTemplatePlaceholders} from './FamilyDraftTemplates';
 import FamilyGuideScreen from './FamilyGuide';
 import InclusionKnowledgeScreen from './InclusionKnowledgeScreen';
 import HomeAssistant from './HomeAssistant';
@@ -257,6 +260,11 @@ const [showEventForm,setShowEventForm]=useState(false);
 const [showInfo,setShowInfo]=useState(false);
 const [showLoginHelp,setShowLoginHelp]=useState(false);
 const [showWelcome,setShowWelcome]=useState(false);
+const [welcomeLoaded,setWelcomeLoaded]=useState(false);
+const [showTour,setShowTour]=useState(false);
+const [tourPending,setTourPending]=useState(false);
+const [tourLoaded,setTourLoaded]=useState(false);
+const [introPhase,setIntroPhase]=useState('checking');
 const [reportTarget,setReportTarget]=useState(null);
 const [reportDetails,setReportDetails]=useState('');
 const [error,setError]=useState('');
@@ -430,6 +438,19 @@ setSession(data?.session||null);
 const {data:listener}=supabase.auth.onAuthStateChange((_event,next)=>{if(alive)setSession(next);});
 return ()=>{alive=false;listener.subscription.unsubscribe();};
 },[]);
+// Erster Login auf diesem Gerät: sanfter, überspringbarer Auftakt.
+useEffect(()=>{
+ if(session!==null)return;
+ let live=true;
+ AsyncStorage.getItem('familienfunke.login-spark.v1')
+   .then(seen=>{if(live)setIntroPhase(seen==='seen'?'done':'intro');})
+   .catch(()=>{if(live)setIntroPhase('done');});
+ return()=>{live=false;};
+},[session]);
+function finishLoginSpark(){
+ setIntroPhase('done');
+ AsyncStorage.setItem('familienfunke.login-spark.v1','seen').catch(()=>{});
+}
 // Nach jeder Anmeldung startet Familienfunke auf der KI-Startseite – auch nach Kontowechsel.
 useEffect(()=>{
   setTab('home');
@@ -438,6 +459,7 @@ useEffect(()=>{
   setDetailFamily(null);
   setShowInfo(false);
   setShowLoginHelp(false);
+  setShowTour(false);
   setShowEventForm(false);
   setMarketIntent(null);setMarketSubpage(false);marketBackRef.current=null;setOutingDraft(null);setCalendarSeed(null);setMapIntent(null);setEventIntent(null);setFocusContactId(null);setInboxReturnTab('home');setExtraReturnTab('more');
   setDb(blankData);setMyProfile(null);setVerification(null);setMembership(null);
@@ -592,14 +614,32 @@ async function executePhoto(fn,success){
 // Einmalige Begrüßung je Konto auf diesem Gerät. Ein erneuter Aufruf unter „Mehr“ ist jederzeit möglich.
 useEffect(()=>{
   let valid=true;
-  setShowWelcome(false);
+  setShowWelcome(false);setWelcomeLoaded(false);
   if(me){
     AsyncStorage.getItem('familienfunke.welcome.v1.'+me)
       .then(seen=>{if(valid)setShowWelcome(seen!=='seen');})
-      .catch(()=>{if(valid)setShowWelcome(true);});
+      .catch(()=>{if(valid)setShowWelcome(true);})
+      .finally(()=>{if(valid)setWelcomeLoaded(true);});
   }
   return ()=>{valid=false;};
 },[me]);
+useEffect(()=>{
+ let live=true;setTourPending(false);setTourLoaded(false);
+ if(me)AsyncStorage.getItem('familienfunke.app-tour.v1.'+me)
+   .then(seen=>{if(live)setTourPending(seen!=='seen');})
+   .catch(()=>{if(live)setTourPending(true);})
+   .finally(()=>{if(live)setTourLoaded(true);});
+ return()=>{live=false;};
+},[me]);
+useEffect(()=>{
+ if(me&&welcomeLoaded&&tourLoaded&&!showWelcome&&tourPending&&!showTour&&!menuOpen){
+   setTab('home');setShowTour(true);
+ }
+},[me,welcomeLoaded,tourLoaded,showWelcome,tourPending,showTour,menuOpen]);
+function finishTour(){
+ setTourPending(false);setShowTour(false);setTab('home');
+ if(me)AsyncStorage.setItem('familienfunke.app-tour.v1.'+me,'seen').catch(()=>{});
+}
 function dismissWelcome(){
   setShowWelcome(false);
   if(me){
@@ -851,6 +891,7 @@ function selectMenuItem(id){
   setMenuOpen(false);
   if(id==='refresh'){load();return;}
   if(id==='welcome'){setShowWelcome(true);return;}
+  if(id==='tour'){setShowTour(true);setTourPending(true);setTab('home');return;}
   if(id==='info'){setDetailFamily(null);setSelectedContact(null);setShowInfo(true);return;}
   if(id==='inbox'){openInbox();return;}
   if(!MORE_ITEMS.some(item=>item[0]===id)&&id!=='more')return;
@@ -865,6 +906,8 @@ function selectMenuItem(id){
 }
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
 if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
+if(!me&&introPhase==='checking')return <View style={styles.center}><ActivityIndicator color={C.accent}/></View>;
+if(!me&&introPhase==='intro')return <SparkleIntro onFinish={finishLoginSpark}/>;
 if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 {showLoginHelp?<><View style={styles.topBar}>
   <View style={{flex:1}}><Text style={styles.smallBrand}>Familienfunke.</Text><Text style={styles.topHint}>Hilfe zur Anmeldung</Text></View>
@@ -1063,7 +1106,7 @@ changePassword={changePassword} onDirtyChange={setProfileDirty} openInfo={()=>gu
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
 {TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>guardProfileExit(()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');if(id==='guide')setGuideQuery('');setTab(id);setShowEventForm(false);})}
 accessibilityLabel={title} accessibilityState={{selected:selectedMainTab===id}} style={[styles.tab,(selectedMainTab===id)&&styles.tabActive]}><View style={[styles.tabIcon,(selectedMainTab===id)&&styles.tabIconSelected]}>
-  <FamilyIcon name={glyph} size={24} color={selectedMainTab===id?C.accentDark:C.muted}/>
+  <SoftTabIcon name={glyph} selected={selectedMainTab===id}/>
 </View><Text style={[styles.tabLabel,(selectedMainTab===id)&&{color:C.accentDark,fontWeight:'800'}]}>{title}</Text></Pressable>)}
 </View>:null}
 <TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={id=>id==='profile'?selectMenuItem(id):guardProfileExit(()=>selectMenuItem(id))} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
@@ -1074,6 +1117,8 @@ accessibilityLabel={title} accessibilityState={{selected:selectedMainTab===id}} 
 <Row><Button title="Abbrechen" mode="outline" style={{flex:1}} onPress={()=>setReportTarget(null)}/><Button title="Melden" disabled={busy||reportDetails.trim().length<10} style={{flex:1}} onPress={sendReport}/></Row>
 </Card></View></Modal>:null}
 <WelcomeIntro visible={!!me&&showWelcome} onClose={dismissWelcome}/>
+<FamilyAppTour visible={!!me&&showTour&&!showWelcome&&!menuOpen&&!reportTarget}
+  onClose={finishTour} onGo={nextTab=>{setSelectedContact(null);setDetailFamily(null);setShowInfo(false);setTab(nextTab);}}/>
 </SafeAreaView>;
 }
 async function uploadProfilePhoto(asset,caption,me,execute){
