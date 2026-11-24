@@ -20,8 +20,10 @@ function eventCopy(row){
   const money=v=>(v/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
   return [base[0],'Bei einem gemerkten Angebot sank der veröffentlichte Preis von '+money(row.old_price_cents)+' auf '+money(row.new_price_cents)+'. Öffne das Angebot für den aktuellen Preis.',base[2],base[3]];
  }
- return row.kind==='market'?[row.listing_status==='approved'?'Anzeige veröffentlicht':'Anzeige gesperrt',
-  row.listing_status==='approved'?'Dein Angebot ist jetzt im Familienbasar sichtbar.':'Dein Angebot ist nicht öffentlich sichtbar. Prüfe die Details in deinem Basar.',base[2],base[3]]:base;
+ return row.kind==='market'?[row.listing_status==='approved'?'Anzeige veröffentlicht':row.listing_status==='removed'?'Anzeige nach Meldungen ausgeblendet':'Anzeige gesperrt',
+  row.listing_status==='approved'?'Dein Angebot ist jetzt im Familienbasar sichtbar.':
+    row.listing_status==='removed'?'Deine Anzeige wurde nach Community-Meldungen vorläufig ausgeblendet. Melde dich bei uns, wenn du die Entscheidung überprüfen lassen möchtest.':
+    'Dein Angebot ist nicht öffentlich sichtbar. Prüfe die Details in deinem Basar.',base[2],base[3]]:base;
 }
 const groupForKind=kind=>['request','match','message'].includes(kind)?'Familien & Nachrichten':['market','search','price'].includes(kind)?'Familienbasar':'Amtliche Informationen';
 const iconSurface=kind=>['request','match','message'].includes(kind)?C.mint:['market','search','price'].includes(kind)?C.sunPale:C.bg;
