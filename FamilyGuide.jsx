@@ -331,19 +331,36 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
         <SearchResultFeedback active={!!stateSearch.trim()} query={stateSearch} count={visibleStates.length} context="Bundesländer" hint="Bundesland auswählen, um zum offiziellen Landesportal zu gelangen."/>
         {pickedState?<View style={st.officeCard}>
           <Text style={st.question}>{pickedState.name}: offizielles Serviceportal</Text>
-          <Text style={st.small}>Hier kannst du Leistungen und Zuständigkeiten nach Wohnort suchen. Für Brandenburg sind zusätzlich die Kreisstellen oben erfasst.</Text>
+          <Text style={st.small}>Im amtlichen Portal kannst du Leistungen und Zuständigkeiten nach Wohnort suchen. Für Brandenburg sind oben zusätzlich Kreisstellen erfasst.</Text>
           <Pressable accessibilityRole="link" accessibilityLabel={'Amtliches Serviceportal '+pickedState.name+' öffnen'}
             style={st.officeLink} onPress={()=>openLink(pickedState.portal_url)}>
             <Text style={st.localLink}>Landesportal öffnen ↗</Text>
           </Pressable>
         </View>:null}
+        {pickedState&&pickedStateServices.length?<View style={{marginTop:13}}>
+          <Text accessibilityRole="header" style={st.regionTitle}>{pickedStateServices.length} amtlich recherchierte Wege für {pickedState.name}</Text>
+          <Text style={st.small}>Die konkrete kommunale Stelle und die gültigen Formulare bitte über die offiziellen Fachseiten auswählen.</Text>
+          {pickedStateServices.map(item=><View key={item.topic} style={st.officeCard}>
+            <Text style={st.question}>{item.title}</Text>
+            <Text style={st.small}>Anlaufstelle: {item.authority}</Text>
+            <Text style={[st.small,{marginTop:6}]}>{item.description}</Text>
+            {item.steps?.length?<Text style={[st.small,{marginTop:6}]}>Schritte: {item.steps.join(' · ')}</Text>:null}
+            {item.documents?<Text style={[st.small,{marginTop:6}]}>Mögliche Unterlagen: {item.documents}</Text>:null}
+            {item.caveat?<Text style={[st.small,{marginTop:6}]}>Wichtig: {item.caveat}</Text>:null}
+            <Pressable accessibilityRole="link" accessibilityLabel={item.title+' – amtliche Fachseite'}
+              style={st.officeLink} onPress={()=>openLink(item.url)}>
+              <Text style={st.localLink}>Offizielle Fachseite und Formulare ↗</Text>
+            </Pressable>
+          </View>)}
+        </View>:null}
+        {pickedState&&!pickedStateVerified?<Text style={[st.small,{marginTop:10}]}>Für dieses Bundesland sind bislang nur amtliche Serviceportale erfasst. Die konkret zuständige Stelle wurde noch nicht einzeln recherchiert.</Text>:null}
         {visibleStates.map(state=><Pressable key={state.code} accessibilityRole="button"
           accessibilityLabel={state.name+' als Bundesland auswählen'}
           accessibilityState={{selected:pickedStateCode===state.code}}
           onPress={()=>{Keyboard.dismiss();setPickedStateCode(state.code);}} style={[st.regionChoice,pickedStateCode===state.code&&st.regionChoiceSelected]}>
           <View style={{flex:1}}>
             <Text style={st.regionChoiceTitle}>{state.name}</Text>
-            <Text style={st.small}>Amtliches Landesportal · örtliche Zuständigkeit separat prüfen</Text>
+            <Text style={st.small}>{findStateServiceGroup(state.code)?'Einzeln recherchierte Antragswege verfügbar':'Amtliches Landesportal; örtliche Stellen noch offen'}</Text>
           </View>
           <Text style={st.regionChoiceArrow}>{pickedStateCode===state.code?'✓':'›'}</Text>
         </Pressable>)}
