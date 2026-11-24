@@ -28,4 +28,5 @@ for(const [cond,msg] of [
   [admin.includes("l.moderation_status<>'pending'"),'Only unchanged pending listings may be approved'],
   [admin.includes('private.is_active_adult(l.seller_id)'),'Seller verification must be rechecked before approval']
 ])assert.ok(cond,msg);
-console.log('KI-Basar: sichere Warteschlange, HMAC-Cron und Admin-Prüfregeln geprüft.');
+assert.match(api,/if\(true\)return Response\.json\(\{checked:0,paused:true\}/,'Costly cron processing must be paused');
+console.log('Basar: HMAC-Cron, Admin-Prüfregeln und Entwicklungsphasen-Sperre geprüft.');
