@@ -483,11 +483,10 @@ export function answerFamilyQuestion(question,ctx={}){
    placeCandidates.some(x=>exactPhrase(q,x.item.title))))
    return answerPlaces(placeCandidates,q);
  // Spezifische staatliche Verwaltungsportale – keine erfundene lokale Behörde.
- const state=(ctx.germanyStates||[]).find(st=>
-   norm(st.name).length>=4&&exactPhrase(q,st.name));
  if(state&&/\b(amt|behorde|antrag|formular|verwaltung|dienst|elterngeld)\b/.test(q))
    return result('Für '+state.name+' ist das offizielle Landesportal ein geeigneter Einstieg. Konkrete Behörden, Zuständigkeiten und Formulare müssen für den Wohnort ausgewählt werden.',{
-     kind:'regional',pageId:'guide',sources:simpleSource('Serviceportal '+state.name,state.portal_url)});
+     kind:'regional',pageId:'guide',navigationQuery:'state:'+state.code,
+     sources:simpleSource('Serviceportal '+state.name,state.portal_url)});
  const route=routeFor(q,ts,ctx.routes||[]);
  if(route&&PAGE_TEXT[route.id]){
    return result(PAGE_TEXT[route.id],{kind:'navigation',pageId:route.id,
