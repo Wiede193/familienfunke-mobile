@@ -44,7 +44,7 @@ for(const alias of KNOWLEDGE_ALIASES){
  }
 }
 assert.ok(catalog.allPlaces.length>=75);
-assert.equal(KNOWLEDGE_ALIASES.reduce((n,a)=>n+a.terms.length,0),308);
+assert.equal(KNOWLEDGE_ALIASES.reduce((n,a)=>n+a.terms.length,0),312);
 for(const id of ['elterngeld-antrag','kindergeld-antrag','mutterschutz-mutterschaftsgeld',
  'schwangerschaftsberatung','geburt-checkliste','studium-ausbildung-mit-kind',
  'schulden-beratung-familien','pflegefamilie-werden','adoption-beratung',
@@ -100,6 +100,16 @@ assert.ok(ask('Wie viel Kindergeld gibt es 2026?').sources[0].url.includes('arbe
 assert.ok(!ask('Wie viel Pflegegeld gibt es?').sources.some(x=>/kindergeld/i.test(x.url)));
 assert.ok(ask('Kindergeld 2026 beantragen').sources[0].url.includes('arbeitsagentur.de'));
 assert.match(ask('Wie ist die Frist für Elternzeit?').answer,/7 Wochen/);
+assert.equal(ask('Wie lange darf ich Elternzeit machen?').kind,'fact');
+assert.match(ask('Wie lange darf ich Elternzeit machen?').answer,/drei Jahre/);
+assert.equal(ask('Welche Unterlagen brauche ich für Kindergeld?').contextRef?.id,'kindergeld-antrag');
+assert.equal(ask('Was muss ich nach der Entbindung erledigen?').contextRef?.id,'geburt-checkliste');
+assert.equal(ask('Wo sind Kinderärzte am Wochenende?').contextRef?.id,'aerztlicher-bereitschaftsdienst-kinder');
+assert.equal(ask('Können Sie Kindergeld bei Behinderung über 25 erklären?').contextRef?.id,'kindergeld-disability');
+assert.equal(ask('Welche Region ist bei Leipzig zuständig?').kind,'clarify');
+assert.equal(ask('Wie lautet mein Passwort?').kind,'privacy');
+assert.equal(BRANDENBURG_FAMILY_RESOURCES.find(x=>x.id==='elterngeld-digital')?.url,
+ 'https://familienportal.de/familienportal/rechner-antraege/elterngeld-online-beantragen-127692');
 assert.match(ask('Was tun, wenn mein Kind Atemnot hat?').answer,/112/);
 assert.equal(ask('Was tun, wenn mein Kind Atemnot hat?').kind,'safety');
 assert.match(ask('Kannst du meine Nachrichten lesen?').answer,/keine privaten Nachrichten/);
