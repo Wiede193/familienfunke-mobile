@@ -761,8 +761,10 @@ async function executeEvent(fn,success){
  }
 }
 async function executeMarket(fn,success){
+ // Auch nach einem fehlgeschlagenen Publish-RPC kann der Entwurf erfolgreich
+ // gespeichert sein. Deshalb nur den Basar neu laden, nicht alle App-Daten.
  const ok=await executeEvent(fn,success);
- if(ok)setMarketEpoch(n=>n+1);
+ setMarketEpoch(n=>n+1);
  return ok;
 }
 async function execute(fn,success){
