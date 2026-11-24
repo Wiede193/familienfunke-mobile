@@ -265,6 +265,8 @@ return <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==='ios'?'pad
 </ScrollView>
 </KeyboardAvoidingView>;
 }
+const EMPTY_DISCOVER_FILTERS=Object.freeze({query:'',interest:'Alle',onlyRegion:false,onlyShared:false,mode:'list',cardIndex:0});
+
 export default function App() {
 const [session,setSession]=useState(undefined);
 const [tab,setTab]=useState('home');
@@ -291,6 +293,7 @@ const [focusContactId,setFocusContactId]=useState(null);
 const [selectedContact,setSelectedContact]=useState(null);
 const [chatReturnTab,setChatReturnTab]=useState('more');
 const [detailFamily,setDetailFamily]=useState(null);
+const [discoverFilters,setDiscoverFilters]=useState(EMPTY_DISCOVER_FILTERS);
 const [showEventForm,setShowEventForm]=useState(false);
 const [showInfo,setShowInfo]=useState(false);
 const [showLoginHelp,setShowLoginHelp]=useState(false);
@@ -495,6 +498,7 @@ useEffect(()=>{
   setMenuOpen(false);
   setSelectedContact(null);
   setDetailFamily(null);
+  setDiscoverFilters(EMPTY_DISCOVER_FILTERS);
   setShowInfo(false);
   setShowLoginHelp(false);
   setShowTour(false);
@@ -1039,7 +1043,7 @@ function guardProfileExit(next){
  return <SafeAreaView style={styles.screen}>
 <ExpoStatusBar style="dark"/>
 <View style={styles.topBar}>
-{showBack?<Pressable accessibilityRole="button" accessibilityLabel={'Zurück aus '+navTitle} accessibilityHint="Zur vorherigen Ansicht wechseln" onPress={()=>guardProfileExit(back)} style={({pressed})=>[styles.headerBackButton,pressed&&{opacity:0.72}]}>
+{showBack?<Pressable accessibilityRole="button" accessibilityLabel={'Zurück aus '+navTitle} accessibilityHint="Zur vorherigen Ansicht wechseln" onPress={()=>tab==='market'&&marketSubpage&&!detailFamily&&!selectedContact&&!showInfo?back():guardProfileExit(back)} style={({pressed})=>[styles.headerBackButton,pressed&&{opacity:0.72}]}>
   <Text style={styles.headerBackArrow}>‹</Text><Text style={styles.headerBackLabel}>Zurück</Text>
 </Pressable>:null}
 <View style={[styles.headerIdentity,showBack&&{minWidth:0}]}>
@@ -1161,7 +1165,7 @@ tab==='aboutApp'?<AboutFamilienfunkeScreen/>:
 tab==='help'?<TechnicalHelpScreen onNavigate={selectMenuItem}/>:
 tab==='push'?<PushSettings key={me} userId={me} active={active}/>:
 tab==='inbox'?<NotificationCenterScreen key={me} inbox={inbox} active={active} onOpen={openInboxEvent} onSettings={()=>{setExtraReturnTab('inbox');setTab('push');}}/>:
-tab==='discover'?<DiscoverScreen matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
+tab==='discover'?<DiscoverScreen filters={discoverFilters} setFilters={setDiscoverFilters} matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
  hasMore={discoverMore} loadingMore={discoverLoadingMore} onLoadMore={loadMoreFamilies}
 myProfile={myProfile} verification={verification} membership={membership}
 showFamily={setDetailFamily} onContact={sendRequest} imageFor={(uid)=>photosUrls[photoOf(uid)?.id]} blocked={blocked}/>:
@@ -1200,7 +1204,7 @@ changePassword={changePassword} onDirtyChange={setProfileDirty} openInfo={()=>gu
 </GentleReveal>
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>guardProfileExit(()=>{
+{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>id==='market'&&tab==='market'&&marketSubpage?back():guardProfileExit(()=>{
   if(id==='market'&&tab==='market'&&marketSubpage&&marketBackRef.current){
     marketBackRef.current();return;
   }
@@ -1222,7 +1226,7 @@ style={({pressed})=>[styles.tab,(selectedMainTab===id)&&styles.tabActive,
   <SoftTabIcon name={glyph} selected={selectedMainTab===id}/>
 </View><Text style={[styles.tabLabel,(selectedMainTab===id)&&{color:C.accentDark,fontWeight:'800'}]}>{title}</Text></Pressable>)}
 </View>:null}
-<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={id=>id==='profile'&&tab==='profile'&&!showInfo?(setMenuOpen(false)):guardProfileExit(()=>selectMenuItem(id))} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
+<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={id=>id==='profile'&&tab==='profile'&&!showInfo?(setMenuOpen(false)):id==='market'&&tab==='market'&&marketSubpage&&!detailFamily&&!selectedContact&&!showInfo?selectMenuItem(id):guardProfileExit(()=>selectMenuItem(id))} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <KeyboardAvoidingView accessibilityViewIsModal style={styles.modalShade}
   behavior={Platform.OS==='ios'?'padding':undefined}>
@@ -1508,7 +1512,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
     };
     return()=>{navigationBackRef.current=null;};
   });
-  useEffect(()=>{if(boxOpen||boxEditor)marketScrollRef.current?.scrollTo({y:0,animated:false});},[boxStep,boxOpen,boxEditor]);
+  useEffect(()=>{if(boxOpen||boxEditor||open||selectedListing||sellChoicesOpen)marketScrollRef.current?.scrollTo({y:0,animated:false});},[boxStep,boxOpen,boxEditor,open,selectedListing,sellChoicesOpen]);
   const [boxStorage,setBoxStorage]=useState('loading');
   // Deep-link the homepage directly into the actual selling workflows.
   // Wait for the on-device box snapshot before opening an existing box.
@@ -2888,15 +2892,14 @@ function InclusionScreen({regionLabel,onOpenMap,initialQuery=''}){
  return <InclusionKnowledgeScreen regionLabel={regionLabel} onOpenMap={onOpenMap} initialQuery={initialQuery}/>;
 }
 
-function DiscoverScreen({matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked,hasMore,loadingMore,onLoadMore}) {
-const [query,setQuery]=useState('');
-const [interest,setInterest]=useState('Alle');
-const [onlyRegion,setOnlyRegion]=useState(false);
-const [onlyShared,setOnlyShared]=useState(false);
-const [mode,setMode]=useState('list');
+function DiscoverScreen({filters,setFilters,matches,requests,me,active,busy,myProfile,verification,membership,showFamily,onContact,imageFor,blocked,hasMore,loadingMore,onLoadMore}) {
+const {query,interest,onlyRegion,onlyShared,mode,cardIndex}=filters;
+const update=(key,value)=>setFilters(old=>({...old,[key]:value}));
+const setQuery=value=>update('query',value),setInterest=value=>update('interest',value);
+const setOnlyRegion=value=>update('onlyRegion',value),setOnlyShared=value=>update('onlyShared',value);
+const setMode=value=>update('mode',value),setCardIndex=value=>update('cardIndex',value);
 const [showInterestFilter,setShowInterestFilter]=useState(false);
 const [interestFilterQuery,setInterestFilterQuery]=useState('');
-const [cardIndex,setCardIndex]=useState(0);
 const myRegion=myProfile?.region_label||'';
 const filtered=matches.filter(p=>
 !blocked(p.user_id)&&
@@ -3320,6 +3323,7 @@ function EventsScreen({focusId,clearFocus,me,active,busy,profiles,showForm,setSh
 const focus=useFocusedEvent('events',focusId,me);
 const [events,setEvents]=useState([]);
  const [eventView,setEventView]=useState('official');
+ useEffect(()=>{if(focusId||showForm)setEventView('family');},[focusId,showForm]);
 const [myRequests,setMyRequests]=useState([]);
 const [focusedRequest,setFocusedRequest]=useState(null);
 const [focusedRequestBusy,setFocusedRequestBusy]=useState(false);
@@ -3334,7 +3338,7 @@ const seqRef=useRef(0);
 const [title,setTitle]=useState('');const [description,setDescription]=useState('');const [region,setRegion]=useState('');
 const [eventTemplateId,setEventTemplateId]=useState(null);
 const [date,setDate]=useState('');const [time,setTime]=useState('15:00');const [count,setCount]=useState('10');const [visibility,setVisibility]=useState('community');
-useEffect(()=>{onDraftChange?.(!!showForm&&!!(title.trim()||description.trim()||region.trim()||date||time!=='15:00'||count!=='10'));},[onDraftChange,showForm,title,description,region,date,time,count]);
+useEffect(()=>{onDraftChange?.(!!showForm&&!!(title.trim()||description.trim()||region.trim()||date||time!=='15:00'||count!=='10'||visibility!=='community'));},[onDraftChange,showForm,title,description,region,date,time,count,visibility]);
 async function ownRequestsFor(rows){
  const ids=rows.map(row=>row.id).slice(0,EVENT_PAGE_SIZE);
  if(!ids.length)return [];
@@ -3391,7 +3395,7 @@ async function submit(){
  const start=givenDate(date,time);const max=parseInt(count,10);
  if(!start||start<=new Date()||title.trim().length<4||max<2||max>50)return Alert.alert('Bitte prüfen','Titel, zukünftigen Beginn und Teilnehmerzahl (2–50) korrigieren.');
  const ok=await createEvent({title:safeString(title,100),description:safeString(description,1000),region_label:safeString(region,80),starts_at:start.toISOString(),ends_at:new Date(start.getTime()+2*60*60*1000).toISOString(),max_participants:max,visibility});
- if(ok){setShowForm(false);setTitle('');setDescription('');setDate('');setEventTemplateId(null);setRevision(n=>n+1);}
+ if(ok){setShowForm(false);setEventView('family');setTitle('');setDescription('');setRegion('');setDate('');setTime('15:00');setCount('10');setVisibility('community');setEventTemplateId(null);setRevision(n=>n+1);}
 }
 async function requestAndRefresh(id){
  const ok=await requestEvent(id);

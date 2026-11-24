@@ -373,6 +373,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
     if(ready)scroll.current?.scrollTo({y:Math.max(0,mapOffset.current-12),animated:false});
   },[entryPlaceId,ready]);
   function showPlace(place){
+    scroll.current?.scrollTo({y:Math.max(0,mapOffset.current-12),animated:false});
     setNationalType('all');setNationalArea('all');setTypes('all');
     setSelectedId(place.id);
     setCenter({latitude:place.latitude,longitude:place.longitude,zoom:13.2});
@@ -490,6 +491,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
       </Text></View>
     </View>
     {selectedSearchMatch?<View accessibilityLiveRegion="polite" style={styles.mapSelectedInfo}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Suchtrefferdetails schließen" onPress={()=>{setSelectedSearchId(null);setSelectedId(null);}} style={[styles.outlineBtn,{alignSelf:'flex-end',minHeight:44,marginBottom:8}]}><Text style={styles.outlineText}>Schließen ×</Text></Pressable>
       <Text accessibilityRole="header" style={styles.selectedTitle}>{selectedSearchMatch.title}</Text>
       <Text style={styles.micro}>{selectedSearchMatch.subtitle}{ready?' · Auf der Karte hervorgehoben':''}</Text>
       {selectedSearchMatch.source==='geocode'?<View><Text style={[styles.micro,{marginTop:8}]}>Externer Kartentreffer, keine geprüfte Familienfunke-Empfehlung. Adressdaten können unvollständig sein.</Text><Pressable accessibilityRole="link" onPress={()=>openDirections(selectedSearchMatch,'google')} style={[styles.minorBtn,{minHeight:44}]}><Text style={styles.minorBtnText}>Route in Google Maps öffnen ↗</Text></Pressable><Pressable accessibilityRole="link" onPress={()=>openDirections(selectedSearchMatch,'apple')} style={[styles.minorBtn,{minHeight:44}]}><Text style={styles.minorBtnText}>Route in Apple Karten öffnen ↗</Text></Pressable></View>:null}

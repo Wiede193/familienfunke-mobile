@@ -6,7 +6,11 @@ const market=app.slice(app.indexOf('function MarketScreen('),app.indexOf('functi
 const family=app.slice(app.indexOf('function DiscoverScreen('),app.indexOf('function FamilyDetail('));
 assert.match(market,/!inMarketSubpage\?<\/>|!inMarketSubpage\?<\>/);
 assert.match(market,/!boxOpen&&!boxEditor&&!sellChoicesOpen/);
-assert.match(family,/\[mode,setMode\]=useState\('list'\)/);
+assert.match(app,/EMPTY_DISCOVER_FILTERS=Object\.freeze\(\{[^\n]*mode:'list'/);
+assert.match(app,/setDiscoverFilters\(EMPTY_DISCOVER_FILTERS\)/);
+assert.match(app,/<DiscoverScreen filters=\{discoverFilters\} setFilters=\{setDiscoverFilters\}/);
+assert.match(family,/const \{query,interest,onlyRegion,onlyShared,mode,cardIndex\}=filters/);
+assert.match(app,/marketSubpage&&!detailFamily&&!selectedContact&&!showInfo\?back\(\):guardProfileExit\(back\)/);
 assert.match(family,/showInterestFilter\?<View style=\{styles.filterPanel\}/);
 assert.match(app,/\[eventView,setEventView\]=useState\('official'\)/);
 assert.match(map,/accessibilityLabel="Ortsdetails schließen"/);
