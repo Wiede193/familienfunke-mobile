@@ -920,7 +920,7 @@ async function openInboxEvent(event){
  }
 }
 function navigateFromHome(id,marketQuery='',placeId=null){
-  const routes=['box','sell','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar','play','healthy','decisions'];
+  const routes=['box','sell','myListings','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar','play','healthy','decisions'];
   if(!routes.includes(id))return;
   if(id==='inbox'){openInbox();return;}
   if(id==='healthy')setHealthyQuery(String(marketQuery||'').slice(0,160));
@@ -930,12 +930,12 @@ function navigateFromHome(id,marketQuery='',placeId=null){
   setCalendarSeed(null);
   setMapIntent(id==='map'&&typeof placeId==='string'?{id:placeId,returnTab:'home'}:null);
   setEventIntent(['events','partners'].includes(id)&&typeof placeId==='string'?{id:placeId,tab:id,owner:me}:null);
-  setMarketIntent(id==='box'||id==='sell'?id:
+  setMarketIntent(id==='myListings'?{type:'myListings'}:id==='box'||id==='sell'?id:
     id==='market'&&typeof placeId==='string'&&/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(placeId)?
       {type:'buyerListing',id:placeId}:
     id==='market'&&marketQuery.trim()?{type:'search',query:marketQuery.slice(0,160)}:null);
   setExtraReturnTab('home');
-  setTab(id==='box'||id==='sell'?'market':id);
+  setTab(id==='box'||id==='sell'||id==='myListings'?'market':id);
 }
 function planCalendarPlace(place){
   setCalendarSeed({owner:me,place:{id:place.id,title:place.title}});
@@ -1197,7 +1197,7 @@ style={({pressed})=>[styles.tab,(selectedMainTab===id)&&styles.tabActive,
   <SoftTabIcon name={glyph} selected={selectedMainTab===id}/>
 </View><Text style={[styles.tabLabel,(selectedMainTab===id)&&{color:C.accentDark,fontWeight:'800'}]}>{title}</Text></Pressable>)}
 </View>:null}
-<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={id=>id==='profile'?selectMenuItem(id):guardProfileExit(()=>selectMenuItem(id))} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
+<TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={id=>id==='profile'&&tab==='profile'&&!showInfo?(setMenuOpen(false)):guardProfileExit(()=>selectMenuItem(id))} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <KeyboardAvoidingView accessibilityViewIsModal style={styles.modalShade}
   behavior={Platform.OS==='ios'?'padding':undefined}>
