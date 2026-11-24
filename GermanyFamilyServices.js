@@ -123,16 +123,19 @@ export function matchGermanState(question,states=[]){
  // Explizite Bundeslandnennung vor Stadt-Heuristik; absichtlich keine Abkürzungen
  // wie "BB", "BE" oder "MV": Verwechslung mit normalen Wörtern vermeiden.
  const matches=states.filter(s=>phrase(s.name,q));
- if(matches.length){
-   // „Sachsen-Anhalt“ enthält zwar „Sachsen“, ist aber das längere volle Bundesland.
-   const longest=Math.max(...matches.map(s=>clean(s.name).length));
-   const selected=matches.filter(s=>clean(s.name).length===longest);
-   return selected.length===1?selected[0]:null;
- }
  const hints=[];
  for(const state of states){
    if(phrase(state.capital,q)||CITY_HINTS[state.code]?.some(city=>phrase(city,q)))
      hints.push(state);
+ }
+ if(matches.length){
+   // „Sachsen-Anhalt“ enthält auch „Sachsen“: längster Bundeslandname gewinnt.
+   const longest=Math.max(...matches.map(s=>clean(s.name).length));
+   const selected=matches.filter(s=>clean(s.name).length===longest);
+   if(selected.length!==1)return null;
+   // Werden zwei unterschiedliche Länder genannt, keine Zuständigkeit erfinden.
+   if(hints.some(s=>s.code!==selected[0].code))return null;
+   return selected[0];
  }
  return hints.length===1?hints[0]:null;
 }
