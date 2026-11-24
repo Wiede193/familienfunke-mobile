@@ -84,12 +84,40 @@ export function AboutFamilienfunkeScreen(){
   </ScrollView>;
 }
 
-export function TechnicalHelpScreen({initialCategory='Alle'}){
+const FAQ_DEFAULT_ROUTES={
+ 'Anmeldung & Konto':['profile','Mein Profil öffnen'],
+ 'Profil & Kontakte':['profile','Mein Profil öffnen'],
+ 'Familienbasar':['market','Familienbasar öffnen'],
+ 'Treffen & Kitas':['events','Treffen & Veranstaltungen öffnen'],
+ 'Familienkarte':['map','Familienkarte öffnen'],
+ 'Familien-Wegweiser':['guide','Wissen & Anträge öffnen']
+};
+function faqDestination(category,question){
+ if(category==='Familienbasar'){
+   if(/eigene Anzeigen|Wie ändere ich eine Anzeige|mehrere Fotos|als vergeben|noch nicht sichtbar/i.test(question))
+     return ['myListings','Meine Anzeigen öffnen'];
+   if(/stelle ich einen Artikel ein|Schnellverkauf|Kistenmodus/i.test(question))
+     return ['sell','Anzeige erstellen'];
+ }
+ if(category==='Profil & Kontakte'){
+   if(/Nachrichten und Kontakte/.test(question))return ['chat','Nachrichten öffnen'];
+   if(/Familien in meiner Nähe/.test(question))return ['discover','Familien entdecken'];
+   if(/Kontaktanfrage/.test(question))return ['contacts','Kontakte öffnen'];
+ }
+ if(category==='Treffen & Kitas'&&/Kitas/.test(question))
+   return ['partners','Kitas & Partner öffnen'];
+ if(category==='Bedienung & Probleme'){
+   if(/Inklusion/.test(question))return ['inclusion','Inklusion & Teilhabe öffnen'];
+   if(/Funktion/.test(question))return ['home','Zur Startseite'];
+ }
+ return FAQ_DEFAULT_ROUTES[category]||null;
+}
+export function TechnicalHelpScreen({initialCategory='Alle',onNavigate}){
   const [category,setCategory]=useState(initialCategory);
   const [search,setSearch]=useState('');
   const [open,setOpen]=useState(null);
   const categories=useMemo(()=>['Alle',...new Set(topics.map(t=>t[0]))],[]);
-  const results=useMemo(()=>topics.filter(([c,q,a])=>(category==='Alle'||category===c)&&normalized(q+' '+a).includes(normalized(search.trim()))),[category,search]);
+  const results=useMemo(()=>topics.filter(([c,q,a])=>(category==='Alle'||category===c)&&normalized(c+' '+q+' '+a).includes(normalized(search.trim()))),[category,search]);
   return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <Text accessibilityRole="header" style={styles.h}>Hilfe & FAQ</Text>
     <Text style={[styles.caption,{marginBottom:17}]}>Schritt für Schritt durch Familienfunke. Suche nach einer Funktion oder wähle ein Thema.</Text>
@@ -107,18 +135,32 @@ export function TechnicalHelpScreen({initialCategory='Alle'}){
         <Text style={[styles.chipText,category===c&&{color:C.white}]}>{c}</Text>
       </Pressable>)}
     </ScrollView>
+    {search.length>0?<Pressable accessibilityRole="button" onPress={()=>{setSearch('');setCategory('Alle');}}
+      style={styles.resetSearch}><Text style={styles.resetSearchText}>Suche und Filter zurücksetzen</Text></Pressable>:null}
     <Text accessibilityLiveRegion="polite" style={[styles.caption,{marginBottom:10}]}>{results.length} {results.length===1?'Antwort':'Antworten'} gefunden</Text>
     {results.length===0?<Block title="Keine passende Frage gefunden">Versuche es mit einem anderen Suchbegriff oder wähle „Alle“.</Block>:null}
-    {results.map(([c,q,a])=><Pressable key={q} accessibilityRole="button"
-      accessibilityLabel={q} accessibilityState={{expanded:open===q}}
-      onPress={()=>setOpen(open===q?null:q)}
-      style={[styles.card,{minHeight:48}]}>
-      <View style={styles.questionRow}>
-        <View style={{flex:1}}><Text style={styles.overline}>{c}</Text><Text style={styles.question}>{q}</Text></View>
-        <Text style={styles.toggle}>{open===q?'−':'+'}</Text>
-      </View>
-      {open===q?<Text style={[styles.body,{marginTop:13}]}>{a}</Text>:null}
-    </Pressable>)}
+    {results.map(([c,q,a])=>{
+      const destination=faqDestination(c,q);
+      return <View key={q} style={[styles.card,{minHeight:48}]}>
+        <Pressable accessibilityRole="button"
+          accessibilityLabel={q} accessibilityState={{expanded:open===q}}
+          onPress={()=>setOpen(open===q?null:q)} style={styles.questionTap}>
+          <View style={styles.questionRow}>
+            <View style={{flex:1}}><Text style={styles.overline}>{c}</Text><Text style={styles.question}>{q}</Text></View>
+            <Text style={styles.toggle}>{open===q?'−':'+'}</Text>
+          </View>
+        </Pressable>
+        {open===q?<View>
+          <Text style={[styles.body,{marginTop:13}]}>{a}</Text>
+          {onNavigate&&destination?<Pressable accessibilityRole="button"
+            accessibilityLabel={destination[1]} onPress={()=>onNavigate(destination[0])}
+            style={({pressed})=>[styles.directAction,pressed&&{opacity:.8}]}>
+            <Text style={styles.directActionText}>{destination[1]}</Text>
+            <Text style={styles.directActionText}>›</Text>
+          </Pressable>:null}
+        </View>:null}
+      </View>;
+    })}
   </ScrollView>;
 }
 
@@ -141,6 +183,12 @@ const styles=StyleSheet.create({
   chip:{borderWidth:1,borderColor:'#CBE8E2',backgroundColor:C.pale,borderRadius:22,paddingHorizontal:14,paddingVertical:11,minHeight:44},
   activeChip:{backgroundColor:C.accentDark,borderColor:C.accentDark},
   chipText:{color:C.accentDark,fontWeight:'800',fontSize:12.5},
+  questionTap:{minHeight:48,justifyContent:'center'},
+  directAction:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',
+    marginTop:14,minHeight:48,paddingHorizontal:15,backgroundColor:C.mint,borderRadius:14},
+  directActionText:{fontSize:15,fontWeight:'900',color:C.accentDark},
+  resetSearch:{minHeight:44,alignSelf:'flex-start',paddingHorizontal:10,justifyContent:'center'},
+  resetSearchText:{color:C.accentDark,fontWeight:'800',fontSize:14},
   questionRow:{flexDirection:'row',alignItems:'flex-start',gap:10},
   overline:{fontSize:11,color:C.accentDark,marginBottom:7,fontWeight:'800'},
   question:{fontSize:16.5,color:C.ink,fontWeight:'900',lineHeight:23},
