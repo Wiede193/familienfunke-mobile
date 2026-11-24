@@ -90,6 +90,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
   const [statuses,setStatuses]=useState({});
   const [ready,setReady]=useState(false);
   const [phaseId,setPhaseId]=useState('pregnancy');
+  const [showTimeline,setShowTimeline]=useState(false);
   const [stepId,setStepId]=useState(null);
   const [showOderSpree,setShowOderSpree]=useState(false);
  const [showRegionalDirectory,setShowRegionalDirectory]=useState(!!linkedStateCode);
@@ -209,10 +210,8 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
   }
   return <ScrollView style={st.page} contentContainerStyle={st.content}>
     <View style={st.hero}>
-      <View style={st.sunDot}><Text style={st.sunSymbol}>♥</Text></View>
-      <Text style={st.eyebrow}>VON DER SCHWANGERSCHAFT BIS ZUM KITA-START</Text>
-      <Text accessibilityRole="header" style={st.heroTitle}>Familien-Wegweiser</Text>
-      <Text style={st.heroDescription}>Was steht wann an? Wir begleiten euch mit verständlichen Schritten – ohne unnötigen Druck.</Text>
+      <Text accessibilityRole="header" style={st.heroTitle}>Rat & Wissen</Text>
+      <Text style={st.heroDescription}>Antworten, Anträge und nächste Schritte für euren Familienalltag.</Text>
       <Text style={st.region}>⌖ {regionLabel?.trim()?regionLabel.trim():'Deutschland'} · örtliche Regeln beachten</Text>
     </View>
     {onOpenHealthy?<Pressable accessibilityRole="button" accessibilityLabel="Sport und Gesundheit öffnen"
@@ -236,7 +235,9 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
          <Text style={st.localLink}>Landesportal öffnen ↗</Text>
        </Pressable>
      </View>:null}
-     {initialKnowledgeQuery.trim()&&!linkedStateCode?<FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>:null}
+     {!linkedStateCode?<FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>:<FamilyTopicsSection/>}
+     <Pressable accessibilityRole="button" accessibilityState={{expanded:showTimeline}} onPress={()=>setShowTimeline(v=>!v)} style={st.directoryToggle}><Text style={st.directoryToggleTitle}>Eure Zeitleiste {showTimeline?'−':'+'}</Text><Text style={st.small}>Von der Schwangerschaft bis zur Kita · {doneCount} von {relevantCount} Aufgaben erledigt</Text></Pressable>
+     {showTimeline?<>
      <View style={st.progressCard}>
       <View style={st.flexRow}><View style={{flex:1}}><Text style={st.progressTitle}>Euer persönlicher Überblick</Text><Text style={st.small}>{doneCount} von {relevantCount} passenden Aufgaben erledigt</Text></View><Text style={st.progressNumber}>{pct}%</Text></View>
       <View style={st.progressTrack}><View style={[st.progressFill,{width:pct+'%'}]}/></View>
@@ -270,8 +271,8 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
         </Pressable>;
       })}
     </View>
-    <View style={{marginTop:22}}>
-      {!initialKnowledgeQuery.trim()?<FamilyTopicsSection/>:null}
+    </>:null}
+    <View style={{marginTop:16}}>
       <Pressable accessibilityRole="button" accessibilityState={{expanded:showRegionalDirectory}} onPress={()=>setShowRegionalDirectory(v=>!v)}
         style={st.directoryToggle}>
         <Text style={st.directoryToggleTitle}>{showRegionalDirectory?'Stellen und Formulare ausblenden':'Stellen und Formulare nach Wohnort finden'}</Text>
@@ -404,7 +405,7 @@ const st=StyleSheet.create({
  directoryToggleTitle:{fontSize:16,fontWeight:'800',color:P.ink},
   page:{flex:1,backgroundColor:P.bg},content:{padding:17,paddingBottom:46},
   loading:{flex:1,justifyContent:'center',alignItems:'center',gap:12},small:{fontSize:14,lineHeight:19,color:P.muted},
-  hero:{borderRadius:25,backgroundColor:P.sun,padding:22,marginBottom:15,borderWidth:1,borderColor:P.sunPale},
+  hero:{borderRadius:25,backgroundColor:P.sun,padding:16,marginBottom:12,borderWidth:1,borderColor:P.sunPale},
   sunDot:{width:49,height:49,backgroundColor:P.paper,borderRadius:18,alignItems:'center',justifyContent:'center',marginBottom:12},
   sunSymbol:{fontSize:27,color:P.coral,fontWeight:'900'},
   eyebrow:{fontSize:13,fontWeight:'900',color:P.tealDark,letterSpacing:1.3,marginBottom:6},

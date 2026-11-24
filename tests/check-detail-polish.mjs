@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const app=read('App.jsx'),guide=read('FamilyGuide.jsx'),topics=read('FamilyTopicsSection.jsx');
+const market=app.slice(app.indexOf('function MarketScreen('),app.indexOf('function MarketSortSelect('));
+const chat=app.slice(app.indexOf('function ChatScreen('),app.indexOf('// Resolve the exact clicked result'));
+const profile=app.slice(app.indexOf('function ProfileScreen('),app.indexOf('function InfoScreen('));
+for(const label of ['1 · Fotos','2 · Artikel & Eigenschaften','3 · Preis & Zustand','4 · Prüfen & veröffentlichen'])assert.ok(market.includes(label));
+assert.doesNotMatch(market,/title="Fotoerkennung vorerst deaktiviert"/);
+assert.ok(market.indexOf('1 · Fotos')<market.indexOf('CompletionPrompt title="Deine Anzeige'));
+assert.match(chat,/sendingRef\.current=true/);assert.match(chat,/editable=\{!sending\}/);assert.match(chat,/Versand nicht bestätigt\. Dein Text bleibt erhalten/);assert.match(chat,/Gesprächsoptionen/);assert.match(chat,/if\(ok\)\{setText\(''\)/);
+assert.match(profile,/previewOpen\?<View/);assert.match(profile,/customOpen\?<View/);assert.match(profile,/noch nicht gespeicherte Änderungen/);
+assert.ok(guide.indexOf('<FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>')<guide.indexOf('Eure Zeitleiste'));
+assert.match(guide,/showTimeline\?<\>/);assert.match(topics,/items\.slice\(0,visibleCount\)/);assert.match(topics,/Weitere Ratgeber anzeigen/);
+console.log('Article, chat, profile and knowledge UX checks passed.');

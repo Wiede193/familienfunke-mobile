@@ -2336,36 +2336,26 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       {boxAdvanced?<Button title="Gespeicherte Kiste löschen" mode="ghost" small disabled={busy||scanBusy||choosing||boxStorage==='loading'} onPress={confirmClearBox}/>:null}
     </Card>:null}
     {open?<Card style={{marginBottom:18}}>
-      <CompletionPrompt title="Deine Anzeige – diese Angaben fehlen noch"
-        items={[
-          {label:'Titel mit mindestens vier Zeichen',done:title.trim().length>=4},
-          {label:'Artikelzustand auswählen',done:['Neu','Sehr gut','Gut','Gebraucht'].includes(condition)},
-          {label:'Preis korrekt angeben',done:trade!=='sell'||parsePrice(price)!==null&&parsePrice(price)>=0},
-          {label:'Alle markierten Entwurfsfelder ergänzen',done:!hasTemplatePlaceholders(title)&&!hasTemplatePlaceholders(description)},
-          {label:'Marktplatzregeln bestätigen',done:rulesConfirmed},
-          ...(quick?[{label:'Steckbrief und bekannte Mängel prüfen',done:!!confirmed&&DEFECTS.includes(facts.defect)}]:[])
-        ]}/>
-      <ContextHelp title="Wann ist die Anzeige sichtbar?">
-        Nach dem Einreichen erscheint die Anzeige direkt im Familienbasar. Fotos werden zuerst hochgeladen. Problematische Angebote können von Mitgliedern gemeldet und bei mehreren unabhängigen Meldungen automatisch ausgeblendet werden. Bitte keine Personen, Adressen oder privaten Dokumente auf Fotos zeigen.
-      </ContextHelp>
-      <Text style={styles.sectionTitle}>{boxEditor?(boxEditor.packageIds?'Kistenpaket bearbeiten':'Kistenartikel bearbeiten'):editingId?'Anzeige bearbeiten':'Schnellverkauf'}</Text>
+      <Text style={styles.sectionTitle}>{boxEditor?(boxEditor.packageIds?'Kistenpaket bearbeiten':'Kistenartikel bearbeiten'):editingId?'Anzeige bearbeiten':'Artikel anbieten'}</Text>
       {boxEditor?<Info>{boxEditor.packageIds?'Prüfe, ob alle Artikel in der Paketliste und auf den Fotos enthalten sind.':'Bitte zeige auf den Verkaufsfotos nur diesen einzelnen Artikel. Du kannst jederzeit zur Kiste zurückkehren.'}</Info>:null}
+      <Text style={styles.sub}>Fotos, Beschreibung und Preis – alles an einem Ort.</Text>
       {!editingId&&!boxEditor?<DraftTemplatePicker
         title="Anzeige mit Steckbrief-Vorlage erstellen"
         templates={MARKET_DRAFT_TEMPLATES} selectedId={draftTemplateId}
         onPick={chooseMarketDraft}
         hint="Einheitliche Beschreibungen helfen später beim Auswerten. Kategorie, Zustand, Preis und Größen werden zusätzlich in den vorhandenen Formularfeldern gespeichert."/>:null}
        {!editingId&&!boxEditor?<View style={{flexDirection:'row',gap:8,marginVertical:10,flexWrap:'wrap'}}>
-        <Chip text="Foto & Steckbrief" selected={quick} onPress={scanBusy?undefined:()=>{setQuick(true);setCondition('');setConfirmed(false);}}/>
-        <Chip text="Manuell schreiben" selected={!quick} onPress={scanBusy?undefined:()=>{setQuick(false);setCondition(condition||'Gut');setProposal(null);setConfirmed(false);}}/>
+        <Chip text="Foto & Steckbrief" selected={quick} onPress={scanBusy?undefined:()=>{if(!quick){setQuick(true);setCondition('');setConfirmed(false);}}}/>
+        <Chip text="Manuell schreiben" selected={!quick} onPress={scanBusy?undefined:()=>{if(quick){setQuick(false);setCondition(condition||'Gut');setProposal(null);setConfirmed(false);}}}/>
       </View>:null}
       {quick&&!editingId&&!boxEditor?<View style={{backgroundColor:'#FFF4DA',borderRadius:15,padding:13,marginBottom:13}}>
         <Text style={[styles.label,{color:C.accentDark}]}>Fotografieren. Fakten prüfen. Fertig.</Text>
-        <Text style={styles.micro}>Fotografiere deinen Artikel und trage seine Eigenschaften selbst ein. Die automatische KI-Fotoanalyse ist aktuell ausgeschaltet.</Text>
+        <Text style={styles.micro}>Fotografiere deinen Artikel und trage seine Eigenschaften selbst ein. Eine automatische Fotoerkennung steht derzeit nicht zur Verfügung.</Text>
       </View>:null}
       <Text style={[styles.sub,{marginBottom:17}]}>{packageForm?'Ein letzter Blick auf dein Paket – danach wird es wie gewohnt geprüft.':editingId?
         'Beim Bearbeiten wird die Anzeige kurz als Entwurf gespeichert und anschließend automatisch neu veröffentlicht. Bereits hochgeladene Fotos bleiben erhalten.':
-        'Kostenlos einstellen. Titel, Beschreibung und alle Fotos werden vor Veröffentlichung geprüft.'}</Text>
+        'Kostenlos einstellen. Bitte alle Angaben vor dem Veröffentlichen sorgfältig prüfen.'}</Text>
+      <Text accessibilityRole="header" style={styles.sectionTitle}>1 · Fotos</Text>
       <View style={{marginBottom:15}}>
         <Button title={'＋ Fotos auswählen ('+(existingPhotoCount+photo.length)+'/5)'} mode="outline"
           disabled={choosing||busy||scanBusy||existingPhotoCount+photo.length>=5}
@@ -2384,8 +2374,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         <Text style={[styles.micro,{marginTop:8}]}>{packageForm?'Nur die tatsächlich enthaltenen Artikel zeigen.':'Bis zu fünf Bilder pro Angebot. Bei Änderungen werden alle Bilder erneut geprüft.'}</Text>
       </View>
       {quick&&!editingId&&!boxEditor?<View style={{marginBottom:16}}>
-        <Button title="Fotoerkennung vorerst deaktiviert" disabled={true} onPress={recognize}/>
-        <Text style={[styles.micro,{marginTop:7}]}>Es werden keine Fotos an ein kostenpflichtiges KI-Modell gesendet. Titel, Kategorie und Merkmale kannst du darunter selbst eintragen.</Text>
+        <Text style={styles.micro}>Die Angaben werden von dir eingetragen; es findet keine KI-Fotoanalyse statt.</Text>
         {scanNotice?<Info>{scanNotice}</Info>:null}
         {proposal?<View style={{borderWidth:1,borderColor:C.line,borderRadius:14,padding:12,marginTop:10}}>
           <Text style={styles.label}>Vorschlag aus deinen Fotos – noch nicht bestätigt</Text>
@@ -2395,6 +2384,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
           <Button title="Verwerfen" small mode="ghost" onPress={()=>setProposal(null)}/>
         </View>:null}
       </View>:null}
+      <Text accessibilityRole="header" style={styles.sectionTitle}>2 · Artikel & Eigenschaften</Text>
       {packageForm&&!boxFormExtras?<Text style={[styles.body,{fontWeight:'900',marginBottom:12}]}>{title}</Text>:<>
         <Input label="Anzeigentitel" value={title} onChangeText={v=>{setTitle(v);setConfirmed(false);}} maxLength={100} placeholder="z. B. Winterjacke Größe 116"/>
         <MarketCategoryDropdown label="Kategorie wählen" value={category} onChange={v=>{setCategory(v);setConfirmed(false);}} options={MARKET_CATEGORIES}/>
@@ -2422,6 +2412,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
           {scanned?<Button title="Merkmale einklappen" mode="ghost" small onPress={()=>setExpandFacts(false)}/>:null}
         </>:['Kleidung','Babyausstattung'].includes(category)&&askSize?<Input label="Welche Größe hat der Artikel? (optional)" value={facts.size} onChangeText={v=>changeFact('size',v)} maxLength={40} placeholder="Größe vom Etikett"/>:null}
       </View>:null}
+      <Text accessibilityRole="header" style={styles.sectionTitle}>3 · Preis & Zustand</Text>
       {packageForm?<Text style={[styles.micro,{marginBottom:4}]}>Angebot: {trade==='sell'?'Verkaufen':trade==='gift'?'Verschenken':'Tauschen'}</Text>:null}
       {packageForm?<Button title={boxFormExtras?'Optionen wieder ausblenden':'Weitere Optionen (freiwillig)'} mode="ghost" small onPress={()=>setBoxFormExtras(v=>!v)}/>:null}
       {(!packageForm||boxFormExtras)?<><Text style={styles.label}>Ich möchte</Text>
@@ -2463,6 +2454,19 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         <Text style={{fontSize:19,color:C.accentDark}}>{confirmed?'☑':'☐'}</Text>
         <Text style={[styles.body,{flex:1}]}>{packageForm?'Ich habe Paketinhalt und Zustand geprüft.':'Ich habe die Angaben geprüft. Der Steckbrief beschreibt mein Angebot korrekt.'}</Text>
       </Pressable>:null}
+      <Text accessibilityRole="header" style={styles.sectionTitle}>4 · Prüfen & veröffentlichen</Text>
+      <CompletionPrompt title="Deine Anzeige – diese Angaben fehlen noch"
+        items={[
+          {label:'Titel mit mindestens vier Zeichen',done:title.trim().length>=4},
+          {label:'Artikelzustand auswählen',done:['Neu','Sehr gut','Gut','Gebraucht'].includes(condition)},
+          {label:'Preis korrekt angeben',done:trade!=='sell'||parsePrice(price)!==null&&parsePrice(price)>=0&&parsePrice(price)<=10000000},
+          {label:'Alle markierten Entwurfsfelder ergänzen',done:!hasTemplatePlaceholders(title)&&!hasTemplatePlaceholders(description)},
+          {label:'Marktplatzregeln bestätigen',done:rulesConfirmed},
+          ...(quick?[{label:'Steckbrief und bekannte Mängel prüfen',done:!!confirmed&&DEFECTS.includes(facts.defect)&&(facts.defect!=='Vorhanden'||!!facts.defectText.trim())}]:[])
+        ]}/>
+      <ContextHelp title="Wann ist die Anzeige sichtbar?">
+        Nach dem Einreichen erscheint die Anzeige direkt im Familienbasar. Fotos werden zuerst hochgeladen. Problematische Angebote können von Mitgliedern gemeldet und bei mehreren unabhängigen Meldungen automatisch ausgeblendet werden. Bitte keine Personen, Adressen oder privaten Dokumente auf Fotos zeigen.
+      </ContextHelp>
       <Button title={busy?'Wird veröffentlicht …':editingId?'Änderungen direkt veröffentlichen':packageForm?'Paket jetzt veröffentlichen':'Anzeige jetzt veröffentlichen'} disabled={busy||choosing||scanBusy||!active||!rulesConfirmed||(quick&&!confirmed)} onPress={submit}/>
       {boxEditor?<Button title="Entwurf behalten und zurück zur Kiste" mode="outline" disabled={busy||choosing||scanBusy} onPress={saveBoxEditor}/>:null}
       {!editingId&&!boxEditor?<Button title="Viele Artikel? Zum Kistenmodus" mode="ghost" disabled={busy||choosing||scanBusy} onPress={()=>Alert.alert('Zum Kistenmodus wechseln?','Die Angaben dieser einzelnen Anzeige werden verworfen.',[{text:'Abbrechen',style:'cancel'},{text:'Wechseln',onPress:()=>{resetForm();showBox();}}])}/>:null}
@@ -3144,6 +3148,10 @@ function ChatList({contacts,me,nameOf,onChat,blocked,hasMore,loadingMore,onLoadM
 }
 function ChatScreen({contact,me,nameOf,disabled,blocked,send,onReport,onBlock,onDraftChange}) {
 const [text,setText]=useState('');
+const [sending,setSending]=useState(false);
+const sendingRef=useRef(false);
+const [sendError,setSendError]=useState('');
+const [showChatOptions,setShowChatOptions]=useState(false);
 useEffect(()=>{onDraftChange?.(!!text.trim());},[text,onDraftChange]);
 const [showMessageTemplates,setShowMessageTemplates]=useState(false);
 const [messageTemplateId,setMessageTemplateId]=useState(null);
@@ -3188,16 +3196,22 @@ async function loadOlder(){
   finally{if(requestSeq.current===seq)setOlderLoading(false);}
 }
 async function submit(){
-  const body=text.trim();if(!body)return;
+  const body=text.trim();if(!body||disabled||sendingRef.current||!contact||blocked(contact.sender_id===me?contact.recipient_id:contact.sender_id))return;
   if(hasTemplatePlaceholders(body))return Alert.alert('Nachrichtenvorlage ergänzen','Bitte ersetze alle markierten Angaben vor dem Senden.');
-  const ok=await send(body);
-  if(ok){setText('');setRefreshToken(x=>x+1);}
+  sendingRef.current=true;setSending(true);setSendError('');
+  try{
+    const ok=await send(body);
+    if(ok){setText('');setMessageTemplateId(null);setRefreshToken(x=>x+1);}
+    else setSendError('Versand nicht bestätigt. Dein Text bleibt erhalten. Prüfe die Rückmeldung oben, bevor du erneut sendest.');
+  }catch{setSendError('Versand nicht bestätigt. Dein Text bleibt erhalten.');}
+  finally{sendingRef.current=false;setSending(false);}
 }
 if(!contact)return <Blank title="Gespräch nicht verfügbar" body="Kontakt ist nicht mehr bestätigt oder wurde verborgen."/>;
 const other=contact.sender_id===me?contact.recipient_id:contact.sender_id;
 const sorted=[...messages].reverse();
 return <View style={{flex:1}}>
-<Row style={styles.chatHeader}><Avatar name={nameOf(other)} size={38}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other)}</Text><Text style={styles.micro}>Privates Gespräch</Text></View><Button title="Blockieren" small mode="ghost" onPress={()=>onBlock(other)}/></Row>
+<Row style={styles.chatHeader}><Avatar name={nameOf(other)} size={38}/><View style={{flex:1}}><Text style={styles.cardTitle}>{nameOf(other)}</Text><Text style={styles.micro}>Privates Gespräch</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Gesprächsoptionen" accessibilityState={{expanded:showChatOptions}} onPress={()=>setShowChatOptions(v=>!v)} style={{minHeight:44,minWidth:44,padding:8,justifyContent:'center',alignItems:'center'}}><FamilyIcon name="menu" size={23}/></Pressable></Row>
+{showChatOptions?<View style={{padding:12,backgroundColor:C.paper,borderBottomWidth:1,borderBottomColor:C.line}}><Button title="Kontakt blockieren" mode="outline" disabled={sending||disabled||blocked(other)} onPress={()=>{setShowChatOptions(false);onBlock(other);}}/><Button title="Optionen schließen" mode="ghost" small onPress={()=>setShowChatOptions(false)}/></View>:null}
 <ScrollView ref={chatScrollRef} style={{flex:1}} contentContainerStyle={{padding:16}} keyboardShouldPersistTaps="handled"
 onContentSizeChange={()=>{if(scrollToLatestRef.current){chatScrollRef.current?.scrollToEnd({animated:false});scrollToLatestRef.current=false;}}}>
 {chatLoading?<ActivityIndicator color={C.accent}/>:null}
@@ -3207,18 +3221,18 @@ onContentSizeChange={()=>{if(scrollToLatestRef.current){chatScrollRef.current?.s
 {!chatLoading&&messages.length===0&&!chatError?<Blank title="Sag Hallo!" body="Hier beginnt euer privates Gespräch."/>:
 sorted.map(m=><View key={m.id} style={[styles.bubble,m.sender_id===me?styles.mine:styles.theirs]}>
 <Text style={[styles.bubbleText,m.sender_id===me&&{color:C.white}]}>{m.body}</Text>
-<Row style={{justifyContent:'space-between',marginTop:7}}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>{formatDate(m.created_at)}</Text><Pressable accessibilityRole="button" accessibilityLabel={'Nachricht vom '+formatDate(m.created_at)+' melden'} hitSlop={10} onPress={()=>onReport(m.id)}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>Melden</Text></Pressable></Row>
+<Row style={{justifyContent:'space-between',marginTop:7}}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>{formatDate(m.created_at)}</Text>{m.sender_id!==me?<Pressable accessibilityRole="button" accessibilityLabel={'Nachricht vom '+formatDate(m.created_at)+' melden'} hitSlop={10} onPress={()=>onReport(m.id)}><Text style={[styles.micro,m.sender_id===me&&{color:'#E4F6F6'}]}>Melden</Text></Pressable>:null}</Row>
 </View>)}
 </ScrollView>
 {blocked(other)?<Info warning>Du hast diese Person blockiert. Neue Nachrichten sind nicht erlaubt.</Info>:
 <View>
   <Pressable accessibilityRole="button" accessibilityLabel="Nachrichtenvorlagen anzeigen"
     accessibilityState={{expanded:showMessageTemplates}}
-    onPress={()=>setShowMessageTemplates(v=>!v)}
+    disabled={sending} onPress={()=>setShowMessageTemplates(v=>!v)}
     style={{minHeight:44,paddingHorizontal:16,paddingVertical:10}}>
     <Text style={{fontSize:14,color:C.accentDark,fontWeight:'800'}}>{showMessageTemplates?'Vorlagen ausblenden −':'✦ Nachrichtenvorlage nutzen +'}</Text>
   </Pressable>
-  {showMessageTemplates?<DraftTemplatePicker title="Nachricht als Entwurf vorbereiten"
+  {showMessageTemplates&&!sending?<DraftTemplatePicker title="Nachricht als Entwurf vorbereiten"
     templates={MESSAGE_DRAFT_TEMPLATES} selectedId={messageTemplateId}
     hint="Beispiele für den Gesprächseinstieg. Vor dem Senden anpassen; es wird niemals automatisch gesendet."
     onPick={template=>{
@@ -3227,8 +3241,9 @@ sorted.map(m=><View key={m.id} style={[styles.bubble,m.sender_id===me?styles.min
         {text:'Weiter schreiben',style:'cancel'},{text:'Vorlage nutzen',onPress:apply}
       ]);else apply();
     }}/>:null}
-  <Row style={styles.chatComposer}><TextInput accessibilityLabel="Private Nachricht schreiben" placeholder="Nachricht schreiben …" value={text} onChangeText={setText} maxLength={2000} multiline
-  placeholderTextColor={C.muted} style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]}/><Button title="Senden" small disabled={disabled||!text.trim()||hasTemplatePlaceholders(text)} onPress={submit}/></Row>
+  {sendError?<Text accessibilityLiveRegion="polite" style={{fontSize:13,color:C.danger,paddingHorizontal:16,paddingBottom:7}}>{sendError}</Text>:null}
+  <Row style={styles.chatComposer}><TextInput accessibilityLabel="Private Nachricht schreiben" placeholder="Nachricht schreiben …" value={text} editable={!sending} onChangeText={value=>{setText(value);setSendError('');}} maxLength={2000} multiline
+  placeholderTextColor={C.muted} style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]}/><Button title={sending?'Sendet …':'Senden'} small disabled={disabled||sending||!text.trim()||hasTemplatePlaceholders(text)} onPress={submit}/></Row>
   {hasTemplatePlaceholders(text)?<Text accessibilityLiveRegion="polite" style={{fontSize:13,color:C.muted,paddingHorizontal:16,paddingBottom:7}}>Ersetze die Angaben in eckigen Klammern, bevor du sendest.</Text>:null}
 </View>}
 </View>;
@@ -3476,6 +3491,8 @@ const [selectedPhoto,setSelectedPhoto]=useState(null);
 const [photoPickerBusy,setPhotoPickerBusy]=useState(false);
 const [newPassword,setNewPassword]=useState('');
 const [profileSection,setProfileSection]=useState('about');
+const [previewOpen,setPreviewOpen]=useState(false);
+const [customOpen,setCustomOpen]=useState(false);
 const [interestQuery,setInterestQuery]=useState('');
 const [interestGroup,setInterestGroup]=useState('Draußen & Natur');
 const [customInterest,setCustomInterest]=useState('');
@@ -3519,7 +3536,7 @@ function addCustomInterest(){
   Alert.alert('Auswahl voll','Entferne zuerst ein Hobby aus deiner Auswahl.');return;
  }
  setForm(f=>({...f,interests:addFamilyInterest(f.interests,value)}));
- setCustomInterest('');
+ setCustomInterest('');setInterestQuery('');setCustomOpen(false);
 }
 async function updatePassword(){if(newPassword.length<12)return Alert.alert('Passwort','Bitte mindestens 12 Zeichen verwenden.');const ok=await changePassword(newPassword);if(ok)setNewPassword('');}
 async function selectDraftPhoto(){
@@ -3556,15 +3573,16 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <View style={styles.progressTrack}><View style={[styles.progressFill,{width:(completed*25)+'%'}]}/></View>
 </View>
 {!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}
-<View style={{marginTop:17,padding:14,borderRadius:17,backgroundColor:C.paper,borderWidth:1,borderColor:C.line}}>
- <Text style={styles.sectionTitle}>Euer Steckbrief – Vorschau</Text>
+<Pressable accessibilityRole="button" accessibilityState={{expanded:previewOpen}} onPress={()=>setPreviewOpen(v=>!v)} style={{minHeight:48,marginTop:10,paddingVertical:10,flexDirection:'row',alignItems:'center',gap:8}}><Text style={[styles.label,{flex:1,marginBottom:0}]}>Euer Steckbrief – Vorschau</Text><FamilyIcon name={previewOpen?'chevron-up':'chevron-down'} size={20}/></Pressable>
+{previewOpen?<View style={{...UI.card,padding:14}}>
  <Text style={[styles.micro,{marginTop:4,marginBottom:9}]}>So könnten eure freiwilligen Angaben nach Freigabe aussehen.</Text>
  <Text style={styles.body}>{form.about?.trim()||'Erzählt ein wenig von euch: Welche Ausflüge, Spiele oder Hobbys mögt ihr?'}</Text>
  {form.region_label?<Text style={[styles.micro,{marginTop:10}]}>Region: {form.region_label}</Text>:null}
  {(form.interests||[]).length?<View style={[styles.chipsRow,{marginTop:9}]}>{form.interests.slice(0,6).map(i=><Chip key={i} text={i}/>)}</View>:null}
  {(form.interests||[]).length>6?<Text style={[styles.micro,{marginTop:6}]}>und weitere {(form.interests||[]).length-6} Interessen</Text>:null}
-</View>
+</View>:null}
 </Card>
+{dirty?<View accessibilityLiveRegion="polite" style={{padding:10,marginTop:8,borderRadius:12,backgroundColor:C.sunPale}}><Text style={[styles.micro,{fontWeight:'700',color:C.accentDark}]}>Du hast noch nicht gespeicherte Änderungen.</Text></View>:null}
 <View style={{flexDirection:'row',flexWrap:'wrap',gap:8,marginTop:11,marginBottom:14}}>
 {[['about','Über uns'],['hobbies','Hobbys'],['privacy','Sichtbarkeit'],['photos','Fotos'],['security','Konto & Sicherheit']].map(([id,title])=><Chip key={id} text={title} selected={profileSection===id} onPress={()=>switchSection(id)}/>)}
 </View>
@@ -3579,7 +3597,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 {profileSection==='hobbies'?<Card>
 <Text style={styles.sectionTitle}>Was macht euch Freude?</Text>
 <Text style={[styles.sub,{marginBottom:14}]}>Wähle passende Hobbys aus verschiedenen Bereichen oder ergänze ein eigenes. Ihr entscheidet selbst, wie viel ihr teilen möchtet.</Text>
-<Text style={styles.label}>Eure Auswahl: {(form.interests||[]).length} von {MAX_PROFILE_INTERESTS}</Text>
+<Row style={{justifyContent:'space-between',flexWrap:'wrap',marginBottom:8}}><Text style={[styles.label,{marginBottom:0}]}>Eure Auswahl: {(form.interests||[]).length} von {MAX_PROFILE_INTERESTS}</Text><Button title={busy?'Speichert …':'Speichern'} small disabled={busy||!dirty} onPress={submit}/></Row>
 {(form.interests||[]).length?<View style={[styles.chipsRow,{marginTop:9,marginBottom:18}]}>
  {(form.interests||[]).map(i=><Chip key={i} text={i+' ×'} selected onPress={()=>toggle(i)}/>)}
 </View>:<Text style={[styles.micro,{marginBottom:15}]}>Noch nichts ausgewählt. Tippe einfach auf ein Hobby.</Text>}
@@ -3595,11 +3613,13 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
   <View style={styles.chipsRow}>{options.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
  </View>:null;
 })}
-{interestQuery.trim()&&!filterFamilyInterests(interestQuery,INTERESTS).length?<Text style={styles.micro}>Dieses Hobby steht noch nicht in der Liste. Du kannst es unten selbst ergänzen.</Text>:null}
-<Text style={[styles.label,{marginTop:12}]}>Eigenes Hobby ergänzen</Text>
+{interestQuery.trim()&&!filterFamilyInterests(interestQuery,INTERESTS).length?<Text style={styles.micro}>Dieses Hobby steht noch nicht in der Liste. Ergänze es als eigenes Hobby.</Text>:null}
+<Pressable accessibilityRole="button" accessibilityState={{expanded:customOpen}} onPress={()=>{setCustomOpen(v=>!v);if(!customOpen&&!customInterest&&interestQuery.trim()&&!filterFamilyInterests(interestQuery,INTERESTS).length)setCustomInterest(interestQuery.trim().slice(0,40));}} style={{minHeight:48,paddingVertical:12,flexDirection:'row',alignItems:'center',gap:8}}><Text style={[styles.label,{flex:1,marginBottom:0}]}>Eigenes Hobby ergänzen</Text><FamilyIcon name={customOpen?'chevron-up':'plus'} size={20}/></Pressable>
+{customOpen?<View>
 <Input label="Weiteres Hobby (freiwillig)" placeholder="z. B. Origami" value={customInterest} onChangeText={setCustomInterest} maxLength={40}/>
 <Text style={[styles.micro,{marginBottom:12}]}>Bitte keine Kontaktdaten oder Angaben zu einzelnen Kindern eingeben. Freie Hobbys sind nach Profilfreigabe für andere sichtbar.</Text>
 <Button title="Hobby hinzufügen" mode="outline" disabled={!customInterest.trim()||busy} onPress={addCustomInterest}/>
+</View>:null}
 <View style={{marginTop:16}}><Button title={busy?'Bitte warten …':'Interessen speichern'} disabled={busy} onPress={submit}/></View>
 </Card>:null}
 {profileSection==='privacy'?<Card>

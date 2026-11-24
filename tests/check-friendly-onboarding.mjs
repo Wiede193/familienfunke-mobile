@@ -60,7 +60,7 @@ assert.match(app,/title="Anzeige mit Steckbrief-Vorlage erstellen"/);
 assert.match(app,/title="Treffen mit Vorlage planen"/);
 assert.match(app,/title="Nachricht als Entwurf vorbereiten"/);
 assert.match(app,/hasTemplatePlaceholders\(title\)\|\|hasTemplatePlaceholders\(description\)/);
-assert.match(app,/disabled=\{disabled\|\|!text\.trim\(\)\|\|hasTemplatePlaceholders\(text\)\}/);
+assert.match(app,/disabled=\{disabled\|\|sending\|\|!text\.trim\(\)\|\|hasTemplatePlaceholders\(text\)\}/);
 assert.match(picker,/\[ergänzen\] muss vor dem Absenden ersetzt werden/);
 assert.doesNotMatch(motion,/react-native-reanimated|lottie|react-native-svg/);
 console.log('Sanfte Animationen, App-Tour, mobile Lesbarkeit und sichere Vorlage-Sperren geprüft.');

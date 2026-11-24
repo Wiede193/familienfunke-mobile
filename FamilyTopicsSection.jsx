@@ -1,14 +1,15 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {Linking,Pressable,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
-import {FAMILY_COLORS as C} from './FamilyTheme';
+import {FAMILY_COLORS as C,FAMILY_UI as UI} from './FamilyTheme';
 import SearchResultFeedback from './SearchResultFeedback';
 import {FAMILY_TOPIC_CATEGORIES,FAMILY_TOPIC_ARTICLES,findFamilyTopics} from './FamilyTopicsKnowledge';
 
 // A self-contained guide, no personal details, search history or health facts are persisted.
 export default function FamilyTopicsSection({initialQuery=''}){
- const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[category,setCategory]=useState('all'),[expanded,setExpanded]=useState(null);
+ const [open,setOpen]=useState(true),[query,setQuery]=useState(''),[category,setCategory]=useState('all'),[expanded,setExpanded]=useState(null);
+ const [visibleCount,setVisibleCount]=useState(6);
  const items=useMemo(()=>findFamilyTopics(query,category),[query,category]);
- useEffect(()=>{if(initialQuery.trim()){setOpen(true);setQuery(initialQuery);}},[initialQuery]);
+ useEffect(()=>{if(initialQuery.trim()){setOpen(true);setQuery(initialQuery);setCategory('all');setExpanded(null);setVisibleCount(6);}},[initialQuery]);
  return <View style={s.container}>
   <Pressable accessibilityRole="button" accessibilityState={{expanded:open}}
     accessibilityLabel="Familienthemen – Ratgeber öffnen"
@@ -23,17 +24,18 @@ export default function FamilyTopicsSection({initialQuery=''}){
   {open?<View style={s.body}>
    <Text style={s.hint}>Informationen zur Orientierung, keine automatische Anspruchsprüfung. Suche und Auswahl werden nicht gespeichert.</Text>
    <TextInput accessibilityLabel="Familienthemen durchsuchen" placeholder="z. B. Wohngeld, Kindergeld, Kita, Streit …"
-    value={query} onChangeText={setQuery} placeholderTextColor={C.muted} style={s.input}/>
+    value={query} onChangeText={value=>{setQuery(value);setExpanded(null);setVisibleCount(6);}} placeholderTextColor={C.muted} style={s.input}/>
+   {query?<Pressable accessibilityRole="button" onPress={()=>{setQuery('');setCategory('all');setExpanded(null);setVisibleCount(6);}} style={s.reset}><Text style={s.linkText}>Suche zurücksetzen</Text></Pressable>:null}
    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingVertical:8}} keyboardShouldPersistTaps="handled">
     {FAMILY_TOPIC_CATEGORIES.map(item=><Pressable key={item.id} accessibilityRole="button"
       accessibilityState={{selected:category===item.id}}
-      onPress={()=>{setCategory(item.id);setExpanded(null);}}
+      onPress={()=>{setCategory(item.id);setExpanded(null);setVisibleCount(6);}}
       style={[s.chip,category===item.id&&s.selected]}>
        <Text style={[s.chipText,category===item.id&&s.selectedText]}>{item.label}</Text>
     </Pressable>)}
    </ScrollView>
    <SearchResultFeedback active={!!(query.trim()||category!=='all')} query={query} count={items.length} context="Familienratgeber" hint="Artikel antippen, um die nächsten Schritte und offiziellen Quellen zu öffnen."/>
-   {items.map(item=><View key={item.id} style={s.article}>
+   {items.slice(0,visibleCount).map(item=><View key={item.id} style={s.article}>
      <Pressable accessibilityRole="button" accessibilityState={{expanded:expanded===item.id}}
        accessibilityLabel={item.title+(expanded===item.id?' schließen':' öffnen')}
        onPress={()=>setExpanded(v=>v===item.id?null:item.id)} style={s.articleButton}>
@@ -61,6 +63,7 @@ export default function FamilyTopicsSection({initialQuery=''}){
        </Pressable>)}
      </View>:null}
    </View>)}
+   {items.length>visibleCount?<Pressable accessibilityRole="button" onPress={()=>setVisibleCount(n=>n+6)} style={s.link}><Text style={s.linkText}>Weitere Ratgeber anzeigen ({items.length-visibleCount})</Text></Pressable>:null}
    {!items.length?<Text style={s.hint}>Keine Treffer. Suche mit einem anderen Begriff oder wähle „Alle Themen“.</Text>:null}
    <Text style={s.hint}>Quellenstand: 23. November 2026. Rechtliche Fristen, Anspruchsvoraussetzungen, Kontaktdaten und medizinische Empfehlungen können sich ändern; verbindliche Auskunft nur bei der zuständigen Stelle.</Text>
   </View>:null}
@@ -75,11 +78,12 @@ const s=StyleSheet.create({
  arrow:{fontSize:23,fontWeight:'700',color:C.accentDark},
  body:{padding:14,gap:9},
  hint:{fontSize:14,lineHeight:18,color:C.muted},
- input:{minHeight:47,paddingHorizontal:13,borderRadius:12,borderColor:C.line,borderWidth:1,color:C.ink,backgroundColor:C.bg,fontSize:14},
+ input:{...UI.field,paddingHorizontal:13,color:C.ink,fontSize:15},
+ reset:{minHeight:44,justifyContent:'center'},
  chip:{minHeight:44,paddingHorizontal:11,justifyContent:'center',borderRadius:18,borderColor:C.line,borderWidth:1,backgroundColor:C.paper},
  selected:{backgroundColor:C.accentDark,borderColor:C.accentDark},
  chipText:{fontSize:14,fontWeight:'700',color:C.accentDark},selectedText:{color:C.white},
- article:{borderRadius:14,borderColor:C.line,borderWidth:1,backgroundColor:C.paper,overflow:'hidden'},
+ article:{...UI.card,overflow:'hidden'},
  articleButton:{minHeight:56,padding:12,flexDirection:'row',gap:10,alignItems:'center'},
  articleTitle:{fontSize:16,fontWeight:'800',color:C.ink,marginBottom:4},
  detail:{borderTopWidth:1,borderTopColor:C.line,padding:12,gap:7},
