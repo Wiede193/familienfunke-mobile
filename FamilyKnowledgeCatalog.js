@@ -37,6 +37,21 @@ export const KNOWLEDGE_ALIASES=[
  {kind:'inclusion',id:'relief-services',terms:['entlastungsbetrag','familienentlastender dienst','unterstützung pflegende eltern','entlastungsleistungen']},
  {kind:'inclusion',id:'parental-assistance',terms:['elternassistenz','begleitete elternschaft','eltern mit behinderung hilfe','assistenz für eltern']},
  {kind:'inclusion',id:'disability-tax',terms:['behinderten pauschbetrag','steuer behinderung kind','steuerfreibetrag behinderung','pflege pauschbetrag']}
+,
+{"kind":"topic","id":"elterngeld-antrag","terms":["elterngeld","elterngeldplus","basiselterngeld","elterngeld beantragen","antrag elterngeld","elterngeld digital","mein elterngeldantrag","elterngeld unterlagen","wer zahlt elterngeld","elterngeld nach der geburt"]},
+{"kind":"topic","id":"kindergeld-antrag","terms":["kindergeld beantragen","kindergeldantrag","kindergeld formulare","kindergeld für baby","kindergeld nach der geburt","kindergeld familienkasse","kindergeld für volljährige kinder","kindergeld unterlagen","kindergeld nachweisen"]},
+{"kind":"topic","id":"mutterschutz-mutterschaftsgeld","terms":["mutterschutz","mutterschaftsgeld","mutterschutzgeld","mutterschutz arbeitgeber","schutzfristen schwangerschaft","mutterschaftsgeld beantragen","mutterschutz im job","wer zahlt mutterschaftsgeld"]},
+{"kind":"topic","id":"schwangerschaftsberatung","terms":["schwangerschaftsberatung","beratung in der schwangerschaft","schwanger und hilflos","ungeplant schwanger","schwangere beratung","vertrauliche geburt hilfe","schwangerschaftshilfe","finanzielle hilfen schwangerschaft"]},
+{"kind":"topic","id":"geburt-checkliste","terms":["checkliste nach geburt","was nach der geburt erledigen","bürokratie nach geburt","behörden nach der geburt","baby anmeldung","kind geboren was nun","geburtsurkunde beantragen","baby krankenversicherung","standesamt geburt"]},
+{"kind":"topic","id":"studium-ausbildung-mit-kind","terms":["studieren mit kind","studium mit baby","studium und kind","ausbildung mit kind","azubi mit kind","studenten mit kind","bafög mit kind","bafog kinderbetreuungszuschlag","university familienservice"]},
+{"kind":"topic","id":"schulden-beratung-familien","terms":["schuldnerberatung","schulden familie","mietschulden","mietrückstände","wohnungsverlust wegen schulden","räumungsklage","mahnungen geldprobleme","hilfe bei schulden","familie pleite"]},
+{"kind":"topic","id":"pflegefamilie-werden","terms":["pflegefamilie werden","pflegeeltern werden","pflegekind aufnehmen","pflegeelternschaft","pflegekinderdienst","wer kann pflegeeltern werden","eignung pflegefamilie"]},
+{"kind":"topic","id":"adoption-beratung","terms":["adoption","kind adoptieren","adoptivkind","adoptionsvermittlung","adoptionsvermittlungsstelle","adoptionsberatung","adoption beantragen","unterschied adoption pflegekind"]},
+{"kind":"topic","id":"kinderschutz-beratung","terms":["kinderschutz","kindeswohlgefährdung","kindeswohl gefahr","kind wird vernachlässigt","kind wird misshandelt","verdacht auf kindesmisshandlung","kinderschutz jugendamt","kindeswohl schützen"]},
+{"kind":"topic","id":"beratung-kinder-jugendliche","terms":["nummer gegen kummer","kindertelefon","jugendtelefon","116111","116 111","hilfe bei mobbing","cybermobbing kind","jugendberatung","jugendnotmail","kind wird gemobbt"]},
+{"kind":"topic","id":"aerztlicher-bereitschaftsdienst-kinder","terms":["116117","116 117","ärztlicher bereitschaftsdienst","kinderarzt notdienst","kind krank am wochenende","kinderarzt nachts","arztnotdienst kind","wann 112 wann 116117","notdienst kinder"]},
+{"kind":"topic","id":"jugendamt-familienhilfen","terms":["familienhilfen","hilfen zur erziehung","sozialpädagogische familienhilfe","jugendamt unterstützt familie","familienhilfe jugendamt","familienbetreuer","ambulante familienhilfe","familienunterstützung jugendamt"]},
+{"kind":"topic","id":"hilfen-junge-volljaehrige","terms":["hilfen für junge volljährige","jugendhilfe ab 18","jugendamt nach 18","hilfe für 18 jährige","jugendhilfe nach volljährigkeit","betreutes wohnen junger erwachsener","jugendamt für erwachsene"]}
 ];
 
 // Sorgfältig begrenzte Kinder-/Elternfragen mit überprüfbaren Fachquellen.

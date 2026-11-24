@@ -276,6 +276,359 @@ export const FAMILY_TOPIC_ARTICLES=[
  sources:[source('Gesundheitsportal – Haushaltshilfe','https://gesund.bund.de/haushaltshilfe'),
   source('Gesundheitsportal – Wenn Eltern krank sind','https://gesund.bund.de/unterstuetzungsmoeglichkeiten-eltern-krankheitsfall')]
 }
+,
+{
+  "id": "elterngeld-antrag",
+  "category": "money",
+  "title": "Elterngeld und ElterngeldPlus beantragen",
+  "short": "Unterlagen, zuständige Stelle und digitale Antragstellung nach der Geburt.",
+  "overview": "Elterngeld unterstützt Eltern, die nach der Geburt ihr Kind betreuen und deshalb nicht oder weniger arbeiten. Basiselterngeld und ElterngeldPlus haben unterschiedliche Bezugsmodelle. Der Antrag wird bei der zuständigen Elterngeldstelle gestellt; die genaue Berechnung hängt von Einkommen, Erwerbsumfang, Elternkonstellation und dem Geburtsdatum ab.",
+  "steps": [
+    "Das offizielle Familienportal zu Basiselterngeld, ElterngeldPlus und Voraussetzungen lesen.",
+    "Die zuständige Elterngeldstelle nach dem maßgeblichen Wohnort ermitteln; gegebenenfalls das amtliche Online-Verfahren nutzen.",
+    "Geburtsnachweis, Einkommensunterlagen und die im Einzelfall verlangten Erklärungen vorbereiten.",
+    "Antrag nach der Geburt einreichen, Zugang dokumentieren und fehlende Nachweise bei Bedarf ergänzen."
+  ],
+  "responsible": "Zuständige Elterngeldstelle des Landes oder der Kommune am maßgeblichen Wohnort.",
+  "documents": "Je nach Fall Geburtsurkunde beziehungsweise Geburtsbescheinigung, Einkommensnachweise vor der Geburt, Nachweise über Mutterschaftsleistungen, Arbeitszeit- und Einkommensangaben während des Bezugs sowie gegebenenfalls die Mitwirkung des anderen Elternteils.",
+  "caveat": "Elterngeld und Elternzeit sind unterschiedliche Dinge. Die rückwirkende Elterngeldzahlung ist begrenzt; Antrag und individuelle Lebensmonate frühzeitig prüfen. Die digitale Antragstellung kann je nach Bundesland und Behörde unterschiedlich weit reichen.",
+  "sources": [
+    {
+      "title": "Familienportal – Elterngeld beantragen",
+      "url": "https://familienportal.de/familienportal/familienleistungen/elterngeld/faq/wie-kann-ich-elterngeld-beantragen--124762"
+    },
+    {
+      "title": "Familienportal – Elterngeld online beantragen",
+      "url": "https://familienportal.de/familienportal/rechner-antraege/elterngeld-online-beantragen-127692"
+    }
+  ]
+},
+{
+  "id": "kindergeld-antrag",
+  "category": "money",
+  "title": "Kindergeld: Anspruch, Antrag und Unterlagen",
+  "short": "Kindergeld bei der Familienkasse beantragen und Änderungen melden.",
+  "overview": "Kindergeld ist eine familienbezogene Leistung, die in der Regel über die Familienkasse der Bundesagentur für Arbeit abgewickelt wird. Bei volljährigen Kindern können besondere Voraussetzungen gelten, etwa während Ausbildung oder Studium. Die Familienkasse prüft Ansprüche und notwendige Nachweise.",
+  "steps": [
+    "Informationen der Familienkasse zu Alter, Ausbildung und weiteren Voraussetzungen lesen.",
+    "Den Kindergeldantrag online stellen oder die offiziellen Formulare nutzen.",
+    "Steueridentifikationsnummern und erforderliche Familiennachweise bereithalten.",
+    "Antragsstand prüfen und Änderungen, etwa beim Ausbildungsstatus eines volljährigen Kindes, der Familienkasse mitteilen."
+  ],
+  "responsible": "Familienkasse der Bundesagentur für Arbeit; für einzelne Personengruppen können besondere Zuständigkeiten gelten.",
+  "documents": "In der Regel Steueridentifikationsnummern von berechtigter Person und Kind sowie Familienangaben; bei volljährigen Kindern gegebenenfalls Ausbildungs-, Schul- oder andere besondere Nachweise.",
+  "caveat": "Aktuelle Kindergeldhöhe, Auszahlungstermine und Sonderfälle ändern sich; keine verbindliche Anspruchs- oder Betragsberechnung durch Familienfunke. Eine spätere Antragstellung kann die rückwirkende Auszahlung begrenzen.",
+  "sources": [
+    {
+      "title": "Bundesagentur für Arbeit – Kindergeld",
+      "url": "https://www.arbeitsagentur.de/familie-und-kinder/infos-rund-um-kindergeld/kindergeld-anspruch-hoehe-dauer"
+    },
+    {
+      "title": "Bundesagentur für Arbeit – Kindergeldformulare",
+      "url": "https://www.arbeitsagentur.de/familie-und-kinder/downloads-familie-und-kinder/formulare-kindergeld"
+    }
+  ]
+},
+{
+  "id": "mutterschutz-mutterschaftsgeld",
+  "category": "money",
+  "title": "Mutterschutz und Mutterschaftsgeld verstehen",
+  "short": "Gesundheitsschutz am Arbeitsplatz und mögliche Mutterschaftsleistungen.",
+  "overview": "Mutterschutz umfasst unter anderem den Gesundheitsschutz am Arbeitsplatz, Schutzfristen rund um die Geburt und besondere arbeitsrechtliche Regelungen. Mutterschaftsgeld kann je nach Versicherungs- und Beschäftigungssituation bei der Krankenkasse oder einer anderen zuständigen Stelle beantragt werden.",
+  "steps": [
+    "Nach Feststellung der Schwangerschaft die eigene Arbeits- und Versicherungssituation klären.",
+    "Arbeitgeber über die Schwangerschaft informieren, damit Schutzregelungen am Arbeitsplatz umgesetzt werden können.",
+    "Bei der Krankenkasse beziehungsweise zuständigen Mutterschaftsgeldstelle Unterlagen und Antragsweg erfragen.",
+    "Voraussichtlichen Geburtstermin, Schutzfristen und die Abstimmung mit Elterngeld und Elternzeit getrennt dokumentieren."
+  ],
+  "responsible": "Arbeitgeber für Arbeitsschutz; gesetzliche Krankenkasse oder andere zuständige Stelle für Mutterschaftsgeld; gegebenenfalls Mutterschutzaufsicht.",
+  "documents": "Je nach Antragsweg Bescheinigung über den voraussichtlichen Entbindungstermin, Angaben zum Beschäftigungsverhältnis, Versicherungsnachweis und gegebenenfalls weitere Einkommens- oder Arbeitgebernachweise.",
+  "caveat": "Schutzfristen und Leistungen hängen von der Situation ab; für Frühgeburten, Mehrlinge, besondere Schutzbedarfe und fehlende eigene gesetzliche Krankenversicherung gelten Abweichungen. Mutterschutz und Elternzeit dürfen nicht gleichgesetzt werden.",
+  "sources": [
+    {
+      "title": "Familienportal – Mutterschutz",
+      "url": "https://familienportal.de/familienportal/familienleistungen/mutterschutz"
+    },
+    {
+      "title": "Familienportal – Mutterschaftsleistungen",
+      "url": "https://familienportal.de/familienportal/familienleistungen/mutterschaftsleistungen"
+    }
+  ]
+},
+{
+  "id": "schwangerschaftsberatung",
+  "category": "care",
+  "title": "Schwangerschaftsberatung und vertrauliche Hilfe finden",
+  "short": "Kostenfreie Beratung bei Fragen, Belastung oder Unsicherheit in der Schwangerschaft.",
+  "overview": "Schwangerschaftsberatungsstellen unterstützen bei rechtlichen, sozialen, gesundheitlichen und finanziellen Fragen rund um Schwangerschaft und Geburt. Sie können zu Hilfen und Leistungen informieren und bei schwierigen persönlichen Situationen beraten. Die Angebote und die Möglichkeiten vertraulicher Beratung sind je nach Beratungsstelle zu klären.",
+  "steps": [
+    "Eine anerkannte Schwangerschaftsberatungsstelle in der eigenen Region suchen.",
+    "Bei der Kontaktaufnahme klären, ob eine vertrauliche, telefonische oder persönliche Beratung gewünscht ist.",
+    "Fragen zu Leistungen, Wohnen, Ausbildung, Partnerschaft oder Gesundheit für das Gespräch notieren.",
+    "Etwaige finanzielle Hilfen und dafür benötigte Nachweise direkt mit der Beratungsstelle besprechen."
+  ],
+  "responsible": "Anerkannte Schwangerschaftsberatungsstellen; für medizinische Fragen zusätzlich Hebamme und ärztliche Praxis.",
+  "documents": "Für eine erste allgemeine Beratung häufig keine besonderen Nachweise; für konkrete Hilfs- oder Leistungsanträge können Wohnsitz-, Einkommens-, Schwangerschafts- und weitere Unterlagen erforderlich sein.",
+  "caveat": "Eine allgemeine Schwangerschaftsberatung ist von einer gesetzlich besonders geregelten Schwangerschaftskonfliktberatung zu unterscheiden. Vertrauliche Geburt und Konfliktberatung benötigen besondere fachliche Begleitung.",
+  "sources": [
+    {
+      "title": "Familienportal – Beratung in der Schwangerschaft",
+      "url": "https://familienportal.de/familienportal/lebenslagen/schwangerschaft-geburt/gesundheit-und-beratung/wo-kann-ich-mich-beraten-lassen-wenn-ich-schwanger-bin--125110"
+    }
+  ]
+},
+{
+  "id": "geburt-checkliste",
+  "category": "care",
+  "title": "Nach der Geburt: Behördengänge und Familienleistungen",
+  "short": "Geburtsanzeige, Urkunden, Versicherung und Leistungen strukturiert klären.",
+  "overview": "Nach der Geburt sind je nach Familiensituation mehrere voneinander getrennte Schritte wichtig. Dazu gehören die Anzeige der Geburt beim Standesamt des Geburtsortes, gegebenenfalls Krankenversicherung und Elternleistungen sowie besondere Erklärungen zu Vaterschaft und Sorge. Die offizielle Checkliste des Familienportals hilft, den Überblick zu behalten.",
+  "steps": [
+    "Bei Klinik oder Geburtshaus nachfragen, wie die Geburtsanzeige an das Standesamt erfolgt.",
+    "Beim Standesamt die benötigten Urkunden und Nachweise klären und Geburtsurkunden beantragen.",
+    "Krankenversicherung des Kindes und bei Bedarf Mitteilungen an Arbeitgeber oder andere Stellen klären.",
+    "Kindergeld, Elterngeld und eventuell weitere Leistungen anhand der amtlichen Antragswege prüfen."
+  ],
+  "responsible": "Standesamt am Geburtsort, Krankenkasse, Familienkasse, Elterngeldstelle und je nach Fall Jugendamt.",
+  "documents": "Je nach Personenstand und Geburtssituation insbesondere Ausweise, Personenstandsurkunden, Geburtsbescheinigungen und für einzelne Leistungen gesonderte Einkommensnachweise.",
+  "caveat": "Die Aufgaben sind nicht alle bei einer einzigen Behörde zu erledigen. Besondere Konstellationen bei nicht verheirateten Eltern, Auslandsbezug oder fehlenden Unterlagen erfordern Rücksprache mit der zuständigen Stelle.",
+  "sources": [
+    {
+      "title": "Familienportal – Checkliste nach der Geburt",
+      "url": "https://familienportal.de/familienportal/lebenslagen/schwangerschaft-geburt/checklisten/checkliste-fuer-die-zeit-nach-der-geburt-126022"
+    },
+    {
+      "title": "Familienportal – Checklisten rund um die Geburt",
+      "url": "https://familienportal.de/familienportal/lebenslagen/schwangerschaft-geburt/checklisten"
+    }
+  ]
+},
+{
+  "id": "studium-ausbildung-mit-kind",
+  "category": "care",
+  "title": "Studium oder Ausbildung mit Kind organisieren",
+  "short": "Kinderbetreuung, finanzielle Hilfen und Beratung an Hochschule oder Ausbildungsstelle.",
+  "overview": "Studierende und Auszubildende mit Kind können unterschiedliche Unterstützungen nutzen, je nach Ausbildungsform und persönlicher Situation. Hochschulen und Studierendenwerke bieten häufig Familienberatung und Betreuungsinformationen. BAföG, Berufsausbildungsbeihilfe, Elterngeld, Kindergeld und weitere Leistungen unterliegen unterschiedlichen Voraussetzungen und Anrechnungsregeln.",
+  "steps": [
+    "Beim Familienservice der Hochschule, dem Studierendenwerk oder der Ausbildungsberatung nach Betreuungsangeboten fragen.",
+    "Elterngeld, Kindergeld, BAföG, Berufsausbildungsbeihilfe und mögliche ergänzende Leistungen getrennt prüfen.",
+    "Anträge möglichst vor Fristen und Betreuungsterminen vorbereiten und Rückfragen bei der jeweils zuständigen Stelle klären.",
+    "Bei Schwangerschaft oder notwendiger Unterbrechung Urlaub, Schutzregeln und Studien- oder Ausbildungsorganisation beraten lassen."
+  ],
+  "responsible": "Familienservice der Hochschule, Studierendenwerk, BAföG-Amt, Agentur für Arbeit, Ausbildungsbetrieb und jeweilige Leistungsträger.",
+  "documents": "Je nach Leistung Ausbildungs- beziehungsweise Immatrikulationsnachweis, Einkommensnachweise, Angaben zum Kind und seiner Betreuung, Wohnkosten- und weitere Nachweise.",
+  "caveat": "Nicht alle Leistungen sind gleichzeitig kombinierbar. Die konkrete Förderfähigkeit hängt von Ausbildung, Einkommen, Wohnform, Alter und weiteren Leistungen ab.",
+  "sources": [
+    {
+      "title": "Familienportal – Ausbildung und Studium mit Kind",
+      "url": "https://familienportal.de/familienportal/lebenslagen/ausbildung-beruf/ausbildung-studium-mit-kind"
+    },
+    {
+      "title": "Familienportal – Unterstützung für Studierende und Azubis",
+      "url": "https://familienportal.de/familienportal/lebenslagen/ausbildung-beruf/ausbildung-studium-mit-kind/welche-unterstuetzungen-gibt-es-fuer-studierende-und-auszubildende-mit-kind--147818"
+    }
+  ]
+},
+{
+  "id": "schulden-beratung-familien",
+  "category": "money",
+  "title": "Schulden, Mietrückstände und finanzielle Krisen",
+  "short": "Frühzeitig anerkannte Schuldnerberatung und gegebenenfalls Wohnhilfen suchen.",
+  "overview": "Wenn Familien Mietrückstände, Mahnungen oder andere finanzielle Schwierigkeiten haben, ist eine frühzeitige Beratung wichtig. Schuldnerberatungsstellen unterstützen beim Überblick über Forderungen, bei Gläubigerkontakten und bei möglichen Entschuldungswegen. Droht der Verlust der Wohnung, sollten zusätzlich die zuständigen kommunalen Stellen eingebunden werden.",
+  "steps": [
+    "Mahnungen, Zahlungsforderungen, Mietverträge und laufende Kosten geordnet zusammenstellen.",
+    "Eine anerkannte Schuldnerberatungsstelle oder kommunale Sozialberatung kontaktieren.",
+    "Bei angedrohter Kündigung, Räumung oder Energiesperre unverzüglich die zuständigen Stellen informieren und Unterstützung erfragen.",
+    "Bestehende Ansprüche auf Wohngeld, Kinderzuschlag oder andere Hilfen getrennt prüfen."
+  ],
+  "responsible": "Anerkannte Schuldnerberatung, Sozialberatungsstellen sowie bei drohender Wohnungslosigkeit die zuständige Kommune beziehungsweise das Sozialamt.",
+  "documents": "Mahnungen und gerichtliche Schreiben, Überblick über Schulden und Gläubiger, Mietvertrag, Einkommens- und Leistungsnachweise, aktuelle Fixkosten und gegebenenfalls Kontoauszüge.",
+  "caveat": "Auf gerichtliche Schreiben und Fristen muss rechtzeitig reagiert werden. Dieser Text ersetzt keine Rechtsberatung und empfiehlt keinen bestimmten Kredit oder gewerblichen Schuldensanierer.",
+  "sources": [
+    {
+      "title": "Familienportal – Schulden und drohende Wohnungslosigkeit",
+      "url": "https://familienportal.de/familienportal/lebenslagen/krise-und-konflikt/krisentelefone-anlaufstellen/schulden-und-drohende-wohnungslosigkeit-125466"
+    }
+  ]
+},
+{
+  "id": "pflegefamilie-werden",
+  "category": "relationships",
+  "title": "Pflegefamilie werden: Voraussetzungen und erster Kontakt",
+  "short": "Pflegekind aufnehmen und mit Jugendamt oder Pflegekinderdienst zusammenarbeiten.",
+  "overview": "Pflegefamilien geben Kindern, die vorübergehend oder länger nicht bei ihren Eltern leben können, ein Zuhause. Der Pflegekinderdienst beziehungsweise das Jugendamt begleitet Auswahl, Vorbereitung und Vermittlung. Pflegeelternschaft ist nicht mit einer Adoption gleichzusetzen, weil rechtliche Beziehungen und Beteiligungsrechte unterschiedlich bleiben.",
+  "steps": [
+    "Beim örtlichen Jugendamt oder Pflegekinderdienst nach Informationsveranstaltungen und Erstgesprächen fragen.",
+    "Im Gespräch Motivation, familiäre Situation, verfügbare Zeit und besondere Bedürfnisse eines Pflegekindes offen klären.",
+    "Prüfungs-, Schulungs- und Eignungsverfahren der zuständigen Stelle durchlaufen.",
+    "Vor einer möglichen Aufnahme konkrete Betreuungs- und Unterstützungsvereinbarungen mit dem Jugendamt treffen."
+  ],
+  "responsible": "Pflegekinderdienst des zuständigen Jugendamts oder ein beauftragter anerkannter Träger.",
+  "documents": "Im Eignungsverfahren je nach Stelle persönliche Angaben, Führungszeugnisse, Gesundheits- und weitere Eignungsnachweise; die zuständige Stelle benennt die erforderlichen Unterlagen.",
+  "caveat": "Eine Bewerbung garantiert keine Vermittlung. Das Wohl und die individuelle Situation des Kindes sowie die Zusammenarbeit mit Herkunftsfamilie und Jugendamt stehen im Mittelpunkt.",
+  "sources": [
+    {
+      "title": "Familienportal – Pflegefamilie werden",
+      "url": "https://familienportal.de/familienportal/lebenslagen/pflegefamilien/wie-kann-man-pflegefamilie-oder-pflegeperson-werden--276230"
+    },
+    {
+      "title": "Familienportal – Pflegeelternschaft verstehen",
+      "url": "https://familienportal.de/familienportal/lebenslagen/pflegefamilien/was-ist-pflegeelternschaft--276224"
+    }
+  ]
+},
+{
+  "id": "adoption-beratung",
+  "category": "relationships",
+  "title": "Adoption: Erste Beratung und Vermittlungsstellen",
+  "short": "Offizielle Adoptionsvermittlungsstelle und rechtliche Unterschiede zu Pflege klären.",
+  "overview": "Adoption ist ein rechtliches Verfahren, bei dem ein Kind in eine neue Familie aufgenommen wird und ein neues rechtliches Eltern-Kind-Verhältnis entsteht. In Deutschland dürfen nur dafür zugelassene Stellen Adoptionen vermitteln. Eine erste Beratung erklärt das Verfahren, Eignungsanforderungen und die besondere Rolle des Kindeswohls.",
+  "steps": [
+    "Eine anerkannte Adoptionsvermittlungsstelle beim Jugendamt oder einem zugelassenen Träger suchen.",
+    "Sich dort zu den verschiedenen Adoptionsformen, Voraussetzungen und Erwartungen beraten lassen.",
+    "Die erforderlichen Gespräche, Nachweise und Eignungsprüfungen mit der Vermittlungsstelle abstimmen.",
+    "Bei konkreten Schritten rechtliche Folgen, Herkunft des Kindes und mögliche Begleitungsangebote besprechen."
+  ],
+  "responsible": "Adoptionsvermittlungsstelle des Jugendamtes oder eine anerkannte freie Adoptionsvermittlungsstelle.",
+  "documents": "Im Verlauf des Verfahrens können Identitäts-, Personenstands-, Einkommens-, Gesundheits- und weitere Eignungsnachweise verlangt werden; keine allgemeingültige Liste ohne zuständige Stelle.",
+  "caveat": "Eine Adoption ist kein frei organisierbarer Kauf oder eine private Vermittlung. Auslandsadoptionen unterliegen weiteren speziellen Verfahren. Pflegeelternschaft hat andere rechtliche Grundlagen.",
+  "sources": [
+    {
+      "title": "Familienportal – Wer Adoptionen vermitteln darf",
+      "url": "https://familienportal.de/familienportal/lebenslagen/kinderwunsch-adoption/adoption/wer-vermittelt-adoptionen-in-deutschland--125962"
+    },
+    {
+      "title": "Familienportal – Unterschied Adoption und Pflegekind",
+      "url": "https://familienportal.de/familienportal/lebenslagen/kinderwunsch-adoption/adoption/was-ist-der-unterschied-zwischen-einem-adoptivkind-und-einem-pflegekind--125966"
+    }
+  ]
+},
+{
+  "id": "kinderschutz-beratung",
+  "category": "wellbeing",
+  "title": "Kinderschutz: Beratung bei Sorgen um ein Kind",
+  "short": "Jugendamt und geeignete Fachstellen bei möglicher Kindeswohlgefährdung.",
+  "overview": "Bei Sorgen um das Wohl eines Kindes helfen Beratungsstellen der Kinder- und Jugendhilfe und das zuständige Jugendamt. Je nach Situation können freiwillige Hilfen, fachliche Beratung und bei konkreter Gefahr Schutzmaßnahmen erforderlich sein. In einer akuten Gefahrenlage haben unmittelbare Schutz und Notruf Vorrang.",
+  "steps": [
+    "Bei akuter unmittelbarer Gefahr sofort Polizei oder Rettungsdienst verständigen.",
+    "Beobachtungen und konkrete Sorgen sachlich notieren, ohne das Kind durch Nachfragen unter Druck zu setzen.",
+    "Beim zuständigen Jugendamt oder einer qualifizierten Kinderschutzberatungsstelle vertrauliche Orientierung erfragen.",
+    "Bei bereits laufender Hilfe Zuständigkeit, nächste sichere Schritte und eventuelle weitere Unterstützung klären."
+  ],
+  "responsible": "Jugendamt vor Ort und spezialisierte Beratungsstellen; bei akuter Gefahr Polizei 110 oder Rettungsdienst 112.",
+  "documents": "Für eine erste Beratung sind nicht zwingend Dokumente erforderlich; vorhandene relevante Beobachtungen oder Schreiben können nach Rücksprache nützlich sein.",
+  "caveat": "Ein Wissensassistent kann keine Gefährdung beurteilen, keine Notfallhilfe leisten und keine fachliche Meldung ersetzen. Sicherheit und Schutz personenbezogener Informationen gehen vor.",
+  "sources": [
+    {
+      "title": "Familienportal – Kinder- und Jugendschutz",
+      "url": "https://familienportal.de/familienportal/lebenslagen/kinder-jugendliche/kinder-jugendschutz"
+    },
+    {
+      "title": "Familienportal – Angebote der Kinder- und Jugendhilfe",
+      "url": "https://familienportal.de/familienportal/lebenslagen/krise-und-konflikt/kinder-und-jugendhilfe"
+    }
+  ]
+},
+{
+  "id": "beratung-kinder-jugendliche",
+  "category": "wellbeing",
+  "title": "Kinder- und Jugendberatung bei Sorgen oder Mobbing",
+  "short": "Anonyme und vertrauliche Hilfe bei Konflikten, Mobbing oder Belastungen.",
+  "overview": "Kinder und Jugendliche können sich bei Sorgen mit Eltern, Freundschaften, Schule, Mobbing und anderen Belastungen an spezialisierte Beratungsangebote wenden. Das Kinder- und Jugendtelefon „Nummer gegen Kummer“ und weitere Online-Beratungsstellen bieten niedrigschwellige Unterstützung. Wenn unmittelbare Gefahr besteht, ist die Notrufnummer zuständig.",
+  "steps": [
+    "Mit einer vertrauenswürdigen erwachsenen Person sprechen, sofern das sicher möglich ist.",
+    "Das Kinder- und Jugendtelefon 116 111 oder die im Familienportal genannten Online-Beratungen prüfen.",
+    "Bei Mobbing in der Schule zusätzlich die Schulsozialarbeit beziehungsweise eine Beratungslehrkraft einbeziehen.",
+    "Bei Bedrohung oder Gewalt nicht allein auf einen Chat warten, sondern geeignete Fachstellen und gegebenenfalls den Notruf kontaktieren."
+  ],
+  "responsible": "Nummer gegen Kummer, Schulsozialarbeit, kommunale Jugendberatung und bei Gefährdung das Jugendamt.",
+  "documents": "Für eine allgemeine vertrauliche Erstberatung in der Regel keine Antragsunterlagen; Telefonnummern und Erreichbarkeit auf der offiziellen Seite prüfen.",
+  "caveat": "Die telefonischen Beratungszeiten und Kontaktkanäle können variieren. Bei lebensbedrohlicher Gefahr ist das Kinder- und Jugendtelefon kein Ersatz für 110 oder 112.",
+  "sources": [
+    {
+      "title": "Familienportal – Kinder und Jugendliche in schwierigen Situationen",
+      "url": "https://familienportal.de/familienportal/lebenslagen/krise-und-konflikt/hilfe-kinder-jugendliche-notlagen/hilfe-fuer-kinder-jugendliche-in-schwierigen-situationen-155972"
+    },
+    {
+      "title": "Familienportal – Krisentelefone",
+      "url": "https://familienportal.de/familienportal/lebenslagen/krise-und-konflikt/krisentelefone-anlaufstellen"
+    }
+  ]
+},
+{
+  "id": "aerztlicher-bereitschaftsdienst-kinder",
+  "category": "wellbeing",
+  "title": "Kind krank: 116117 oder Notruf 112?",
+  "short": "Medizinische Hilfe außerhalb der Sprechzeiten richtig einordnen.",
+  "overview": "Für dringende, nicht lebensbedrohliche Beschwerden außerhalb regulärer Praxiszeiten gibt es in Deutschland den ärztlichen Bereitschaftsdienst unter 116117. Bei schweren Verletzungen, Vergiftungen, Atemnot oder anderen möglichen lebensbedrohlichen Zeichen ist der Notruf 112 richtig. Die Telefonnummer allein ersetzt keine medizinische Beurteilung.",
+  "steps": [
+    "Prüfen, ob unmittelbar lebensbedrohliche Symptome oder schwere Verletzungen vorliegen; dann 112 verständigen.",
+    "Bei dringenden, nicht lebensbedrohlichen Beschwerden außerhalb der Sprechzeit die 116117 nutzen.",
+    "Alter, beobachtete Beschwerden und erforderliche Angaben zum Kind bereithalten.",
+    "Die dort empfohlenen nächsten Schritte befolgen und bei deutlicher Verschlechterung erneut Hilfe holen."
+  ],
+  "responsible": "Kassenärztlicher Bereitschaftsdienst 116117; bei akuter Lebensgefahr Rettungsdienst 112; Kinderarztpraxis zu regulären Zeiten.",
+  "documents": "Für eine medizinische Behandlung nach Möglichkeit Gesundheitskarte und Angaben zu Medikamenten, Allergien und Beschwerden bereithalten. Bei einem Notfall Hilfe nicht wegen fehlender Unterlagen verzögern.",
+  "caveat": "Der Offline-Assistent kann nicht zwischen harmlosen und gefährlichen Symptomen diagnostisch unterscheiden. Im Zweifel bei schwerer oder schnell zunehmender Symptomatik sofort professionelle Hilfe suchen.",
+  "sources": [
+    {
+      "title": "gesund.bund.de – Ärztlicher Bereitschaftsdienst",
+      "url": "https://gesund.bund.de/wege-im-gesundheitswesen/kindheit/notfaelle/aerztlicher-bereitschaftsdienst"
+    },
+    {
+      "title": "gesund.bund.de – Notruf und Notaufnahme",
+      "url": "https://gesund.bund.de/wege-im-gesundheitswesen/kindheit/notfaelle/notruf-und-notaufnahme"
+    }
+  ]
+},
+{
+  "id": "jugendamt-familienhilfen",
+  "category": "relationships",
+  "title": "Familienhilfen durch Jugendamt und freie Träger",
+  "short": "Erziehungsberatung, sozialpädagogische Unterstützung und Hilfen im Alltag.",
+  "overview": "Die Kinder- und Jugendhilfe bietet Beratung und unterschiedliche Hilfen für Familien, wenn der Alltag oder die Erziehung belastend werden. Je nach Bedarf können Erziehungsberatungsstellen, Familienbildung oder Hilfen zur Erziehung geeignet sein. Ziele, Voraussetzungen und Beteiligung werden mit den zuständigen Fachkräften geklärt.",
+  "steps": [
+    "Bei einer Erziehungsberatungsstelle, einem freien Träger oder dem Jugendamt um ein Beratungsgespräch bitten.",
+    "Konkret beschreiben, bei welchen Alltagssituationen Unterstützung gewünscht ist, ohne unnötige private Daten in der App zu speichern.",
+    "Mit Fachkräften klären, welche niedrigschwelligen Angebote oder formellen Hilfen in Betracht kommen.",
+    "Bei vereinbarter Hilfe Ziele, Ansprechperson, Umfang und Überprüfung der Unterstützung besprechen."
+  ],
+  "responsible": "Örtliches Jugendamt sowie anerkannte Träger der Kinder- und Jugendhilfe und Erziehungsberatungsstellen.",
+  "documents": "Für eine erste Beratung gewöhnlich keine umfangreichen Unterlagen; bei formellen Hilfen können Anträge und weitere Angaben im Hilfeplanverfahren nötig sein.",
+  "caveat": "Die Jugendhilfe ist nicht auf eine einzige Maßnahme beschränkt. Art und Umfang hängen vom Bedarf und den rechtlichen Voraussetzungen ab. In akuten Gefährdungssituationen sind zusätzliche Schutzmaßnahmen möglich.",
+  "sources": [
+    {
+      "title": "Familienportal – Hilfen für Familien",
+      "url": "https://familienportal.de/familienportal/lebenslagen/krise-und-konflikt/kinder-und-jugendhilfe/welche-angebote-gibt-es-fuer-familien--125676"
+    },
+    {
+      "title": "Familienportal – Hilfen für Eltern",
+      "url": "https://familienportal.de/familienportal/lebenslagen/krise-und-konflikt/kinder-und-jugendhilfe/welche-angebote-gibt-es-fuer-eltern--125702"
+    }
+  ]
+},
+{
+  "id": "hilfen-junge-volljaehrige",
+  "category": "care",
+  "title": "Unterstützung für junge Volljährige ab 18",
+  "short": "Hilfen der Jugendhilfe auch nach dem 18. Geburtstag prüfen.",
+  "overview": "Junge Volljährige können unter bestimmten Voraussetzungen weiterhin Leistungen und Unterstützung der Kinder- und Jugendhilfe erhalten, wenn sie Hilfe für ihre Persönlichkeitsentwicklung oder die eigenständige Lebensführung brauchen. Welche Hilfe geeignet ist, ergibt sich aus dem individuellen Bedarf und den geltenden gesetzlichen Voraussetzungen.",
+  "steps": [
+    "Beim Jugendamt oder einer Beratungsstelle für junge Menschen nach Hilfen für junge Volljährige fragen.",
+    "Den aktuellen Unterstützungsbedarf, Wohnen, Ausbildung und bisherige Hilfen im Gespräch erläutern.",
+    "Mit der zuständigen Stelle Antragsweg, Leistungsdauer und mögliche Übergänge klären.",
+    "Bei einer Ablehnung um einen schriftlichen Bescheid und Informationen zu Beratungs- und Rechtsmitteln bitten."
+  ],
+  "responsible": "Örtlich zuständiges Jugendamt beziehungsweise Fachstelle für Hilfen zur Erziehung und junge Volljährige.",
+  "documents": "Je nach Situation vorhandene Hilfepläne, Ausbildungs- und Wohnnachweise sowie Unterlagen zu bisheriger Unterstützung und aktuellen Bedarfen.",
+  "caveat": "Die Hilfe endet nicht pauschal für alle Menschen am 18. Geburtstag; zugleich besteht kein unbedingter Anspruch auf jede gewünschte Leistung. Zuständigkeit und Voraussetzungen individuell prüfen.",
+  "sources": [
+    {
+      "title": "Familienportal – Hilfen für junge Volljährige",
+      "url": "https://familienportal.de/familienportal/lebenslagen/krise-und-konflikt/krisentelefone-anlaufstellen/hilfen-fuer-junge-volljaehrige-125490"
+    }
+  ]
+}
 ];
 const fold=value=>String(value||'').toLocaleLowerCase('de-DE').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss').replace(/[^a-z0-9 ]/g,' ');
 export function findFamilyTopics(query='',category='all'){
