@@ -387,7 +387,13 @@ export function answerFamilyQuestion(question,ctx={}){
   [/\b(kindergeld|familienkasse)\b/,'child_benefit']
  ];
  for(const [re,id] of detailMap){
-  if(re.test(q)&&ctx.guideDetails?.[id]&&!(id==='child_benefit'&&best?.alias>=50&&best?.item?.id!=='kindergeld')){
+  if(re.test(q)&&ctx.guideDetails?.[id]&&
+     !(best?.kind==='topic'&&best?.alias>=50&&(
+       (id==='maternity_benefits'&&best.item.id==='mutterschutz-mutterschaftsgeld'&&
+        !/\b(wann|frist|fristen|wie lange|wochen|beginn|dauer)\b/.test(q))||
+       (id==='birth_certificate'&&best.item.id==='geburt-checkliste'&&
+        !/\b(wann|frist|fristen|wie lange|tage)\b/.test(q))))&&
+     !(id==='child_benefit'&&best?.alias>=50&&best?.item?.id!=='kindergeld')){
     const d=ctx.guideDetails[id],intent=findIntent(q);
     let ans=intent==='documents'?d.documents:intent==='office'?d.where:d.when;
     if(!ans)ans=d.when||d.where||d.documents;
