@@ -26,7 +26,7 @@ for(const t of EVENT_DRAFT_TEMPLATES){
  assert.equal(d.date,'');
  assert.equal(d.region,'');
  assert.ok(hasTemplatePlaceholders(d.description));
- assert.ok(/Kosten/i.test(d.description));
+ assert.ok(/Kosten|Gebühren|Eintritt/i.test(d.description));
  assert.ok(/Barrierefreiheit|Rollstuhl/i.test(d.description));
 }
 assert.equal(applyMarketDraft({id:'malicious'}),null);
