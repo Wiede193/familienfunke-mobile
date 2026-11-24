@@ -1177,7 +1177,11 @@ style={({pressed})=>[styles.tab,(selectedMainTab===id)&&styles.tabActive,
 </View>:null}
 <TopRightMenu visible={menuOpen&&!showWelcome&&!reportTarget} onClose={()=>setMenuOpen(false)} onSelect={id=>id==='profile'?selectMenuItem(id):guardProfileExit(()=>selectMenuItem(id))} activeTab={showInfo?'info':tab} unread={inbox.unread}/>
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
-<View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
+<KeyboardAvoidingView accessibilityViewIsModal style={styles.modalShade}
+  behavior={Platform.OS==='ios'?'padding':undefined}>
+ <ScrollView keyboardShouldPersistTaps="handled" style={{flex:1,width:'100%'}}
+   contentContainerStyle={{flexGrow:1,justifyContent:'center',paddingVertical:20}}>
+ <Card style={{marginHorizontal:22,padding:22}}> 
 <Text accessibilityRole="header" style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
 {reportTarget.type==='market'?<View style={{marginBottom:13}}>
   <Text style={styles.label}>Warum meldest du diese Anzeige?</Text>
@@ -1189,7 +1193,7 @@ style={({pressed})=>[styles.tab,(selectedMainTab===id)&&styles.tabActive,
 </View>:null}
 <Input label="Was ist passiert?" multiline value={reportDetails} onChangeText={setReportDetails} maxLength={reportTarget.type==='market'?1200:2000}/>
 <Row><Button title="Abbrechen" mode="outline" style={{flex:1}} onPress={()=>setReportTarget(null)}/><Button title="Meldung senden" disabled={busy||reportDetails.trim().length<10||(reportTarget.type==='market'&&!reportReason)} style={{flex:1}} onPress={sendReport}/></Row>
-</Card></View></Modal>:null}
+</Card></ScrollView></KeyboardAvoidingView></Modal>:null}
 <WelcomeIntro visible={!!me&&showWelcome} onClose={dismissWelcome}/>
 <FamilyAppTour visible={!!me&&showTour&&!showWelcome&&!menuOpen&&!reportTarget}
   onClose={finishTour} onGo={nextTab=>{setSelectedContact(null);setDetailFamily(null);setShowInfo(false);setTab(nextTab);}}/>
