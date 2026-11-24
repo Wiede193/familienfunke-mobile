@@ -89,7 +89,7 @@ export function FamilyAppTour({visible,onClose}){
  },[visible,step,reduced,progress]);
  if(!visible)return null;
  const item=TOUR[step];
- const next=()=>step===TOUR.length-1?onClose?.():setStep(x=>x+1);
+ const next=()=>step===TOUR.length-1?onClose?.():setStep(x=>Math.min(TOUR.length-1,x+1));
  return <Modal visible transparent statusBarTranslucent animationType="fade" onRequestClose={onClose}>
    <View accessibilityViewIsModal style={m.tourShade}>
      <Animated.View style={[m.tourCard,{
@@ -106,7 +106,7 @@ export function FamilyAppTour({visible,onClose}){
          <Pressable accessibilityRole="button" accessibilityLabel="Tour überspringen" onPress={onClose}
            style={m.tourSecondary}><Text style={m.tourSecondaryText}>Überspringen</Text></Pressable>
          {step>0?<Pressable accessibilityRole="button" accessibilityLabel="Vorheriger Tour-Schritt"
-           onPress={()=>setStep(x=>x-1)} style={m.tourSecondary}><Text style={m.tourSecondaryText}>Zurück</Text></Pressable>:null}
+           onPress={()=>setStep(x=>Math.max(0,x-1))} style={m.tourSecondary}><Text style={m.tourSecondaryText}>Zurück</Text></Pressable>:null}
          <Pressable accessibilityRole="button" accessibilityLabel={step===TOUR.length-1?'Tour abschließen':'Nächster Tour-Schritt'}
            onPress={next} style={m.tourPrimary}>
            <Text style={m.tourPrimaryText}>{step===TOUR.length-1?'Fertig':'Weiter'}</Text>

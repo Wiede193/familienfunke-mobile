@@ -18,3 +18,5 @@
 | Barrierefreiheit | Große Schrift, VoiceOver, reduzierte Bewegung | Lesbare Texte, erreichbare Schaltflächen, optionaler Rundgang |
 
 Offen: reale Zeiten/Netzlast, native Darstellung, kontrollierter Mehrkonto- und Staging-Test. Kein Produktivlasttest, keine Datenbankmigration und keine Behauptung einer vollständigen Funktionsprüfung.
+
+Zusätzlich abgesichert: Filterwechsel und Aktualisierung nach weiterer Basarseite starten wieder bei Seite 1; keine Abfrage mit altem Offset. Tour blendet sich automatisch nur auf der freien Startseite ein, Schritte bleiben auch bei Mehrfachtippen im zulässigen Bereich.

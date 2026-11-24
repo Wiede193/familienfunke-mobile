@@ -671,10 +671,10 @@ useEffect(()=>{
  return()=>{live=false;};
 },[me]);
 useEffect(()=>{
- if(me&&welcomeLoaded&&tourLoaded&&!showWelcome&&tourPending&&!showTour&&!menuOpen){
+ if(me&&tab==='home'&&!busy&&!selectedContact&&!detailFamily&&!showInfo&&!reportTarget&&welcomeLoaded&&tourLoaded&&!showWelcome&&tourPending&&!showTour&&!menuOpen){
    setShowTour(true);
  }
-},[me,welcomeLoaded,tourLoaded,showWelcome,tourPending,showTour,menuOpen]);
+},[me,tab,busy,selectedContact,detailFamily,showInfo,reportTarget,welcomeLoaded,tourLoaded,showWelcome,tourPending,showTour,menuOpen]);
 function finishTour(){
  setTourPending(false);setShowTour(false);
  if(me)AsyncStorage.setItem('familienfunke.app-tour.v1.'+me,'seen').catch(()=>{});
@@ -1699,9 +1699,17 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   const minimum=parsePrice(minPrice), maximum=parsePrice(maxPrice);
   // Active buyer filters are executed against the full database, not the 160-item initial feed.
   const serverSearchActive=!onlyMine; // The complete buyer catalog is always paginated on the server.
-  useEffect(()=>{setSearchPage(0);},[query,filter,tradeFilter,minPrice,maxPrice,onlyMine,onlyFavorites,sortBy,favoriteRefresh]);
+  const searchIdentity=JSON.stringify([me,query,filter,tradeFilter,minPrice,maxPrice,onlyMine,onlyFavorites,sortBy,favoriteRefresh,marketRefresh,buyerFocus]);
+  const previousSearchIdentity=useRef(searchIdentity);
+  useEffect(()=>{setSearchPage(0);},[searchIdentity]);
   useEffect(()=>{
     const seq=++searchSeq.current;
+    // A changed filter may render once with the previous page number.
+    // Wait for page zero instead of sending an incorrect offset request.
+    if(previousSearchIdentity.current!==searchIdentity){
+      previousSearchIdentity.current=searchIdentity;
+      if(searchPage!==0){setRemoteBusy(true);setRemoteListings([]);setRemoteHasMore(false);return;}
+    }
     if(!serverSearchActive){
       setRemoteBusy(false);setRemoteError('');setRemoteListings([]);setRemoteHasMore(false);
       return;
@@ -1766,7 +1774,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       }
     },searchPage===0?320:0);
     return ()=>{live=false;clearTimeout(timer);};
-  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteRefresh,marketRefresh,me,buyerFocus,searchRetry]);
+  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteRefresh,marketRefresh,me,buyerFocus,searchRetry,searchIdentity]);
   const filtered=serverSearchActive?remoteListings.filter(x=>!blocked(x.seller_id)):
     listings.filter(x=>
       ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
