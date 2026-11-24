@@ -411,9 +411,11 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
     {!needle?<View style={s.section}>
       <FamilySectionTitle title="Direkt zu" subtitle="Eure beliebtesten Wege durch Familienfunke"/>
 
-      <View style={[s.featuredGrid,singleColumn&&{flexDirection:'column'}]}>
+      <Animated.View style={[s.featuredGrid,singleColumn&&{flexDirection:'column'},
+        {transform:[{translateY:reducedMotion?0:scrollY.interpolate({
+          inputRange:[0,250,650],outputRange:[9,0,-7],extrapolate:'clamp'})}]}]}>
         {featured.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query="" compact={!singleColumn}/>)}
-      </View>
+      </Animated.View>
       <Pressable accessibilityRole="button" accessibilityState={{expanded:showAll}} onPress={()=>setShowAll(v=>!v)} style={s.allAction}>
         <Text style={s.allActionLabel}>{showAll?'Weniger Bereiche anzeigen':'Alle Bereiche entdecken'}</Text><Text style={s.allActionLabel}>{showAll?'⌃':'⌄'}</Text>
       </Pressable>
