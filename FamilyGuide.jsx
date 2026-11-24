@@ -6,6 +6,7 @@ import {VERIFIED_GUIDE_DETAILS, ODER_SPREE_GUIDE} from './FamilyGuideVerified';
 import {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES,
   guessBrandenburgRegion,findBrandenburgRegions,officeForGuideStep,REGIONAL_DIRECTORY_URL} from './BrandenburgFamilyRegions';
 import {GERMANY_FAMILY_STATES,GERMANY_FAMILY_RESOURCES,findGermanyFamilyStates} from './GermanyFamilyDirectory';
+import {findStateServices,findStateServiceGroup} from './GermanyFamilyServices';
 import FamilyTopicsSection from './FamilyTopicsSection';
 import SearchResultFeedback from './SearchResultFeedback';
 
@@ -83,23 +84,31 @@ const ALL_STEPS=PHASES.flatMap(phase=>phase.steps.map(step=>({...step,...(VERIFI
 const clampStatus=(value)=>STATUSES.some(s=>s.id===value)?value:'open';
 
 export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQuery='',onOpenHealthy}){
+  const statePath=/^state:([A-Z]{2})$/i.exec(initialKnowledgeQuery.trim());
+  const linkedStateCode=statePath?.[1]?.toUpperCase()||null;
   const [statuses,setStatuses]=useState({});
   const [ready,setReady]=useState(false);
   const [phaseId,setPhaseId]=useState('pregnancy');
   const [stepId,setStepId]=useState(null);
   const [showOderSpree,setShowOderSpree]=useState(false);
- const [showRegionalDirectory,setShowRegionalDirectory]=useState(false);
+ const [showRegionalDirectory,setShowRegionalDirectory]=useState(!!linkedStateCode);
   const [regionSearch,setRegionSearch]=useState('');
   const [pickedRegionId,setPickedRegionId]=useState(null);
-  const [showGermany,setShowGermany]=useState(false);
+  const [showGermany,setShowGermany]=useState(!!linkedStateCode);
   const [stateSearch,setStateSearch]=useState('');
-  const [pickedStateCode,setPickedStateCode]=useState(null);
+  const [pickedStateCode,setPickedStateCode]=useState(linkedStateCode);
   const visibleStates=findGermanyFamilyStates(stateSearch);
   const pickedState=GERMANY_FAMILY_STATES.find(s=>s.code===pickedStateCode);
+   const pickedStateServices=findStateServices(pickedStateCode);
+   const pickedStateVerified=!!findStateServiceGroup(pickedStateCode);
+   useEffect(()=>{if(linkedStateCode){setPickedStateCode(linkedStateCode);setShowGermany(true);setShowRegionalDirectory(true);}},[linkedStateCode]);
   const guessedRegion=useMemo(()=>guessBrandenburgRegion(regionLabel),[regionLabel]);
   const selectedRegion=BRANDENBURG_REGIONS.find(r=>r.id===pickedRegionId)||guessedRegion;
   const visibleRegions=findBrandenburgRegions(regionSearch);
-  const regionStepOffices=officeForGuideStep(selectedRegion,stepId);
+  const regionStepOffices=(!pickedStateCode||pickedStateCode==='BB')?officeForGuideStep(selectedRegion,stepId):[];
+   const stepStateTopics=stepId==='parental_allowance'?['parental_allowance']:
+     ['childcare_search','kita_application'].includes(stepId)?['childcare_search']:[];
+   const stateStepServices=findStateServices(pickedStateCode,stepStateTopics);
   const storageKey='familienfunke.guide.status.v1.'+userId;
   useEffect(()=>{
     let active=true;
@@ -127,7 +136,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
   if(!ready)return <View style={st.loading}><ActivityIndicator color={P.teal}/><Text style={st.small}>Deinen Wegweiser laden …</Text></View>;
   if(activeStep){
     const source=activeStep.source||LINKS[activeStep.link];
-    const localNote=selectedRegion?.id==='oder-spree'&&showOderSpree?ODER_SPREE_GUIDE.steps[activeStep.id]:null;
+    const localNote=selectedRegion?.id==='oder-spree'&&showOderSpree&&(!pickedStateCode||pickedStateCode==='BB')?ODER_SPREE_GUIDE.steps[activeStep.id]:null;
     return <ScrollView style={st.page} contentContainerStyle={st.content}>
       <Pressable accessibilityRole="button" onPress={()=>{setStepId(null);setPhaseId(activeStep.phaseId);}} style={st.back}><Text style={st.backText}>‹ Zurück zur Zeitleiste</Text></Pressable>
       <View style={st.detailCard}>
@@ -196,7 +205,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
        <Text style={{fontSize:17,fontWeight:'800',color:P.ink}}>Sport & Gesundheit ›</Text>
        <Text style={{fontSize:13,lineHeight:20,color:P.muted,marginTop:4}}>Sportvereine, Bewegung, Ernährung, Videos und Rad- & Wanderwege</Text>
      </Pressable>:null}
-     {initialKnowledgeQuery.trim()?<FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>:null}
+     {initialKnowledgeQuery.trim()&&!linkedStateCode?<FamilyTopicsSection initialQuery={initialKnowledgeQuery}/>:null}
      <View style={st.progressCard}>
       <View style={st.flexRow}><View style={{flex:1}}><Text style={st.progressTitle}>Euer persönlicher Überblick</Text><Text style={st.small}>{doneCount} von {relevantCount} passenden Aufgaben erledigt</Text></View><Text style={st.progressNumber}>{pct}%</Text></View>
       <View style={st.progressTrack}><View style={[st.progressFill,{width:pct+'%'}]}/></View>
