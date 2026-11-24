@@ -2933,6 +2933,8 @@ function ChatList({contacts,me,nameOf,onChat,blocked,hasMore,loadingMore,onLoadM
 }
 function ChatScreen({contact,me,nameOf,disabled,blocked,send,onReport,onBlock}) {
 const [text,setText]=useState('');
+const [showMessageTemplates,setShowMessageTemplates]=useState(false);
+const [messageTemplateId,setMessageTemplateId]=useState(null);
 const [messages,setMessages]=useState([]);
 const [hasOlder,setHasOlder]=useState(false);
 const [chatLoading,setChatLoading]=useState(false);
@@ -2996,8 +2998,26 @@ sorted.map(m=><View key={m.id} style={[styles.bubble,m.sender_id===me?styles.min
 </View>)}
 </ScrollView>
 {blocked(other)?<Info warning>Du hast diese Person blockiert. Neue Nachrichten sind nicht erlaubt.</Info>:
-<Row style={styles.chatComposer}><TextInput accessibilityLabel="Private Nachricht schreiben" placeholder="Nachricht schreiben …" value={text} onChangeText={setText} maxLength={2000} multiline
-placeholderTextColor={C.muted} style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]}/><Button title="Senden" small disabled={disabled||!text.trim()} onPress={submit}/></Row>}
+<View>
+  <Pressable accessibilityRole="button" accessibilityLabel="Nachrichtenvorlagen anzeigen"
+    accessibilityState={{expanded:showMessageTemplates}}
+    onPress={()=>setShowMessageTemplates(v=>!v)}
+    style={{minHeight:44,paddingHorizontal:16,paddingVertical:10}}>
+    <Text style={{fontSize:14,color:C.accentDark,fontWeight:'800'}}>{showMessageTemplates?'Vorlagen ausblenden −':'✦ Nachrichtenvorlage nutzen +'}</Text>
+  </Pressable>
+  {showMessageTemplates?<DraftTemplatePicker title="Nachricht als Entwurf vorbereiten"
+    templates={MESSAGE_DRAFT_TEMPLATES} selectedId={messageTemplateId}
+    hint="Beispiele für den Gesprächseinstieg. Vor dem Senden anpassen; es wird niemals automatisch gesendet."
+    onPick={template=>{
+      const apply=()=>{setText(template.body);setMessageTemplateId(template.id);setShowMessageTemplates(false);};
+      if(text.trim())Alert.alert('Deine Nachricht ersetzen?','Dein bisheriger Text wird durch die Vorlage ersetzt.',[
+        {text:'Weiter schreiben',style:'cancel'},{text:'Vorlage nutzen',onPress:apply}
+      ]);else apply();
+    }}/>:null}
+  <Row style={styles.chatComposer}><TextInput accessibilityLabel="Private Nachricht schreiben" placeholder="Nachricht schreiben …" value={text} onChangeText={setText} maxLength={2000} multiline
+  placeholderTextColor={C.muted} style={[styles.input,{flex:1,maxHeight:100,marginBottom:0}]}/><Button title="Senden" small disabled={disabled||!text.trim()||hasTemplatePlaceholders(text)} onPress={submit}/></Row>
+  {hasTemplatePlaceholders(text)?<Text accessibilityLiveRegion="polite" style={{fontSize:13,color:C.muted,paddingHorizontal:16,paddingBottom:7}}>Ersetze die Angaben in eckigen Klammern, bevor du sendest.</Text>:null}
+</View>}
 </View>;
 }
 // Resolve the exact clicked result again under the current account, never trust a cached search card.
