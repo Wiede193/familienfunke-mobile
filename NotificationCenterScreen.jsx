@@ -11,7 +11,7 @@ const copy={
  search:['Neuer Basar-Treffer','Ein neu freigegebenes Angebot passt zu einem deiner Suchaufträge.','Angebot öffnen','♡'],
  decision:['Neuer amtlicher Beschluss','Ein neuer amtlich belegter Beschluss wurde veröffentlicht.','Beschluss lesen','§'],
  decision_update:['Beschlussstand geändert','Zu einem Gesetzesvorhaben gibt es einen bestätigten neuen Verfahrensstand.','Aktuellen Stand lesen','§'],
- market:['Basar-Prüfung','Der Prüfstatus deiner Anzeige wurde aktualisiert.','Meine Anzeige öffnen','♧']
+ market:['Deine Anzeige','Der Status deiner Anzeige hat sich geändert.','Meine Anzeige öffnen','♧']
 };
 function eventCopy(row){
  const base=copy[row.kind]||['Neuigkeit','Es gibt eine Aktualisierung.','Ansehen','•'];
@@ -20,8 +20,8 @@ function eventCopy(row){
   const money=v=>(v/100).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
   return [base[0],'Bei einem gemerkten Angebot sank der veröffentlichte Preis von '+money(row.old_price_cents)+' auf '+money(row.new_price_cents)+'. Öffne das Angebot für den aktuellen Preis.',base[2],base[3]];
  }
- return row.kind==='market'?[row.listing_status==='approved'?'Anzeige freigegeben':'Anzeige abgelehnt',
-  row.listing_status==='approved'?'Dein Angebot wurde freigegeben.':'Dein Angebot wurde nicht freigegeben. Prüfe die Details in deinem Basar.',base[2],base[3]]:base;
+ return row.kind==='market'?[row.listing_status==='approved'?'Anzeige veröffentlicht':'Anzeige gesperrt',
+  row.listing_status==='approved'?'Dein Angebot ist jetzt im Familienbasar sichtbar.':'Dein Angebot ist nicht öffentlich sichtbar. Prüfe die Details in deinem Basar.',base[2],base[3]]:base;
 }
 const groupForKind=kind=>['request','match','message'].includes(kind)?'Familien & Nachrichten':['market','search','price'].includes(kind)?'Familienbasar':'Amtliche Informationen';
 const iconSurface=kind=>['request','match','message'].includes(kind)?C.mint:['market','search','price'].includes(kind)?C.sunPale:C.bg;
