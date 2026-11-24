@@ -402,7 +402,7 @@ export function answerFamilyQuestion(question,ctx={}){
      intent==='office'?'Erste Anlaufstelle: '+office.authority+'. ':
      intent==='steps'?'Nächste Schritte: '+(office.steps||[]).slice(0,3)
        .map((x,i)=>(i+1)+'. '+x).join(' ')+' ':'';
-   return result(shorten('Für '+state.name+': '+office.title+'. '+extra+
+   return result(shorten(office.title+'. '+extra+
      office.description+' Wichtig: '+office.caveat+
      ' Wohnort, Unterlagen und Einreichungsweg bitte bei der offiziellen Fachstelle prüfen.',1100),{
      kind:'regional',pageId:'guide',navigationQuery:'state:'+state.code,
@@ -411,6 +411,19 @@ export function answerFamilyQuestion(question,ctx={}){
   return result('Für '+state.name+' ist diese konkrete Fachstelle noch nicht einzeln recherchiert. Bitte das amtliche Landesportal öffnen, den Wohnort auswählen und die zuständige Behörde und Antragsunterlagen dort prüfen.',{
     kind:'regional',pageId:'guide',navigationQuery:'state:'+state.code,
     sources:simpleSource('Amtliches Landesportal '+state.name,state.portal_url)});
+ }
+ if(state&&/\b(kindergeld|kinderzuschlag)\b/.test(q)&&
+    !/\b(behinderung|behindert|25|schwerbehinderung)\b/.test(q)){
+   const isKiz=/\bkinderzuschlag\b/.test(q);
+   const official=(ctx.germanyResources||[]).find(x=>x.id==='kindergeld');
+   const article=(ctx.topics||[]).find(x=>x.id===(isKiz?'kinderzuschlag':'kindergeld-antrag'));
+   const link=isKiz?articleSource(article):simpleSource(official?.title,official?.url);
+   return result((isKiz?'Kinderzuschlag':'Kindergeld')+
+     ' wird grundsätzlich bundesweit über die Familienkasse der Bundesagentur für Arbeit beantragt. '+ 
+     'Die Angabe '+state.name+' bestimmt dafür keine andere Landesbehörde. '+ 
+     'Bitte aktuelle Voraussetzungen, Antragsunterlagen und gegebenenfalls zuständige Familienkasse bei der Bundesagentur prüfen.',{
+       kind:'regional',pageId:'guide',
+       sources:link});
  }
  const staticRoute=/\b(kaufen|verkaufen|inserieren|flohmarkt|basar)\b/.test(q)?routeFor(q,ts,ctx.routes||[]):null;
  if(staticRoute&&['market','sell','box'].includes(staticRoute.id)){
