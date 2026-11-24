@@ -1046,7 +1046,7 @@ tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
 tab==='savedSearches'?<SavedMarketSearches key={me} userId={me} onSearch={row=>{setMarketIntent({type:'savedSearch',row,returnTab:'savedSearches'});setTab('market');}} onBrowse={()=>{setMarketIntent(null);setTab('market');}}/>:
-tab==='market'?<MarketScreen key={me} navigationBackRef={marketBackRef} onBackStateChange={setMarketSubpage} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} listings={db.listings} me={me} active={active} busy={busy}
+tab==='market'?<MarketScreen key={me} navigationBackRef={marketBackRef} onBackStateChange={setMarketSubpage} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} marketRefresh={marketEpoch} listings={db.listings} me={me} active={active} busy={busy}
  ownLoading={marketOwnerBusy} ownLoadingMore={marketOwnerBusyMore} ownHasMore={marketOwnerHasMore}
  ownError={marketOwnerError} onLoadMoreOwn={loadMoreOwnListings} onRetryOwn={()=>setMarketEpoch(n=>n+1)}
 organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} contacts={db.contacts}
@@ -1325,7 +1325,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
     </View>:null}
   </View>;
 }
-function MarketScreen({entryIntent,navigationBackRef,onBackStateChange,onSavedSearches,listings,marketPhotos,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onReportListing,onContact,onChat,nameOf,blocked,ownLoading,ownLoadingMore,ownHasMore,ownError,onLoadMoreOwn,onRetryOwn}){
+function MarketScreen({entryIntent,marketRefresh,navigationBackRef,onBackStateChange,onSavedSearches,listings,marketPhotos,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onReportListing,onContact,onChat,nameOf,blocked,ownLoading,ownLoadingMore,ownHasMore,ownError,onLoadMoreOwn,onRetryOwn}){
   const [open,setOpen]=useState(false);
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<375||fontScale>=1.5;
@@ -1652,7 +1652,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       }
     },searchPage===0?320:0);
     return ()=>{live=false;clearTimeout(timer);};
-  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteRefresh,me,buyerFocus,searchRetry]);
+  },[serverSearchActive,query,filter,tradeFilter,minimum,maximum,onlyFavorites,sortBy,searchPage,favoriteRefresh,marketRefresh,me,buyerFocus,searchRetry]);
   const filtered=serverSearchActive?remoteListings.filter(x=>!blocked(x.seller_id)):
     listings.filter(x=>
       ((onlyMine&&x.seller_id===me)||(!onlyMine&&x.moderation_status==='approved'&&(!onlyFavorites||favoriteIds.has(x.id))))
@@ -2224,6 +2224,17 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       {boxAdvanced?<Button title="Gespeicherte Kiste löschen" mode="ghost" small disabled={busy||scanBusy||choosing||boxStorage==='loading'} onPress={confirmClearBox}/>:null}
     </Card>:null}
     {open?<Card style={{marginBottom:18}}>
+      <CompletionPrompt title="Deine Anzeige – diese Angaben fehlen noch"
+        items={[
+          {label:'Titel mit mindestens vier Zeichen',done:title.trim().length>=4},
+          {label:'Artikelzustand auswählen',done:['Neu','Sehr gut','Gut','Gebraucht'].includes(condition)},
+          {label:'Preis korrekt angeben',done:trade!=='sell'||parsePrice(price)!==null&&parsePrice(price)>=0},
+          {label:'Alle markierten Entwurfsfelder ergänzen',done:!hasTemplatePlaceholders(title)&&!hasTemplatePlaceholders(description)},
+          ...(quick?[{label:'Steckbrief und bekannte Mängel prüfen',done:!!confirmed&&DEFECTS.includes(facts.defect)}]:[])
+        ]}/>
+      <ContextHelp title="Wann ist die Anzeige sichtbar?">
+        Nach dem Einreichen erscheint die Anzeige direkt im Familienbasar. Fotos werden zuerst hochgeladen. Problematische Angebote können von Mitgliedern gemeldet und bei mehreren unabhängigen Meldungen automatisch ausgeblendet werden. Bitte keine Personen, Adressen oder privaten Dokumente auf Fotos zeigen.
+      </ContextHelp>
       <Text style={styles.sectionTitle}>{boxEditor?(boxEditor.packageIds?'Kistenpaket bearbeiten':'Kistenartikel bearbeiten'):editingId?'Anzeige bearbeiten':'Schnellverkauf'}</Text>
       {boxEditor?<Info>{boxEditor.packageIds?'Prüfe, ob alle Artikel in der Paketliste und auf den Fotos enthalten sind.':'Bitte zeige auf den Verkaufsfotos nur diesen einzelnen Artikel. Du kannst jederzeit zur Kiste zurückkehren.'}</Info>:null}
       {!editingId&&!boxEditor?<DraftTemplatePicker
@@ -2482,7 +2493,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       {onlyMine&&ownHasMore?<Text style={[styles.micro,{marginBottom:10}]}>Weitere eigene Anzeigen sind vorhanden. Suche und Sortierung beziehen sich auf die bisher geladenen Einträge.</Text>:null}
       {shown.length===0?(remoteBusy||remoteError||(onlyMine&&(ownLoading||ownError))?null:<Blank icon={onlyFavorites?'heart':'bag'}
           title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'}
-          body={onlyFavorites?'Merke dir ein freigegebenes Angebot über das Herz auf einer Produktkarte.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen normalerweise direkt nach dem Einstellen.'}
+          body={onlyFavorites?'Merke dir ein freigegebenes Angebot über das Herz auf einer Produktkarte.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen direkt nach dem Einstellen, solange die Grundregeln erfüllt sind.'}
           actionLabel={onlyFavorites?'Angebote entdecken':'Filter zurücksetzen'}
           onAction={()=>{setOnlyFavorites(false);setOnlyMine(false);setBuyerFocus(null);
             setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/>):
@@ -3272,7 +3283,17 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Info>{SECTION_MESSAGES.events}</Info><H sub="Gemeinsame Aktivitäten statt öffentlicher Diskussionen.">Treffen & Veranstaltungen</H>
 <Button title={showForm?'Formular schließen':'＋ Aktivität erstellen'} disabled={!active} onPress={()=>setShowForm(!showForm)}/>
 {showForm?<Card style={{marginTop:14}}>
-<Text style={styles.cardTitle}>Neue Aktivität</Text><Text style={[styles.sub,{marginBottom:15}]}>Vor Veröffentlichung wird der Termin geprüft. Bitte keine Privatadressen veröffentlichen.</Text>
+<Text style={styles.cardTitle}>Neue Aktivität</Text>
+<Text style={[styles.sub,{marginBottom:15}]}>Gemeinsame Treffen werden weiterhin vor einer öffentlichen Veröffentlichung geprüft. Bitte keine Privatadressen veröffentlichen.</Text>
+<CompletionPrompt title="Deine Veranstaltung vorbereiten" items={[
+  {label:'Titel mit mindestens vier Zeichen',done:title.trim().length>=4},
+  {label:'Datum und Uhrzeit in der Zukunft',done:!!givenDate(date,time)&&givenDate(date,time)>new Date()},
+  {label:'Teilnehmendenzahl 2 bis 50',done:Number(count)>=2&&Number(count)<=50},
+  {label:'Entwurf vollständig ausgefüllt',done:!hasTemplatePlaceholders(title)&&!hasTemplatePlaceholders(description)}
+]}/>
+<ContextHelp title="Was gehört in eine gute Veranstaltung?">
+  Alter der Kinder, ein öffentlicher Treffpunkt, Kosten, mitzubringende Dinge und – soweit bekannt – Barrierefreiheit. Die Teilnahme wird erst nach einer eigenen Anfrage bestätigt.
+</ContextHelp>
  <DraftTemplatePicker title="Treffen mit Vorlage planen" templates={EVENT_DRAFT_TEMPLATES}
     selectedId={eventTemplateId}
     onPick={template=>{
