@@ -34,10 +34,11 @@ for(const [question,id] of [
 assert.deepEqual(searchMenuEntries('',groups),[]);
 assert.deepEqual(searchMenuEntries('qzxwyv',groups),[]);
 assert.match(menu,/accessibilityLabel="Funktion im Menü suchen"/);
+assert.match(menu,/const \[expanded,setExpanded\]=useState\(null\)/,'Nested menu is collapsed by default');
 assert.match(menu,/accessibilityLiveRegion="polite"/);
 assert.match(menu,/searchMenuEntries\(search,MENU_GROUPS\)/);
 assert.match(menu,/id==='inbox'/);
-for(const shortcut of ['market','sell','myListings','chat','profile','inbox'])
+for(const shortcut of ['discover','map','market','guide'])
  assert.ok(menu.includes("['"+shortcut+"'"),'Menu shortcut missing '+shortcut);
 assert.match(menu,/\['favorites','♡','Merkliste'/);
 assert.match(app,/const canOpen=tabIds\.includes\(id\)/,'Bottom tabs must route from menu');
