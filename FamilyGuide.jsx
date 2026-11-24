@@ -6,7 +6,7 @@ import {VERIFIED_GUIDE_DETAILS, ODER_SPREE_GUIDE} from './FamilyGuideVerified';
 import {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES,
   guessBrandenburgRegion,findBrandenburgRegions,officeForGuideStep,REGIONAL_DIRECTORY_URL} from './BrandenburgFamilyRegions';
 import {GERMANY_FAMILY_STATES,GERMANY_FAMILY_RESOURCES,findGermanyFamilyStates} from './GermanyFamilyDirectory';
-import {findStateServices,findStateServiceGroup} from './GermanyFamilyServices';
+import {findStateServices,findStateServiceGroup,matchGermanState} from './GermanyFamilyServices';
 import FamilyTopicsSection from './FamilyTopicsSection';
 import SearchResultFeedback from './SearchResultFeedback';
 
@@ -97,7 +97,9 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
   const [showGermany,setShowGermany]=useState(!!linkedStateCode);
   const [stateSearch,setStateSearch]=useState('');
   const [pickedStateCode,setPickedStateCode]=useState(linkedStateCode);
-  const visibleStates=findGermanyFamilyStates(stateSearch);
+  const exactStateResults=findGermanyFamilyStates(stateSearch);
+  const stateHint=stateSearch.trim()?matchGermanState(stateSearch,GERMANY_FAMILY_STATES):null;
+  const visibleStates=exactStateResults.length?exactStateResults:stateHint?[stateHint]:[];
   const pickedState=GERMANY_FAMILY_STATES.find(s=>s.code===pickedStateCode);
    const pickedStateServices=findStateServices(pickedStateCode);
    const pickedStateVerified=!!findStateServiceGroup(pickedStateCode);
