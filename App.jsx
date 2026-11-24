@@ -270,6 +270,7 @@ const [tab,setTab]=useState('home');
 const [menuOpen,setMenuOpen]=useState(false);
 const [profileDirty,setProfileDirty]=useState(false);
 const [chatDraftDirty,setChatDraftDirty]=useState(false);
+const [eventDraftDirty,setEventDraftDirty]=useState(false);
 const [marketSubpage,setMarketSubpage]=useState(false);
 const marketBackRef=useRef(null);
 const marketLeaveRef=useRef(null);
@@ -338,6 +339,7 @@ const photoTarget=detailFamily||(tab==='profile'?me:null);
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
 useEffect(()=>{if(!selectedContact)setChatDraftDirty(false);},[selectedContact]);
+useEffect(()=>{if(tab!=='events')setEventDraftDirty(false);},[tab]);
 const detailFamilyRef=useRef(detailFamily);detailFamilyRef.current=detailFamily;
 const loadSeq=useRef(0);
 const actionGate=useRef(createActionGate());
@@ -1011,6 +1013,16 @@ function guardProfileExit(next){
      ]);
    return;
  }
+ if(tab==='events'&&eventDraftDirty){
+   Alert.alert('Treffen noch nicht gespeichert',
+     'Deine Eingaben für das geplante Treffen würden beim Wechsel verloren gehen.',[
+       {text:'Treffen weiter bearbeiten',style:'cancel'},
+       {text:'Eingaben verwerfen',style:'destructive',onPress:()=>{
+         setEventDraftDirty(false);next();
+       }}
+     ]);
+   return;
+ }
  if(tab==='market'&&marketLeaveRef.current){
    marketLeaveRef.current(next);return;
  }
@@ -1158,7 +1170,7 @@ respond={replyRequest} blocked={blocked} disabled={busy} onBlock={blockUser} onU
 onChat={(id)=>{setChatReturnTab('contacts');setSelectedContact(id);setTab('chat');}}/>:
 tab==='chat'?<ChatList contacts={accepted} me={me} nameOf={findName} blocked={blocked}
 onChat={(id)=>{setChatReturnTab('chat');setSelectedContact(id);}} hasMore={contactsMore} loadingMore={contactsLoadingMore} onLoadMore={loadMoreContacts}/>:
-tab==='events'?<EventsScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='events'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} me={me} active={active} busy={busy}
+tab==='events'?<EventsScreen key={me} onDraftChange={setEventDraftDirty} focusId={eventIntent?.owner===me&&eventIntent.tab==='events'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} me={me} active={active} busy={busy}
 profiles={db.profiles} showForm={showEventForm} setShowForm={setShowEventForm}
 createEvent={(event)=>executeEvent(async()=>{
   await moderateTextOrThrow([event.title,event.description,event.region_label]);
@@ -3300,7 +3312,7 @@ return <View style={{marginTop:12}}>
 </View>:null}
 </View>;
 }
-function EventsScreen({focusId,clearFocus,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent}){
+function EventsScreen({focusId,clearFocus,me,active,busy,profiles,showForm,setShowForm,createEvent,requestEvent,replyEvent,reportEvent,onDraftChange}){
 const focus=useFocusedEvent('events',focusId,me);
 const [events,setEvents]=useState([]);
 const [myRequests,setMyRequests]=useState([]);
@@ -3317,6 +3329,7 @@ const seqRef=useRef(0);
 const [title,setTitle]=useState('');const [description,setDescription]=useState('');const [region,setRegion]=useState('');
 const [eventTemplateId,setEventTemplateId]=useState(null);
 const [date,setDate]=useState('');const [time,setTime]=useState('15:00');const [count,setCount]=useState('10');const [visibility,setVisibility]=useState('community');
+useEffect(()=>{onDraftChange?.(!!showForm&&!!(title.trim()||description.trim()||region.trim()||date||time!=='15:00'||count!=='10'));},[onDraftChange,showForm,title,description,region,date,time,count]);
 async function ownRequestsFor(rows){
  const ids=rows.map(row=>row.id).slice(0,EVENT_PAGE_SIZE);
  if(!ids.length)return [];
