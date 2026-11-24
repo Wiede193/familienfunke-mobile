@@ -113,6 +113,31 @@ assert.equal(ask('Wie repariere ich den Warp-Antrieb eines Raumschiffs?').kind,'
 assert.equal(ask('Wie repariere ich den Warp-Antrieb eines Raumschiffs?').sources.length,0);
 assert.equal(ask('Hilfe bei Behinderung').pageId,'inclusion');
 
+// Bewusst begrenzte Folgefragen greifen nur auf den vorherigen konkreten Ratgeber zu.
+const first=ask('Wie beantrage ich Kinderzuschlag?');
+assert.deepEqual(first.contextRef,{kind:'topic',id:'kinderzuschlag'});
+const afterDocuments=answerFamilyQuestion('Welche Unterlagen brauche ich?',{
+ ...catalog,previousContext:first.contextRef
+});
+assert.match(afterDocuments.answer,/Einkommensnachweise/);
+assert.equal(afterDocuments.contextRef.id,'kinderzuschlag');
+const afterOffice=answerFamilyQuestion('Wer ist dafür zuständig?',{
+ ...catalog,previousContext:first.contextRef
+});
+assert.match(afterOffice.answer,/Familienkasse/);
+const afterCaveat=answerFamilyQuestion('Was muss ich beachten?',{
+ ...catalog,previousContext:first.contextRef
+});
+assert.equal(afterCaveat.kind,'article');
+assert.match(afterCaveat.answer,/Wichtig:/);
+const school=ask('Welche Unterstützung gibt es bei Schulbegleitung?');
+const schoolDocs=answerFamilyQuestion('Welche Unterlagen brauche ich?',{
+ ...catalog,previousContext:school.contextRef
+});
+assert.equal(schoolDocs.pageId,'inclusion');
+assert.match(schoolDocs.answer,/Schulbegleitung/);
+assert.equal(first.related[0].question,'Welche Unterlagen brauche ich?');
+
 const engine=read('FamilyKnowledgeAnswer.js'),facts=read('FamilyKnowledgeCatalog.js');
 assert.doesNotMatch(engine,/fetch\s*\(|supabase|api\.openai\.com/);
 assert.doesNotMatch(facts,/fetch\s*\(|supabase|api\.openai\.com/);
