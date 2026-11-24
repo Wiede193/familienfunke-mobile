@@ -10,7 +10,7 @@ const topics=[
   ['Anmeldung & Konto','Wie ändere ich mein Passwort?','Öffne das Menü oben rechts → Mein Profil → Konto & Sicherheit. Gib ein neues Passwort mit mindestens zwölf Zeichen ein und tippe auf „Passwort ändern“.'],
   ['Anmeldung & Konto','Wie melde ich mich ab?','Menü oben rechts → Mein Profil → Konto & Sicherheit → Abmelden. Ungespeicherte Profiländerungen musst du vorher bestätigen oder verwerfen.'],
   ['Profil & Kontakte','Wo bearbeite ich mein Familienprofil?','Menü oben rechts → Mein Profil → Über uns. Trage Anzeigenamen, Ort/Region und einen kurzen Steckbrief ein und tippe auf „Angaben speichern“. Dein Profil kann nach Änderungen erneut geprüft werden.'],
-  ['Profil & Kontakte','Wie füge ich Hobbys hinzu?','Menü oben rechts → Mein Profil → Hobbys. Wähle bis zu zwölf Interessen und speichere die Auswahl.'],
+  ['Profil & Kontakte','Wie füge ich Hobbys hinzu?','Menü oben rechts → Mein Profil → Hobbys. Suche passende Hobbys nach Thema oder Begriff, ergänze bei Bedarf ein eigenes Hobby und speichere bis zu 24 Interessen.'],
   ['Profil & Kontakte','Wie finde ich Familien in meiner Nähe?','Öffne unten „Familien“. Dort kannst du nach Familien suchen und die verfügbaren Filter für Interessen und Region nutzen. Eine genaue Adresse ist dafür nicht nötig.'],
   ['Profil & Kontakte','Wie werde ich für andere Familien sichtbar?','Menü oben rechts → Mein Profil → Sichtbarkeit. Aktiviere „Für andere Familien sichtbar“ und speichere die Einstellung. Ein freigegebenes Konto bleibt Voraussetzung.'],
   ['Profil & Kontakte','Wie schicke ich eine Kontaktanfrage?','Öffne „Familien“, wähle ein Familienprofil aus und tippe auf die Schaltfläche zum Kontaktaufnehmen. Die andere Familie muss deine Anfrage erst annehmen.'],

@@ -37,6 +37,16 @@ export function looksLikeMarketProductQuery(value){
  const standalone=/^(?:kinder|baby)?(?:jeans|hosen?|jacken?|pullover|bodys?|strampler|schuhe?|kleider?|shirts?|leggings|spielzeug|kinderwagen|kindersitz|buggy|fahrrader?|bucher?|moebel|mobel)$/.test(n);
  return product&&(attribute||standalone);
 }
+// A single search action chooses the local knowledge answer for explicit
+// questions, while places and product searches remain navigational.
+export function looksLikeKnowledgeQuestion(value){
+ const raw=String(value||'').trim();
+ const n=normalize(raw);
+ if(!n)return false;
+ if(/^(wo finde|wo gibt|wo ist|wo sind|welcher spielplatz|welches schwimmbad)\b/.test(n))return false;
+ return /^(wie|warum|wieso|weshalb|was ist|was bedeutet|was muss|welche unterlagen|wer hilft|wann muss|wann kann|wie lange|kann ich|darf ich)\b/.test(n)
+   ||raw.includes('?');
+}
 export function findHomeRoutes(value){
  const intent=normalize(value);
  if(/^(dame|dame spielen|dame spiel)$/.test(intent))return [HOME_ROUTES.find(x=>x.id==='play')];

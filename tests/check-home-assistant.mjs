@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const source=readFileSync(new URL('../HomeNavigation.js',import.meta.url),'utf8');
-const {HOME_ROUTES,HOME_PAGE_IDS,findHomeRoutes}=await import(
+const {HOME_ROUTES,HOME_PAGE_IDS,findHomeRoutes,looksLikeKnowledgeQuestion}=await import(
   'data:text/javascript;base64,'+Buffer.from(source).toString('base64')
 );
 assert.equal(HOME_ROUTES.length,23,'Expected 23 real navigable areas including own listings and favorites');
@@ -43,19 +43,23 @@ assert.equal(findHomeRoutes('Kindergarten')[0]?.id,'partners','Kitas must open p
 assert.equal(findHomeRoutes('Kinderwagen verkaufen')[0]?.id,'sell','Selling a product must not open buyer search');
 assert.equal(findHomeRoutes('Personen in meiner Nähe suchen')[0]?.id,'discover','People nearby should open family discovery');
 assert.ok(findHomeRoutes('Datenschutz').some(x=>x.id==='profile'),'Privacy settings must be discoverable');
+for(const question of ['Wie beantrage ich Elterngeld?', 'Welche Unterlagen brauche ich?', 'Was bedeutet Elternzeit?'])
+ assert.equal(looksLikeKnowledgeQuestion(question),true,'Knowledge questions should get one-tap answers');
+for(const search of ['Spielplatz finden','Kinderwagen kaufen','Wo finde ich einen Spielplatz?'])
+ assert.equal(looksLikeKnowledgeQuestion(search),false,'Navigational search must not become a generic answer');
 
 const home=readFileSync(new URL('../HomeAssistant.jsx',import.meta.url),'utf8');
 assert.match(home,/function SunMark\(/,'Hero must use simple illustrated sun, not generic AI stock imagery');
 assert.match(home,/FEATURED=\['discover','map','market','guide'\]/,'Four clear family activities');
 assert.match(home,/ref=\{scrollRef\}/,'Suggestions must return to the input');
 assert.match(home,/showAll\?moreRoutes\.map/,'The user must reach all real app areas');
-assert.match(home,/onSubmitEditing=\{searchApp\}/,'Search keyboard must submit ordinary search, not charge AI');
+assert.match(home,/onSubmitEditing=\{submitSearch\}/,'Search keyboard must submit unified search');
 assert.match(home,/findHomeRoutes\(needle\)/,'Direct local function search must remain available');
 assert.match(home,/answerFamilyQuestion\(prompt/,'Knowledge replies must come from the local answer engine');
 assert.match(home,/setConversation\(old=>\[\{/,'Chat history must update after a successful reply');
 assert.match(home,/entry\.sources\.map/,'Verified source links must be shown');
 assert.doesNotMatch(home,/functions\.invoke\('ff-app-assistant'/,'Knowledge answers must never invoke the priced model');
-assert.match(home,/onPress=\{\(\)=>askAssistant\(\)\}/,'Answer button must invoke the function without passing a press event as question');
+assert.match(home,/onPress=\{submitSearch\}/,'One search button serves answers and normal navigation');
 assert.match(home,/borderRadius:30,backgroundColor:C\.paper/,'Search bar should be the rounded central control');
 assert.match(home,/findFamilyMapLocations\(needle/,'Real catalog places are searchable from home');
 assert.match(home,/onNavigate\('map','',hit\.place\.id\)/,'Map result opens exact real destination');

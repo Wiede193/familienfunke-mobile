@@ -16,7 +16,7 @@ assert.match(feedback,/accessibilityRole="progressbar"/);
 assert.match(home,/import \{recommendFamilyPlaces,selectHomeOffers,selectHomeEvents/);
 assert.match(home,/function SunMark\(/,'Keep the distinctive natural sun mark');
 assert.match(home,/const FEATURED=\['discover','map','market','guide'\]/);
-assert.match(home,/onSubmitEditing=\{searchApp\}/,'Google-like direct search must remain keyboard-first');
+assert.match(home,/onSubmitEditing=\{submitSearch\}/,'Unified search remains keyboard-first');
 assert.match(home,/answerFamilyQuestion\(prompt/,'Use the local knowledge assistant');
 assert.doesNotMatch(home,/functions\.invoke\('ff-app-assistant'/,'No priced assistant calls');
 assert.match(home,/ff_market_search/,'Only show server-verified listings');
