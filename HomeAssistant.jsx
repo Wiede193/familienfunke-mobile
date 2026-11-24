@@ -280,8 +280,8 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         opacity:reducedMotion?1:scrollY.interpolate({inputRange:[0,180],outputRange:[1,.85],extrapolate:'clamp'}),
         transform:[{translateY:reducedMotion?0:scrollY.interpolate({inputRange:[0,200],outputRange:[0,16],extrapolate:'clamp'})}]}}>
         <SunMark/>
-        <Text accessibilityRole="header" style={s.wordmark}>Familienfunke<Text style={{color:C.coralDeep}}>.</Text></Text>
-        <Text style={s.tagline}>Finden. Fragen. Entdecken.</Text>
+        <Text accessibilityRole="header" style={s.wordmark}>Was möchtet ihr heute entdecken?</Text>
+        <Text style={s.tagline}>Für gemeinsame Unternehmungen, Fragen und kleine Alltagsideen.</Text>
       </Animated.View>
       <View style={s.inputShell}>
         <FamilyIcon name="search" size={23} color={C.accentDark}/>
