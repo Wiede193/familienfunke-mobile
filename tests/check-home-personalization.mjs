@@ -57,4 +57,5 @@ assert.equal(placeRecommendationReason({isLocal:false,matchedInterests:[]}), 'Au
 assert.equal(placeRecommendationReason({isLocal:true,matchedInterests:['Schwimmen']}),'Eure Region · Schwimmen');
 assert.equal(placeRecommendationReason({isLocal:false,matchedInterests:['Schwimmen']}),'Interesse: Schwimmen');
 assert.deepEqual(matchingPlaceInterests(bath,['frei erfunden']).matched,[]);
+assert.deepEqual(matchingPlaceInterests({title:'Waldpark'},['Tiere','Radfahren','Museen']).matched,[],'Do not infer specific activities from generic parks');
 console.log('Personalized home: verified content filters, region specificity, profile prompts and greeting passed.');

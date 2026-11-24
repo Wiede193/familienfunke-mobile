@@ -6,14 +6,14 @@ export function normalizeFamilyRegion(value) {
     .replace(/[^a-z0-9 ]/gi,' ').replace(/\s+/g,' ').trim().toLowerCase();
 }
 const WORD_GROUPS={
-  'Tiere':['tier','wildpark','zoo','natur'],
-  'Natur':['natur','wald','see','park','wander'],
+  'Tiere':['tier','wildpark','zoo'],
+  'Natur':['natur','wald','badesee','naturpark','wander','landschaft'],
   'Wandern':['wander','natur','wald','dune'],
-  'Museen':['museum','burg','ausstellung','besucherzentrum'],
-  'Spielplatz':['spiel','park','mitmach'],
+  'Museen':['museum','ausstellung','besucherzentrum'],
+  'Spielplatz':['spielplatz','spielpark','abenteuerspiel','mitmachpark'],
   'Ausflüge':['ausflug','park','burg','museum','natur'],
-  'Radfahren':['rad','natur','park'],
-  'Lesen':['museum','burg','besucherzentrum','bibliothek','buch'],
+  'Radfahren':['radweg','radfahren','fahrrad','radtour'],
+  'Lesen':['bibliothek','bucherei','lesung','buchladen'],
   'Schwimmen':['schwimm','erlebnisbad','therme','bade','wasserpark','water'],
   'Schwimmbäder':['schwimm','erlebnisbad','therme','bade','wasserpark','water'],
   'Indoorspielplätze':['indoorspiel','indoor spiel','spielhalle','trampolin','indoor'],

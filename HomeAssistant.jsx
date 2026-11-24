@@ -434,7 +434,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         <View style={s.placesList}>
           {suggestedPlaces.map(({place,isLocal,matchedInterests})=>
             <Pressable key={place.id} accessibilityRole="button"
-              accessibilityLabel={place.title+' auf der Familienkarte öffnen'}
+              accessibilityLabel={place.title+', '+(place.region_label||'')+', '+placeRecommendationReason({isLocal,matchedInterests})+', auf der Familienkarte öffnen'}
               onPress={()=>onNavigate('map','',place.id)} style={s.placeCard}>
               <View style={[s.placeIcon,{backgroundColor:matchedInterests.length?UI.motif.nature:UI.motif.play}]}><FamilyIcon name={matchedInterests.length?'heart':'compass'} size={24}/></View>
               <View style={{flex:1}}>

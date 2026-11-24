@@ -60,7 +60,7 @@ assert.match(home,/setConversation\(old=>\[\{/,'Chat history must update after a
 assert.match(home,/entry\.sources\.map/,'Verified source links must be shown');
 assert.doesNotMatch(home,/functions\.invoke\('ff-app-assistant'/,'Knowledge answers must never invoke the priced model');
 assert.match(home,/onPress=\{submitSearch\}/,'One search button serves answers and normal navigation');
-assert.match(home,/borderRadius:30,backgroundColor:C\.paper/,'Search bar should be the rounded central control');
+assert.match(home,/borderColor:UI\.field\.borderColor,borderRadius:R\.input,backgroundColor:C\.paper/,'Search bar uses the shared, rounded input surface');
 assert.match(home,/findFamilyMapLocations\(needle/,'Real catalog places are searchable from home');
 assert.match(home,/onNavigate\('map','',hit\.place\.id\)/,'Map result opens exact real destination');
 assert.match(home,/request!==requestSeq\.current/,'Stale results cannot overwrite current search');

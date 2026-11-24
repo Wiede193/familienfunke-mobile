@@ -39,7 +39,7 @@ assert.match(app,/ContextHelp title="Was gehört in eine gute Veranstaltung\?"/)
 assert.match(app,/inputFocused:\{/);
 assert.match(app,/buttonPress:\{/);
 assert.match(app,/onLongPress=\{\(\)=>Alert\.alert\(title/);
-assert.match(home,/Was möchtest du heute machen\?/);
+assert.match(home,/Schnell erledigt/,'Compact task shortcuts remain visible');
 assert.match(home,/id:active\?'sell':'profile'/);
 assert.match(home,/id:'events',icon:'calendar'/);
 const notifications=read('NotificationCenterScreen.jsx');
