@@ -40,7 +40,7 @@ assert.match(menu,/MENU_GROUPS\.map/,'Keep every existing menu item accessible')
 assert.match(menu,/FamilyIcon name=\{FAMILY_ROUTE_ICONS\[id\]/);
 assert.match(app,/const TABS = \[\['home','Start','home'\]/);
 assert.match(app,/styles\.tabIcon,\(selectedMainTab===id\)/);
-assert.match(app,/FamilyIcon name=\{glyph\}/);
+assert.match(app,/SoftTabIcon name=\{glyph\} selected=\{selectedMainTab===id\}/,'Animated active tab remains the real navigation icon');
 assert.match(app,/tab==='home'\?<HomeAssistant key=\{me\}.*profile=\{myProfile\}.*inboxUnread=\{inbox\.unread\}/);
 assert.match(app,/type:'buyerListing',id:placeId/,'Home market card opens actual approved listing');
 assert.match(app,/marketHeroTitle/);
