@@ -72,10 +72,11 @@ abgesichert; frei formulierte Fragen können weiterhin anders ausfallen.
 
 ## Erweiterung: Landesweite Fachstellen und Antragswege (24. November 2026)
 
-Die zusätzliche Datei `GermanyFamilyServices.js` umfasst **21 recherchierte
-landesweite Fach- und Antragswege in 10 Bundesländern**: Baden-Württemberg,
-Bayern, Berlin, Hamburg, Hessen, Mecklenburg-Vorpommern, Niedersachsen,
-Nordrhein-Westfalen, Sachsen und Schleswig-Holstein.
+Die zusätzliche Datei `GermanyFamilyServices.js` umfasst **31 recherchierte
+landesweite Fach- und Antragswege in 15 Bundesländern**: Baden-Württemberg,
+Bayern, Berlin, Bremen, Hamburg, Hessen, Mecklenburg-Vorpommern, Niedersachsen,
+Nordrhein-Westfalen, Rheinland-Pfalz, Saarland, Sachsen, Sachsen-Anhalt,
+Schleswig-Holstein und Thüringen.
 
 Jeweils für **Elterngeld** und **Kita / Kindertagesbetreuung** ist eine
 amtliche Quelle hinterlegt. Für Sachsen kommt ein separater amtlicher Weg
@@ -88,7 +89,7 @@ typische Unterlagen, Einschränkungen und den URL zur amtlichen Fachseite.
   Bezirks- oder Elterngeldstelle eindeutig** zu. Die Portale nennen
   weitere Auswahlkriterien, insbesondere Wohnort des Kindes.
 - Die App verweist bei nicht geprüften Verwaltungsleistungen und bei den
-  noch nicht vertieft erfassten Bundesländern auf amtliche Landesportale.
+  für Brandenburg – soweit keine genauere Kreis- oder Stadtstelle geprüft ist auf amtliche Landesportale.
   Alle 16 Bundesländer sind weiterhin auswählbar.
 - Benutzeranfragen wie „Elterngeld in Leipzig“ oder „Kita in München“
   können dem Bundesland zugeordnet werden, **nicht** automatisch einer
@@ -121,6 +122,16 @@ Amtliche Quellen für die neue Ergänzung (Auswahl):
 - Schleswig-Holstein:
   https://www.schleswig-holstein.de/DE/landesregierung/ministerien-behoerden/LASG/Aufgaben/KinderUndEltern/KinderUndElternArtikelElterngeld
   und https://www.kitaportal-sh.de/de/home
+- Bremen: https://www.service.bremen.de/dienstleistungen/elterngeld-beantragen-9743
+  und https://www.service.bremen.de/dienstleistungen/anmeldung-eines-kindes-in-der-krippe-dem-kindergarten-oder-bei-der-tagespflege-181851
+- Rheinland-Pfalz: https://mkbwk.rlp.de/themen/familie/gute-zukunft-fuer-alle-kinder-und-eltern/finanzielle-leistungen/elterngeld
+  und https://service.rlp.de/detail?areaId=38265&ouId=&pstId=8969463
+- Saarland: https://www.saarland.de/las/DE/themen/elterngeldstelle/elterngeld_antrag
+  und https://www.saarland.de/mbk/DE/portale/fruehkindliche-bildung/home
+- Sachsen-Anhalt: https://las.sachsen-anhalt.de/themen/landesjugendamt/familien-und-frauen/elterngeld-und-elternzeit/elterngeldstellen
+  und https://las.sachsen-anhalt.de/themen/landesjugendamt/kinder-und-jugend/kindertageseinrichtungen/kita-verzeichnis-sachsen-anhalt
+- Thüringen: https://soziales.thueringen.de/soziales/familie/finanzielle-hilfen
+  und https://verwaltung.thueringen.de/
 
 CI führt jetzt zusätzlich `tests/check-germany-state-services.mjs` aus.
 Die Testfälle prüfen Zuordnung, Verweise, Quellenfelder, irreführende
