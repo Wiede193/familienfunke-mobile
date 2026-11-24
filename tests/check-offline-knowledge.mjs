@@ -26,10 +26,10 @@ const catalog={
  allPlaces:[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES,...NATIONAL_FAMILY_PLACES]
 };
 const ask=q=>answerFamilyQuestion(q,catalog);
-assert.equal(FAMILY_TOPIC_ARTICLES.length,17);
+assert.equal(FAMILY_TOPIC_ARTICLES.length,31);
 assert.equal(INCLUSION_ARTICLES.length,18);
 assert.ok(KNOWLEDGE_FACTS.length>=18);
-assert.ok(KNOWLEDGE_ALIASES.length>=30);
+assert.ok(KNOWLEDGE_ALIASES.length>=49);
 assert.equal(new Set(KNOWLEDGE_ALIASES.map(a=>a.kind+':'+a.id)).size,KNOWLEDGE_ALIASES.length);
 assert.ok(KNOWLEDGE_ALIASES.every(a=>
  (a.kind==='topic'?FAMILY_TOPIC_ARTICLES:INCLUSION_ARTICLES).some(item=>item.id===a.id)));
@@ -44,6 +44,19 @@ for(const alias of KNOWLEDGE_ALIASES){
  }
 }
 assert.ok(catalog.allPlaces.length>=75);
+assert.equal(KNOWLEDGE_ALIASES.reduce((n,a)=>n+a.terms.length,0),308);
+for(const id of ['elterngeld-antrag','kindergeld-antrag','mutterschutz-mutterschaftsgeld',
+ 'schwangerschaftsberatung','geburt-checkliste','studium-ausbildung-mit-kind',
+ 'schulden-beratung-familien','pflegefamilie-werden','adoption-beratung',
+ 'kinderschutz-beratung','beratung-kinder-jugendliche','aerztlicher-bereitschaftsdienst-kinder',
+ 'jugendamt-familienhilfen','hilfen-junge-volljaehrige']){
+ assert.ok(FAMILY_TOPIC_ARTICLES.some(x=>x.id===id),'Missing expanded guide: '+id);
+}
+for(const alias of KNOWLEDGE_ALIASES)for(const phrase of alias.terms){
+ const reply=ask(phrase);
+ assert.equal(reply.contextRef?.id,alias.id,'Incorrect source for "'+phrase+'"');
+}
+
 
 for(const [question,page] of [
  ['Wie beantrage ich Kinderzuschlag?','guide'],
