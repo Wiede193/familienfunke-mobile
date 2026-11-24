@@ -35,6 +35,14 @@ assert.ok(KNOWLEDGE_ALIASES.every(a=>
  (a.kind==='topic'?FAMILY_TOPIC_ARTICLES:INCLUSION_ARTICLES).some(item=>item.id===a.id)));
 assert.ok(KNOWLEDGE_FACTS.every(x=>x.answer.length>=45&&x.sources.length>=1&&
  x.sources.every(src=>/^https:\/\//.test(src.url))));
+ // Jede redaktionell definierte Alias-Frage muss beim vorgesehenen Dokument ankommen.
+for(const alias of KNOWLEDGE_ALIASES){
+ for(const phrase of alias.terms){
+  const reply=ask(phrase);
+  assert.equal(reply.contextRef?.id,alias.id,
+    'Unpassende Fachantwort für „'+phrase+'“ (erwartet '+alias.id+')');
+ }
+}
 assert.ok(catalog.allPlaces.length>=75);
 
 for(const [question,page] of [
