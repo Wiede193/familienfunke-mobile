@@ -1,7 +1,8 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {AccessibilityInfo, ActivityIndicator, Keyboard, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
+import {AccessibilityInfo, ActivityIndicator, Animated, Keyboard, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
+import {GentleReveal,useReducedMotion} from './FamilyMotion';
 import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 import SearchResultFeedback from './SearchResultFeedback';
@@ -49,13 +50,17 @@ function AreaCard({route,onNavigate,query,compact=false}){
     <FamilyIcon name="chevron-right" size={19} color={C.accentDark}/>
   </Pressable>;
 }
-function AssistantReply({entry,onNavigate,onAsk}){
-  return <View accessibilityLiveRegion="polite" style={s.answerCard}>
+function AssistantReply({entry,onNavigate,onAsk,prominent=false}){
+  return <GentleReveal distance={12}><View accessibilityLiveRegion="polite" style={[s.answerCard,prominent&&s.answerCardNewest]}>
     <Text style={s.youLabel}>DEINE FRAGE</Text>
     <Text style={s.questionText}>{entry.question}</Text>
     <View style={s.answerDivider}/>
-    <Text style={s.assistantLabel}>AUS DER WISSENSDATENBANK</Text>
-    <Text style={s.answerText}>{entry.answer}</Text>
+    <View style={s.answerHeadingRow}>
+      <Text accessibilityRole="header" style={s.assistantLabel}>{entry.kind==='unanswered'?'NOCH KEINE GESICHERTE ANTWORT':'DEINE ANTWORT'}</Text>
+      <View style={s.answerIconBadge}><FamilyIcon name="book" size={18} color={C.accentDark}/></View>
+    </View>
+    <Text selectable style={s.answerText}>{entry.answer}</Text>
+    <Text style={s.answerOrigin}>Redaktionelle Informationen · keine Live-Prüfung</Text>
     {entry.sources?.length?<View style={s.offerGroup}>
       <Text style={s.offerHeading}>Quellen und weiterführende Informationen</Text>
       {entry.sources.map(src=><Pressable key={src.url} accessibilityRole="link"
@@ -98,10 +103,14 @@ function AssistantReply({entry,onNavigate,onAsk}){
       <Text style={s.answerActionLabel}>{HOME_ROUTES.find(x=>x.id===entry.pageId)?.title||'Passenden Bereich öffnen'} ›</Text>
       
     </Pressable>:null}
-  </View>;
+  </View></GentleReveal>;
 }
 export default function HomeAssistant({onNavigate,profile,userId,active=false,inboxUnread=null}){
   const {width:screenWidth,fontScale}=useWindowDimensions();
+  const reducedMotion=useReducedMotion();
+  const scrollY=useRef(new Animated.Value(0)).current;
+  const answerOffset=useRef(0);
+  const [showAnswerInfo,setShowAnswerInfo]=useState(false);
   const singleColumn=screenWidth<360||fontScale>=1.5;
   const [question,setQuestion]=useState('');
   const [conversation,setConversation]=useState([]);
@@ -169,7 +178,12 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   const searchCount=matches.length+places.length+healthMatches.length+topicMatches.length+inclusionMatches.length+
     (visibleSearch?.decisions?.length||0)+(visibleSearch?.officialEvents?.length||0)+
     (visibleSearch?.events?.length||0)+(visibleSearch?.offers?.length||0);
-  useEffect(()=>{if(visibleSearch)scrollRef.current?.scrollTo({y:Math.max(0,searchResultOffset.current-8),animated:true});},[visibleSearch]);
+  useEffect(()=>{if(visibleSearch)scrollRef.current?.scrollTo({y:Math.max(0,searchResultOffset.current-8),animated:!reducedMotion});},[visibleSearch,reducedMotion]);
+  useEffect(()=>{
+    if(!conversation.length)return;
+    const timer=setTimeout(()=>scrollRef.current?.scrollTo({y:Math.max(0,answerOffset.current-14),animated:!reducedMotion}),90);
+    return()=>clearTimeout(timer);
+  },[conversation,reducedMotion]);
   const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
   const moreRoutes=HOME_ROUTES.filter(route=>!FEATURED.includes(route.id));
   function askAssistant(input=needle,contextRef=null){
@@ -251,12 +265,17 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
     }catch{if(alive.current&&request===requestSeq.current)setError('Die Online-Suche konnte nicht geladen werden. App-Bereiche und Katalogorte bleiben verfügbar.');}
     finally{if(alive.current&&request===requestSeq.current){pending.current=false;setSearchBusy(false);}}
   }
-  return <ScrollView ref={scrollRef} style={s.page} contentContainerStyle={s.content}
-    keyboardShouldPersistTaps="handled">
-    <View style={[s.searchCenter,!needle&&!conversation.length&&s.searchCenterIdle]}>
-      <SunMark/>
-      <Text accessibilityRole="header" style={s.wordmark}>Familienfunke<Text style={{color:C.coralDeep}}>.</Text></Text>
-      <Text style={s.tagline}>Finden. Fragen. Entdecken.</Text>
+  return <Animated.ScrollView ref={scrollRef} style={s.page} contentContainerStyle={s.content}
+    keyboardShouldPersistTaps="handled" scrollEventThrottle={16}
+    onScroll={Animated.event([{nativeEvent:{contentOffset:{y:scrollY}}}],{useNativeDriver:true})}>
+    <GentleReveal distance={24} delay={80} style={[s.searchCenter,!needle&&!conversation.length&&s.searchCenterIdle]}>
+      <Animated.View style={{alignItems:'center',
+        opacity:reducedMotion?1:scrollY.interpolate({inputRange:[0,180],outputRange:[1,.85],extrapolate:'clamp'}),
+        transform:[{translateY:reducedMotion?0:scrollY.interpolate({inputRange:[0,200],outputRange:[0,16],extrapolate:'clamp'})}]}}>
+        <SunMark/>
+        <Text accessibilityRole="header" style={s.wordmark}>Familienfunke<Text style={{color:C.coralDeep}}>.</Text></Text>
+        <Text style={s.tagline}>Finden. Fragen. Entdecken.</Text>
+      </Animated.View>
       <View style={s.inputShell}>
         <FamilyIcon name="search" size={23} color={C.accentDark}/>
         <TextInput accessibilityLabel="Familienfunke durchsuchen oder Wissensfrage stellen"
@@ -284,17 +303,17 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       </View>
       <Text style={s.searchHint}>App-Funktionen und Angebote suchen oder Fragen aus unserer geprüften Wissensdatenbank beantworten lassen.</Text>
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
-    </View>
-    {conversation.length?<View style={s.section}>
+    </GentleReveal>
+    {conversation.length?<View style={s.section} onLayout={e=>{answerOffset.current=e.nativeEvent.layout.y;}}>
       <View style={s.replyHeader}>
-        <Text style={s.sectionTitle}>Antworten aus der Wissensdatenbank</Text>
+        <Text accessibilityRole="header" style={s.replySectionTitle}>Deine Antworten</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Wissensantworten dieser Ansicht löschen"
           onPress={()=>{requestSeq.current++;pending.current=false;setBusy(false);setSearchBusy(false);setConversation([]);}} style={s.clearHistory}>
           <Text style={s.clearHistoryLabel}>Verlauf leeren</Text>
         </Pressable>
       </View>
       {conversation.map((entry,i)=><AssistantReply key={i+'-'+entry.question}
-        entry={entry} onNavigate={onNavigate} onAsk={askSuggested}/>)}
+        entry={entry} prominent={i===0} onNavigate={onNavigate} onAsk={askSuggested}/>)}
     </View>:null}
     {needle?<View style={s.section} onLayout={event=>{searchResultOffset.current=event.nativeEvent.layout.y;}}>
       <SearchResultFeedback active context={visibleSearch?'Familienfunke-Suche':'Direkte Suchtreffer'} query={needle} count={searchCount} loading={searchBusy}
@@ -497,7 +516,14 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       </View></>:null}
     </View>:null}
     {!needle?<View style={s.section}>
-      <Text accessibilityRole="header" style={s.sectionTitle}>Fragen an Familienfunke</Text>
+      <View style={s.answerInfoRow}>
+        <Text accessibilityRole="header" style={s.sectionTitle}>Fragen an Familienfunke</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="Wissenssuche erklären"
+          accessibilityState={{expanded:showAnswerInfo}} onPress={()=>setShowAnswerInfo(v=>!v)} style={s.infoBubble}>
+          <Text style={s.infoBubbleText}>i</Text>
+        </Pressable>
+      </View>
+      {showAnswerInfo?<Text style={s.infoText}>Die Antworten stammen aus unseren Ratgebern. Aktuelle Ansprüche und Termine werden nicht automatisch geprüft.</Text>:null}
       <Text style={s.sectionSubtitle}>Wähle ein Thema und tippe auf eine Frage. Die Antwort kommt direkt aus unserer Wissensdatenbank.</Text>
       <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.topicGroupList}>
@@ -523,7 +549,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       Er beantwortet nur erfasste Themen, prüft keine aktuelle Rechtslage oder Öffnungszeiten und
       speichert deine Fragen nicht auf einem Server. Bitte gib keine sensiblen Informationen ein.
     </Text>
-  </ScrollView>;
+  </Animated.ScrollView>;
 }
 const s=StyleSheet.create({
   page:{flex:1,backgroundColor:C.bg},
@@ -616,13 +642,26 @@ const s=StyleSheet.create({
     alignItems:'center',marginBottom:10},
   clearHistory:{padding:8,minHeight:44,justifyContent:'center'},
   clearHistoryLabel:{fontSize:12.5,color:C.tealDark,fontWeight:'800'},
-  answerCard:{padding:16,borderRadius:20,backgroundColor:C.paper,
-    borderColor:C.line,borderWidth:1,marginBottom:11},
+  answerCard:{padding:17,borderRadius:20,backgroundColor:'#F3FBF6',
+    borderColor:'#B6DBCB',borderWidth:1,marginBottom:11},
+  answerCardNewest:{borderColor:C.teal,borderWidth:2,backgroundColor:'#EDF8F0',
+    shadowColor:C.teal,shadowOpacity:.1,shadowRadius:11,elevation:3},
+  replySectionTitle:{fontSize:21,fontWeight:'900',color:C.accentDark,marginBottom:6},
+  answerHeadingRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:8},
+  answerIconBadge:{height:32,width:32,borderRadius:12,backgroundColor:'#D7EDE0',
+    alignItems:'center',justifyContent:'center'},
+  answerOrigin:{fontSize:12.5,color:C.muted,marginTop:10},
+  answerInfoRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8},
+  infoBubble:{minWidth:44,minHeight:44,justifyContent:'center',alignItems:'center',
+    backgroundColor:C.sunPale,borderRadius:22},
+  infoBubbleText:{fontSize:19,fontWeight:'900',color:C.accentDark},
+  infoText:{color:C.ink,fontSize:14,lineHeight:21,padding:12,marginBottom:10,
+    backgroundColor:C.mint,borderRadius:13},
   youLabel:{fontSize:10,fontWeight:'900',letterSpacing:.9,color:C.muted},
   questionText:{color:C.ink,fontSize:14.5,fontWeight:'700',marginTop:5,lineHeight:21},
   answerDivider:{height:1,backgroundColor:C.line,marginVertical:13},
-  assistantLabel:{color:C.tealDark,fontSize:10,fontWeight:'900',letterSpacing:.9},
-  answerText:{color:C.ink,fontSize:15,lineHeight:23,marginTop:8},
+  assistantLabel:{color:C.tealDark,fontSize:14,fontWeight:'900',letterSpacing:.7},
+  answerText:{color:C.ink,fontSize:17,fontWeight:'700',lineHeight:27,marginTop:10},
   offerGroup:{marginTop:15,backgroundColor:'#FCFAF5',borderRadius:13,padding:12},
   offerHeading:{fontSize:15,fontWeight:'900',color:C.ink,marginBottom:7},
   offerItem:{minHeight:44,paddingVertical:9,borderTopWidth:1,borderTopColor:C.line},
