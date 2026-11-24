@@ -619,30 +619,10 @@ const matches=useMemo(()=>db.profiles.filter(p=>p.user_id!==me&&p.moderation_sta
 .map(p=>({...p,match:(p.interests||[]).filter(x=>myProfile?.interests?.includes(x)).length,localMatch:sameRegion(p.region_label,myProfile?.region_label)}))
 .sort((a,b)=>Number(b.localMatch)-Number(a.localMatch)||b.match-a.match||String(a.display_name).localeCompare(String(b.display_name))),[db.profiles,me,myProfile]);
 async function reviewMarketListing(listingId){
- let review,reviewError;
- try{
-   ({data:review,error:reviewError}=await supabase.functions.invoke('ff-market-review',{body:{listing_id:listingId}}));
- }catch(e){reviewError=e;}
- if(reviewError){
-   setNotice('Anzeige gespeichert, aber die automatische KI-Prüfung ist gerade nicht verfügbar. Unter „Meine“ kannst du die Prüfung erneut starten.');
-   return 'error';
- }
- if(review?.status==='approved'){
-   setNotice('Die KI hat deine Anzeige geprüft. Sie ist jetzt veröffentlicht.');
-   return 'approved';
- }
- if(review?.status==='rejected'){
-   setNotice(review.reason==='live_animal'
-     ?'Lebende Tiere dürfen nicht angeboten oder vermittelt werden. Die Anzeige wurde abgelehnt.'
-     :'Die Anzeige verstößt nach der automatischen Prüfung gegen unsere Basar-Regeln und wurde nicht freigegeben.');
-   return 'rejected';
- }
- if(review?.status==='review_required'){
-   setNotice('Die KI konnte keine sichere Freigabe erteilen. Die Anzeige bleibt für andere verborgen und muss gesondert geprüft werden.');
-   return 'review_required';
- }
- setNotice('Die Anzeige ist gespeichert, aber noch nicht veröffentlicht. Die KI-Prüfung kann unter „Meine“ erneut gestartet werden.');
- return 'pending';
+ // Entwicklungsphase ohne kostenpflichtige KI: keine automatische Freigabe.
+ // Die Datenbank lässt neue Inserate bis zur manuellen Prüfung auf 'pending'.
+ setNotice('Anzeige gespeichert. Sie bleibt bis zur manuellen Freigabe für andere unsichtbar.');
+ return 'review_required';
 }
 async function sendChatMessage(body,contactId){
  if(!contactId)return false;
@@ -1194,30 +1174,9 @@ async function uploadMarketPhotos(listingId,assets,me){
   }
  }
 }
-async function scanMarketPhotos(assets,mode){
- const images=[];
- for(const asset of assets.slice(0,3)){
-   const job=ImageManipulator.ImageManipulator.manipulate(asset.uri);
-   const width=Number(asset.width)||900,height=Number(asset.height)||900;
-   const maxEdge=mode==='box'||mode==='box_label'?1600:1000;
-   const scale=Math.min(1,maxEdge/Math.max(width,height));
-   job.resize({width:Math.max(1,Math.round(width*scale)),height:Math.max(1,Math.round(height*scale))});
-   const rendered=await job.renderAsync();
-   let saved=await rendered.saveAsync({format:ImageManipulator.SaveFormat.JPEG,compress:mode?.startsWith('box') ? 0.78 : 0.55});
-   let file=new File(saved.uri);
-   if(file.size>700000){saved=await rendered.saveAsync({format:ImageManipulator.SaveFormat.JPEG,compress:.52});file=new File(saved.uri);}
-   if(file.size>700000)throw new Error('Ein Foto ist zu groß. Bitte nutze einen kleineren Bildausschnitt.');
-   // File.base64 encodes the locally resized JPEG; no original EXIF data is sent.
-   images.push(await file.base64());
- }
- const {data,error}=await supabase.functions.invoke('ff-market-scan',{body:{images,...(mode?{mode}:{})}});
- if(error){
-   let message='';
-   try{message=(await error.context?.json())?.error||'';}catch{}
-   throw new Error(message||'Foto-Erkennung gerade nicht verfügbar. Du kannst deine Angaben manuell ergänzen.');
- }
- if(data?.error)throw new Error(data.error);
- return data;
+async function scanMarketPhotos(){
+ // Bewusst keine Foto-Uploads an ein Sprach- oder Bildmodell.
+ throw new Error('Die automatische Fotoerkennung ist während der kostenfreien Entwicklungsphase deaktiviert.');
 }
 async function selectMarketPhotos(max=5){
  const result=await ImagePicker.launchImageLibraryAsync({
@@ -1982,7 +1941,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
           return <Pressable key={d.id} accessibilityRole="button" accessibilityLabel={'Ungefähre Position Artikel '+(i+1)} onPress={()=>{setBoxFilter('all');setBoxInspect(d.id);}} style={{position:'absolute',left,top,width:44,height:44,borderRadius:22,backgroundColor:boxInspect===d.id?C.coralDeep:C.accent,borderColor:C.white,borderWidth:2,alignItems:'center',justifyContent:'center'}}><Text style={{fontSize:12,fontWeight:'900',color:C.white}}>{i+1}</Text></Pressable>;
         }):null}
       </View>:null}
-      {boxDrafts.length&&boxPhoto?<Text style={[styles.micro,{marginBottom:8}]}>Die Nummern markieren ungefähre KI-Positionen. Bitte mit den tatsächlichen Artikeln abgleichen.</Text>:null}
+      {boxDrafts.length&&boxPhoto?<Text style={[styles.micro,{marginBottom:8}]}>Markierungen aus früheren Fotoanalysen bitte mit den tatsächlichen Artikeln abgleichen.</Text>:null}
       <Text style={[styles.micro,{marginBottom:8,color:boxSaveError||boxStorage==='error'?C.warningText:C.accentDark}]}>{boxStorage==='loading'?'Kiste wird geladen …':boxStorage==='error'?'Gespeicherte Kiste nicht lesbar':boxSaveError?'Speichern fehlgeschlagen – bitte Gerätespeicher prüfen':'Entwürfe werden auf diesem Gerät gespeichert.'}</Text>
       {boxBatches.length?<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingBottom:10}}>
         {boxBatches.map((batch,i)=><Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Fotogruppe '+(i+1)} onPress={()=>viewBatch(batch)} disabled={busy||scanBusy||choosing||!batch.photo} style={{borderWidth:2,borderColor:boxCurrentBatch===batch.id?C.accent:C.line,borderRadius:12,padding:5}}>
@@ -1992,12 +1951,14 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       </ScrollView>:null}
       <Button title={boxScanned?'＋ Neue Fotogruppe auswählen':boxPhoto?'Übersichtsbild ändern':'＋ Übersichtsbild auswählen'} disabled={busy||choosing||scanBusy||!canCaptureBox} mode="outline" onPress={()=>pick(assets=>chooseBoxPhoto(assets[0]),1)}/>
       <Button title="＋ Neue Fotogruppe fotografieren" disabled={busy||choosing||scanBusy||!canCaptureBox} mode="ghost" small onPress={takeBoxPhoto}/>
-      <Text style={[styles.micro,{marginVertical:8}]}>Die freiwillige Analyse sendet ein verkleinertes Foto an OpenAI. Keine Personen oder Dokumente fotografieren. Entwürfe und Artikelfotos bleiben lokal im Gerätespeicher, bis du die Kiste löschst. Kein geräteübergreifender Abgleich.</Text>
-      <Button title={scanBusy?'Artikel werden erkannt …':'✦ Fotogruppe analysieren'} disabled={!boxPhoto||scanBusy||choosing||busy||boxScanned||!canCaptureBox} onPress={recognizeBox}/>
+      <Text style={[styles.micro,{marginVertical:8}]}>Automatische Fotoerkennung ist vorerst deaktiviert. Du kannst Kleidungsstücke kostenlos manuell als Entwürfe erfassen und zu Paketen zusammenstellen. Entwürfe bleiben lokal auf deinem Gerät.</Text>
+      <Button title="＋ Artikel manuell erfassen" mode="outline"
+        disabled={boxDrafts.length>=BOX_MAX_ITEMS||busy||scanBusy||choosing||boxStorage!=='ready'}
+        onPress={()=>{addBoxDraft();setBoxStep('review');setBoxAdvanced(true);}}/>
       {boxQuality.length?<View style={{backgroundColor:C.warning,borderRadius:12,padding:12,marginVertical:8}}>
         <Text style={[styles.label,{color:C.warningText}]}>Hinweise zur Fotoqualität</Text>
         {boxQuality.map(issue=><Text key={issue} style={[styles.micro,{color:C.warningText,marginBottom:5}]}>• {PHOTO_ISSUES[issue]}</Text>)}
-        <Text style={styles.micro}>KI-Hinweise sind nicht verbindlich. Prüfe das Foto und die erkannten Artikel selbst.</Text>
+        <Text style={styles.micro}>Bitte alle Artikelmerkmale selbst prüfen.</Text>
       </View>:null}
       {boxOverflow?<Text style={[styles.micro,{marginVertical:8,color:C.warningText}]}>Diese Fotogruppe ist nicht vollständig erfasst. Für Teilpakete passende neue Verkaufsfotos verwenden.</Text>:null}
       {boxCurrentBatch&&(boxQuality.length>0||boxOverflow)?<Button title="Diese Fotogruppe neu erfassen" mode="outline" small disabled={cropBusy} onPress={discardCurrentBatch}/>:null}
@@ -2057,7 +2018,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       {boxAdvanced&&boxDrafts.length?<Row style={{flexWrap:'wrap',marginBottom:10}}>
         <Chip text={'Alle · '+boxDrafts.length} selected={boxFilter==='all'} onPress={()=>setBoxFilter('all')}/>
         <Chip text={'Größen offen · '+boxDrafts.filter(d=>d.category==='Kleidung'&&!d.facts.size).length} selected={boxFilter==='unknown'} onPress={()=>setBoxFilter('unknown')}/>
-        <Chip text={'KI-Hinweise · '+boxDrafts.filter(d=>!!d.uncertainty||!d.title.trim()).length} selected={boxFilter==='review'} onPress={()=>setBoxFilter('review')}/>
+        <Chip text={'Prüfhinweise · '+boxDrafts.filter(d=>!!d.uncertainty||!d.title.trim()).length} selected={boxFilter==='review'} onPress={()=>setBoxFilter('review')}/>
         <Chip text={'Im Paket · '+selectedBoxIds.length} selected={boxFilter==='selected'} onPress={()=>setBoxFilter('selected')}/>
       </Row>:null}
       {boxDrafts.length&&!visibleBoxDrafts.length?<Text style={[styles.micro,{marginBottom:10}]}>Für diesen Filter sind keine Teile vorhanden. Bitte wähle bei Bedarf „Alle“.</Text>:null}
@@ -2083,8 +2044,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
           <Input label="Farbe" value={d.facts.color} onChangeText={v=>updateBoxDraft(d.id,{}, {color:v})} maxLength={40}/>
           <Input label="Marke" value={d.facts.brand} onChangeText={v=>updateBoxDraft(d.id,{}, {brand:v})} maxLength={60}/>
           <Input label="Muster, Form & weitere Merkmale" value={d.facts.detail} onChangeText={v=>updateBoxDraft(d.id,{pattern:'',shape:'',features:''},{detail:v})} maxLength={100}/>
-          <Button title="Etikett fotografieren & lesen" small mode="outline" disabled={busy||scanBusy||choosing} onPress={()=>photographBoxLabel(d)}/>
-          <Button title="Etikettfoto auswählen & lesen" small mode="ghost" disabled={busy||scanBusy||choosing} onPress={()=>pick(assets=>readBoxLabel(d,assets[0]),1)}/>
+          <Text style={styles.micro}>Etikett bitte selbst ablesen und Größe oder Marke nur bei sicherer Kenntnis eintragen.</Text>
         </View>:null}
         {!d.facts.size&&boxInspect!==d.id&&d.category==='Kleidung'?<Pressable accessibilityRole="button" disabled={busy||scanBusy||choosing} onPress={()=>setBoxInspect(d.id)} style={{paddingVertical:6}}><Text style={[styles.micro,{color:C.accentDark,fontWeight:'800'}]}>Größe ergänzen ›</Text></Pressable>:null}
         {d.photos?.length?<Image accessibilityLabel={"Artikelfoto zu "+d.title} source={{uri:d.photos[0].uri}} resizeMode="contain" style={{width:95,height:95,borderRadius:10,backgroundColor:C.bg,marginTop:8}}/>:null}
@@ -2143,7 +2103,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       </View>:null}
       {quick&&!editingId&&!boxEditor?<View style={{backgroundColor:'#FFF4DA',borderRadius:15,padding:13,marginBottom:13}}>
         <Text style={[styles.label,{color:C.accentDark}]}>Fotografieren. Fakten prüfen. Fertig.</Text>
-        <Text style={styles.micro}>Zeige einen Artikel und nach Möglichkeit sein Etikett. Die KI schlägt sichtbare Merkmale vor, ohne einen Werbetext zu schreiben. Du entscheidest, welche Angaben richtig sind.</Text>
+        <Text style={styles.micro}>Fotografiere deinen Artikel und trage seine Eigenschaften selbst ein. Die automatische KI-Fotoanalyse ist aktuell ausgeschaltet.</Text>
       </View>:null}
       <Text style={[styles.sub,{marginBottom:17}]}>{packageForm?'Ein letzter Blick auf dein Paket – danach wird es wie gewohnt geprüft.':editingId?
         'Beim Speichern wird deine Anzeige erneut vollständig geprüft und bis zur Freigabe ausgeblendet. Bereits hochgeladene Fotos bleiben erhalten.':
@@ -2166,8 +2126,8 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         <Text style={[styles.micro,{marginTop:8}]}>{packageForm?'Nur die tatsächlich enthaltenen Artikel zeigen.':'Bis zu fünf Bilder pro Angebot. Bei Änderungen werden alle Bilder erneut geprüft.'}</Text>
       </View>
       {quick&&!editingId&&!boxEditor?<View style={{marginBottom:16}}>
-        <Button title={scanBusy?'Fotos werden analysiert …':'✦ Artikel aus Fotos erkennen'} disabled={scanBusy||choosing||busy||!photo.length||!active} onPress={recognize}/>
-        <Text style={[styles.micro,{marginTop:7}]}>Freiwillig: Bei Antippen werden die ersten bis zu drei verkleinerten Artikelfotos zur KI-Auswertung an OpenAI übermittelt. Keine Personen oder privaten Dokumente fotografieren. Die KI veröffentlicht nichts.</Text>
+        <Button title="Fotoerkennung vorerst deaktiviert" disabled={true} onPress={recognize}/>
+        <Text style={[styles.micro,{marginTop:7}]}>Es werden keine Fotos an ein kostenpflichtiges KI-Modell gesendet. Titel, Kategorie und Merkmale kannst du darunter selbst eintragen.</Text>
         {scanNotice?<Info>{scanNotice}</Info>:null}
         {proposal?<View style={{borderWidth:1,borderColor:C.line,borderRadius:14,padding:12,marginTop:10}}>
           <Text style={styles.label}>Vorschlag aus deinen Fotos – noch nicht bestätigt</Text>
@@ -2296,10 +2256,9 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
           <Text style={styles.sectionTitle}>Anbieter</Text>
           <Text style={styles.body}>{seller.seller}{seller.org?' ✦':''}</Text>
           <Text style={[styles.micro,{marginTop:4}]}>Grobe Region: {selected.region_label||'auf Anfrage'}</Text>
-          {seller.own&&selected.moderation_status==='pending'?<Info warning>Deine Anzeige ist noch nicht veröffentlicht. Die KI prüft automatisch; falls die Prüfung fehlschlägt, kannst du sie erneut starten. Unklare Fälle bleiben zurückgehalten.</Info>:null}
+          {seller.own&&selected.moderation_status==='pending'?<Info warning>Deine Anzeige ist noch nicht veröffentlicht. Die automatische KI-Freigabe ist deaktiviert; die Anzeige wartet auf eine manuelle Prüfung.</Info>:null}
           {seller.own&&selected.moderation_status==='pending'?
-            <View style={{marginTop:12}}><Button title="KI-Prüfung erneut starten" mode="outline"
-              disabled={busy||!active} onPress={()=>retryReview(selected.id)}/></View>:null}
+            <Text style={[styles.micro,{marginTop:10}]}>Du kannst die Anzeige weiterhin bearbeiten und weitere Fotos ergänzen.</Text>:null}
           {seller.own&&selected.moderation_status==='sold'?<Info>Dieses Angebot ist vergeben und für andere nicht mehr sichtbar. Eine Zahlung über die App hat nicht stattgefunden.</Info>:null}
           {seller.own&&selected.moderation_status==='rejected'?<Info warning>Dein Inserat wurde nicht freigegeben.</Info>:null}
           {seller.own&&selected.moderation_status==='removed'?<Info warning>Dieses Inserat wurde entfernt.</Info>:null}
