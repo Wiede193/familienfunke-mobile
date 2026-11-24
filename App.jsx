@@ -1133,8 +1133,16 @@ accessibilityLabel={title} accessibilityState={{selected:selectedMainTab===id}} 
 {reportTarget?<Modal visible={!!reportTarget} transparent animationType="fade" onRequestClose={()=>setReportTarget(null)}>
 <View accessibilityViewIsModal style={styles.modalShade}><Card style={{marginHorizontal:22,padding:24}}>
 <Text accessibilityRole="header" style={styles.h}>Inhalt melden</Text><Text style={styles.sub}>Bitte beschreibe den Vorfall sachlich. Die Meldung geht an das Betreiberteam.</Text>
-<Input label="Was ist passiert?" multiline value={reportDetails} onChangeText={setReportDetails} maxLength={2000}/>
-<Row><Button title="Abbrechen" mode="outline" style={{flex:1}} onPress={()=>setReportTarget(null)}/><Button title="Melden" disabled={busy||reportDetails.trim().length<10} style={{flex:1}} onPress={sendReport}/></Row>
+{reportTarget.type==='market'?<View style={{marginBottom:13}}>
+  <Text style={styles.label}>Warum meldest du diese Anzeige?</Text>
+  <View style={styles.chipsRow}>
+    {['Unzulässiger Artikel','Betrugsverdacht','Kinderschutz','Spam','Sonstiges'].map(reason=>
+      <Chip key={reason} text={reason} selected={reportReason===reason} onPress={()=>setReportReason(reason)}/>)}
+  </View>
+  <Text style={[styles.micro,{marginTop:9}]}>Mehrere unabhängige Meldungen können die Anzeige vorläufig ausblenden. Bitte nur tatsächliche Verstöße melden.</Text>
+</View>:null}
+<Input label="Was ist passiert?" multiline value={reportDetails} onChangeText={setReportDetails} maxLength={reportTarget.type==='market'?1200:2000}/>
+<Row><Button title="Abbrechen" mode="outline" style={{flex:1}} onPress={()=>setReportTarget(null)}/><Button title="Meldung senden" disabled={busy||reportDetails.trim().length<10||(reportTarget.type==='market'&&!reportReason)} style={{flex:1}} onPress={sendReport}/></Row>
 </Card></View></Modal>:null}
 <WelcomeIntro visible={!!me&&showWelcome} onClose={dismissWelcome}/>
 <FamilyAppTour visible={!!me&&showTour&&!showWelcome&&!menuOpen&&!reportTarget}
@@ -2338,12 +2346,15 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
           <Text style={styles.sectionTitle}>Anbieter</Text>
           <Text style={styles.body}>{seller.seller}{seller.org?' ✦':''}</Text>
           <Text style={[styles.micro,{marginTop:4}]}>Grobe Region: {selected.region_label||'auf Anfrage'}</Text>
-          {seller.own&&selected.moderation_status==='pending'?<Info warning>Deine Anzeige ist noch nicht veröffentlicht. Die automatische KI-Freigabe ist deaktiviert; die Anzeige wartet auf eine manuelle Prüfung.</Info>:null}
+          {seller.own&&selected.moderation_status==='pending'?<Info warning>Dein Entwurf ist noch nicht öffentlich. Prüfe die Angaben und tippe auf „Jetzt veröffentlichen“. Eine manuelle Freigabe ist nicht nötig.</Info>:null}
           {seller.own&&selected.moderation_status==='pending'?
-            <Text style={[styles.micro,{marginTop:10}]}>Du kannst die Anzeige weiterhin bearbeiten und weitere Fotos ergänzen.</Text>:null}
-          {seller.own&&selected.moderation_status==='sold'?<Info>Dieses Angebot ist vergeben und für andere nicht mehr sichtbar. Eine Zahlung über die App hat nicht stattgefunden.</Info>:null}
-          {seller.own&&selected.moderation_status==='rejected'?<Info warning>Dein Inserat wurde nicht freigegeben.</Info>:null}
-          {seller.own&&selected.moderation_status==='removed'?<Info warning>Dieses Inserat wurde entfernt.</Info>:null}
+            <Text style={[styles.micro,{marginTop:10}]}>Du kannst den Entwurf bearbeiten und Fotos ergänzen.</Text>:null}
+          {seller.own&&selected.moderation_status==='pending'?<View style={{marginTop:10}}>
+  <Button title="Jetzt veröffentlichen" disabled={busy||!active} onPress={()=>retryReview(selected.id)}/>
+</View>:null}
+{seller.own&&selected.moderation_status==='sold'?<Info>Dieses Angebot ist vergeben und für andere nicht mehr sichtbar. Eine Zahlung über die App hat nicht stattgefunden.</Info>:null}
+          {seller.own&&selected.moderation_status==='rejected'?<Info warning>Dieses Inserat wurde gesperrt und ist nicht öffentlich sichtbar.</Info>:null}
+          {seller.own&&selected.moderation_status==='removed'?<Info warning>Dieses Inserat wurde nach Meldungen oder einer Sicherheitsentscheidung ausgeblendet. Bei Fragen wende dich an den Support.</Info>:null}
           {seller.own&&['approved','pending','rejected'].includes(selected.moderation_status)?
             <View style={{marginTop:13}}><Button title="Anzeige bearbeiten" mode="outline" disabled={busy||!active}
               onPress={()=>beginEdit(selected)}/></View>:null}
@@ -2359,6 +2370,12 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
               onPress={()=>pick(assets=>addPendingPhotos(selected.id,assets),
                 5-(selected.photo_path?1:0)-marketPhotos.filter(x=>x.listing_id===selected.id).length)}/></View>:null}
           <View style={{marginTop:17}}>{contactButton(selected,seller.contact)}</View>
+{!seller.own&&selected.moderation_status==='approved'?<Pressable accessibilityRole="button"
+  accessibilityLabel="Problem mit dieser Anzeige melden"
+  onPress={()=>onReportListing(selected.id)} style={styles.marketReportButton}>
+  <FamilyIcon name="shield" size={18} color={C.danger}/>
+  <Text style={styles.marketReportText}>Problem mit Anzeige melden</Text>
+</Pressable>:null}
         </View>;})()}
         <Text style={[styles.micro,{marginTop:20}]}>Keine Zahlung über Familienfunke möglich. Prüfe Artikel und Übergabe sorgfältig.</Text>
       </Card>
@@ -2421,7 +2438,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       {onlyMine&&ownHasMore?<Text style={[styles.micro,{marginBottom:10}]}>Weitere eigene Anzeigen sind vorhanden. Suche und Sortierung beziehen sich auf die bisher geladenen Einträge.</Text>:null}
       {shown.length===0?(remoteBusy||remoteError||(onlyMine&&(ownLoading||ownError))?null:<Blank icon={onlyFavorites?'heart':'bag'}
           title={onlyFavorites?'Deine Merkliste ist noch leer':'Noch keine passenden Angebote'}
-          body={onlyFavorites?'Merke dir ein freigegebenes Angebot über das Herz auf einer Produktkarte.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen nach Freigabe.'}
+          body={onlyFavorites?'Merke dir ein freigegebenes Angebot über das Herz auf einer Produktkarte.':'Passe die Suche oder Filter an. Neue Anzeigen erscheinen normalerweise direkt nach dem Einstellen.'}
           actionLabel={onlyFavorites?'Angebote entdecken':'Filter zurücksetzen'}
           onAction={()=>{setOnlyFavorites(false);setOnlyMine(false);setBuyerFocus(null);
             setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/>):
@@ -2457,7 +2474,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
                 <Text style={styles.micro} numberOfLines={1}>{x.region_label||'Region auf Anfrage'}</Text>
               </Row>
               {seller.org?<Text style={[styles.micro,{marginTop:3,color:C.accentDark}]} numberOfLines={1}>{seller.org.name} ✦</Text>:null}
-              {seller.own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{color:x.moderation_status==='sold'?C.accentDark:C.warningText,marginTop:4}]}>{x.moderation_status==='sold'?'Vergeben · nur für dich sichtbar':x.moderation_status==='pending'?'In Prüfung · nur für dich sichtbar':'Nicht veröffentlicht'}</Text>:null}
+              {seller.own&&x.moderation_status!=='approved'?<Text style={[styles.micro,{color:x.moderation_status==='sold'?C.accentDark:C.warningText,marginTop:4}]}>{x.moderation_status==='sold'?'Vergeben · nur für dich sichtbar':x.moderation_status==='pending'?'Entwurf · noch nicht veröffentlicht':'Gesperrt · nicht sichtbar'}</Text>:null}
             </View>
           </Pressable>;
         })}
@@ -3421,6 +3438,10 @@ marketHeroTitle:{fontSize:27,color:C.ink,fontWeight:'800',marginTop:5},
 marketHeroText:{fontSize:13.5,color:C.ink,lineHeight:19,marginTop:5},
 marketHeroIcon:{width:59,height:59,borderRadius:19,backgroundColor:C.white,
   alignItems:'center',justifyContent:'center'},
+marketReportButton:{marginTop:18,minHeight:48,paddingHorizontal:10,borderRadius:14,
+  borderColor:C.line,borderWidth:1,backgroundColor:'#FFF5F2',
+  flexDirection:'row',gap:9,alignItems:'center',justifyContent:'center'},
+marketReportText:{fontSize:14,fontWeight:'800',color:C.danger},
 marketTrust:{flexDirection:'row',gap:7,alignItems:'center',
   paddingVertical:11,paddingHorizontal:10,marginBottom:12,
   borderRadius:14,backgroundColor:C.mint},
