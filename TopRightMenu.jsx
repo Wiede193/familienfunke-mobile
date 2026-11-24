@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {Modal,Pressable,SafeAreaView,ScrollView,StyleSheet,Text,TextInput,View} from 'react-native';
+import {Modal,Pressable,SafeAreaView,ScrollView,StyleSheet,Text,TextInput,View,useWindowDimensions} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
@@ -63,6 +63,8 @@ function MenuResult({entry,onSelect,activeTab,unread}){
  </Pressable>;
 }
 export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}){
+ const {width:screenWidth,fontScale}=useWindowDimensions();
+ const oneColumn=screenWidth<360||fontScale>=1.5;
  const [expanded,setExpanded]=useState('Mein Bereich');
  const [search,setSearch]=useState('');
  useEffect(()=>{if(!visible)setSearch('');},[visible]);
@@ -113,7 +115,7 @@ export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}
         {QUICK_ITEMS.map(([id,title,icon])=><Pressable key={id} accessibilityRole="button"
           accessibilityLabel={title+(id==='inbox'&&unread>0?', '+unread+' ungelesen':'')}
           accessibilityState={{selected:id===activeTab}}
-          style={({pressed})=>[s.quick,activeTab===id&&s.quickActive,pressed&&s.pressed]}
+          style={({pressed})=>[s.quick,oneColumn&&s.quickWide,activeTab===id&&s.quickActive,pressed&&s.pressed]}
           onPress={()=>onSelect(id)}>
           <View style={s.quickIcon}><FamilyIcon name={icon} size={23}/></View>
           <Text style={s.quickTitle}>{title}</Text>
@@ -186,6 +188,7 @@ const s=StyleSheet.create({
  quickGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:10},
  quick:{width:'48%',minHeight:85,backgroundColor:C.bg,borderWidth:1,borderColor:C.line,
    borderRadius:17,padding:13,gap:8,justifyContent:'space-between'},
+ quickWide:{width:'100%',minHeight:66},
  quickActive:{backgroundColor:C.sunPale,borderColor:C.sun},
  quickIcon:{width:36,height:36,borderRadius:12,backgroundColor:C.paper,
    justifyContent:'center',alignItems:'center'},
