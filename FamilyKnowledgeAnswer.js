@@ -383,6 +383,28 @@ export function answerFamilyQuestion(question,ctx={}){
   const reg=answerRegional(q,region,null,service);
   if(reg)return reg;
  }
+ // Landesweite Orientierung: nur recherchierte Fachseiten, niemals fiktive Ortsstellen.
+ const state=ctx.stateMatch||(ctx.germanyStates||[]).find(s=>
+   exactPhrase(q,s.name)||exactPhrase(q,s.capital))||null;
+ const matchingGroup=state?(ctx.stateServices||[]).find(g=>g.code===state.code):null;
+ if(state&&service.length){
+  const office=matchingGroup?.services?.find(o=>service.includes(o.topic));
+  if(office){
+   const intent=findIntent(q);
+   const extra=intent==='documents'?'Mögliche Unterlagen: '+office.documents+' ':
+     intent==='office'?'Erste Anlaufstelle: '+office.authority+'. ':
+     intent==='steps'?'Nächste Schritte: '+(office.steps||[]).slice(0,3)
+       .map((x,i)=>(i+1)+'. '+x).join(' ')+' ':'';
+   return result(shorten('Für '+state.name+': '+office.title+'. '+extra+
+     office.description+' Wichtig: '+office.caveat+
+     ' Wohnort, Unterlagen und Einreichungsweg bitte bei der offiziellen Fachstelle prüfen.',1100),{
+     kind:'regional',pageId:'guide',navigationQuery:'state:'+state.code,
+     sources:simpleSource(office.title+' – amtliche Fachseite',office.url)});
+  }
+  return result('Für '+state.name+' ist diese konkrete Fachstelle noch nicht einzeln recherchiert. Bitte das amtliche Landesportal öffnen, den Wohnort auswählen und die zuständige Behörde und Antragsunterlagen dort prüfen.',{
+    kind:'regional',pageId:'guide',navigationQuery:'state:'+state.code,
+    sources:simpleSource('Amtliches Landesportal '+state.name,state.portal_url)});
+ }
  const staticRoute=/\b(kaufen|verkaufen|inserieren|flohmarkt|basar)\b/.test(q)?routeFor(q,ts,ctx.routes||[]):null;
  if(staticRoute&&['market','sell','box'].includes(staticRoute.id)){
   return result(PAGE_TEXT[staticRoute.id],{kind:'navigation',pageId:staticRoute.id,
