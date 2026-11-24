@@ -68,7 +68,7 @@ function exactPhrase(hay,phrase){
 function aliasScore(question,queryTokens,aliases=[]){
  let best=0;
  for(const phrase of aliases){
-  if(exactPhrase(question,phrase))best=Math.max(best,58+Math.min(12,norm(phrase).length/5));
+  if(exactPhrase(question,phrase))best=Math.max(best,105+Math.min(12,norm(phrase).length/5));
   else{
    const ts=tokens(phrase);
    if(ts.length>0){
@@ -387,7 +387,7 @@ export function answerFamilyQuestion(question,ctx={}){
   [/\b(kindergeld|familienkasse)\b/,'child_benefit']
  ];
  for(const [re,id] of detailMap){
-  if(re.test(q)&&ctx.guideDetails?.[id]){
+  if(re.test(q)&&ctx.guideDetails?.[id]&&!(id==='child_benefit'&&best?.alias>=50&&best?.item?.id!=='kindergeld')){
     const d=ctx.guideDetails[id],intent=findIntent(q);
     let ans=intent==='documents'?d.documents:intent==='office'?d.where:d.when;
     if(!ans)ans=d.when||d.where||d.documents;
