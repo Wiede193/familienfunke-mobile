@@ -9,7 +9,7 @@ const STOP=new Set(('ich wir du ihr unsere meiner meinen meinem deinen deine die
  'und oder mit zu wo wie was warum welche welcher welches welche wieviel wieso kann konnen konnte sind ist von '+
  'bei nach auf aus fur uber im am an um in als wer wenn dann mir mich uns bitte nun denn eigentlich '+
  'jetzt suche suchen finden mochte will wurde mochten brauche brauchen kann man gibt es soll sollt '+
- 'bekomme bekommen haben hat mein meine ihnen hier mehr dazu antwort hilfe frage informationen '+
+ 'bekomme bekommen haben hat mein meine ihnen hier mehr dazu antwort hilfe frage informationen finde stelle viel andere '+
  'familie familien kind kinder kindern kindes fur unsere wir').split(' '));
 const TERM_MAP={
  kita:'kita',kitaplatz:'kita',kitaplatze:'kita',kindergartenplatz:'kita',kindergarten:'kita',krippenplatz:'kita',tagesmutter:'kita',
@@ -117,12 +117,12 @@ const ACTIONS=[
  ['market',/\b(kinderwagen|spielzeug|jeans|kleidung|hose|jacke|schuhe|bucher|babybett|kindersitz|buggy|basar|flohmarkt|secondhand)\b.*\b(kaufen|suche|gesucht|preis|verkauf|angebot|tauschen)\b|\b(kaufen|suche|suche|gesucht)\b.*\b(kinderwagen|spielzeug|jeans|kleidung|hose|jacke|schuhe|bucher|babybett|buggy)\b/],
  ['sell',/\b(artikel|sachen|kleidung|kinderwagen|anzeige)\b.*\b(verkaufen|inserieren|einstellen|anbieten)\b|\b(verkaufen|inserieren|anzeige erstellen)\b/],
  ['box',/\b(kiste|kistenmodus|kleidungspaket|paket zusammenstellen)\b/],
- ['discover',/\b(andere eltern|eltern kennenlernen|familien kennenlernen|familien in der nahe|freunde finden|familien treffen)\b/],
+ ['discover',/\b(andere familien|andere eltern|familien finden|familien kennenlernen|eltern kennenlernen|familien in der nahe|freunde finden|familien treffen)\b/],
  ['play',/\b(regenwetter|langeweile|beschaftigungsidee|drinnen spielen|quiz|ratsel|sudoku|solitar|vier gewinnt)\b/],
  ['outing',/\b(ausflug planen|ausflugsplaner|wochenendausflug|familienausflug planen)\b/],
  ['map',/\b(spielplatz|ausflugsziel|spielorte|familienkarte|wildpark|tierpark)\b/],
  ['inbox',/\b(benachrichtigungen loschen|hinweise loschen|neuigkeiten loschen)\b/],
- ['push',/\b(push|benachrichtigungseinstellungen|benachrichtigungen ausschalten)\b/],
+ ['push',/\b(push|benachrichtigungseinstellungen|benachrichtigungen (ausschalten|aktivieren|einstellen|andern)|benachrichtigungen ein)\b/],
  ['profile',/\b(profil bearbeiten|hobbys einstellen|interessen andern|passwort andern|privatsphare einstellen)\b/],
  ['chat',/\b(meine nachrichten|chat offnen|chat lesen|unterhaltung offnen)\b/],
  ['calendar',/\b(termin eintragen|kalender offnen|familienkalender|termin planen)\b/],
@@ -326,6 +326,16 @@ export function answerFamilyQuestion(question,ctx={}){
   return result(fact.answer,{kind:'fact',sources:articleSource(fact),related:[]});
  }
  const docs=rankDocuments(q,ts,ctx),best=docs[0];
+ if(amount.test(q))return safeDateSensitiveAnswer(q,null,ctx);
+ // Bei allgemeinen Themen nicht zufällig einen hochspezialisierten Antrag wählen.
+ if(ts.length===1&&['behinderung','inklusion','teilhabe','beratung'].includes(ts[0]))
+   return result(PAGE_TEXT.inclusion,{kind:'navigation',pageId:'inclusion'});
+ const requestedRoute=routeFor(q,ts,ctx.routes||[]);
+ if(requestedRoute&&['discover','push','profile','inbox','contacts','chat','calendar','box','sell','market'].includes(requestedRoute.id)&&
+   ACTIONS.some(([id,pattern])=>id===requestedRoute.id&&pattern.test(q))){
+   return result(PAGE_TEXT[requestedRoute.id],{kind:'navigation',pageId:requestedRoute.id,
+     searchQuery:requestedRoute.id==='market'?raw:''});
+ }
  const region=regionFor(q,ctx.region,ctx.brandenburgRegions||[]);
  const service=serviceFor(q);
  if(region&&service.length){
@@ -337,7 +347,6 @@ export function answerFamilyQuestion(question,ctx={}){
   return result(PAGE_TEXT[staticRoute.id],{kind:'navigation',pageId:staticRoute.id,
     searchQuery:staticRoute.id==='market'?raw:''});
  }
- if(amount.test(q)&&best)return safeDateSensitiveAnswer(q,best,ctx);
  if(best&&best.score>=30){
    if(best.kind==='topic'||best.kind==='inclusion'){
      const competitor=docs.find(x=>x!==best&&x.score>=best.score*.88&&x.kind!==best.kind);
@@ -367,7 +376,8 @@ export function answerFamilyQuestion(question,ctx={}){
  // Geografische Anfragen ausschließlich anhand vorhandener öffentlich erfasster Ziele.
  const placeCandidates=placeMatches(q,ts,ctx.allPlaces||[]);
  if(placeCandidates.length&&(/(?:\b(in|bei|rund um|umgebung|nahe)\b)/.test(q)||
-   /\b(ausflug|ausflugsziel|spielplatz|therme|indoor|zoo|museum|baden|barrierefrei|rollstuhl)\b/.test(q)))
+   /\b(ausflug|ausflugsziel|spielplatz|therme|indoor|zoo|museum|baden|barrierefrei|rollstuhl)\b/.test(q)||
+   placeCandidates.some(x=>exactPhrase(q,x.item.title))))
    return answerPlaces(placeCandidates,q);
  // Spezifische staatliche Verwaltungsportale – keine erfundene lokale Behörde.
  const state=(ctx.germanyStates||[]).find(st=>
