@@ -16,10 +16,10 @@ const {BRANDENBURG_REGIONS,BRANDENBURG_FAMILY_RESOURCES}=await load('Brandenburg
 const {VERIFIED_GUIDE_DETAILS}=await load('FamilyGuideVerified.js');
 
 assert.equal(GERMANY_FAMILY_STATES.length,16);
-assert.equal(REVIEWED_STATE_CODES.length,6);
-assert.deepEqual([...REVIEWED_STATE_CODES].sort(),['BE','BY','HH','MV','NW','SN'].sort());
-assert.equal(GERMANY_STATE_SERVICES.reduce((sum,g)=>sum+g.services.length,0),13);
-assert.equal(new Set(REVIEWED_STATE_CODES).size,6);
+assert.equal(REVIEWED_STATE_CODES.length,10);
+assert.deepEqual([...REVIEWED_STATE_CODES].sort(),['BE','BW','BY','HE','HH','MV','NI','NW','SH','SN'].sort());
+assert.equal(GERMANY_STATE_SERVICES.reduce((sum,g)=>sum+g.services.length,0),21);
+assert.equal(new Set(REVIEWED_STATE_CODES).size,10);
 const topics=['parental_allowance','childcare_search','family_support'];
 for(const g of GERMANY_STATE_SERVICES){
  assert.ok(GERMANY_FAMILY_STATES.some(s=>s.code===g.code),g.code);
@@ -65,6 +65,14 @@ for(const [question,code,sourceHost] of [
  ['Kita-Gutschein Hamburg beantragen','HH','hamburg.de'],
  ['Elterngeld in Köln beantragen','NW','familienportal.nrw'],
  ['Kita in NRW finden','NW','kita.nrw.de'],
+ ['Elterngeld in Baden-Württemberg','BW','l-bank.de'],
+ ['Kita in Stuttgart','BW','service-bw.de'],
+ ['Elterngeld in Frankfurt am Main','HE','rp-giessen.hessen.de'],
+ ['Kita in Hessen','HE','verwaltungsportal.hessen.de'],
+ ['Elterngeld in Hannover','NI','ms.niedersachsen.de'],
+ ['Kita in Niedersachsen','NI','service.niedersachsen.de'],
+ ['Elterngeld in Kiel','SH','schleswig-holstein.de'],
+ ['Kita in Schleswig-Holstein','SH','kitaportal-sh.de'],
 ]){
  const answer=ask(question);
  assert.equal(answer.pageId,'guide',question);
@@ -75,10 +83,10 @@ for(const [question,code,sourceHost] of [
 }
 for(const [q,code] of [
  ['Elterngeld in Sachsen-Anhalt beantragen','ST'],
- ['Elterngeld in Hessen beantragen','HE'],
+ ['Elterngeld in Saarland beantragen','SL'],
  ['Kita in Thüringen anmelden','TH'],
  ['Kita in Bremen anmelden','HB'],
- ['Elterngeld in Frankfurt am Main','HE']
+ ['Elterngeld in Potsdam','BB']
 ]){
  assert.equal(matchGermanState(q,GERMANY_FAMILY_STATES)?.code,code,q);
  const a=ask(q);
@@ -105,4 +113,4 @@ assert.match(guide,/Landesportal öffnen/);
 assert.match(home,/matchGermanState\(prompt,GERMANY_FAMILY_STATES\)/);
 assert.match(home,/stateServices:GERMANY_STATE_SERVICES/);
 assert.doesNotMatch(read('GermanyFamilyServices.js'),/fetch\s*\(|supabase|api\.openai\.com/);
-console.log('Landesweite Antragswege: 6 geprüfte Länder, 13 Dienste, 16 Länder-Fallbacks und sichere Stadtauflösung geprüft.');
+console.log('Landesweite Antragswege: 10 geprüfte Länder, 21 Dienste, 16 Landesportale und sichere Stadtauflösung geprüft.');
