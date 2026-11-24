@@ -807,7 +807,7 @@ async function sendReport(){
  },'Danke. Deine Meldung wurde übermittelt.');
  if(ok){setReportTarget(null);setReportDetails('');setReportReason('');
    if(reportTarget.type==='market'&&hidden){
-     setMarketEpoch(n=>n+1);setNotice('Die Anzeige wurde nach unabhängigen Meldungen vorläufig ausgeblendet.');
+     setMarketEpoch(n=>n+1);setMarketIntent({type:'search',query:''});setNotice('Die Anzeige wurde nach unabhängigen Meldungen vorläufig ausgeblendet.');
    }
  }
 }
@@ -1710,7 +1710,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         const saved=boxSnapshot(null);saved.drafts=saved.drafts.filter(d=>!boxPending.ids.includes(d.id));saved.bundle=null;saved.selection=null;
         await saveBoxSnapshot(me,saved);
         setBoxDrafts(saved.drafts);setBoxPackageDraft(null);setBoxSelected(null);setBoxPending(null);
-        setBoxNotice('Die Anzeige wurde bereits gespeichert. Bitte prüfe Fotos und Freigabestatus unter „Meine“.');
+        setBoxNotice('Die Anzeige wurde bereits gespeichert. Prüfe den Veröffentlichungsstatus unter „Meine“.');
       }else{
         const draft=boxPending.isPackage?boxPackageDraft:boxDrafts.find(d=>d.id===boxPending.ids[0]);
         if(!draft||draft.listingId!==boxPending.listingId)throw new Error('Der zugehörige Entwurf konnte nicht wiederhergestellt werden. Bitte prüfe „Meine“ und lösche die Kiste erst, wenn du sicher bist.');
@@ -2251,7 +2251,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         <Text style={styles.micro}>Fotografiere deinen Artikel und trage seine Eigenschaften selbst ein. Die automatische KI-Fotoanalyse ist aktuell ausgeschaltet.</Text>
       </View>:null}
       <Text style={[styles.sub,{marginBottom:17}]}>{packageForm?'Ein letzter Blick auf dein Paket – danach wird es wie gewohnt geprüft.':editingId?
-        'Beim Speichern wird deine Anzeige erneut vollständig geprüft und bis zur Freigabe ausgeblendet. Bereits hochgeladene Fotos bleiben erhalten.':
+        'Beim Bearbeiten wird die Anzeige kurz als Entwurf gespeichert und anschließend automatisch neu veröffentlicht. Bereits hochgeladene Fotos bleiben erhalten.':
         'Kostenlos einstellen. Titel, Beschreibung und alle Fotos werden vor Veröffentlichung geprüft.'}</Text>
       <View style={{marginBottom:15}}>
         <Button title={'＋ Fotos auswählen ('+(existingPhotoCount+photo.length)+'/5)'} mode="outline"
