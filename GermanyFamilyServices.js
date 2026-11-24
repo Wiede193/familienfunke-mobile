@@ -6,6 +6,62 @@ const service=(topic,title,authority,description,url,steps=[],documents='',cavea
  scope:'state-entry',checked:'2026-11-24'
 });
 export const GERMANY_STATE_SERVICES=[
+ {code:'BW',coverage:'researched',services:[
+  service('parental_allowance','Baden-Württemberg: Elterngeld bei der L-Bank','Landeskreditbank Baden-Württemberg (L-Bank)',
+   'Die L-Bank nimmt in Baden-Württemberg Elterngeldanträge entgegen und bietet einen begleiteten Onlineantrag. Aktuelle Formulare und Nachweisanforderungen stehen auf ihrer offiziellen Leistungsseite.',
+   'https://www.l-bank.de/produkte/familienfoerderung/elterngeld.html',
+   ['Online-Antragsweg oder amtlichen Vordruck der L-Bank wählen','Geburtsnachweis und Angaben zum Einkommen vorbereiten','Antrag und erforderliche Nachweise über den angegebenen Einreichungsweg senden'],
+   'Geburtsurkunde, Einkommensnachweise und je nach Erwerbssituation weitere Anlagen.',
+   'Eine digitale Antragsvorbereitung ist nicht in jedem Fall eine vollständig elektronische Einreichung.'),
+  service('childcare_search','Baden-Württemberg: Kita-Anmeldung nach Wohnort','Gemeinde, Stadtverwaltung, Träger oder konkrete Kindertageseinrichtung',
+   'Das amtliche Serviceportal Baden-Württemberg erläutert die Anmeldung eines Kindes in einer Kindertageseinrichtung. Anmeldung und Platzsuche müssen je nach Gemeinde oder Träger durchgeführt werden.',
+   'https://www.service-bw.de/zufi/leistungen/6028995',
+   ['Kita-Angebote am Wohnort auswählen','Bei Kommune oder Einrichtung das örtliche Anmeldeverfahren klären','Nachweise, Betreuungsumfang und Platzvergabe nach lokalen Vorgaben prüfen'],
+   'Je nach örtlichem Verfahren Angaben zum Kind, Sorgeberechtigung und gewünschtem Betreuungsbeginn.',
+   'Eine bestimmte Kita-Zusage kann nicht allein aus dem Serviceportal abgeleitet werden.')
+ ]},
+ {code:'HE',coverage:'researched',services:[
+  service('parental_allowance','Hessen: Elterngeld beim Versorgungsamt','Hessische Ämter für Versorgung und Soziales (HÄVS)',
+   'Die hessischen Elterngeldstellen sind bei den Ämtern für Versorgung und Soziales angesiedelt. Das Regierungspräsidium Gießen erklärt Onlineantrag, Standorte und regionale Zuständigkeiten.',
+   'https://rp-giessen.hessen.de/versorgung-und-familie/elterngeld/faq-elterngeld',
+   ['Zuständiges Hessisches Amt für Versorgung und Soziales anhand des Wohnorts ermitteln','Amtlichen Onlineantrag oder Papierverfahren wählen','Einreichungsform, Unterschriften und Belege prüfen'],
+   'Geburtsnachweis, Einkommensunterlagen und einzelfallabhängige weitere Erklärungen.',
+   'Vollständig elektronische Abgabe und Originalnachweise hängen vom verwendeten Signaturweg ab.'),
+  service('childcare_search','Hessen: Kita- und Tagespflegeberatung vor Ort','Gemeinde, Stadtverwaltung oder örtliches Jugendamt',
+   'Das offizielle Verwaltungsportal Hessen nennt die örtliche Gemeinde- oder Stadtverwaltung und das Jugendamt als Anlaufstellen für Betreuungsangebote und mögliche Aufnahmeverfahren.',
+   'https://verwaltungsportal.hessen.de/leistung?leistung_id=L100001_8966746',
+   ['Wohnort auswählen und Einrichtungen ermitteln','Vor Ort verfügbare Plätze und Betreuungsmodelle erfragen','Lokale Anmeldung und eventuell nötige Unterlagen abstimmen'],
+   'Je nach Ort Angaben zum Kind, gewünschte Betreuungszeit und Betreuungspersonen.',
+   'Keine einheitliche landesweite Kita-Anmeldefrist oder verbindliche Platzvergabe behaupten.')
+ ]},
+ {code:'NI',coverage:'researched',services:[
+  service('parental_allowance','Niedersachsen: Elterngeld bei kommunaler Stelle','Kommunale Elterngeldstelle der zuständigen Stadt oder des Landkreises',
+   'Das niedersächsische Sozialministerium stellt klar, dass Elterngeld ausschließlich bei kommunalen Elterngeldstellen beantragt wird. Der Onlineantrag kann über mein-elterngeldantrag.de vorbereitet werden; die Umsetzung erfolgt schrittweise.',
+   'https://www.ms.niedersachsen.de/themen/familie/elterngeld/das-elterngeld-13791.html',
+   ['Landkreis oder Stadt als zuständige Elterngeldstelle ermitteln','Aktuellen Onlineantrag oder Landesformular prüfen','Antrag an die örtliche Stelle übermitteln und Nachweise gegebenenfalls nachreichen'],
+   'Geburtsurkunde, Einkommensangaben sowie individuelle Anlagen gemäß dem örtlichen Antragsformular.',
+   'Das Landesministerium ist nicht die Bewilligungsstelle. Digitale Übermittlung und erforderliche Unterschrift bei der örtlichen Stelle prüfen.'),
+  service('childcare_search','Niedersachsen: Kita-Platz über Stadt oder Gemeinde','Örtliche Gemeinde- oder Stadtverwaltung sowie Jugendamt',
+   'Die Platzsuche erfolgt über Gemeinden, Städte und Einrichtungen. Das amtliche Landesportal ist eine Einstiegsstelle für die Suche nach kommunalen Verfahren und Betreuungsangeboten.',
+   'https://service.niedersachsen.de/',
+   ['Wohnort auswählen und dortiges Kita-Portal oder Betreuungsverzeichnis suchen','Gewünschte Einrichtung beziehungsweise Kindertagespflege anfragen','Anmeldung und Platzvergabe beim zuständigen Träger prüfen'],
+   'Je nach Kommune Daten zum Kind und Sorgeberechtigten, Beginn, Zeiten und eventuell weitere Nachweise.',
+   'Es gibt keinen einzigen für alle Kommunen gültigen Onlineantrag oder einheitliche Anmeldefrist.')
+ ]},
+ {code:'SH',coverage:'researched',services:[
+  service('parental_allowance','Schleswig-Holstein: Elterngeld bei Landesfamilienbüros','Landesamt für Arbeitsschutz, Soziales und Gesundheit (LASG), Landesfamilienbüros',
+   'Das LASG erläutert den Elterngeldantrag und den regional zuständigen Landesfamilienbüro-Standort. Die Einreichung kann je nach Signatur und Unterlagen weiterhin Ausdruck oder Originalbelege erfordern.',
+   'https://www.schleswig-holstein.de/DE/landesregierung/ministerien-behoerden/LASG/Aufgaben/KinderUndEltern/KinderUndElternArtikelElterngeld',
+   ['Das Landesfamilienbüro für die Wohnregion ermitteln','Amtlichen Online- oder Papierantrag und Bezugszeitraum wählen','Unterschrift und Originalunterlagen vor dem Versand prüfen'],
+   'Geburtsnachweis, Einkommensunterlagen und im Einzelfall weitere Anlagen.',
+   'Nicht jeden digital übermittelten Antrag als vollständig papierlos behandeln; aktuelle Anleitung des LASG beachten.'),
+  service('childcare_search','Schleswig-Holstein: KitaPortal mit unverbindlicher Voranmeldung','KitaPortal Schleswig-Holstein und gewählte Kita oder Tagespflege',
+   'Das landesweite KitaPortal ermöglicht die Suche nach Betreuungsangeboten und eine zunächst unverbindliche Online-Voranmeldung. Über den konkreten Platz entscheidet die Einrichtung oder die Tagespflegeperson.',
+   'https://www.kitaportal-sh.de/de/home',
+   ['Im KitaPortal Wohnort und gewünschte Betreuung auswählen','Unverbindliche Voranmeldung bei geeigneten Einrichtungen abgeben','Bei Zusage Betreuungsvertrag und Unterlagen direkt mit dem Träger klären'],
+   'Für die Voranmeldung Angaben zum Kind, Sorgeberechtigten, gewünschte Betreuung und Kontaktdaten.',
+   'Eine Voranmeldung oder Warteliste ist keine verbindliche Platzzusage.')
+ ]},
  {code:'BE',coverage:'researched',services:[
   service('parental_allowance','Berlin: Elterngeld beantragen','Jugendamt des zuständigen Wohnbezirks',
    'Das Serviceportal nennt das zuständige Familienservicebüro und die bezirklichen Elterngeldstellen. Den Wohnbezirk des Kindes auswählen; eine Adresse für ganz Berlin wäre irreführend.',
