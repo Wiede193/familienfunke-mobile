@@ -10,7 +10,7 @@ import SearchResultFeedback from './SearchResultFeedback';
 import {FamilyEmptyState,FamilySkeleton,FamilySectionTitle} from './FamilyFeedback';
 import {recommendFamilyPlaces,selectHomeOffers,selectHomeEvents,missingFamilyProfileStep,homeGreeting} from './HomePersonalization';
 import {retryRead} from './NetworkResilience';
-import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
+import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery,looksLikeKnowledgeQuestion} from './HomeNavigation';
 
 import {findFamilyMapLocations} from './FamilyMapSearch';
 import {findHealthyResources,HEALTH_RESOURCES} from './FamilyHealthyContent';
@@ -170,6 +170,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   }
   const needle=question.trim();
   const matches=findHomeRoutes(needle);
+  const visibleReplies=conversation.filter(entry=>entry.question===needle).slice(0,1);
   const places=needle.length>=2?findFamilyMapLocations(needle,{curated:[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES],national:NATIONAL_FAMILY_PLACES},4):[];
   const healthMatches=needle.length>=3?findHealthyResources(needle,3):[];
   const topicMatches=needle.length>=3?findFamilyTopics(needle).slice(0,3):[];
@@ -219,6 +220,11 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
     updateQuestion(questionText);
     askAssistant(questionText,contextRef);
     scrollRef.current?.scrollTo({y:0,animated:false});
+  }
+  function submitSearch(){
+    if(needle.length<2||busy||searchBusy)return;
+    if(looksLikeKnowledgeQuestion(needle))askAssistant();
+    else searchApp();
   }
   async function searchApp(){
     const query=needle;
@@ -281,31 +287,44 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         <FamilyIcon name="search" size={23} color={C.accentDark}/>
         <TextInput accessibilityLabel="Familienfunke durchsuchen oder Wissensfrage stellen"
           style={s.input} value={question} onChangeText={updateQuestion} editable={!busy&&!searchBusy}
-          placeholder="Was möchtest du finden?"
+          placeholder="Was sucht ihr? z. B. Spielplatz, Elterngeld …"
           placeholderTextColor={C.muted} maxLength={600}
-          autoCapitalize="sentences" returnKeyType="search" onSubmitEditing={searchApp}/>
+          autoCapitalize="sentences" returnKeyType="search" onSubmitEditing={submitSearch}/>
         {needle?<Pressable accessibilityRole="button" accessibilityLabel="Eingabe löschen"
           onPress={()=>updateQuestion('')} style={s.clear}><Text style={s.clearText}>×</Text></Pressable>:null}
       </View>
-      <View style={[s.searchActions,singleColumn&&{flexDirection:'column',alignItems:'stretch'}]}>
-        <Pressable accessibilityRole="button" accessibilityLabel="In Familienfunke suchen"
+      <View style={[s.searchActions,{justifyContent:'center'}]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Passende Ergebnisse oder Antwort anzeigen"
           accessibilityState={{disabled:busy||searchBusy||needle.length<2,busy:searchBusy}}
-          disabled={busy||searchBusy||needle.length<2} onPress={searchApp}
-          style={[s.directButton,(busy||searchBusy||needle.length<2)&&s.disabled]}>
-          <Text style={s.directLabel}>{searchBusy?'Suche läuft …':'Suchen'}</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Wissensdatenbank um Antwort fragen"
-          accessibilityState={{disabled:busy||searchBusy||needle.length<3,busy}}
-          disabled={busy||searchBusy||needle.length<3} onPress={()=>askAssistant()}
-          style={[s.askButton,(busy||searchBusy||needle.length<3)&&s.disabled]}>
-          {busy?<ActivityIndicator color={C.white} style={{marginRight:8}}/>:null}
-          <Text style={s.askButtonLabel}>{busy?'Suche läuft …':'Antwort finden'}</Text>
+          disabled={busy||searchBusy||needle.length<2} onPress={submitSearch}
+          style={[s.askButton,{flex:1,maxWidth:440},(busy||searchBusy||needle.length<2)&&s.disabled]}>
+          {searchBusy?<ActivityIndicator color={C.white} style={{marginRight:8}}/>:null}
+          <Text style={s.askButtonLabel}>{searchBusy?'Suche läuft …':'Ergebnisse anzeigen'}</Text>
         </Pressable>
       </View>
-      <Text style={s.searchHint}>App-Funktionen und Angebote suchen oder Fragen aus unserer geprüften Wissensdatenbank beantworten lassen.</Text>
+      <Text style={s.searchHint}>Ein Suchfeld für alles: Familien, Angebote, Ausflüge und Fragen.</Text>
+      {needle.length>=2&&!visibleReplies.length?<View style={s.instantResults}>
+        <Text style={s.instantTitle}>Direkt gefunden</Text>
+        {matches[0]?<AreaCard route={matches[0]} onNavigate={onNavigate} query={needle} compact/>:
+          places[0]?<Pressable accessibilityRole="button"
+            accessibilityLabel={places[0].title+' auf der Karte öffnen'}
+            onPress={()=>onNavigate('map','',places[0].place.id)} style={s.areaRow}>
+              <View style={{flex:1}}><Text style={s.areaTitle}>{places[0].title}</Text>
+              <Text style={s.areaSubtitle}>Ausflug auf der Karte ansehen</Text></View>
+              <Text style={s.areaArrow}>›</Text>
+            </Pressable>:
+          topicMatches[0]?<Pressable accessibilityRole="button"
+            accessibilityLabel={topicMatches[0].title+' im Familienwissen öffnen'}
+            onPress={()=>onNavigate('guide',needle)} style={s.areaRow}>
+              <View style={{flex:1}}><Text style={s.areaTitle}>{topicMatches[0].title}</Text>
+              <Text style={s.areaSubtitle}>{topicMatches[0].short}</Text></View>
+              <Text style={s.areaArrow}>›</Text>
+            </Pressable>:
+          <Text style={s.mutedSmall}>Noch kein direkter Treffer. Suche starten, um weitere Ergebnisse zu laden.</Text>}
+      </View>:null}
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
     </GentleReveal>
-    {conversation.length?<View style={s.section} onLayout={e=>{answerOffset.current=e.nativeEvent.layout.y;}}>
+    {visibleReplies.length?<View style={s.section} onLayout={e=>{answerOffset.current=e.nativeEvent.layout.y;}}>
       <View style={s.replyHeader}>
         <Text accessibilityRole="header" style={s.replySectionTitle}>Deine Antworten</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Wissensantworten dieser Ansicht löschen"
@@ -313,7 +332,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
           <Text style={s.clearHistoryLabel}>Verlauf leeren</Text>
         </Pressable>
       </View>
-      {conversation.map((entry,i)=><AssistantReply key={i+'-'+entry.question}
+      {visibleReplies.map((entry,i)=><AssistantReply key={i+'-'+entry.question}
         entry={entry} prominent={i===0} onNavigate={onNavigate} onAsk={askSuggested}/>)}
     </View>:null}
     {needle?<View style={s.section} onLayout={event=>{searchResultOffset.current=event.nativeEvent.layout.y;}}>
@@ -603,6 +622,9 @@ const s=StyleSheet.create({
     padding:16,marginBottom:24},
   searchTitle:{fontSize:19,fontWeight:'900',color:C.ink},
   searchHint:{fontSize:13.5,lineHeight:19,color:C.muted,marginTop:14,textAlign:'center'},
+  instantResults:{width:'100%',maxWidth:680,marginTop:14,padding:12,borderRadius:18,
+    borderWidth:1.5,borderColor:C.accentDark,backgroundColor:C.paper},
+  instantTitle:{fontSize:15,fontWeight:'900',color:C.accentDark,marginBottom:8},
   inputShell:{width:'100%',maxWidth:680,flexDirection:'row',alignItems:'center',minHeight:58,borderWidth:1.5,
     borderColor:'#ADC6BE',borderRadius:30,backgroundColor:C.paper,paddingHorizontal:15},
   searchGlyph:{fontSize:29,color:C.tealDark,marginRight:7,marginTop:-5},
