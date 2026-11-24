@@ -13,6 +13,7 @@ export const MENU_GROUPS=[
   ['inbox','◉','Neuigkeiten','Hinweise und Benachrichtigungen'],
   ['calendar','▦','Familienkalender','Eigene Termine und Pläne'],
   ['savedSearches','♡','Suchaufträge','Gespeicherte Basar-Suchen'],
+  ['favorites','♡','Merkliste','Deine gespeicherten Basar-Angebote'],
   ['push','⚙','Benachrichtigungen einstellen','Push-Einstellungen']
  ]},
  {title:'Ausflüge, Freizeit & Wissen',items:[
@@ -45,7 +46,7 @@ const QUICK_ITEMS=[
   ['profile','Mein Profil','users'],
   ['inbox','Neuigkeiten','bell']
 ];
-const SEARCH_ICONS={sell:'bag',myListings:'bag',home:'home',guide:'book',market:'bag',map:'map',discover:'users'};
+const SEARCH_ICONS={sell:'bag',myListings:'bag',favorites:'heart',home:'home',guide:'book',market:'bag',map:'map',discover:'users'};
 function MenuResult({entry,onSelect,activeTab,unread}){
  const {id,title,subtitle}=entry;
  return <Pressable accessibilityRole="button"
