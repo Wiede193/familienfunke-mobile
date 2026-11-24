@@ -30,7 +30,10 @@ assert.ok(!actions.includes('return accountRef.current===actionOwner&&!!refreshe
 const photos=slice('async function executePhoto','// Einmalige Begrüßung');
 assert.ok(photos.includes('await executeEvent(fn,success)'),'Photo mutations should only refresh photo scope');
 assert.ok(app.includes("return executeEvent(async()=>assertResult(await supabase.auth.updateUser({password}))"),'Password change must not reload whole app');
-assert.ok(app.includes("const ok=await executeEvent(async()=>assertResult(await supabase.from('reports')"),'Reporting must not reload all app data');
+const reportFlow=slice('async function sendReport(){','async function sendRequest(uid)');
+assert.ok(reportFlow.includes('const ok=await executeEvent(async()=>'), 'Reports must use scoped write operations');
+assert.ok(reportFlow.includes("supabase.rpc('ff_market_report_listing'"), 'Market reports require authenticated RPC');
+assert.ok(!reportFlow.includes('await load('),'Reports must not reload unrelated app data');
 assert.ok(app.includes("setReportTarget(null);setReportDetails('');"),'Sensitive report drafts must disappear on account switch');
 assert.ok(app.includes("addPlace={(v)=>executeEvent(async()=>"),'Submitting a place must not reload the global social cache');
 assert.ok(app.includes("createPartnerEvent={(v)=>executeEvent(async()=>"),'Submitting a partner event should use its own scope');
