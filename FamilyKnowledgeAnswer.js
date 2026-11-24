@@ -68,7 +68,7 @@ function exactPhrase(hay,phrase){
 function aliasScore(question,queryTokens,aliases=[]){
  let best=0;
  for(const phrase of aliases){
-  if(exactPhrase(question,phrase))best=Math.max(best,105+Math.min(12,norm(phrase).length/5));
+  if(exactPhrase(question,phrase))best=Math.max(best,105+Math.min(12,norm(phrase).length/5)+20*Math.min(3,Math.max(0,tokens(phrase).length-1)));
   else{
    const ts=tokens(phrase);
    if(ts.length>0){
