@@ -34,7 +34,8 @@ for(const [phrase,id] of [
 ]){
   assert.equal(findHomeRoutes(phrase)[0]?.id,id,'Wrong landing page for: '+phrase);
 }
-assert.equal(findHomeRoutes('').length,4,'The home page should stay uncluttered');
+assert.deepEqual(findHomeRoutes('').map(x=>x.id),['discover','map','market','guide'],
+  'Default home suggestions must balance people, outings, bazaar and knowledge');
 assert.equal(findHomeRoutes('Passwort ändern')[0]?.id,'profile','Password settings must be discoverable');
 assert.equal(findHomeRoutes('Kinderwagen kaufen')[0]?.id,'market','Items should point to the bazaar');
 assert.equal(findHomeRoutes('Spielplätze finden')[0]?.id,'map','Play spaces must open the map');
