@@ -86,7 +86,7 @@ for(const [q,code] of [
  ['Elterngeld in Saarland beantragen','SL'],
  ['Kita in Thüringen anmelden','TH'],
  ['Kita in Bremen anmelden','HB'],
- ['Elterngeld in Potsdam','BB']
+ ['Elterngeld in Rheinland-Pfalz','RP']
 ]){
  assert.equal(matchGermanState(q,GERMANY_FAMILY_STATES)?.code,code,q);
  const a=ask(q);
