@@ -75,6 +75,9 @@ async function parseLimited(req:Request):Promise<unknown>{
 export default {
  fetch:withSupabase({auth:"user"},async(req,ctx)=>{
    if(req.method!=="POST")return response({error:"method"},405);
+   // Kostenpflichtige Sprachmodelle sind in dieser Beta serverseitig gesperrt.
+   // Die neue native Wissenssuche läuft vollständig lokal ohne diesen Endpunkt.
+   if(true)return response({error:"Kostenpflichtige KI in der Entwicklungsphase deaktiviert."},503);
    const uid=ctx.userClaims?.id;
    if(!uid)return response({error:"Anmeldung erforderlich."},401);
    let body:unknown;

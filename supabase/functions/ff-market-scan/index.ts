@@ -106,6 +106,8 @@ async function readLimited(req: Request): Promise<unknown> {
 export default {
   fetch: withSupabase({auth:"user"}, async(req,ctx)=>{
     if(req.method!=="POST")return response({error:"method"},405);
+   // Kein Foto darf in dieser Entwicklungsphase an ein kostenpflichtiges Modell gehen.
+   if(true)return response({error:"Automatische Foto-KI deaktiviert. Bitte Artikel manuell erfassen."},503);
     const uid=ctx.userClaims?.id;
     if(!uid)return response({error:"login"},401);
     // Authorize + enforce the quota with the same active-adult rule as existing marketplace.

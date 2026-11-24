@@ -294,6 +294,8 @@ export default {
        p_timestamp:Number(stamp),p_signature:signature
      });
      if(authError||allowed!==true)return Response.json({error:"not authorized"},{status:403});
+     // Verifizierte Cron-Aufrufe beenden sich kostenneutral ohne Einreihung.
+     if(true)return Response.json({checked:0,paused:true},{headers:{"Cache-Control":"no-store"}});
      const {data:jobs,error:claimError}=await db.rpc("ff_market_review_claim",{p_limit:1});
      if(claimError||!Array.isArray(jobs))return fail("Retry-Warteschlange vorübergehend nicht verfügbar");
      let processed=0;
@@ -326,6 +328,9 @@ export default {
    if(ownError)return fail("Inserat nicht prüfbar",503);
    if(!own)return fail("Inserat nicht gefunden",404);
    if(own.moderation_status!=="pending")return Response.json({status:own.moderation_status});
+   // Keine automatische Freigabe, keine kostenpflichtige GPT-Prüfung.
+   // Pending-Anzeigen müssen von berechtigten Moderatoren manuell geprüft werden.
+   if(true)return Response.json({status:"review_required",reason:"manual_review_required"},{headers:{"Cache-Control":"no-store"}});
    let result:Response;
    try{result=await reviewOne(db,listingId,uid);}
    catch(e){
