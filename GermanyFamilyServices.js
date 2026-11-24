@@ -6,6 +6,76 @@ const service=(topic,title,authority,description,url,steps=[],documents='',cavea
  scope:'state-entry',checked:'2026-11-24'
 });
 export const GERMANY_STATE_SERVICES=[
+ {code:'HB',coverage:'researched',services:[
+  service('parental_allowance','Bremen: Elterngeld beantragen','Amt für Soziale Dienste, Elterngeldstelle Bremen; für Bremerhaven die dort zuständige Stelle prüfen',
+   'Das Serviceportal Bremen erläutert den Online- und Papierantrag sowie die zuständige Elterngeldstelle. Vor der Einreichung muss die Stadtgemeinde Bremen oder Bremerhaven unterschieden werden.',
+   'https://www.service.bremen.de/dienstleistungen/elterngeld-beantragen-9743',
+   ['Stadtgemeinde Bremen oder Bremerhaven und zuständige Elterngeldstelle auswählen','Antrag digital vorbereiten oder amtliches Formular nutzen','Unterschriften und Nachweise gemäß Serviceportal prüfen'],
+   'Geburtsurkunde und Einkommensnachweise, gegebenenfalls Angaben zu Mutterschaftsleistungen.',
+   'Das Onlineverfahren und die erforderliche Unterschrift richten sich nach dem amtlichen Einreichungsweg; Bremen und Bremerhaven nicht gleichsetzen.'),
+  service('childcare_search','Bremen: Krippe, Kindergarten und Tagespflege anmelden','Kita-Portal Bremen oder die Einrichtung beziehungsweise der örtliche Träger',
+   'Das Bremer Serviceportal beschreibt die Onlineanmeldung. Einrichtungen außerhalb des Portals können ein eigenes Anmeldeverfahren verlangen.',
+   'https://www.service.bremen.de/dienstleistungen/anmeldung-eines-kindes-in-der-krippe-dem-kindergarten-oder-bei-der-tagespflege-181851',
+   ['Kita-Angebote und Teilnahme am Kita-Portal prüfen','Bei Teilnahme online vormerken, sonst Träger direkt kontaktieren','Örtliche Fristen und Platzvergabe verbindlich mit der Einrichtung klären'],
+   'Je nach Einrichtung Kinderdaten, Sorgeberechtigte, Betreuungstermin und weitere Angaben.',
+   'Die Fachseite bezieht sich auf die Stadtgemeinde Bremen; Verfahren in Bremerhaven gesondert klären.')
+ ]},
+ {code:'RP',coverage:'researched',services:[
+  service('parental_allowance','Rheinland-Pfalz: Elterngeld bei Kreis- und Stadtverwaltung','Elterngeldstelle der örtlich zuständigen Kreis- oder Stadtverwaltung',
+   'Das Landesministerium nennt die Elterngeldstellen der Kreis- und Stadtverwaltungen als Antragsbehörden. Die konkret zuständige Stelle folgt aus dem Wohnort.',
+   'https://mkbwk.rlp.de/themen/familie/gute-zukunft-fuer-alle-kinder-und-eltern/finanzielle-leistungen/elterngeld',
+   ['Kreis- oder Stadtverwaltung für den Wohnort ermitteln','Amtliches Formular und Angaben zu den Lebensmonaten prüfen','Geburts- und Einkommensnachweise mit dem Antrag übermitteln'],
+   'Geburtsurkunde, Einkommen, Mutterschaftsgeldnachweise und weitere individuelle Anlagen.',
+   'Das Landesministerium bewilligt nicht persönlich jeden Antrag; örtliche Elterngeldstelle und eventuelle Originalnachweise prüfen.'),
+  service('childcare_search','Rheinland-Pfalz: Kita und Tagespflege finden','Örtliches Jugendamt und konkrete Einrichtung beziehungsweise Tagespflegestelle',
+   'Das Serviceportal Rheinland-Pfalz erläutert die Beratung durch Jugendämter. Platzsuche und Aufnahme laufen je nach örtlichem Jugendamtsbezirk direkt oder über ein kommunales Onlineportal.',
+   'https://service.rlp.de/detail?areaId=38265&ouId=&pstId=8969463',
+   ['Örtliches Jugendamt über den Wohnort bestimmen','Mögliche Kita-Portale und Betreuungsangebote bei der Stelle erfragen','Für die ausgewählte Einrichtung Fristen, Betreuung und Anmeldung klären'],
+   'Je nach örtlichem Verfahren Kinderdaten, gewünschter Zeitraum und Betreuungsumfang, gegebenenfalls Nachweise.',
+   'Die Verfahren unterscheiden sich zwischen den Jugendamtsbezirken; keine einheitliche Onlineanmeldung annehmen.')
+ ]},
+ {code:'SL',coverage:'researched',services:[
+  service('parental_allowance','Saarland: Elterngeld beim Landesamt für Soziales','Landesamt für Soziales, Elterngeldstelle Saarland',
+   'Im Saarland ist das Landesamt für Soziales für die Gewährung von Elterngeld zuständig. Es gibt offizielle Informationen zu Antrag, Formularen und Onlineantrag.',
+   'https://www.saarland.de/las/DE/themen/elterngeldstelle/elterngeld_antrag',
+   ['Aktuelle Formulare oder amtlichen Onlineantrag nutzen','Geburts- und Einkommensangaben vorbereiten','Unterschrift und Übermittlung nach Anleitung des Landesamts prüfen'],
+   'Geburtsurkunde, Einkommensunterlagen und je nach Fall weitere Leistungsnachweise.',
+   'Ob ein Onlineformular abschließend elektronisch eingereicht werden kann, im aktuellen Antragsdienst prüfen.'),
+  service('childcare_search','Saarland: Kita-Betreuung und Platzsuche','Kita-Träger, Kommune und zuständiger örtlicher Jugendhilfeträger',
+   'Das Ministerium für Bildung und Kultur informiert über frühkindliche Bildung und Kita-Angebote. Die Anmeldung für einen konkreten Betreuungsplatz wird mit der Einrichtung beziehungsweise örtlichen Stelle geklärt.',
+   'https://www.saarland.de/mbk/DE/portale/fruehkindliche-bildung/home',
+   ['Einrichtungen und Träger am Wohnort suchen','Anmeldeverfahren und Betreuungszeiten direkt erfragen','Bei fehlendem Platz örtlichen Jugendhilfeträger um Beratung bitten'],
+   'Je nach Einrichtung Angaben zum Kind, Sorgeberechtigten, Betreuungsbeginn und Umfang.',
+   'Die verlinkte Landesseite ist ein fachlicher Überblick und kein landesweit verbindlicher Antragsdienst.')
+ ]},
+ {code:'ST',coverage:'researched',services:[
+  service('parental_allowance','Sachsen-Anhalt: Elterngeld über Kreis- oder Stadtverwaltung','Elterngeldstelle des zuständigen Landkreises oder der kreisfreien Stadt',
+   'Das Landesamt für Soziales, Jugend und Gesundheit erklärt die Zuständigkeit der Landkreise und kreisfreien Städte; eine amtliche Übersicht verlinkt die Elterngeldstellen.',
+   'https://las.sachsen-anhalt.de/themen/landesjugendamt/familien-und-frauen/elterngeld-und-elternzeit/elterngeldstellen',
+   ['Im Landesverzeichnis die Kreis- oder Stadtstelle ermitteln','Offiziellen Antrag und Bezugsmonate prüfen','Notwendige Nachweise bei der gewählten Stelle einreichen'],
+   'Geburtsurkunde, Einkommensunterlagen und individuelle Anlagen nach den amtlichen Formularen.',
+   'Das Landesamt ist nicht automatisch die Stelle, die den einzelnen Elterngeldantrag bewilligt.'),
+  service('childcare_search','Sachsen-Anhalt: Kita-Verzeichnis und Jugendämter','Örtlicher Jugendhilfeträger und Einrichtungen in Landkreis oder kreisfreier Stadt',
+   'Das Landesamt für Soziales, Jugend und Gesundheit bietet ein Kita-Verzeichnis nach Landkreisen und Städten. Die Anmeldung erfolgt nach den örtlichen Aufnahmeverfahren.',
+   'https://las.sachsen-anhalt.de/themen/landesjugendamt/kinder-und-jugend/kindertageseinrichtungen/kita-verzeichnis-sachsen-anhalt',
+   ['Landkreis beziehungsweise kreisfreie Stadt und Kitas auswählen','Träger nach freien Angeboten und Anmeldeweg fragen','Bei Problemen zuständiges Jugendamt kontaktieren'],
+   'Angaben zum Kind, Betreuungswunsch und je nach Einrichtung weitere Unterlagen.',
+   'Das Landesverzeichnis ist keine verbindliche Online-Reservierung oder Platzzusage.')
+ ]},
+ {code:'TH',coverage:'researched',services:[
+  service('parental_allowance','Thüringen: Elterngeld bei Kreis- und Stadtstellen','Elterngeldstellen der Landkreise und kreisfreien Städte',
+   'Das Thüringer Sozialministerium erklärt die örtliche Zuständigkeit und beschreibt einen elektronischen Assistenten für die Antragsvorbereitung, bei dem die Unterlagen üblicherweise ausgedruckt und unterschrieben versandt werden.',
+   'https://soziales.thueringen.de/soziales/familie/finanzielle-hilfen',
+   ['Zuständige Elterngeldstelle über Landkreis oder Stadt auswählen','Offiziellen Antragsassistenten oder Vordruck ausfüllen','Unterschrift, Zustellweg und erforderliche Belege prüfen'],
+   'Geburtsnachweis, Einkommensunterlagen und weitere Antragsanlagen nach Sachverhalt.',
+   'Der Antrag gilt nicht allein durch das Ausfüllen einer Online-Eingabemaske als eingereicht.'),
+  service('childcare_search','Thüringen: Kindergartenplatz am Wohnort anmelden','Gemeinde, Träger der Einrichtung und gegebenenfalls örtliches Jugendamt',
+   'Die Thüringer Landesverwaltung führt örtliche Leistungen zur Kita-Platzanmeldung. Im konkreten Verfahren müssen Gemeinde, Träger und verfügbarer Betreuungsplatz bestimmt werden.',
+   'https://verwaltung.thueringen.de/',
+   ['Gemeinde oder Stadt im amtlichen Verwaltungsportal auswählen','Kita-Anmeldedienst und zuständige Träger vor Ort ermitteln','Aktuelle Aufnahmebedingungen, Nachweise und Betreuungszeiten prüfen'],
+   'Kinderdaten, Sorgeberechtigte, gewünschter Beginn und fallabhängige Nachweise.',
+   'Das Portal ist ein Einstieg; kein landesweit einheitlicher Antrag und keine automatisch reservierte Kita.')
+ ]},
  {code:'BW',coverage:'researched',services:[
   service('parental_allowance','Baden-Württemberg: Elterngeld bei der L-Bank','Landeskreditbank Baden-Württemberg (L-Bank)',
    'Die L-Bank nimmt in Baden-Württemberg Elterngeldanträge entgegen und bietet einen begleiteten Onlineantrag. Aktuelle Formulare und Nachweisanforderungen stehen auf ihrer offiziellen Leistungsseite.',
