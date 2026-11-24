@@ -271,6 +271,7 @@ const [menuOpen,setMenuOpen]=useState(false);
 const [profileDirty,setProfileDirty]=useState(false);
 const [marketSubpage,setMarketSubpage]=useState(false);
 const marketBackRef=useRef(null);
+const marketLeaveRef=useRef(null);
 const [marketIntent,setMarketIntent]=useState(null);
 const [outingDraft,setOutingDraft]=useState(null);
 const [mapIntent,setMapIntent]=useState(null);
@@ -941,21 +942,32 @@ function planCalendarPlace(place){
   setExtraReturnTab(tab);setTab('calendar');
 }
 function selectMenuItem(id){
-  setMenuOpen(false);
-  if(id==='refresh'){load();return;}
-  if(id==='welcome'){setShowWelcome(true);return;}
-  if(id==='tour'){setShowTour(true);setTourPending(true);setTab('home');return;}
-  if(id==='info'){setDetailFamily(null);setSelectedContact(null);setShowInfo(true);return;}
-  if(id==='inbox'){openInbox();return;}
-  if(!MORE_ITEMS.some(item=>item[0]===id)&&id!=='more')return;
-  // Menu navigation opens topic overviews; global search keeps its own deep-link query.
-  if(id==='healthy')setHealthyQuery('');
-  if(id==='decisions'){setDecisionQuery('');setDecisionFocusId(null);}
-  if(id==='inclusion')setInclusionQuery('');
-  if(tab===id&&!detailFamily&&!selectedContact&&!showInfo)return;
-  const previous=TABS.some(t=>t[0]===tab)||tab==='more'?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:'home');
-  setDetailFamily(null);setSelectedContact(null);setShowInfo(false);setMarketIntent(null);setMapIntent(null);setCalendarSeed(null);setEventIntent(null);setFocusContactId(null);setShowEventForm(false);
-  setExtraReturnTab(previous===id?'home':previous);setTab(id);
+ // Every menu destination must have a real route. The old quick 'Basar'
+ // button silently failed because it was absent from MORE_ITEMS.
+ const tabIds=TABS.map(([name])=>name);
+ const canOpen=tabIds.includes(id)||MORE_ITEMS.some(item=>item[0]===id)
+   ||['sell','myListings','more','info','refresh','welcome','tour'].includes(id);
+ if(!canOpen)return;
+ setMenuOpen(false);
+ if(id==='refresh'){load();setNotice('Aktuelle Daten werden geladen.');return;}
+ if(id==='welcome'){setShowWelcome(true);return;}
+ if(id==='tour'){setShowTour(true);setTourPending(true);setTab('home');return;}
+ if(id==='info'){setDetailFamily(null);setSelectedContact(null);setShowInfo(true);return;}
+ if(id==='inbox'){openInbox();return;}
+ if(id==='market'&&tab==='market'&&marketSubpage&&marketBackRef.current){
+   marketBackRef.current();return;
+ }
+ // A new menu route must clear the old details, not stack invisible screens.
+ if(id==='healthy')setHealthyQuery('');
+ if(id==='decisions'){setDecisionQuery('');setDecisionFocusId(null);}
+ if(id==='inclusion')setInclusionQuery('');
+ if(tab===id&&!detailFamily&&!selectedContact&&!showInfo)return;
+ const previous=tabIds.includes(tab)||tab==='more'?tab:(tabIds.includes(extraReturnTab)?extraReturnTab:'home');
+ setDetailFamily(null);setSelectedContact(null);setShowInfo(false);
+ setMarketIntent(id==='sell'?'sell':id==='myListings'?{type:'myListings'}:null);
+ setMapIntent(null);setCalendarSeed(null);setEventIntent(null);setFocusContactId(null);setShowEventForm(false);
+ setExtraReturnTab(previous===id?'home':previous);
+ setTab(id==='sell'||id==='myListings'?'market':id);
 }
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
 if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
@@ -987,6 +999,9 @@ function back(){
  if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab))setTab(extraReturnTab==='more'?'home':extraReturnTab);
 }
 function guardProfileExit(next){
+ if(tab==='market'&&marketLeaveRef.current){
+   marketLeaveRef.current(next);return;
+ }
  if(tab==='profile'&&profileDirty){
   Alert.alert('Profiländerungen noch nicht gespeichert','Du hast Angaben verändert. Möchtest du sie verwerfen und den Bereich verlassen?',[
    {text:'Weiter bearbeiten',style:'cancel'},
@@ -1048,7 +1063,7 @@ tab==='map'?<FamilyMapScreen userId={me} onCalendar={planCalendarPlace} active={
  assertResult(await supabase.from('ff_family_places').insert(v));
 },'Danke! Dein Ort wartet auf Prüfung.')}/>:
 tab==='savedSearches'?<SavedMarketSearches key={me} userId={me} onSearch={row=>{setMarketIntent({type:'savedSearch',row,returnTab:'savedSearches'});setTab('market');}} onBrowse={()=>{setMarketIntent(null);setTab('market');}}/>:
-tab==='market'?<MarketScreen key={me} navigationBackRef={marketBackRef} onBackStateChange={setMarketSubpage} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} marketRefresh={marketEpoch} listings={db.listings} me={me} active={active} busy={busy}
+tab==='market'?<MarketScreen key={me} navigationBackRef={marketBackRef} navigationExitRef={marketLeaveRef} onBackStateChange={setMarketSubpage} onSavedSearches={()=>{setExtraReturnTab('market');setMarketIntent(null);setTab('savedSearches');}} entryIntent={marketIntent} marketRefresh={marketEpoch} listings={db.listings} me={me} active={active} busy={busy}
  ownLoading={marketOwnerBusy} ownLoadingMore={marketOwnerBusyMore} ownHasMore={marketOwnerHasMore}
  ownError={marketOwnerError} onLoadMoreOwn={loadMoreOwnListings} onRetryOwn={()=>setMarketEpoch(n=>n+1)}
 organizations={db.organizations} photoUrls={marketPhotoUrls} extraPhotoUrls={marketExtraPhotoUrls} marketPhotos={db.marketPhotos} contacts={db.contacts}
@@ -1160,7 +1175,14 @@ changePassword={changePassword} onDirtyChange={setProfileDirty} openInfo={()=>gu
 </GentleReveal>
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
-{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>guardProfileExit(()=>{setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);setExtraReturnTab('more');if(id==='guide')setGuideQuery('');setTab(id);setShowEventForm(false);})}
+{TABS.map(([id,title,glyph])=><Pressable accessibilityRole="button" key={id} onPress={()=>guardProfileExit(()=>{
+  if(id==='market'&&tab==='market'&&marketSubpage&&marketBackRef.current){
+    marketBackRef.current();return;
+  }
+  setMarketIntent(null);setMapIntent(null);setEventIntent(null);setCalendarSeed(null);
+  setExtraReturnTab('more');if(id==='guide')setGuideQuery('');
+  setTab(id);setShowEventForm(false);
+})}
 accessibilityLabel={title} accessibilityState={{selected:selectedMainTab===id}}
 accessibilityHint="Länger drücken, um eine Erklärung zu erhalten"
 onLongPress={()=>Alert.alert(title,({
@@ -1331,7 +1353,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
     </View>:null}
   </View>;
 }
-function MarketScreen({entryIntent,marketRefresh,navigationBackRef,onBackStateChange,onSavedSearches,listings,marketPhotos,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onReportListing,onContact,onChat,nameOf,blocked,ownLoading,ownLoadingMore,ownHasMore,ownError,onLoadMoreOwn,onRetryOwn}){
+function MarketScreen({entryIntent,marketRefresh,navigationBackRef,navigationExitRef,onBackStateChange,onSavedSearches,listings,marketPhotos,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onReportListing,onContact,onChat,nameOf,blocked,ownLoading,ownLoadingMore,ownHasMore,ownError,onLoadMoreOwn,onRetryOwn}){
   const [open,setOpen]=useState(false);
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<375||fontScale>=1.5;
@@ -1406,6 +1428,31 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   const marketScrollRef=useRef(null);
   const inMarketSubpage=boxOpen||open||!!boxEditor||!!selectedListing||sellChoicesOpen;
   useEffect(()=>{onBackStateChange(inMarketSubpage);return()=>onBackStateChange(false);},[inMarketSubpage,onBackStateChange]);
+  // Tabwechsel oder Menüwechsel dürfen keine ungespeicherten Inserate
+  // kommentarlos verwerfen. Interne Zurück-Wege bleiben getrennt.
+  useEffect(()=>{
+    navigationExitRef.current=(next)=>{
+      const changed=!!(editingId||title.trim()||description.trim()||region.trim()||price.trim()||photo.length);
+      if(open&&changed){
+        Alert.alert('Anzeige noch nicht gespeichert',
+          'Deine Eingaben würden beim Wechsel verloren gehen. Möchtest du sie wirklich verwerfen?',[
+            {text:'Anzeige weiter bearbeiten',style:'cancel'},
+            {text:'Entwurf verwerfen',style:'destructive',onPress:next}
+          ]);
+        return;
+      }
+      if(boxEditor){
+        Alert.alert('Kistenentwurf bearbeiten',
+          'Deine Änderungen sind noch im Formular. Behalte sie, bevor du den Bereich verlässt.',[
+            {text:'Weiter bearbeiten',style:'cancel'},
+            {text:'Zwischenstand behalten',onPress:()=>{saveBoxEditor();next();}}
+          ]);
+        return;
+      }
+      next();
+    };
+    return()=>{navigationExitRef.current=null;};
+  });
   // Header-Zurück führt zur unmittelbar vorherigen Basar-Ansicht.
   useEffect(()=>{
     navigationBackRef.current=()=>{
@@ -1444,6 +1491,13 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
     setFilter('Alle');setTradeFilter('all');setMinPrice('');setMaxPrice('');
     setSortBy('relevance');setOnlyMine(false);setOnlyFavorites(false);
     setOpen(false);setBoxOpen(false);setSelectedListing(null);
+  },[entryIntent]);
+  useEffect(()=>{
+    if(entryIntent?.type!=='myListings')return;
+    setBuyerFocus(null);setQuery('');setFilter('Alle');
+    setTradeFilter('all');setMinPrice('');setMaxPrice('');
+    setOnlyMine(true);setOnlyFavorites(false);
+    setOpen(false);setBoxOpen(false);setSellChoicesOpen(false);setSelectedListing(null);
   },[entryIntent]);
   useEffect(()=>{
     if(entryIntent?.type!=='inboxListing')return;
