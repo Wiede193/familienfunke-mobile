@@ -42,4 +42,9 @@ assert.match(app,/onLongPress=\{\(\)=>Alert\.alert\(title/);
 assert.match(home,/Was möchtest du heute machen\?/);
 assert.match(home,/id:active\?'sell':'profile'/);
 assert.match(home,/id:'events',icon:'calendar'/);
+const notifications=read('NotificationCenterScreen.jsx');
+assert.match(notifications,/listing_status==='removed'/);
+assert.match(notifications,/Anzeige nach Meldungen ausgeblendet/);
+assert.match(notifications,/überprüfen lassen möchtest/);
+
 console.log('Basar-Direktveröffentlichung, Community-Meldung und interaktive Formulare geprüft.');
