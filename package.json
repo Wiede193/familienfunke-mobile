@@ -41,7 +41,7 @@
     "check:network": "node tests/check-network-resilience.mjs && node tests/check-app-network.mjs",
     "check:chat-idempotency": "node tests/check-chat-intents.mjs && node tests/check-server-chat-idempotency.mjs",
     "check:blocks": "node tests/check-block-pages.mjs && node tests/check-block-contact-app.mjs",
-    "check:design-refresh": "node tests/check-home-personalization.mjs && node tests/check-design-refresh.mjs && node tests/check-friendly-onboarding.mjs && node tests/check-market-community.mjs",
+    "check:design-refresh": "node tests/check-home-personalization.mjs && node tests/check-design-refresh.mjs && node tests/check-friendly-onboarding.mjs && node tests/check-market-community.mjs && node tests/check-menu-discovery.mjs",
     "check:ux-sweep": "node tests/check-ux-sweep.mjs",
     "check:knowledge": "node tests/check-regional-knowledge.mjs && node tests/check-inclusion-knowledge.mjs && node tests/check-map-accessibility.mjs",
     "check:family-topics": "node tests/check-family-topics.mjs",
