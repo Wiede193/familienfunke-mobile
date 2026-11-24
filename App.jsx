@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import WelcomeIntro from './WelcomeIntro';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
+import {FAMILY_INTERESTS,FAMILY_INTEREST_GROUPS,MAX_PROFILE_INTERESTS,addFamilyInterest,removeFamilyInterest,filterFamilyInterests,normalizeInterest} from './FamilyInterests';
 import FamilyIcon,{FAMILY_ROUTE_ICONS} from './FamilyIcon';
 import SearchResultFeedback from './SearchResultFeedback';
 import {FamilyEmptyState,FamilySkeleton} from './FamilyFeedback';
@@ -56,7 +57,7 @@ import { cropBounds,suggestedCrop,changeCrop,pixelCrop,photoIssues,PHOTO_ISSUES 
 import {suggestBoxPackages,packageCheck} from './MarketBoxSuggestions';
 // Familienfunke: Vorlage 3 – fröhlich und lebendig.
 const C = FAMILY_COLORS;
-const INTERESTS = ['Spielplatz','Natur','Radfahren','Wandern','Kochen','Musik','Basteln','Sport','Tiere','Lesen','Ausflüge','Spieleabende','Schwimmen','Fußball','Tanzen','Camping','Gärtnern','Fotografie','Brettspiele','Museen','Backen','Picknick','Kino','Yoga','Familiencafés','Handarbeiten','Konzerte','Reisen'];
+const INTERESTS = FAMILY_INTERESTS;
 const REGIONS = ['Landkreis Oder-Spree','Fürstenwalde/Spree','Beeskow','Eisenhüttenstadt','Bad Saarow','Storkow (Mark)','Frankfurt (Oder)','Landkreis Dahme-Spreewald','Landkreis Märkisch-Oderland','Berlin','Potsdam','Cottbus'];
 const normalizeLabel = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
 const REGION_CLUSTERS = [
@@ -2892,6 +2893,7 @@ const [onlyRegion,setOnlyRegion]=useState(false);
 const [onlyShared,setOnlyShared]=useState(false);
 const [mode,setMode]=useState('cards');
 const [showInterestFilter,setShowInterestFilter]=useState(false);
+const [interestFilterQuery,setInterestFilterQuery]=useState('');
 const [cardIndex,setCardIndex]=useState(0);
 const myRegion=myProfile?.region_label||'';
 const filtered=matches.filter(p=>
@@ -2948,9 +2950,16 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
  style={[styles.marketFilterToggle,{minHeight:48,marginBottom:12,alignSelf:'stretch'}]}>
  <Text style={styles.marketFilterLabel}>Interessen auswählen: {interest==='Alle'?'Alle Interessen':interest} {showInterestFilter?'−':'+'}</Text>
  </Pressable>
- {showInterestFilter?<View style={[styles.chipsRow,{marginBottom:13}]}>
- {['Alle',...INTERESTS].map(i=><Chip key={i} text={i} selected={interest===i} onPress={()=>{updateFilter(setInterest,i);setShowInterestFilter(false);}}/>)}
- </View>:null}
+ {showInterestFilter?<Card>
+ <Text style={styles.sub}>Suche ein Hobby, statt eine lange Liste durchzuscrollen.</Text>
+ <Input label="Hobby suchen" placeholder="z. B. Bouldern, Töpfern, Brettspiele" value={interestFilterQuery}
+   onChangeText={setInterestFilterQuery}/>
+ <View style={[styles.chipsRow,{marginTop:8,marginBottom:12}]}>
+  <Chip text="Alle" selected={interest==='Alle'} onPress={()=>{updateFilter(setInterest,'Alle');setShowInterestFilter(false);}}/>
+  {filterFamilyInterests(interestFilterQuery,INTERESTS).slice(0,24).map(i=><Chip key={i} text={i} selected={interest===i} onPress={()=>{updateFilter(setInterest,i);setShowInterestFilter(false);}}/>)}
+ </View>
+ {filterFamilyInterests(interestFilterQuery,INTERESTS).length>24?<Text style={styles.micro}>Weitere Hobbys über das Suchfeld finden.</Text>:null}
+ </Card>:null}
 <View style={styles.filterPanel}>
 <Row style={{justifyContent:'space-between',marginBottom:10}}>
 <View style={{flex:1}}><Text style={styles.label}>Nur meine Region</Text><Text style={styles.micro}>{myRegion?'Gleiche Region oder bekannter Ort im selben Landkreis':'Bitte zuerst deine Region im Profil auswählen'}</Text></View>
@@ -3460,6 +3469,9 @@ const [selectedPhoto,setSelectedPhoto]=useState(null);
 const [photoPickerBusy,setPhotoPickerBusy]=useState(false);
 const [newPassword,setNewPassword]=useState('');
 const [profileSection,setProfileSection]=useState('about');
+const [interestQuery,setInterestQuery]=useState('');
+const [interestGroup,setInterestGroup]=useState('Alle');
+const [customInterest,setCustomInterest]=useState('');
 useEffect(()=>{if(profile)setForm({...blankProfile,...profile,interests:Array.isArray(profile.interests)?profile.interests:[]});},[profile?.updated_at,profile?.user_id]);
 const initialProfile={...blankProfile,...profile};
 const dirty=!!profile&&(form.display_name!==String(initialProfile.display_name||'')||
@@ -3478,8 +3490,27 @@ function switchSection(next){
  ]);
 }
 async function submit(){if((form.display_name||'').trim().length<2)return Alert.alert('Anzeigename fehlt','Bitte mindestens zwei Zeichen angeben.');
-await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,12),is_discoverable:!!form.is_discoverable});}
-function toggle(i){setForm(f=>({...f,interests:f.interests.includes(i)?f.interests.filter(x=>x!==i):f.interests.length>=12?f.interests:[...f.interests,i]}));}
+await save({display_name:safeString(form.display_name,60),region_label:safeString(form.region_label,80),about:safeString(form.about,500),interests:(form.interests||[]).slice(0,MAX_PROFILE_INTERESTS),is_discoverable:!!form.is_discoverable});}
+function toggle(i){
+ if((form.interests||[]).includes(i)){
+  setForm(f=>({...f,interests:removeFamilyInterest(f.interests,i)}));return;
+ }
+ if((form.interests||[]).length>=MAX_PROFILE_INTERESTS){
+  Alert.alert('Auswahl voll','Du kannst bis zu '+MAX_PROFILE_INTERESTS+' Interessen auswählen. Entferne zuerst ein anderes Hobby.');return;
+ }
+ setForm(f=>({...f,interests:addFamilyInterest(f.interests,i)}));
+}
+function addCustomInterest(){
+ const value=normalizeInterest(customInterest);
+ if(value.length<2||/[\\n\\r@]|https?:\\/\\//i.test(value)){
+  Alert.alert('Hobby prüfen','Bitte ein kurzes Hobby ohne Kontaktdaten, Links oder Namen von Kindern eingeben.');return;
+ }
+ if((form.interests||[]).length>=MAX_PROFILE_INTERESTS){
+  Alert.alert('Auswahl voll','Entferne zuerst ein Hobby aus deiner Auswahl.');return;
+ }
+ setForm(f=>({...f,interests:addFamilyInterest(f.interests,value)}));
+ setCustomInterest('');
+}
 async function updatePassword(){if(newPassword.length<12)return Alert.alert('Passwort','Bitte mindestens 12 Zeichen verwenden.');const ok=await changePassword(newPassword);if(ok)setNewPassword('');}
 async function selectDraftPhoto(){
   if(busy||photoPickerBusy)return;
@@ -3528,11 +3559,30 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Button title={busy?'Bitte warten …':'Angaben speichern'} disabled={busy} onPress={submit}/>
 </Card>:null}
 {profileSection==='hobbies'?<Card>
-<Text style={styles.sectionTitle}>Hobbys & Interessen</Text>
-<Text style={[styles.sub,{marginBottom:14}]}>Wähle bis zu zwölf Themen. Danach findest du leichter Familien mit ähnlichen Interessen.</Text>
-<Text style={styles.label}>Ausgewählt: {(form.interests||[]).length} von 12</Text>
-<View style={[styles.chipsRow,{marginBottom:18}]}>{INTERESTS.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
-<Button title={busy?'Bitte warten …':'Interessen speichern'} disabled={busy} onPress={submit}/>
+<Text style={styles.sectionTitle}>Was macht euch Freude?</Text>
+<Text style={[styles.sub,{marginBottom:14}]}>Wähle passende Hobbys aus verschiedenen Bereichen oder ergänze ein eigenes. Ihr entscheidet selbst, wie viel ihr teilen möchtet.</Text>
+<Text style={styles.label}>Eure Auswahl: {(form.interests||[]).length} von {MAX_PROFILE_INTERESTS}</Text>
+{(form.interests||[]).length?<View style={[styles.chipsRow,{marginTop:9,marginBottom:18}]}>
+ {(form.interests||[]).map(i=><Chip key={i} text={i+' ×'} selected onPress={()=>toggle(i)}/>)}
+</View>:<Text style={[styles.micro,{marginBottom:15}]}>Noch nichts ausgewählt. Tippe einfach auf ein Hobby.</Text>}
+<Input label="Hobby finden" placeholder="z. B. Reiten, Malen, Bibliothek" value={interestQuery} onChangeText={setInterestQuery}/>
+{!interestQuery.trim()?<View style={[styles.chipsRow,{marginBottom:10}]}>
+ <Chip text="Alle" selected={interestGroup==='Alle'} onPress={()=>setInterestGroup('Alle')}/>
+ {FAMILY_INTEREST_GROUPS.map(group=><Chip key={group.title} text={group.title} selected={interestGroup===group.title} onPress={()=>setInterestGroup(group.title)}/>)}
+</View>:null}
+{FAMILY_INTEREST_GROUPS.filter(group=>interestQuery.trim()||interestGroup==='Alle'||group.title===interestGroup).map(group=>{
+ const options=filterFamilyInterests(interestQuery,group.items);
+ return options.length?<View key={group.title} style={{marginBottom:12}}>
+  <Text style={[styles.label,{marginBottom:8}]}>{group.title}</Text>
+  <View style={styles.chipsRow}>{options.map(i=><Chip key={i} text={i} selected={form.interests?.includes(i)} onPress={()=>toggle(i)}/>)}</View>
+ </View>:null;
+})}
+{interestQuery.trim()&&!filterFamilyInterests(interestQuery,INTERESTS).length?<Text style={styles.micro}>Dieses Hobby steht noch nicht in der Liste. Du kannst es unten selbst ergänzen.</Text>:null}
+<Text style={[styles.label,{marginTop:12}]}>Eigenes Hobby ergänzen</Text>
+<Input label="Weiteres Hobby (freiwillig)" placeholder="z. B. Origami" value={customInterest} onChangeText={setCustomInterest} maxLength={40}/>
+<Text style={[styles.micro,{marginBottom:12}]}>Bitte keine Kontaktdaten oder Angaben zu einzelnen Kindern eingeben. Freie Hobbys sind nach Profilfreigabe für andere sichtbar.</Text>
+<Button title="Hobby hinzufügen" mode="outline" disabled={!customInterest.trim()||busy} onPress={addCustomInterest}/>
+<View style={{marginTop:16}}><Button title={busy?'Bitte warten …':'Interessen speichern'} disabled={busy} onPress={submit}/></View>
 </Card>:null}
 {profileSection==='privacy'?<Card>
 <Text style={styles.sectionTitle}>Privatsphäre & Sichtbarkeit</Text>
