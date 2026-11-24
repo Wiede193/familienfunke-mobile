@@ -1133,7 +1133,7 @@ openInclusion={()=>{setExtraReturnTab(tab);setTab('inclusion');}}/>:
 tab==='more'?<MoreScreen navigate={selectMenuItem} openInfo={()=>setShowInfo(true)} openWelcome={()=>setShowWelcome(true)}/>:
 tab==='inclusion'?<InclusionScreen regionLabel={myProfile?.region_label} initialQuery={inclusionQuery} onOpenMap={()=>{setExtraReturnTab('inclusion');setMapIntent({returnTab:'inclusion'});setTab('map');}}/>:
 tab==='aboutApp'?<AboutFamilienfunkeScreen/>:
-tab==='help'?<TechnicalHelpScreen/>:
+tab==='help'?<TechnicalHelpScreen onNavigate={selectMenuItem}/>:
 tab==='push'?<PushSettings key={me} userId={me} active={active}/>:
 tab==='inbox'?<NotificationCenterScreen key={me} inbox={inbox} active={active} onOpen={openInboxEvent} onSettings={()=>{setExtraReturnTab('inbox');setTab('push');}}/>:
 tab==='discover'?<DiscoverScreen matches={matches} requests={db.contacts} me={me} active={active} busy={busy}
