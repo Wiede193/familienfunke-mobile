@@ -229,6 +229,7 @@ function serviceFor(q){
  if(/\b(elterngeld|elterngeldstelle)\b/.test(q))return ['parental_allowance'];
  if(/\b(kita|kitaplatz|kindergarten|tagespflege|krippe|betreuung)\b/.test(q))return ['childcare_search','kita_application'];
  if(/\b(behinderung|eingliederungshilfe|teilhabe|schwerbehindert)\b/.test(q))return ['disability'];
+ if(/\b(hilfen zur erziehung|familienhilfe|erziehungshilfe|jugendhilfe)\b/.test(q))return ['family_support'];
  return [];
 }
 function placeMatches(q,ts,allPlaces=[]){
