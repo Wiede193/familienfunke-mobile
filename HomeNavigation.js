@@ -1,6 +1,6 @@
 // Only real, currently navigable areas are advertised. A match opens the actual screen.
 export const HOME_ROUTES = [
-  {id:'box',title:'Kiste mit KI erfassen',subtitle:'Mehrere Kleidungsstücke fotografieren und Pakete anbieten',words:'kiste kistenmodus paket kleidungspaket mehrere teile gruppenfoto foto erkennen scannen paketverkauf kleidung sortieren mehrere sachen flohmarktkiste'},
+  {id:'box',title:'Kleidungskiste manuell erfassen',subtitle:'Kleidungsstücke als Entwürfe anlegen und Pakete anbieten',words:'kiste kistenmodus paket kleidungspaket mehrere teile gruppenfoto paketverkauf kleidung sortieren mehrere sachen flohmarktkiste'},
   {id:'sell',title:'Artikel verkaufen',subtitle:'Einzelne Anzeige mit Foto und Beschreibung erstellen',words:'verkaufen inserieren anzeige artikel hochladen einstellen schnellverkauf verkaufsanzeige annoncen neu erstellen'},
   {id:'market',title:'Familienbasar durchsuchen',subtitle:'Kaufen, tauschen, verschenken und Angebote finden',words:'flohmarkt basar kaufen secondhand suchen artikel finden angebot preis verschenken tauschen merkliste kinderwagen kinderkleidung schuhe bücher spielzeug möbel'},
   {id:'discover',title:'Familien in der Nähe',subtitle:'Andere Familien nach Region und Interessen kennenlernen',words:'familie familien menschen eltern finden kennenlernen kontakte tinder entdecken in der naehe umkreis kennenlernen vernetzen neue freunde person personen umgebung naehe nahe'},
