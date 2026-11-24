@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {AccessibilityInfo,Animated,Easing,Modal,Pressable,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
+import {AccessibilityInfo,Animated,Easing,Modal,Pressable,ScrollView,StyleSheet,Text,View} from 'react-native';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import FamilyIcon from './FamilyIcon';
 
@@ -70,43 +70,33 @@ export function SparkleIntro({onFinish}){
  </View>;
 }
 const TOUR=[
- {id:'search',title:'Hier beginnen deine Fragen',text:'Gib ein Thema ein. „Antwort finden“ nutzt unsere geprüften Ratgeber; „Suchen“ findet Angebote und App-Bereiche.',placement:'search',route:'home'},
- {id:'market',title:'Basar: weitergeben statt wegwerfen',text:'Suche Kinderartikel oder stelle selbst etwas ein. Anzeigen sind nach dem Hochladen grundsätzlich sofort sichtbar; Probleme kannst du melden.',placement:1,route:'market'},
- {id:'discover',title:'Familien kennenlernen',text:'Suche nach gemeinsamen Interessen. Kontakte und Nachrichten entstehen nur mit freiwilliger Zustimmung.',placement:2,route:'discover'},
- {id:'map',title:'Ausflugsziele auf der Karte',text:'Entdecke Ausflüge, Spielplätze und Hinweise zur Barrierefreiheit. Öffnungszeiten bitte beim Anbieter kontrollieren.',placement:3,route:'map'},
- {id:'guide',title:'Familienwissen und Hilfen',text:'Finde Ratgeber, zuständige Stellen und offizielle Antragswege, mit Quellen und Einschränkungen.',placement:4,route:'guide'},
- {id:'menu',title:'Mehr Platz für eure Familie',text:'Im Menü oben rechts findest du Profil, Nachrichten, Veranstaltungen, Spiele und Einstellungen. Die Tour kannst du hier erneut starten.',placement:'menu',route:'home'}
+ {id:'search',title:'Alles mit einer Suche finden',text:'Auf der Startseite kannst du nach Angeboten, Ausflügen und Familienwissen suchen. Tippe auf „Ergebnisse anzeigen“, um passende Treffer zu öffnen.',icon:'search'},
+ {id:'community',title:'Teilen und gemeinsam erleben',text:'Im Basar gibst du Kinderartikel weiter. Unter Familien findest du Kontakte mit ähnlichen Hobbys; auf der Karte findest du Ausflugsziele.',icon:'users'},
+ {id:'profile',title:'Gestalte eure Familienwelt',text:'Im Menü oben rechts findest du Profil, Nachrichten, Termine und Einstellungen. Region und Hobbys sind freiwillig und helfen bei Empfehlungen.',icon:'heart'}
 ];
 export const APP_TOUR_STEPS=TOUR;
-export function FamilyAppTour({visible,onClose,onGo}){
+export function FamilyAppTour({visible,onClose}){
  const [step,setStep]=useState(0);
- const {width}=useWindowDimensions();
  const reduced=useReducedMotion();
  const progress=useRef(new Animated.Value(0)).current;
  useEffect(()=>{if(visible)setStep(0);},[visible]);
  useEffect(()=>{
    if(!visible)return;
-   const route=TOUR[step]?.route||'home';
-   onGo?.(route);
    if(reduced){progress.setValue(1);return;}
    progress.setValue(0);
    const a=Animated.timing(progress,{toValue:1,duration:250,easing:Easing.out(Easing.cubic),useNativeDriver:true});
    a.start();return()=>a.stop();
  },[visible,step,reduced,progress]);
  if(!visible)return null;
- const item=TOUR[step],bottom=typeof item.placement==='number';
- const left=bottom?Math.max(17,Math.min(width-42,(item.placement+.5)*width/5-14)):null;
- const tip=bottom?{bottom:74,left}:item.placement==='menu'?{top:47,right:22}:{top:194,left:width/2-12};
- const cardPosition=bottom?{bottom:130}:item.placement==='menu'?{top:116}:{top:254};
+ const item=TOUR[step];
  const next=()=>step===TOUR.length-1?onClose?.():setStep(x=>x+1);
  return <Modal visible transparent statusBarTranslucent animationType="fade" onRequestClose={onClose}>
    <View accessibilityViewIsModal style={m.tourShade}>
-     <View pointerEvents="none" style={[m.tourArrowWrap,tip]}>
-       <Text style={m.tourArrow}>{bottom?'↓':'↑'}</Text>
-     </View>
-     <Animated.View style={[m.tourCard,cardPosition,{
+     <Animated.View style={[m.tourCard,{
        opacity:progress,transform:[{translateY:progress.interpolate({inputRange:[0,1],outputRange:[9,0]})}]
      }]}>
+       <ScrollView bounces={false} contentContainerStyle={{padding:20}}>
+       <View style={m.tourIcon}><FamilyIcon name={item.icon} size={30}/></View>
        <Text style={m.tourCount}>DEINE APP-TOUR · {step+1} / {TOUR.length}</Text>
        <Text accessibilityRole="header" style={m.tourTitle}>{item.title}</Text>
        <Text style={m.tourBody}>{item.text}</Text>
@@ -123,6 +113,7 @@ export function FamilyAppTour({visible,onClose,onGo}){
            <FamilyIcon name="chevron-right" size={18} color={C.white}/>
          </Pressable>
        </View>
+       </ScrollView>
      </Animated.View>
    </View>
  </Modal>;
@@ -153,10 +144,11 @@ const m=StyleSheet.create({
  introSubtitle:{fontSize:16,color:C.muted,marginTop:8},
  skipIntro:{marginTop:45,minHeight:48,justifyContent:'center',paddingHorizontal:24},
  skipText:{color:C.accentDark,fontSize:15,fontWeight:'800'},
- tourShade:{flex:1,backgroundColor:'rgba(20,39,43,.68)'},
+ tourShade:{flex:1,backgroundColor:'rgba(20,39,43,.68)',justifyContent:'center',alignItems:'center',padding:20},
+ tourIcon:{width:58,height:58,borderRadius:19,backgroundColor:C.sunPale,alignItems:'center',justifyContent:'center',marginBottom:15},
  tourArrowWrap:{position:'absolute',width:30,height:55,justifyContent:'center',alignItems:'center'},
  tourArrow:{fontSize:40,fontWeight:'900',color:C.sun,textShadowColor:'#202B2B',textShadowRadius:8},
- tourCard:{position:'absolute',left:16,right:16,padding:19,backgroundColor:C.paper,
+ tourCard:{width:'100%',maxWidth:480,maxHeight:'90%',backgroundColor:C.paper,
   borderRadius:23,borderColor:C.sun,borderWidth:2,shadowColor:'#1C3033',shadowOpacity:.16,shadowRadius:12,elevation:9},
  tourCount:{fontSize:12,fontWeight:'900',letterSpacing:1.1,color:C.accentDark},
  tourTitle:{fontSize:21,fontWeight:'900',color:C.ink,marginTop:7,lineHeight:27},

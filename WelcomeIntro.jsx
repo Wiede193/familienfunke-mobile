@@ -43,7 +43,7 @@ export default function WelcomeIntro({visible,onClose}){
             onPress={onClose} style={({pressed})=>[styles.button,pressed&&{opacity:0.84}]}>
             <Text style={styles.buttonText}>Familienfunke entdecken  ♥</Text>
           </Pressable>
-          <Text style={styles.footer}>Diese Begrüßung bleibt geöffnet, bis du „Familienfunke entdecken“ auswählst. Du kannst sie unter „Mehr“ erneut öffnen.</Text>
+          <Text style={styles.footer}>Du kannst diese Begrüßung jederzeit über das Menü erneut öffnen.</Text>
         </ScrollView>
       </GentleReveal>
     </View>

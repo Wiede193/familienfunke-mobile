@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const {photoResize}=await import('data:text/javascript;base64,'+Buffer.from(read('PhotoResize.js')).toString('base64'));
+assert.deepEqual(photoResize(4000,3000,900),{width:900,height:null});assert.deepEqual(photoResize(3000,4000,900),{width:null,height:900});assert.equal(photoResize(500,700,900),null);assert.equal(photoResize(900,900,900),null);assert.equal(photoResize(undefined,undefined,900),null);assert.throws(()=>photoResize(1,1,0));
+const app=read('App.jsx'),home=read('HomeAssistant.jsx'),motion=read('FamilyMotion.jsx');
+assert.match(app,/preparePrivateJpeg\(asset,1024,0\.78\)/);assert.match(app,/preparePrivateJpeg\(asset,900,0\.7\)/);assert.match(app,/photoResize\(rendered\.width,rendered\.height,maxEdge\)/);
+assert.match(app,/\[photoQuery,flagQuery,orgQuery\]=await Promise\.all/);assert.match(app,/if\(!current\(\)\)return;\n        if\(photoQuery\.error/);assert.match(app,/setRemotePhotoUrls\(\{\}\);setRemoteExtraPhotos\(\[\]\);setRemoteExtraUrls\(\{\}\)/);
+assert.match(home,/suggestedPlaces=useMemo/);assert.match(home,/places=useMemo/);assert.match(home,/topicMatches=useMemo/);
+const tour=motion.slice(motion.indexOf('const TOUR=['),motion.indexOf('export const APP_TOUR_STEPS'));assert.equal((tour.match(/\{id:/g)||[]).length,3);assert.match(tour,/Ergebnisse anzeigen/);assert.doesNotMatch(tour,/Antwort finden/);assert.doesNotMatch(motion,/onGo\?\./);assert.match(motion,/Tour überspringen/);assert.match(motion,/<ScrollView bounces=\{false\}/);assert.match(app,/setShowWelcome\(false\);setWelcomeLoaded\(!!me\)/);assert.match(app,/if\(id==='welcome'\)\{setShowWelcome\(true\);return;/);
+console.log('Image geometry, parallel read cancellation, memoization and optional three-step tour checks passed.');

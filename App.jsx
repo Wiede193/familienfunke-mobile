@@ -7,6 +7,7 @@ StatusBar, StyleSheet, Switch, Text, TextInput, View,
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import {photoResize} from './PhotoResize';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
 import { signPhotoPaths } from './SignedPhotoUrls';
@@ -656,30 +657,26 @@ async function executePhoto(fn,success){
 // Einmalige Begrüßung je Konto auf diesem Gerät. Ein erneuter Aufruf unter „Mehr“ ist jederzeit möglich.
 useEffect(()=>{
   let valid=true;
-  setShowWelcome(false);setWelcomeLoaded(false);
-  if(me){
-    AsyncStorage.getItem('familienfunke.welcome.v1.'+me)
-      .then(seen=>{if(valid)setShowWelcome(seen!=='seen');})
-      .catch(()=>{if(valid)setShowWelcome(true);})
-      .finally(()=>{if(valid)setWelcomeLoaded(true);});
-  }
+  // The three-step tour is the only automatic introduction. The longer
+  // founder welcome remains available on demand from the menu.
+  setShowWelcome(false);setWelcomeLoaded(!!me);
   return ()=>{valid=false;};
 },[me]);
 useEffect(()=>{
  let live=true;setTourPending(false);setTourLoaded(false);
  if(me)AsyncStorage.getItem('familienfunke.app-tour.v1.'+me)
    .then(seen=>{if(live)setTourPending(seen!=='seen');})
-   .catch(()=>{if(live)setTourPending(true);})
+   .catch(()=>{if(live)setTourPending(false);})
    .finally(()=>{if(live)setTourLoaded(true);});
  return()=>{live=false;};
 },[me]);
 useEffect(()=>{
  if(me&&welcomeLoaded&&tourLoaded&&!showWelcome&&tourPending&&!showTour&&!menuOpen){
-   setTab('home');setShowTour(true);
+   setShowTour(true);
  }
 },[me,welcomeLoaded,tourLoaded,showWelcome,tourPending,showTour,menuOpen]);
 function finishTour(){
- setTourPending(false);setShowTour(false);setTab('home');
+ setTourPending(false);setShowTour(false);
  if(me)AsyncStorage.setItem('familienfunke.app-tour.v1.'+me,'seen').catch(()=>{});
 }
 function dismissWelcome(){
@@ -960,7 +957,7 @@ function selectMenuItem(id){
  setMenuOpen(false);
  if(id==='refresh'){load();setNotice('Aktuelle Daten werden geladen.');return;}
  if(id==='welcome'){setShowWelcome(true);return;}
- if(id==='tour'){setShowTour(true);setTourPending(true);setTab('home');return;}
+ if(id==='tour'){setShowTour(true);setTourPending(true);return;}
  if(id==='info'){setDetailFamily(null);setSelectedContact(null);setShowInfo(true);return;}
  if(id==='inbox'){openInbox();return;}
  if(id==='market'&&tab==='market'&&marketSubpage&&marketBackRef.current){
@@ -1248,7 +1245,7 @@ style={({pressed})=>[styles.tab,(selectedMainTab===id)&&styles.tabActive,
 </Card></ScrollView></KeyboardAvoidingView></Modal>:null}
 <WelcomeIntro visible={!!me&&showWelcome} onClose={dismissWelcome}/>
 <FamilyAppTour visible={!!me&&showTour&&!showWelcome&&!menuOpen&&!reportTarget}
-  onClose={finishTour} onGo={nextTab=>{setSelectedContact(null);setDetailFamily(null);setShowInfo(false);setTab(nextTab);}}/>
+  onClose={finishTour}/>
 </SafeAreaView>;
 }
 async function uploadProfilePhoto(asset,caption,me,execute){
@@ -1258,10 +1255,7 @@ return execute(async()=>{
 // Eine abgelehnte Bildbeschreibung bleibt im Entwurf zur Überarbeitung.
 // Das Foto wird danach zunächst privat mit Status "pending" gespeichert.
 await moderateTextOrThrow([safeString(caption,200)]);
-const manipulator=ImageManipulator.ImageManipulator.manipulate(asset.uri,{maxWidth:1536,maxHeight:1536});
-manipulator.resize({width:1024,height:null});
-const rendered=await manipulator.renderAsync();
-const saved=await rendered.saveAsync({format:ImageManipulator.SaveFormat.JPEG,compress:0.78});
+const saved=await preparePrivateJpeg(asset,1024,0.78);
 const file=new File(saved.uri);
 if(file.size>5*1024*1024)throw new Error('Das Bild ist größer als 5 MB.');
 const buffer=await file.arrayBuffer();
@@ -1310,11 +1304,22 @@ await supabase.storage.from('familienfunke-photos').remove([photo.storage_path])
 
 /** Der Familienbasar veröffentlicht Angebote nach dem Upload ohne manuelle Vorabfreigabe.
  * Bezahlen ist absichtlich NICHT implementiert. */
-async function prepareMarketJpeg(asset){
+async function preparePrivateJpeg(asset,maxEdge,compress){
  const job=ImageManipulator.ImageManipulator.manipulate(asset.uri);
- job.resize({width:900,height:null});
- const rendered=await job.renderAsync();
- const saved=await rendered.saveAsync({format:ImageManipulator.SaveFormat.JPEG,compress:0.7});
+ // Resolve actual dimensions if an older persisted draft has no metadata.
+ let rendered;
+ if(Number.isFinite(asset.width)&&asset.width>0&&Number.isFinite(asset.height)&&asset.height>0){
+   const resize=photoResize(asset.width,asset.height,maxEdge);if(resize)job.resize(resize);
+   rendered=await job.renderAsync();
+ }else{
+   rendered=await job.renderAsync();
+   const resize=photoResize(rendered.width,rendered.height,maxEdge);
+   if(resize){const next=ImageManipulator.ImageManipulator.manipulate(rendered);next.resize(resize);rendered=await next.renderAsync();}
+ }
+ return rendered.saveAsync({format:ImageManipulator.SaveFormat.JPEG,compress});
+}
+async function prepareMarketJpeg(asset){
+ const saved=await preparePrivateJpeg(asset,900,0.7);
  const file=new File(saved.uri);
  if(file.size>5*1024*1024)throw new Error('Ein Foto ist größer als 5 MB. Bitte verwende ein kleineres Bild.');
  return new Uint8Array(await file.arrayBuffer());
@@ -1704,7 +1709,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
     let live=true;
     setRemoteBusy(true);
     setRemoteError('');
-    if(searchPage===0){setRemoteListings([]);setRemoteHasMore(false);}
+    if(searchPage===0){setRemoteListings([]);setRemoteHasMore(false);setRemotePhotoUrls({});setRemoteExtraPhotos([]);setRemoteExtraUrls({});setRemoteOrganizations([]);}
     const timer=setTimeout(async()=>{
       try{
         const {data,error:e}=await retryRead(
@@ -1721,20 +1726,20 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         if(!Array.isArray(data))throw new Error('Ungültige Suchantwort');
         const records=(buyerFocus?data.map(listing=>({listing})):data).map(row=>({...row.listing,match_item:row.match_item||''}))
           .filter(row=>!!row.id&&row.moderation_status==='approved');
+        if(!live||seq!==searchSeq.current)return;
         const ids=records.map(row=>row.id);
-        let extras=[];
-        if(ids.length){
-          const {data:photos,error:photosError}=await supabase.from('ff_market_photos')
-            .select('*').in('listing_id',ids).order('slot',{ascending:true});
-          if(!photosError)extras=photos||[];
-        }
-        // Only lookup hearts for this buyer page, never fetch all favorites.
-         const flagQuery=ids.length?await supabase.rpc('ff_market_favorite_flags',{p_listing_ids:ids}):{data:[],error:null};
-         if(flagQuery.error)throw flagQuery.error;
-         const flags=new Set((flagQuery.data||[]).map(row=>row.listing_id));
-         const orgIds=[...new Set(records.map(row=>row.organization_id).filter(Boolean))];
-         const orgQuery=orgIds.length?await supabase.from('ff_organizations').select('*').in('id',orgIds):{data:[],error:null};
-         if(orgQuery.error)throw orgQuery.error;
+        const orgIds=[...new Set(records.map(row=>row.organization_id).filter(Boolean))];
+        const current=()=>live&&seq===searchSeq.current;
+        // Independent reads run together; cancelled searches cannot start signing.
+        const [photoQuery,flagQuery,orgQuery]=await Promise.all([
+          ids.length?retryRead(()=>supabase.from('ff_market_photos').select('*').in('listing_id',ids).order('slot',{ascending:true}),{isCurrent:current}):{data:[],error:null},
+          ids.length?retryRead(()=>supabase.rpc('ff_market_favorite_flags',{p_listing_ids:ids}),{isCurrent:current}):{data:[],error:null},
+          orgIds.length?retryRead(()=>supabase.from('ff_organizations').select('*').in('id',orgIds),{isCurrent:current}):{data:[],error:null}
+        ]);
+        if(!current())return;
+        if(photoQuery.error||flagQuery.error||orgQuery.error)throw photoQuery.error||flagQuery.error||orgQuery.error;
+        const extras=photoQuery.data||[];
+        const flags=new Set((flagQuery.data||[]).map(row=>row.listing_id));
          const signed=await signPhotoPaths(supabase,'ff-market-photos',[
            ...records.map(row=>row.photo_path),...extras.map(row=>row.photo_path),
          ],600);

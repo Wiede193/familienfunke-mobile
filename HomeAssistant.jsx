@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {AccessibilityInfo, ActivityIndicator, Animated, Keyboard, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
@@ -131,9 +131,9 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   const [feedRetry,setFeedRetry]=useState(0);
   const region=profile?.region_label||'';
   const profileStep=missingFamilyProfileStep(profile);
-  const suggestedPlaces=recommendFamilyPlaces(
+  const suggestedPlaces=useMemo(()=>recommendFamilyPlaces(
     FULL_PLACE_CATALOG,{region,interests:profile?.interests||[]},3
-  );
+  ),[region,profile?.interests]);
   useEffect(()=>{
     let live=true;
     if(!userId||!active||!showMoreFeed){
@@ -170,12 +170,12 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
     setQuestion(value);setSearchResult(null);setSearchBusy(false);setBusy(false);setError('');
   }
   const needle=question.trim();
-  const matches=findHomeRoutes(needle);
+  const matches=useMemo(()=>findHomeRoutes(needle),[needle]);
   const visibleReplies=conversation.filter(entry=>entry.question===needle).slice(0,1);
-  const places=needle.length>=2?findFamilyMapLocations(needle,{curated:[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES],national:NATIONAL_FAMILY_PLACES},4):[];
-  const healthMatches=needle.length>=3?findHealthyResources(needle,3):[];
-  const topicMatches=needle.length>=3?findFamilyTopics(needle).slice(0,3):[];
-  const inclusionMatches=needle.length>=3?findInclusionArticles(needle).slice(0,3):[];
+  const places=useMemo(()=>needle.length>=2?findFamilyMapLocations(needle,{curated:[...CURATED_FAMILY_PLACES,...BRANDENBURG_FAMILY_PLACES],national:NATIONAL_FAMILY_PLACES},4):[],[needle]);
+  const healthMatches=useMemo(()=>needle.length>=3?findHealthyResources(needle,3):[],[needle]);
+  const topicMatches=useMemo(()=>needle.length>=3?findFamilyTopics(needle).slice(0,3):[],[needle]);
+  const inclusionMatches=useMemo(()=>needle.length>=3?findInclusionArticles(needle).slice(0,3):[],[needle]);
   const marketIntent=looksLikeMarketProductQuery(needle)||matches[0]?.id==='market';
   const visibleSearch=searchResult?.query===needle?searchResult:null;
   const searchCount=matches.length+places.length+healthMatches.length+topicMatches.length+inclusionMatches.length+

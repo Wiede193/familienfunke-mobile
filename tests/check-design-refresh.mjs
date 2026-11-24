@@ -26,7 +26,7 @@ assert.match(home,/selectHomeOffers\(offerData,\{region,ownerId:userId\},3\)/);
 assert.match(home,/selectHomeEvents\(eventData,\{region\},2\)/);
 assert.match(home,/homeGreeting\(profile\)/);
 assert.match(home,/typeof inboxUnread==='number'&&inboxUnread>0/);
-assert.match(home,/suggestedPlaces=recommendFamilyPlaces/,'Location suggestions must use actual curated destinations');
+assert.match(home,/suggestedPlaces=useMemo\(\(\)=>recommendFamilyPlaces/,'Location suggestions must use actual curated destinations');
 assert.match(home,/suggestedPlaces\.map/);
 assert.match(home,/onNavigate\('market','','offer.id'\)|onNavigate\('market','',offer\.id\)/);
 assert.match(home,/FamilySkeleton/);
