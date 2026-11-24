@@ -55,9 +55,9 @@ export function searchMenuEntries(query,groups,limit=20){
    const titleWords=name.split(' ');
    const parts=joined.split(' ');
    // All meaningful query terms must match to prevent unrelated noise.
-   if(!words.every(term=>parts.some(p=>p===term||p.startsWith(term)&&term.length>=3||term.startsWith(p)&&p.length>=5)))return null;
+   if(!words.every(term=>parts.some(p=>p===term||p.startsWith(term)&&term.length>=3||p.endsWith(term)&&term.length>=4||term.startsWith(p)&&p.length>=5)))return null;
    let score=words.reduce((acc,term)=>acc+
-     (titleWords.includes(term)?10:titleWords.some(w=>w.startsWith(term))?7:
+     (titleWords.includes(term)?10:titleWords.some(w=>w.startsWith(term)||w.endsWith(term)&&term.length>=4)?7:
        name.includes(term)?5:parts.includes(term)?4:2),0);
    if(name===normalized)score+=30;
    else if(name.startsWith(normalized))score+=12;
