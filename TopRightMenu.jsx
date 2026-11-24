@@ -28,6 +28,7 @@ export const MENU_GROUPS=[
   ['help','?','Hilfe & FAQ','Bedienung und Unterstützung'],
   ['aboutApp','♡','Über Familienfunke','Unser Konzept'],
   ['welcome','☀','Willkommenskarte','Noch einmal ansehen'],
+  ['tour','➤','App-Tour','Alle wichtigen Bereiche Schritt für Schritt ansehen'],
   ['refresh','⟳','Daten aktualisieren','Neuen Stand abrufen'],
   ['more','≡','Weitere Bereiche','Gesamtübersicht']
  ]}
