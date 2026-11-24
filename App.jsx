@@ -267,6 +267,7 @@ const [tourLoaded,setTourLoaded]=useState(false);
 const [introPhase,setIntroPhase]=useState('checking');
 const [reportTarget,setReportTarget]=useState(null);
 const [reportDetails,setReportDetails]=useState('');
+const [reportReason,setReportReason]=useState('');
 const [error,setError]=useState('');
 const [notice,setNotice]=useState('');
 const [busy,setBusy]=useState(false);
@@ -471,7 +472,7 @@ useEffect(()=>{
   loadSeq.current++; // Invalidate in-flight queries even before the next account load.
   actionGate.current.reset();
   setBusy(false);setLoading(false);setError('');setNotice('');setConnectionIssue(false); // Never carry messages across accounts.
-  setReportTarget(null);setReportDetails('');
+  setReportTarget(null);setReportDetails('');setReportReason('');
 },[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
 
@@ -658,11 +659,12 @@ const ownPhotos=db.photos.filter(p=>p.owner_id===me);
 const matches=useMemo(()=>db.profiles.filter(p=>p.user_id!==me&&p.moderation_status==='approved'&&p.is_discoverable)
 .map(p=>({...p,match:(p.interests||[]).filter(x=>myProfile?.interests?.includes(x)).length,localMatch:sameRegion(p.region_label,myProfile?.region_label)}))
 .sort((a,b)=>Number(b.localMatch)-Number(a.localMatch)||b.match-a.match||String(a.display_name).localeCompare(String(b.display_name))),[db.profiles,me,myProfile]);
-async function reviewMarketListing(listingId){
- // Entwicklungsphase ohne kostenpflichtige KI: keine automatische Freigabe.
- // Die Datenbank lässt neue Inserate bis zur manuellen Prüfung auf 'pending'.
- setNotice('Anzeige gespeichert. Sie bleibt bis zur manuellen Freigabe für andere unsichtbar.');
- return 'review_required';
+async function publishMarketListing(listingId){
+ const {data,error:e}=await supabase.rpc('ff_market_publish_listing',{p_listing_id:listingId});
+ if(e)throw e;
+ if(data!=='approved')throw new Error('Die Veröffentlichung wurde nicht bestätigt.');
+ setNotice('Deine Anzeige ist jetzt im Familienbasar sichtbar.');
+ return true;
 }
 async function sendChatMessage(body,contactId){
  if(!contactId)return false;
@@ -754,11 +756,29 @@ finally{
  if(active&&accountRef.current===actionOwner)setBusy(false);
 }
 }
-function report(type,id){setReportDetails('');setReportTarget({type,id});}
+function report(type,id){setReportDetails('');setReportReason('');setReportTarget({type,id});}
 async function sendReport(){
-if(!reportTarget||reportDetails.trim().length<10)return setError('Bitte den Vorfall mit mindestens 10 Zeichen beschreiben.');
-const ok=await executeEvent(async()=>assertResult(await supabase.from('reports').insert({reporter_id:me,subject_type:reportTarget.type,subject_id:reportTarget.id,details:reportDetails.trim()})),'Danke. Deine Meldung wurde gespeichert.');
-if(ok){setReportTarget(null);setReportDetails('');}
+ if(!reportTarget||reportDetails.trim().length<10)return setError('Bitte den Vorfall mit mindestens 10 Zeichen beschreiben.');
+ if(reportTarget.type==='market'&&!reportReason)return setError('Bitte zuerst einen Meldegrund wählen.');
+ let hidden=false;
+ const ok=await executeEvent(async()=>{
+   if(reportTarget.type==='market'){
+     const {data,error:e}=await supabase.rpc('ff_market_report_listing',{
+       p_listing_id:reportTarget.id,p_reason:reportReason,p_details:reportDetails.trim()
+     });
+     if(e)throw e;
+     if(!data?.received)throw new Error('Die Meldung wurde nicht bestätigt.');
+     hidden=!!data.temporarily_hidden;
+   }else{
+     assertResult(await supabase.from('reports').insert({reporter_id:me,
+       subject_type:reportTarget.type,subject_id:reportTarget.id,details:reportDetails.trim()}));
+   }
+ },'Danke. Deine Meldung wurde übermittelt.');
+ if(ok){setReportTarget(null);setReportDetails('');setReportReason('');
+   if(reportTarget.type==='market'&&hidden){
+     setMarketEpoch(n=>n+1);setNotice('Die Anzeige wurde nach unabhängigen Meldungen vorläufig ausgeblendet.');
+   }
+ }
 }
 async function sendRequest(uid){
  return execute(async()=>assertResult(await supabase.rpc('ff_contact_create',{p_recipient_id:uid})),
@@ -1004,22 +1024,22 @@ createListing={(v,assets,stableId)=>executeMarket(async()=>{
  if(insertError){
    if(stableId&&insertError.code==='23505'){
      const {data:existing,error:lookupError}=await supabase.from('ff_market_listings').select('id').eq('id',stableId).eq('seller_id',me).maybeSingle();
-     if(!lookupError&&existing?.id===stableId){setNotice('Diese Anzeige wurde bereits gespeichert. Bitte prüfe Fotos und Status unter „Meine“.');return;}
+     if(!lookupError&&existing?.id===stableId){await publishMarketListing(existing.id);return;}
    }
    throw insertError;
  }
  if(assets?.length){
    try{await uploadMarketPhotos(inserted.id,assets,me);}
    catch(e){
-     setNotice('Das Inserat ist gespeichert. Mindestens ein Foto konnte nicht vollständig hochgeladen werden. Es bleibt zur Sicherheit in Prüfung.');
+     setNotice('Entwurf gespeichert. Ein Foto-Upload war unvollständig. Prüfe die Bilder unter „Meine“ und tippe auf „Jetzt veröffentlichen“.');
      return;
    }
  }
- await reviewMarketListing(inserted.id);
+ await publishMarketListing(inserted.id);
 })}
 addPendingPhotos={(listingId,assets)=>executeMarket(async()=>{
  await uploadMarketPhotos(listingId,assets,me);
- await reviewMarketListing(listingId);
+ await publishMarketListing(listingId);
 })}
 editListing={(listingId,v,assets)=>executeMarket(async()=>{
  const {data,error:e}=await supabase.rpc('ff_market_edit_listing',{
@@ -1031,9 +1051,9 @@ editListing={(listingId,v,assets)=>executeMarket(async()=>{
  if(data!==true)throw new Error('Diese Anzeige darf nicht bearbeitet werden. Bitte prüfe ihren Status.');
  if(assets?.length){
    try{await uploadMarketPhotos(listingId,assets,me);}
-   catch(e){setNotice('Änderungen gespeichert, aber nicht alle Fotos konnten hochgeladen werden. Die Anzeige bleibt zur Prüfung zurückgehalten.');return;}
+   catch(e){setNotice('Änderungen als Entwurf gespeichert. Bitte prüfe die Fotos und veröffentliche unter „Meine“.');return;}
  }
- await reviewMarketListing(listingId);
+ await publishMarketListing(listingId);
 })}
 toggleFavorite={(listingId,isFavorite)=>executeEvent(async()=>{
  if(isFavorite)assertResult(await supabase.from('ff_market_favorites').delete().eq('user_id',me).eq('listing_id',listingId));
@@ -1042,10 +1062,10 @@ toggleFavorite={(listingId,isFavorite)=>executeEvent(async()=>{
 markListingSold={(id)=>executeMarket(async()=>{const {data,error:e}=await supabase.rpc('ff_market_mark_sold',{p_listing_id:id});if(e)throw e;if(data!==true)throw new Error('Das Inserat konnte nicht abgeschlossen werden. Bitte aktualisiere den Basar.');},'Angebot abgeschlossen. Es ist für andere nicht mehr sichtbar.')}
 retryReview={(id)=>executeMarket(async()=>{
  const ownPending=db.listings.some(x=>x.id===id&&x.seller_id===me&&x.moderation_status==='pending');
- if(!ownPending)throw new Error('Nur eine eigene, noch nicht veröffentlichte Anzeige kann erneut geprüft werden.');
- await reviewMarketListing(id);
+ if(!ownPending)throw new Error('Nur ein eigener unveröffentlichter Entwurf kann veröffentlicht werden.');
+ await publishMarketListing(id);
 })}
-onContact={sendRequest} onChat={(cid)=>{setChatReturnTab('market');setSelectedContact(cid);setTab('chat');}} nameOf={findName} blocked={blocked}/>:
+onReportListing={id=>report('market',id)} onContact={sendRequest} onChat={(cid)=>{setChatReturnTab('market');setSelectedContact(cid);setTab('chat');}} nameOf={findName} blocked={blocked}/>:
 tab==='partners'?<PartnersScreen key={me} focusId={eventIntent?.owner===me&&eventIntent.tab==='partners'?eventIntent.id:null} clearFocus={()=>setEventIntent(null)} organizations={db.organizations}
 me={me} active={active} busy={busy}
 applyOrg={(v)=>executeEvent(async()=>{
@@ -1178,7 +1198,7 @@ await supabase.storage.from('familienfunke-photos').remove([photo.storage_path])
 ]);
 }
 
-/** Der Markt wird erst nach Betreiberfreigabe anderen Mitgliedern gezeigt.
+/** Der Familienbasar veröffentlicht Angebote nach dem Upload ohne manuelle Vorabfreigabe.
  * Bezahlen ist absichtlich NICHT implementiert. */
 async function prepareMarketJpeg(asset){
  const job=ImageManipulator.ImageManipulator.manipulate(asset.uri);
@@ -1253,7 +1273,7 @@ function MarketCategoryDropdown({label,value,onChange,options,allOption=false}){
     </View>:null}
   </View>;
 }
-function MarketScreen({entryIntent,navigationBackRef,onBackStateChange,onSavedSearches,listings,marketPhotos,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onContact,onChat,nameOf,blocked,ownLoading,ownLoadingMore,ownHasMore,ownError,onLoadMoreOwn,onRetryOwn}){
+function MarketScreen({entryIntent,navigationBackRef,onBackStateChange,onSavedSearches,listings,marketPhotos,me,active,busy,organizations,photoUrls,extraPhotoUrls,contacts,createListing,addPendingPhotos,editListing,toggleFavorite,markListingSold,retryReview,onReportListing,onContact,onChat,nameOf,blocked,ownLoading,ownLoadingMore,ownHasMore,ownError,onLoadMoreOwn,onRetryOwn}){
   const [open,setOpen]=useState(false);
   const {width:screenWidth,fontScale}=useWindowDimensions();
   const singleColumn=screenWidth<375||fontScale>=1.5;
