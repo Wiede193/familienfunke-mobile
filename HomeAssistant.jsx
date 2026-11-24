@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {AccessibilityInfo, ActivityIndicator, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
+import {AccessibilityInfo, ActivityIndicator, Keyboard, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {supabase} from './supabase';
 import {FAMILY_COLORS} from './FamilyTheme';
 import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
@@ -11,16 +11,17 @@ import {retryRead} from './NetworkResilience';
 import {HOME_ROUTES,findHomeRoutes,looksLikeMarketProductQuery} from './HomeNavigation';
 
 import {findFamilyMapLocations} from './FamilyMapSearch';
-import {findHealthyResources} from './FamilyHealthyContent';
-import {findFamilyTopics} from './FamilyTopicsKnowledge';
-import {findInclusionArticles} from './InclusionKnowledge';
+import {findHealthyResources,HEALTH_RESOURCES} from './FamilyHealthyContent';
+import {findFamilyTopics,FAMILY_TOPIC_ARTICLES} from './FamilyTopicsKnowledge';
+import {findInclusionArticles,INCLUSION_ARTICLES} from './InclusionKnowledge';
+import {answerFamilyQuestion} from './FamilyKnowledgeAnswer';
 import {CURATED_FAMILY_PLACES} from './FamilyMapCurated';
 import {BRANDENBURG_FAMILY_PLACES} from './FamilyMapBrandenburg';
 import {NATIONAL_FAMILY_PLACES} from './FamilyMapNational';
 
 const C=FAMILY_COLORS;
 const FEATURED=['discover','map','market','guide'];
-const SUGGESTIONS=['Spielplätze finden','Kinderjeans Größe 110','Profil bearbeiten','Wie beschäftige ich Kinder bei Regen?'];
+const SUGGESTIONS=['Wie groß ist die Sonne?','Wie beantrage ich Kinderzuschlag?','Wo finde ich einen Spielplatz?','Wie lerne ich andere Familien kennen?'];
 function SunMark(){
   return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={s.sunWrap}>
     {Array.from({length:8},(_,i)=><View key={i} style={[s.ray,{
@@ -48,8 +49,16 @@ function AssistantReply({entry,onNavigate}){
     <Text style={s.youLabel}>DEINE FRAGE</Text>
     <Text style={s.questionText}>{entry.question}</Text>
     <View style={s.answerDivider}/>
-    <Text style={s.assistantLabel}>FAMILIENFUNKE HILFT</Text>
+    <Text style={s.assistantLabel}>AUS DER WISSENSDATENBANK</Text>
     <Text style={s.answerText}>{entry.answer}</Text>
+    {entry.sources?.length?<View style={s.offerGroup}>
+      <Text style={s.offerHeading}>Offizielle Quellen</Text>
+      {entry.sources.map(src=><Pressable key={src.url} accessibilityRole="link"
+        accessibilityLabel={src.title+' öffnen'}
+        onPress={()=>Linking.openURL(src.url).catch(()=>{})} style={s.offerItem}>
+        <Text style={s.answerActionLabel}>{src.title} ›</Text>
+      </Pressable>)}
+    </View>:null}
     {entry.searchQuery&&!entry.offersError&&Array.isArray(entry.offers)?
       <View style={s.offerGroup}>
         <Text style={s.offerHeading}>Tatsächlich freigegebene Angebote</Text>
@@ -68,7 +77,7 @@ function AssistantReply({entry,onNavigate}){
       <Text style={[s.mutedSmall,{marginTop:12}]}>Treffer lassen sich gerade nicht laden. Die Suche im Basar ist weiterhin möglich.</Text>:null}
     {entry.pageId?<Pressable accessibilityRole="button"
       accessibilityLabel="Vorgeschlagenen App-Bereich öffnen"
-      onPress={()=>onNavigate(entry.pageId,['market','healthy','guide','inclusion','decisions'].includes(entry.pageId)?entry.searchQuery||entry.question:'')}
+      onPress={()=>entry.placeId?onNavigate('map','',entry.placeId):onNavigate(entry.pageId,entry.navigationQuery||entry.searchQuery||entry.question)}
       style={({pressed})=>[s.answerAction,pressed&&s.pressed]}>
       <Text style={s.answerActionLabel}>{HOME_ROUTES.find(x=>x.id===entry.pageId)?.title||'Passenden Bereich öffnen'} ›</Text>
       
@@ -146,61 +155,26 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
   useEffect(()=>{if(visibleSearch)scrollRef.current?.scrollTo({y:Math.max(0,searchResultOffset.current-8),animated:true});},[visibleSearch]);
   const featured=FEATURED.map(id=>HOME_ROUTES.find(route=>route.id===id)).filter(Boolean);
   const moreRoutes=HOME_ROUTES.filter(route=>!FEATURED.includes(route.id));
-  async function askAssistant(){
+  function askAssistant(){
     const prompt=needle.slice(0,600);
     if(prompt.length<3||pending.current)return;
-    const request=++requestSeq.current;pending.current=true;Keyboard.dismiss();
-    setBusy(true);setError('');
+    const request=++requestSeq.current;
+    pending.current=true;Keyboard.dismiss();setError('');
     try{
-      const history=conversation.slice(0,3).reverse().flatMap(x=>[
-        {role:'user',content:x.question},
-        {role:'assistant',content:x.answer}
-      ]);
-      const {data,error:requestError}=await supabase.functions.invoke('ff-app-assistant',{
-        body:{question:prompt,history}
+      // Lokal berechnete Antwort: keine API-Abfrage und keine serverseitige Speicherung.
+      const reply=answerFamilyQuestion(prompt,{
+        topics:FAMILY_TOPIC_ARTICLES,inclusion:INCLUSION_ARTICLES,
+        health:HEALTH_RESOURCES,routes:HOME_ROUTES,places
       });
-      if(requestError||typeof data?.answer!=='string'||!data.answer.trim()){
-        const code=requestError?.context?.status;
-        throw new Error(code===429
-          ?'Das heutige KI-Kontingent ist aufgebraucht. Die direkte Seitensuche bleibt nutzbar.'
-          :'Die KI ist vorübergehend nicht erreichbar. Du kannst die App-Bereiche weiterhin direkt öffnen.');
-      }
-      const route=HOME_ROUTES.find(x=>x.id===data.page_id);
-      const searchQuery=route?.id==='market'&&typeof data?.search_query==='string'
-        ?data.search_query.trim().slice(0,160):'';
-      // Product previews are fetched separately from the secured database.
-      // The assistant cannot claim that an offer exists.
-      let offers=null,offersError=false;
       if(!alive.current||request!==requestSeq.current)return;
-      if(searchQuery){
-        try{
-          const {data:rows,error:queryError}=await supabase.rpc('ff_market_search',{
-            p_query:searchQuery,p_category:'Alle',p_trade_type:'all',
-            p_sort:'relevance',p_limit:3,p_offset:0
-          });
-          if(queryError||!Array.isArray(rows))offersError=true;
-          else offers=rows.filter(row=>row?.listing?.moderation_status==='approved')
-            .map(row=>({
-              id:row.listing.id,
-              title:String(row.listing.title||'').slice(0,100),
-              matchItem:String(row.match_item||'').slice(0,150),
-              price:row.listing.trade_type==='gift'?'Zu verschenken'
-                :row.listing.trade_type==='swap'?'Tausch'
-                :(Number(row.listing.price_cents||0)/100).toLocaleString('de-DE',{
-                  style:'currency',currency:'EUR'
-                })
-            }));
-        }catch{offersError=true;}
-      }
-      if(!alive.current||request!==requestSeq.current)return;
-      setConversation(old=>[{
-        question:prompt,answer:data.answer.slice(0,1400),
-        pageId:route?.id||'',searchQuery,offers,offersError
-      },...old].slice(0,6));
+      setConversation(old=>[{question:prompt,...reply},...old].slice(0,6));
       scrollRef.current?.scrollTo({y:0,animated:false});
-      AccessibilityInfo.announceForAccessibility('Die KI-Antwort ist jetzt verfügbar.');
-    }catch(e){if(alive.current&&request===requestSeq.current)setError(e?.message||'Die KI ist gerade nicht erreichbar.');}
-    finally{if(alive.current&&request===requestSeq.current){pending.current=false;setBusy(false);}}
+      AccessibilityInfo.announceForAccessibility('Antwort aus der Wissensdatenbank verfügbar.');
+    }catch{
+      if(alive.current&&request===requestSeq.current)setError('Die lokale Wissenssuche konnte nicht ausgeführt werden.');
+    }finally{
+      if(alive.current&&request===requestSeq.current)pending.current=false;
+    }
   }
   async function searchApp(){
     const query=needle;
@@ -271,15 +245,15 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
           style={[s.directButton,(busy||searchBusy||needle.length<2)&&s.disabled]}>
           <Text style={s.directLabel}>{searchBusy?'Suche läuft …':'Suchen'}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="KI um Hilfe fragen"
+        <Pressable accessibilityRole="button" accessibilityLabel="Wissensdatenbank um Antwort fragen"
           accessibilityState={{disabled:busy||searchBusy||needle.length<3,busy}}
           disabled={busy||searchBusy||needle.length<3} onPress={askAssistant}
           style={[s.askButton,(busy||searchBusy||needle.length<3)&&s.disabled]}>
           {busy?<ActivityIndicator color={C.white} style={{marginRight:8}}/>:null}
-          <Text style={s.askButtonLabel}>{busy?'KI antwortet …':'KI fragen'}</Text>
+          <Text style={s.askButtonLabel}>{busy?'Suche läuft …':'Antwort finden'}</Text>
         </Pressable>
       </View>
-      <Text style={s.searchHint}>App-Funktionen, Beschlüsse, Angebote, Orte und Veranstaltungen finden oder Fragen stellen.</Text>
+      <Text style={s.searchHint}>App-Funktionen und Angebote suchen oder Fragen aus unserer geprüften Wissensdatenbank beantworten lassen.</Text>
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
     </View>
     {needle?<View style={s.section} onLayout={event=>{searchResultOffset.current=event.nativeEvent.layout.y;}}>
@@ -352,7 +326,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
     </View>:null}
     {conversation.length?<View style={s.section}>
       <View style={s.replyHeader}>
-        <Text style={s.sectionTitle}>Deine KI-Hilfe</Text>
+        <Text style={s.sectionTitle}>Antworten aus der Wissensdatenbank</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="KI-Verlauf in dieser Ansicht löschen"
           onPress={()=>{requestSeq.current++;pending.current=false;setBusy(false);setSearchBusy(false);setConversation([]);}} style={s.clearHistory}>
           <Text style={s.clearHistoryLabel}>Verlauf leeren</Text>
@@ -505,9 +479,9 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       </View>
     </View>:null}
     <Text style={s.disclaimer}>
-      Die KI erklärt Funktionen und beantwortet allgemeine Fragen. Sie liest keine privaten
-      Nachrichten, Kontakte oder Kontodaten und führt keine Käufe oder Kontoänderungen aus.
-      Bitte gib keine sensiblen Informationen ein.
+      Dieser Wissensassistent nutzt redaktionelle Inhalte und offizielle Quellen – ohne KI-API.
+      Er beantwortet nur erfasste Themen, prüft keine aktuelle Rechtslage oder Öffnungszeiten und
+      speichert deine Fragen nicht auf einem Server. Bitte gib keine sensiblen Informationen ein.
     </Text>
   </ScrollView>;
 }
