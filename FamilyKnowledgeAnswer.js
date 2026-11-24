@@ -10,8 +10,8 @@ const STOP=new Set(['wie','wo','warum','was','wer','welche','welcher','welches',
   'suche','finden','mochte','moechte','bitte','gibt','es','denn','man','muss','hilfe','kind','kinder','familie','familien',
   'bekomme','haben','gerade','eigentlich','mehr','hier','erfahren']);
 const TERMS={
- 'kiz':'kinderzuschlag','elterngeldantrag':'elterngeld','kita':'kindertagesbetreuung',
- 'kitaplatz':'kindertagesbetreuung','krippe':'kindertagesbetreuung',
+ 'kiz':'kinderzuschlag','elterngeldantrag':'elterngeld','kita':'kita',
+ 'kitaplatz':'kita','krippe':'kita',
  'barrierefrei':'barrierefreiheit','behinderungen':'behinderung',
  'schulbegleiter':'schulbegleitung','familienkasse':'kindergeld',
  'elternzeit':'elternzeit','fussball':'fussball','spielplatze':'spielplatz',
@@ -54,6 +54,7 @@ const PAGE_TEXT={
  aboutApp:'Unter „Über Familienfunke“ findest du Informationen zum Konzept der App.'
 };
 const SPECIAL=[
+ {id:'inclusion',re:/\b(inklusion|teilhabe|behinderung|behindert|barrierefreiheit|assistenzbedarf)\b/},
  {id:'play',re:/\b(regen|regenwetter|langeweile|beschaftig|drinnen spielen|schlecht wetter)\b/},
  {id:'discover',re:/\b(andere familien|eltern kennenlernen|familien in der nahe|freunde finden|personen in meiner nahe)\b/},
  {id:'outing',re:/\b(ausflug planen|wochenendplan|ausflugsplaner)\b/},
