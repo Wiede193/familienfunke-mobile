@@ -54,7 +54,7 @@ export function findHomeRoutes(value){
  if(/\b(sport|sportverein|sportvereine|sportangebot|sportangebote|fitness|ernahrung|ernahrungswissen|bewegung|gesundheit|healthy|trainingsvideos|kinderschwimmen|kinderturnen)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='healthy')];
  if(looksLikeMarketProductQuery(value))return [HOME_ROUTES.find(x=>x.id==='market')];
  const terms=normalize(value).split(' ').filter(x=>x.length>=2&&!STOP.has(x));
- if(!terms.length)return HOME_ROUTES.slice(0,4);
+ if(!terms.length)return ['discover','map','market','guide'].map(id=>HOME_ROUTES.find(route=>route.id===id));
  return HOME_ROUTES.map(route=>{
    const full=normalize(route.title+' '+route.subtitle+' '+route.words);
    // Avoid accidental partial-word matches such as "ändern" inside "wandern".
