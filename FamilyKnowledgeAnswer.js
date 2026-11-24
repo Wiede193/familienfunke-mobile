@@ -138,7 +138,7 @@ const INTENTS={
  caveat:/\b(ablehnung|ablehnen|problem|widerspruch|geht nicht|achtung|beachten)\b/
 };
 const trending=/\b(heute|morgen|gerade|aktuell|dieses jahr|2026|2027|neueste|preis|offen|offnungszeiten|wieviel|wie viel|wie teuer|betrag|hohe|kostet|geoffnet)\b/;
-const amount=/\b(kindergeld|kinderzuschlag|elterngeld|wohngeld|unterhaltsvorschuss|pflegegeld|pflegegrad)\b.*\b(wieviel|wie viel|hohe|betrag|euro|2026|2027)\b|\b(wieviel|wie viel|betrag|euro)\b.*\b(kindergeld|kinderzuschlag|elterngeld|wohngeld|unterhaltsvorschuss|pflegegeld)\b/;
+const amount=/\b(kindergeld|kinderzuschlag|elterngeld|wohngeld|unterhaltsvorschuss|pflegegeld|pflegegrad)\b.*\b(wieviel|wie viel|hohe|betrag|euro|kostet)\b|\b(wieviel|wie viel|betrag|euro|hoch)\b.*\b(kindergeld|kinderzuschlag|elterngeld|wohngeld|unterhaltsvorschuss|pflegegeld|pflegegrad)\b/;
 const emergency=/(?:\b(atemnot|bewusstlos|nicht mehr atmet|erstickt|schwere vergiftung|starke blutung|krampfanfall)\b)/;
 const emergencyUrl='https://gesund.bund.de/wege-im-gesundheitswesen/kindheit/notfaelle/notruf-und-notaufnahme';
 
@@ -301,13 +301,17 @@ function routeFor(q,ts,routes){
  return matches[0]?.r||null;
 }
 function safeDateSensitiveAnswer(q,best,ctx){
- const resource=ctx.germanyResources?.find(x=>x.id==='kindergeld')||
-   ctx.brandenburgResources?.find(x=>x.id==='kindergeld');
- const linked=resource?simpleSource(resource.title,resource.url):articleSource(best?.item);
+ const benefit=['kindergeld','kinderzuschlag','wohngeld','elterngeld','pflegegeld','unterhaltsvorschuss'].find(x=>q.includes(x));
+ const resource=(ctx.germanyResources||[]).concat(ctx.brandenburgResources||[])
+   .find(x=>x.id===benefit);
+ const topic=(ctx.topics||[]).find(x=>x.id===benefit);
+ const inclusion=(ctx.inclusion||[]).find(x=>(benefit==='pflegegeld'&&x.id==='care-grade'));
+ const linked=resource?simpleSource(resource.title,resource.url):
+   articleSource(topic||inclusion);
  return result('Einen aktuell gültigen Eurobetrag oder persönlichen Anspruch kann der Offline-Assistent nicht verlässlich berechnen. '+
-   (best?.item?.overview?shorten(best.item.overview,430)+' ':'')+
+   ((topic||inclusion)?.overview?shorten((topic||inclusion).overview,360)+' ':'')+
    'Die aktuellen Beträge und Voraussetzungen stehen bei der zuständigen offiziellen Stelle.',{
-    pageId:'guide',kind:'limit',sources:linked.length?linked:best?articleSource(best.item):[]});
+    pageId:'guide',kind:'limit',sources:linked});
 }
 // API: alle Inhalte werden von der App als geprüfte Sammlungen übergeben.
 export function answerFamilyQuestion(question,ctx={}){
@@ -319,6 +323,11 @@ export function answerFamilyQuestion(question,ctx={}){
     /\b(lesen|weiss|weist|steht|anzeigen|sag|zeigen|kenn)\b/.test(q))
     return result('Ich kann keine privaten Nachrichten, Kontodaten oder Passwörter einsehen. Öffne dafür den entsprechenden geschützten App-Bereich.',{
       kind:'privacy',pageId:/\bpasswort\b/.test(q)?'profile':'chat'});
+ // Eindeutige App-Fragen funktionieren auch ohne fachliche Suchbegriffe.
+ const earlyRoute=routeFor(q,ts,ctx.routes||[]);
+ if(earlyRoute&&ACTIONS.some(([id,pattern])=>id===earlyRoute.id&&pattern.test(q))&&PAGE_TEXT[earlyRoute.id])
+  return result(PAGE_TEXT[earlyRoute.id],{kind:'navigation',pageId:earlyRoute.id,
+    searchQuery:earlyRoute.id==='market'?raw:''});
  if(!ts.length)return result('Wähle am besten ein konkretes Thema wie Kita, Kinderzuschlag, Familienausflug oder Quiz.',{kind:'clarify',related:genericRelated(ctx)});
  const factMatches=rankFacts(q,ts,ctx.facts);
  if(factMatches.length&&factMatches[0].score>=45){
@@ -346,6 +355,24 @@ export function answerFamilyQuestion(question,ctx={}){
  if(staticRoute&&['market','sell','box'].includes(staticRoute.id)){
   return result(PAGE_TEXT[staticRoute.id],{kind:'navigation',pageId:staticRoute.id,
     searchQuery:staticRoute.id==='market'?raw:''});
+ }
+ // Amtlich verifizierte Anmelde- und Geburtsinformationen vor allgemeinen Treffern.
+ const detailMap=[
+  [/\b(elternzeit)\b/,'parental_leave_plan'],
+  [/\b(mutterschutz|mutterschaftsgeld)\b/,'maternity_benefits'],
+  [/\b(geburtsurkunde|standesamt)\b/,'birth_certificate'],
+  [/\b(kindergeld|familienkasse)\b/,'child_benefit']
+ ];
+ for(const [re,id] of detailMap){
+  if(re.test(q)&&ctx.guideDetails?.[id]){
+    const d=ctx.guideDetails[id],intent=findIntent(q);
+    let ans=intent==='documents'?d.documents:intent==='office'?d.where:d.when;
+    if(!ans)ans=d.when||d.where||d.documents;
+    if(!ans)continue;
+    return result(shorten(ans,650)+' Bitte prüfen, welche Vorgaben für deinen Fall und den aktuellen Rechtsstand gelten.',{
+       kind:'article',pageId:'guide',
+       sources:d.source?simpleSource(d.source.label,d.source.url):[]});
+  }
  }
  if(best&&best.score>=30){
    if(best.kind==='topic'||best.kind==='inclusion'){
@@ -385,24 +412,6 @@ export function answerFamilyQuestion(question,ctx={}){
  if(state&&/\b(amt|behorde|antrag|formular|verwaltung|dienst|elterngeld)\b/.test(q))
    return result('Für '+state.name+' ist das offizielle Landesportal ein geeigneter Einstieg. Konkrete Behörden, Zuständigkeiten und Formulare müssen für den Wohnort ausgewählt werden.',{
      kind:'regional',pageId:'guide',sources:simpleSource('Serviceportal '+state.name,state.portal_url)});
- // Geburt und Elternzeit aus dem bereits geprüften Zeit- und Unterlagenwegweiser.
- const detailMap=[
-  [/\b(elternzeit)\b/,'parental_leave_plan'],
-  [/\b(mutterschutz|mutterschaftsgeld)\b/,'maternity_benefits'],
-  [/\b(geburtsurkunde|standesamt)\b/,'birth_certificate'],
-  [/\b(kindergeld|familienkasse)\b/,'child_benefit']
- ];
- for(const [re,id] of detailMap){
-  if(re.test(q)&&ctx.guideDetails?.[id]){
-    const d=ctx.guideDetails[id],intent=findIntent(q);
-    let ans=intent==='documents'?d.documents:intent==='office'?d.where:d.when;
-    if(!ans)ans=d.when||d.where||d.documents;
-    if(!ans)continue;
-    return result(shorten(ans,600)+' Welche Frist oder Zuständigkeit gilt, hängt von deiner Situation ab. Bitte die aktuelle amtliche Quelle prüfen.',{
-       kind:'article',pageId:'guide',
-       sources:d.source?simpleSource(d.source.label,d.source.url):[]});
-  }
- }
  const route=routeFor(q,ts,ctx.routes||[]);
  if(route&&PAGE_TEXT[route.id]){
    return result(PAGE_TEXT[route.id],{kind:'navigation',pageId:route.id,
