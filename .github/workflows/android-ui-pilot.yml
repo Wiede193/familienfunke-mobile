@@ -62,19 +62,15 @@ jobs:
           target: google_apis
           profile: pixel_6
           disable-animations: true
-          script: |
-            mkdir -p ui-results
-            adb install android/app/build/outputs/apk/release/app-release.apk
-            adb shell svc wifi disable
-            adb shell svc data disable
-            adb logcat -c
-            cd ui-results
-            set +e
-            maestro test ../.maestro/login-smoke.yaml --format junit --output junit.xml --debug-output debug
-            status=$?
-            adb exec-out screencap -p > final-screen.png
-            adb logcat -d -s ReactNativeJS AndroidRuntime > android-errors.log
-            exit "$status"
+          script: >-
+            bash -c 'set -e; mkdir -p ui-results;
+            adb install android/app/build/outputs/apk/release/app-release.apk;
+            adb shell svc wifi disable; adb shell svc data disable;
+            adb logcat -c; status=0;
+            maestro test --format junit --output ui-results/junit.xml --debug-output ui-results/debug --test-output-dir ui-results/screenshots .maestro/login-smoke.yaml || status=$?;
+            adb exec-out screencap -p > ui-results/final-screen.png || true;
+            adb logcat -d -s ReactNativeJS AndroidRuntime > ui-results/android-errors.log || true;
+            exit "$status"'
       - name: Upload screenshots and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
