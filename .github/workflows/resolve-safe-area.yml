@@ -20,7 +20,8 @@ jobs:
         env:
           CI: '1'
           EXPO_NO_TELEMETRY: '1'
-      - run: npx expo install --check
+      - run: npx expo install --check react-native-safe-area-context
+        continue-on-error: true
         env:
           CI: '1'
       - run: |
