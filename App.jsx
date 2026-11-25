@@ -1081,7 +1081,7 @@ onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
 tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome} userId={me} profile={myProfile} active={active} inboxUnread={inbox.unread}/>:
 tab==='play'?<FamilyPlayScreen key={me}/>:
-tab==='tv'?<FamilyTVScreen key={me} owner={me} interests={myProfile?.interests} visible={!menuOpen&&!showWelcome&&!showTour&&!reportTarget}/>:
+tab==='tv'?<FamilyTVScreen key={me} owner={me} interests={myProfile?.interests} initialShowPrivacy={extraReturnTab==='profile'} visible={!menuOpen&&!showWelcome&&!showTour&&!reportTarget}/>:
 tab==='healthy'?<HealthyScreen initialQuery={healthyQuery} onOpenMap={()=>{setExtraReturnTab('healthy');setMapIntent({layer:'bike',returnTab:'healthy'});setTab('map');}}/>:
 tab==='decisions'?<OfficialDecisionsScreen key={me} userId={me} initialQuery={decisionQuery} focusId={decisionFocusId}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:
@@ -1200,7 +1200,7 @@ save={(value)=>execute(async()=>{
 uploadPhoto={(asset,caption)=>uploadProfilePhoto(asset,caption,me,executePhoto)}
 reportPhoto={(id)=>report('photo',id)} deletePhoto={(id)=>deleteProfilePhoto(id,me,db.photos,executePhoto)}
 blocks={db.blocks} onUnblock={unblockUser}
-changePassword={changePassword} onDirtyChange={setProfileDirty} openInfo={()=>guardProfileExit(()=>setShowInfo(true))} signOut={()=>guardProfileExit(()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.')))}/>}
+changePassword={changePassword} onDirtyChange={setProfileDirty} openTVTopics={()=>guardProfileExit(()=>{setExtraReturnTab('profile');setTab('tv');})} openInfo={()=>guardProfileExit(()=>setShowInfo(true))} signOut={()=>guardProfileExit(()=>signOutWithPush(me).catch(()=>Alert.alert('Abmeldung nicht bestätigt','Die Geräteabmeldung konnte nicht bestätigt werden. Bitte prüfe die Verbindung und versuche es erneut. Bei Bedarf deaktiviere Benachrichtigungen in den Systemeinstellungen.')))}/>}
 </GentleReveal>
 </KeyboardAvoidingView>
 {!selectedContact&&!detailFamily&&!showInfo?<View style={styles.tabBar}>
@@ -3500,7 +3500,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
  </>:null}
 </ScrollView>;
 }
-function ProfileScreen({userId,profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,onDirtyChange,openInfo,signOut}){
+function ProfileScreen({userId,profile,verification,membership,active,photos,photosUrls,busy,photoBusy,photoBusyMore,photoHasMore,photoLoadError,loadMorePhotos,retryPhotos,save,uploadPhoto,deletePhoto,reportPhoto,blocks,onUnblock,changePassword,onDirtyChange,openInfo,openTVTopics,signOut}){
 const [form,setForm]=useState(blankProfile);
 const [photoCaption,setPhotoCaption]=useState('');
 const [selectedPhoto,setSelectedPhoto]=useState(null);
@@ -3644,6 +3644,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Row style={{marginBottom:18,justifyContent:'space-between'}}><View style={{flex:1}}><Text style={styles.label}>Für andere Familien sichtbar</Text><Text style={styles.micro}>Erst nach Profilfreigabe und nur mit grober Regionsangabe</Text></View><Switch accessibilityLabel="Familienprofil für andere Familien sichtbar" value={!!form.is_discoverable} onValueChange={value=>setForm(p=>({...p,is_discoverable:value}))} trackColor={{true:C.accent}}/></Row>
 <Info>Deine genaue Adresse oder dein Live-Standort werden bei der Familiensuche nicht abgefragt. Kontaktanfragen musst du selbst annehmen.</Info>
 <Button title={busy?'Bitte warten …':'Sichtbarkeit speichern'} disabled={busy} onPress={submit}/>
+<Text style={[styles.sectionTitle,{marginTop:20}]}>Private Themen für Familienfunke TV</Text><Text style={styles.sub}>Wenn du möchtest, wähle beispielsweise Inklusion & Teilhabe oder Schwangerschaft & Baby als private Themen. Keine Diagnose, keine öffentliche Angabe. Die Auswahl bleibt auf deinem Gerät.</Text><Button title="Private TV-Themen einstellen" mode="outline" onPress={openTVTopics}/>
 </Card>:null}
 {profileSection==='photos'?<><Card style={{marginTop:13}}><Text style={styles.sectionTitle}>Profilfotos</Text><Text style={[styles.sub,{marginBottom:13}]}>Nur bestätigte Kontakte sehen freigegebene Bilder. Bitte während der Beta keine Kinderfotos hochladen.</Text>
 <Text style={styles.label}>1. Foto auswählen</Text>
