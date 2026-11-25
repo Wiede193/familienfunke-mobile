@@ -28,6 +28,7 @@ const ALIASES={
  info:'elternwissen informationen',
  outing:'ausflugsplaner idee aktivitäten',
  play:'quiz spiele rätsel sudoku solitaire',
+ tv:'youtube videos video fernsehen videokanal familienvideos fernsehkanal influencer',
  healthy:'gesundheit sport schwimmen bewegung',
  aboutApp:'über uns wer sind wir',
  decisions:'beschluss beschlüsse gesetz gesetzesänderung',

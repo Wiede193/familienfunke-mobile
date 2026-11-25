@@ -14,7 +14,7 @@ assert.ok(app.includes('const [connectionIssue,setConnectionIssue]=useState(fals
 assert.ok(app.includes('Daten erneut laden'),'Users need a manual reload');
 const market=extract('function MarketScreen(','function MarketSortSelect(');
 assert.ok(market.includes('Basarsuche erneut versuchen'),'Failed catalog query requires manual retry');
-assert.ok(market.includes('searchRetry]'),'Retry must affect search useEffect');
+assert.match(market,/\},\[[^\]\n]*\bsearchRetry\b[^\]\n]*\]\);/,'Retry must affect search useEffect');
 assert.ok(market.includes("retryRead("),'Buyer search should retry temporary network errors once');
 const login=extract('function Login(','export default function App()');
 assert.ok(login.includes('signInLock.current=true'),'Login must synchronously lock double taps');

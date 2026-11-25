@@ -1,0 +1,36 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const {TV_VIDEOS,TV_CATEGORIES,tvEmbedSource,tvWatchUrl,allowedTVNavigation,isVideoId,TV_ORIGIN}=await import('data:text/javascript;base64,'+Buffer.from(read('FamilyTV.js')).toString('base64'));
+assert.equal(new Set(TV_VIDEOS.map(v=>v.id)).size,TV_VIDEOS.length);
+assert.ok(TV_VIDEOS.length>=3);
+for(const v of TV_VIDEOS){
+ assert.ok(isVideoId(v.id));assert.ok(TV_CATEGORIES.includes(v.category));
+ const s=tvEmbedSource(v.id);
+ assert.equal(s.baseUrl,TV_ORIGIN+'/');
+ assert.match(s.html,/youtube-nocookie\.com\/embed\//);
+ assert.match(s.html,/autoplay=0/);
+ assert.match(s.html,/strict-origin-when-cross-origin/);
+ assert.match(s.html,/allowfullscreen/);
+ assert.equal(tvWatchUrl(v.id),'https://www.youtube.com/watch?v='+v.id);
+}
+for(const id of ['"><script>', 'https://youtu.be/abc','',null])assert.throws(()=>tvEmbedSource(id));
+for(const url of ['http://www.youtube.com','https://www.youtube.com.evil.test/','https://evil.test/','file:///etc/passwd','javascript:alert(1)','https://evil@www.youtube.com/','https://www.youtube.com:1234/'])assert.equal(allowedTVNavigation(url),false);
+assert.ok(allowedTVNavigation('https://www.youtube-nocookie.com/embed/ILIB9YOE1DM'));
+const screen=read('FamilyTVScreen.jsx'),app=read('App.jsx'),menu=read('TopRightMenu.jsx'),nav=read('HomeNavigation.js');
+assert.match(screen,/selected===video.id\?<Player/);
+assert.match(screen,/useState\(null\)/);
+assert.match(screen,/mediaPlaybackRequiresUserAction/);
+assert.match(screen,/mixedContentMode="never"/);
+assert.match(screen,/Math\.max\(200,/);
+assert.match(screen,/onClose=\{\(\)=>setSelected\(null\)\}/);
+assert.match(screen,/if\(state!=='active'\)setSelected\(null\)/);
+assert.match(screen,/YouTube-Player laden/);
+assert.match(screen,/Auf YouTube ansehen/);
+assert.match(app,/tab==='tv'\?<FamilyTVScreen/);
+assert.match(menu,/\['tv','▷','Familienfunke TV'/);
+assert.match(nav,/id:'tv',title:'Familienfunke TV'/);
+const navMod=await import('data:text/javascript;base64,'+Buffer.from(nav).toString('base64'));
+assert.equal(navMod.findHomeRoutes('YouTube')[0]?.id,'tv');
+assert.equal(navMod.findHomeRoutes('Familienfunke TV')[0]?.id,'tv');
+console.log('TV catalogue, explicit activation, safe URL construction and navigation checks passed.');

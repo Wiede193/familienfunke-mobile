@@ -23,6 +23,7 @@ export const MENU_GROUPS=[
   ['outing','☀','Ausflüge planen','Alter, Budget und Entfernung'],
   ['events','▦','Treffen & Veranstaltungen','Gemeinsame Termine'],
   ['play','✧','Spiele & Quiz','Familienzeit und Rätsel'],
+  ['tv','▷','Familienfunke TV','Videos für Eltern und Familien auf YouTube'],
   ['partners','✿','Kitas & Partner','Einrichtungen und Angebote'],
   ['inclusion','♡','Inklusion & Teilhabe','Informationen und Unterstützung'],
   ['info','◇','Elternwissen','Ratgeber und hilfreiche Links']

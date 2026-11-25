@@ -11,6 +11,7 @@ export const HOME_ROUTES = [
   {id:'decisions',title:'Beschlüsse einfach erklärt',subtitle:'Amtliche Entscheidungen, Gesetzesstand und verständliche Einordnung',words:'politik beschluss beschlüsse bundesregierung kabinett landtag bundestag ministerien entscheidungen gesetze gesetzgebung gesetzesänderung politische neuigkeiten regierung beschlossene gesetze kindergeld familienleistungen'},
   {id:'healthy',title:'Sport & Gesundheit',subtitle:'Sportvereine, Bewegung, Ernährung, Videos und Rad- oder Wanderwege',words:'healthy sport gesundheit gesund sportverein sportvereine sportarten sportangebote fitness regional verein sportvereinssuche kinderturnen kinderschwimmen ernährung ernaehrung essen kochen bewegung videos trainingsvideo radfahren wandern radwege wanderwege inklusion'},
   {id:'guide',title:'Familienwissen & Anträge',subtitle:'Leistungen, Anlaufstellen, Formulare und Fristen',words:'wegweiser ratgeber elterngeld elternzeit kindergeld kinderzuschlag leistung antrag amt behörde formulare fristen schwangerschaft'},
+  {id:'tv',title:'Familienfunke TV',subtitle:'Ausgewählte YouTube-Videos für Eltern',words:'youtube video videos fernsehen videokanal familienvideos influencer vorlesen medienerziehung'},
   {id:'play',title:'Familienzeit – Quiz & Spiele',subtitle:'Gemeinsam rätseln und Beschäftigungsideen entdecken',words:'quiz familienquiz rätsel raetsel knobeln spiele spielen familienzeit regen beschäftigung beschaeftigung spielideen wissensfragen sudoku sodoku solitar solitaer solitaire vier gewinnt 4 gewinnt worterratsel woerterraetsel wortratsel wortsuche schach dame damenspiel kreuzwortratsel kreuzwortraetsel kreuzworträtsel bilderpuzzle puzzle'},
   {id:'calendar',title:'Mein Familienkalender',subtitle:'Private Termine, gemerkte Treffen und Ausflüge',words:'kalender familienkalender wochenplan privatausflug eigener privater termin termine planen termin eintragen'},
   {id:'events',title:'Treffen & Veranstaltungen',subtitle:'Gemeinsame Aktivitäten finden und planen',words:'veranstaltung termin treffen event kindergeburtstag ausmachen'},
@@ -49,6 +50,7 @@ export function looksLikeKnowledgeQuestion(value){
 }
 export function findHomeRoutes(value){
  const intent=normalize(value);
+ if(/\b(youtube|familienfunke tv|videokanal|familienvideos)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='tv')];
  if(/^(dame|dame spielen|dame spiel)$/.test(intent))return [HOME_ROUTES.find(x=>x.id==='play')];
  if(/\b(quiz|familienquiz|familienzeit|ratsel|raetsel|knobeln|spielideen|sudoku|sodoku|solitar|solitaer|solitaire|worterratsel|woerterraetsel|wortratsel|wortsuche|vier gewinnt|4 gewinnt|schach|damenspiel|kreuzwortratsel|kreuzwortraetsel|bilderpuzzle|puzzle)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='play')];
  if(/\b(kalender|familienkalender|wochenplan)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='calendar')];

@@ -39,6 +39,7 @@ import FamilyCalendar,{CalendarEventButton} from './FamilyCalendar';
 import FamilyDateFields from './FamilyDateFields';
 import OfficialFamilyEvents from './OfficialFamilyEvents';
 import FamilyPlayScreen from './FamilyPlayScreen';
+import FamilyTVScreen from './FamilyTVScreen';
 import SavedMarketSearches,{saveMarketSearch} from './SavedMarketSearches';
 import PriceAlertPreference from './PriceAlertPreference';
 import TopRightMenu,{MenuIcon,MORE_ITEMS} from './TopRightMenu';
@@ -926,7 +927,7 @@ async function openInboxEvent(event){
  }
 }
 function navigateFromHome(id,marketQuery='',placeId=null){
-  const routes=['box','sell','myListings','favorites','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar','play','healthy','decisions'];
+  const routes=['box','sell','myListings','favorites','market','discover','map','guide','events','contacts','profile','partners','help','inclusion','outing','chat','inbox','push','aboutApp','calendar','play','healthy','decisions','tv'];
   if(!routes.includes(id))return;
   if(id==='inbox'){openInbox();return;}
   if(id==='healthy')setHealthyQuery(String(marketQuery||'').slice(0,160));
@@ -986,9 +987,9 @@ if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
 </View><TechnicalHelpScreen initialCategory="Anmeldung & Konto"/></>:
 <Login error={error} setError={setError} onHelp={()=>setShowLoginHelp(true)}/>}
 </SafeAreaView>;
-const EXTRA_TITLES={play:'Familienzeit',calendar:'Mein Familienkalender',savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',healthy:'Sport & Gesundheit',decisions:'Beschlüsse einfach erklärt',more:'Weitere Bereiche'};
+const EXTRA_TITLES={tv:'Familienfunke TV',play:'Familienzeit',calendar:'Mein Familienkalender',savedSearches:'Suchaufträge',contacts:'Kontakte',chat:'Nachrichten',profile:'Profil',events:'Treffen',inclusion:'Inklusion',partners:'Kita & Partnerwelt',aboutApp:'Über uns',help:'Hilfe & FAQ',push:'Benachrichtigungen',inbox:'Neuigkeiten',outing:'Ausflugsplaner',healthy:'Sport & Gesundheit',decisions:'Beschlüsse einfach erklärt',more:'Weitere Bereiche'};
 const selectedMainTab=TABS.some(t=>t[0]===tab)?tab:(TABS.some(t=>t[0]===extraReturnTab)?extraReturnTab:null);
-const showBack=!!(detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&(marketSubpage||marketIntent?.returnTab))||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab));
+const showBack=!!(detailFamily||selectedContact||showInfo||tab==='inbox'||tab==='outing'||tab==='more'||tab==='calendar'||tab==='play'||(tab==='map'&&mapIntent)||(tab==='market'&&(marketSubpage||marketIntent?.returnTab))||['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions','tv'].includes(tab));
  const navTitle=detailFamily?'Familienprofil':selectedContact?'Nachrichten':showInfo?'Elternwissen':TABS.find(t=>t[0]===tab)?.[1]||EXTRA_TITLES[tab]||'Familienfunke';
 function back(){
  if(detailFamily){setDetailFamily(null);return;}
@@ -1002,7 +1003,7 @@ function back(){
  if(tab==='map'&&mapIntent){const origin=mapIntent.returnTab;setMapIntent(null);setTab(['calendar','home','healthy','inclusion'].includes(origin)?origin:'outing');return;}
  if(tab==='calendar'){setCalendarSeed(null);setTab(extraReturnTab==='calendar'?'home':extraReturnTab);return;}
  if(['events','partners'].includes(tab)&&eventIntent?.returnTab==='calendar'){setEventIntent(null);setTab('calendar');return;}
- if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions'].includes(tab))setTab(extraReturnTab==='more'?'home':extraReturnTab);
+ if(['profile','contacts','chat','events','inclusion','partners','aboutApp','help','push','savedSearches','healthy','decisions','tv'].includes(tab))setTab(extraReturnTab==='more'?'home':extraReturnTab);
 }
 function guardProfileExit(next){
  if(selectedContact&&busy){Alert.alert('Vorgang läuft','Bitte warte auf die Rückmeldung, bevor du dieses Gespräch verlässt.');return;}
@@ -1080,6 +1081,7 @@ onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
 tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome} userId={me} profile={myProfile} active={active} inboxUnread={inbox.unread}/>:
 tab==='play'?<FamilyPlayScreen key={me}/>:
+tab==='tv'?<FamilyTVScreen key={me}/>:
 tab==='healthy'?<HealthyScreen initialQuery={healthyQuery} onOpenMap={()=>{setExtraReturnTab('healthy');setMapIntent({layer:'bike',returnTab:'healthy'});setTab('map');}}/>:
 tab==='decisions'?<OfficialDecisionsScreen key={me} userId={me} initialQuery={decisionQuery} focusId={decisionFocusId}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:

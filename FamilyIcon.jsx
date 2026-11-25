@@ -122,6 +122,10 @@ function Symbol({name,color}){
     case 'filter':return <>
       {L({x1:3,y1:5,x2:21,y2:5})}{L({x1:6,y1:12,x2:18,y2:12})}{L({x1:10,y1:19,x2:14,y2:19})}
     </>;
+    case 'video':return <>
+      <View style={{position:'absolute',left:2,top:4,width:20,height:16,borderWidth:1.9,borderColor:color,borderRadius:4}}/>
+      {L({x1:10,y1:8,x2:16,y2:12})}{L({x1:16,y1:12,x2:10,y2:16})}{L({x1:10,y1:16,x2:10,y2:8})}
+    </>;
     case 'camera':return <>
       <View style={{position:'absolute',left:2,top:7,width:20,height:14,borderWidth:1.9,
         borderColor:color,borderRadius:3}}/>
@@ -148,7 +152,7 @@ export default function FamilyIcon({name,size=24,color=C.accentDark}){
 }
 export const FAMILY_ROUTE_ICONS=Object.freeze({
  home:'home',market:'bag',discover:'users',map:'map',guide:'book',
- box:'bag',sell:'plus',play:'puzzle',outing:'compass',calendar:'calendar',
+ box:'bag',sell:'plus',tv:'video',play:'puzzle',outing:'compass',calendar:'calendar',
  events:'calendar',partners:'users',contacts:'users',chat:'message',
  inbox:'bell',profile:'users',push:'bell',savedSearches:'search',
  info:'book',decisions:'book',healthy:'heart',inclusion:'heart',help:'shield',aboutApp:'sun',
