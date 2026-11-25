@@ -65,9 +65,10 @@ function confirmExternal(url){
 function Player({video,session,onClose,onDisableAutoplay,onBookmark}){
  const web=useRef(null),pending=useRef(null),timer=useRef(null),sequence=useRef(0);
  const [saving,setSaving]=useState(false);
+ const [qaPlayback,setQAPlayback]=useState('waiting');
  useEffect(()=>()=>{clearTimeout(timer.current);pending.current=null;},[]);
  function bookmark(){if(!web.current||pending.current)return;const token=String(++sequence.current);pending.current=token;setSaving(true);timer.current=setTimeout(()=>{pending.current=null;setSaving(false);Alert.alert('Position nicht verfügbar','Bitte versuche es nach dem Start des Videos erneut.');},3500);web.current.injectJavaScript('window.ffBookmark && window.ffBookmark('+JSON.stringify(token)+'); true;');}
- function receive({nativeEvent}){try{const m=JSON.parse(nativeEvent.data);if(m.type!=='bookmark'||!pending.current||m.token!==pending.current)return;clearTimeout(timer.current);pending.current=null;setSaving(false);if(m.error||!session.ids.includes(m.id)||!Number.isInteger(m.seconds)||m.seconds<0||m.seconds>43200){Alert.alert('Position nicht verfügbar','Bitte starte ein Video aus unserem Programm und versuche es erneut.');return;}onBookmark({id:m.id,seconds:m.seconds});}catch{/* Ignore malformed external messages. */}}
+ function receive({nativeEvent}){try{const m=JSON.parse(nativeEvent.data);if(m.type==='qaPlayback'){if(m.status==='playing'&&!session.ids.includes(m.id))return;setQAPlayback(m.status);console.log('QA YouTube playback',m.status,m.id);return;}if(m.type!=='bookmark'||!pending.current||m.token!==pending.current)return;clearTimeout(timer.current);pending.current=null;setSaving(false);if(m.error||!session.ids.includes(m.id)||!Number.isInteger(m.seconds)||m.seconds<0||m.seconds>43200){Alert.alert('Position nicht verfügbar','Bitte starte ein Video aus unserem Programm und versuche es erneut.');return;}onBookmark({id:m.id,seconds:m.seconds});}catch{/* Ignore malformed external messages. */}}
 
  const [bounds,setBounds]=useState(null);
  const source=useMemo(()=>tvEmbedSource(video.id,session.autoplay,session.ids,session.startSeconds||0),[video.id,session]);
@@ -79,6 +80,7 @@ function Player({video,session,onClose,onDisableAutoplay,onBookmark}){
  const playerHeight=canEmbed?Math.min(height,Math.max(200,Math.round(playerWidth*9/16))):0;
  return <View style={s.watchScreen}>
   <View style={s.watchHeader}><Text accessibilityRole="header" style={s.cardTitle}>{session.autoplay?'Dein TV-Programm':video.title}</Text><Text style={s.meta}>{session.autoplay?session.ids.length+' ausgewählte Videos · YouTube':'Quelle: '+video.channel+' · YouTube'}</Text></View>
+  <Text accessibilityLiveRegion="polite" style={s.meta}>{qaPlayback==="playing"?"QA: Wiedergabezeit steigt":"QA: "+qaPlayback}</Text>
   <View style={s.playerArea} onLayout={({nativeEvent:{layout}})=>setBounds({width:layout.width,height:layout.height})}>
   {canEmbed&&!failed?<View style={{height:playerHeight,backgroundColor:'#000'}}>
    <WebView ref={web} onMessage={receive} key={video.id+':'+attempt} source={source}

@@ -1,0 +1,125 @@
+appId: de.familienfunke.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Alles mit einer Suche finden|Quickstep isn't responding"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: "Quickstep isn't responding"
+    commands:
+      - takeScreenshot: 00-launcher
+      - tapOn: "Close app"
+- extendedWaitUntil:
+    visible: "Alles mit einer Suche finden"
+    timeout: 30000
+- tapOn: "Tour überspringen"
+- extendedWaitUntil:
+    visible: "Hallo, Testfamilie!"
+    timeout: 30000
+- tapOn: "Familienfunke durchsuchen oder Wissensfrage stellen"
+- inputText: "YouTube"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "Familienfunke TV öffnen"
+    timeout: 15000
+- tapOn: "Familienfunke TV öffnen"
+- extendedWaitUntil:
+    visible: "Personalisierung aus.*"
+    timeout: 15000
+- takeScreenshot: 01-TV-Start
+- tapOn: "Videos suchen"
+- inputText: "Rogge"
+- hideKeyboard
+- tapOn: "Suchen"
+- scrollUntilVisible:
+    element: "1 Video in deiner Auswahl"
+    direction: DOWN
+- assertVisible: "1 Video in deiner Auswahl"
+- scrollUntilVisible:
+    element: "Video öffnen: Grenzen setzen und Erziehung.*"
+    direction: DOWN
+- takeScreenshot: 02-suchtreffer
+- tapOn: "Video öffnen: Grenzen setzen und Erziehung.*"
+- assertVisible: "YouTube laden?"
+- takeScreenshot: 03-externe-Freigabe
+- tapOn: "Abbrechen"
+- assertNotVisible: "YouTube-Videoplayer"
+- scrollUntilVisible:
+    element: "Details zu Grenzen setzen und Erziehung.*"
+    direction: DOWN
+- tapOn: "Details zu Grenzen setzen und Erziehung.*"
+- scrollUntilVisible:
+    element: "Originalquelle öffnen"
+    direction: DOWN
+- takeScreenshot: 04-Details
+- scrollUntilVisible:
+    element: "Videosuche leeren"
+    direction: UP
+- tapOn: "Videosuche leeren"
+- tapOn: "Gesundheit & Wohlbefinden"
+- tapOn: "Videos suchen"
+- inputText: "Yoga"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Video öffnen: Yoga in der Schwangerschaft.*"
+    direction: DOWN
+- takeScreenshot: 05-Themenfilter
+- scrollUntilVisible:
+    element: "Videosuche leeren"
+    direction: UP
+- tapOn: "Videosuche leeren"
+- tapOn: "Alle"
+- scrollUntilVisible:
+    element: "Deine Daten & Einstellungen.*"
+    direction: DOWN
+- tapOn: "Deine Daten & Einstellungen.*"
+- scrollUntilVisible:
+    element: "Persönliche TV-Funktionen"
+    direction: DOWN
+- tapOn: "Persönliche TV-Funktionen"
+- scrollUntilVisible:
+    element: "Meine privaten Themen"
+    direction: DOWN
+- assertVisible: "Meine privaten Themen"
+- scrollUntilVisible:
+    element: "Deine Daten & Einstellungen.*"
+    direction: UP
+- tapOn: "Deine Daten & Einstellungen.*"
+- scrollUntilVisible:
+    element: "Videos suchen"
+    direction: UP
+- tapOn: "Videos suchen"
+- inputText: "Rogge"
+- hideKeyboard
+- tapOn: "Suchen"
+- scrollUntilVisible:
+    element: "Video merken: Grenzen setzen und Erziehung.*"
+    direction: DOWN
+- tapOn: "Video merken: Grenzen setzen und Erziehung.*"
+- assertVisible: "Aus Merkliste entfernen: Grenzen setzen und Erziehung.*"
+- scrollUntilVisible:
+    element: "Merkliste"
+    direction: UP
+- tapOn: "Merkliste"
+- scrollUntilVisible:
+    element: "1 Video in deiner Auswahl"
+    direction: DOWN
+- assertVisible: "1 Video in deiner Auswahl"
+- scrollUntilVisible:
+    element: "Aus Merkliste entfernen: Grenzen setzen und Erziehung.*"
+    direction: DOWN
+- takeScreenshot: 06-Merkliste
+- tapOn: "Aus Merkliste entfernen: Grenzen setzen und Erziehung.*"
+- scrollUntilVisible:
+    element: "0 Videos in deiner Auswahl"
+    direction: UP
+- assertVisible: "0 Videos in deiner Auswahl"
+- takeScreenshot: 07-Merkliste-leer
+- scrollUntilVisible:
+    element: "Letzte Suchen"
+    direction: UP
+- tapOn: "Letzte Suchen"
+- assertVisible: "Suche löschen: Rogge"
+- takeScreenshot: 08-Suchverlauf
