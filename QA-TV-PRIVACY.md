@@ -1,0 +1,2 @@
+# TV privacy UI pilot
+Offline synthetic account; test consent refusal, search, acceptance, search history and revocation through real Android screen. No production credentials or data. This verifies UI behavior and local storage logic separately from the Node tests; disabled network is not proof of absence of attempted traffic. Actual online device/network trace, YouTube playback, OS storage failure and restart/revocation persistence remain acceptance requirements. If labels differ or system bars block interaction, fix selector/layout rather than bypass assertions.

@@ -1,0 +1,88 @@
+appId: de.familienfunke.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Alles mit einer Suche finden|Quickstep isn't responding"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: "Quickstep isn't responding"
+    commands:
+      - takeScreenshot: 00-launcher
+      - tapOn: "Close app"
+- extendedWaitUntil:
+    visible: "Alles mit einer Suche finden"
+    timeout: 30000
+- tapOn: "Tour überspringen"
+- extendedWaitUntil:
+    visible: "Hallo, Testfamilie!"
+    timeout: 30000
+- tapOn: "Familienfunke durchsuchen oder Wissensfrage stellen"
+- inputText: "YouTube"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "Familienfunke TV öffnen"
+    timeout: 15000
+- tapOn: "Familienfunke TV öffnen"
+- extendedWaitUntil:
+    visible: "Personalisierung aus.*"
+    timeout: 15000
+- takeScreenshot: 01-ohne-zustimmung
+- scrollUntilVisible:
+    element: "Videos suchen"
+    direction: DOWN
+- tapOn: "Videos suchen"
+- inputText: "Medien"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Suchen"
+    direction: DOWN
+- tapOn: "Suchen"
+- assertNotVisible: "Letzte Suchen"
+- assertNotVisible: "Für dich empfohlen"
+- takeScreenshot: 02-suche-ohne-zustimmung
+- scrollUntilVisible:
+    element: "Deine Daten & Einstellungen.*"
+    direction: UP
+- tapOn: "Deine Daten & Einstellungen.*"
+- scrollUntilVisible:
+    element: "Persönliche TV-Funktionen"
+    direction: DOWN
+- tapOn: "Persönliche TV-Funktionen"
+- extendedWaitUntil:
+    visible: "Meine privaten Themen"
+    timeout: 10000
+- takeScreenshot: 03-zustimmung
+- scrollUntilVisible:
+    element: "Videos suchen"
+    direction: DOWN
+- tapOn: "Videos suchen"
+- eraseText: 30
+- inputText: "Medien"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Suchen"
+    direction: DOWN
+- tapOn: "Suchen"
+- scrollUntilVisible:
+    element: "Letzte Suchen"
+    direction: DOWN
+- assertVisible: "Letzte Suchen"
+- takeScreenshot: 04-suchverlauf
+- scrollUntilVisible:
+    element: "Persönliche TV-Funktionen"
+    direction: UP
+- tapOn: "Persönliche TV-Funktionen"
+- tapOn: "Ausschalten und löschen"
+- scrollUntilVisible:
+    element: "Personalisierung aus.*"
+    direction: UP
+- assertVisible: "Personalisierung aus.*"
+- assertNotVisible: "Meine privaten Themen"
+- takeScreenshot: 05-widerruf
+- scrollUntilVisible:
+    element: "Videos suchen"
+    direction: DOWN
+- assertNotVisible: "Letzte Suchen"
+- takeScreenshot: 06-nach-widerruf
