@@ -117,6 +117,17 @@ export const TV_EXTERNAL_SOURCES=Object.freeze([
   }
 ].map(Object.freeze));
 export const TV_CATEGORIES=Object.freeze(['Alle',...new Set([...TV_VIDEOS,...TV_EXTERNAL_SOURCES].map(v=>v.category))]);
+// Broad visible categories; detailed topics stay intact for search and recommendations.
+export const TV_SECTIONS=Object.freeze([
+ {title:'Küche & Genuss',topics:Object.freeze(['Familienküche','Ernährung in der Familie'])},
+ {title:'Familie & Wissen',topics:Object.freeze(['Erziehung & Alltag','Lesen & Lernen','Medien & Alltag','Inklusion & Teilhabe'])},
+ {title:'Gesundheit & Wohlbefinden',topics:Object.freeze(['Schwangerschaft & Baby','Sport & Bewegung','Beauty & Wohlbefinden'])},
+ {title:'Freizeit & Jahreszeiten',topics:Object.freeze(['Advent & Weihnachten','Ausflüge & Freizeit','Kreativwerkstatt'])}
+].map(Object.freeze));
+export const TV_BROWSE_CATEGORIES=Object.freeze(['Alle',...TV_SECTIONS.map(s=>s.title)]);
+export function tvTopicInSection(topic,category){
+ return category==='Alle'||topic===category||TV_SECTIONS.some(s=>s.title===category&&s.topics.includes(topic));
+}
 export function seasonalTVVideos(catalog=TV_VIDEOS,now=new Date()){return [10,11].includes(now.getMonth())?catalog.filter(v=>v.category==='Advent & Weihnachten'):[];}
 export function isVideoId(id){return typeof id==='string'&&/^[A-Za-z0-9_-]{11}$/.test(id);}
 export function tvWatchUrl(id){
@@ -126,7 +137,7 @@ export function tvWatchUrl(id){
 export function filterTVVideos(category='Alle',query='',catalog=TV_VIDEOS){
  const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('de-DE');
  const words=normalize(query).trim().split(/\s+/).filter(Boolean);
- return catalog.filter(v=>(category==='Alle'||v.category===category)&&words.every(w=>normalize([v.title,v.channel,v.category,v.description].join(' ')).includes(w)));
+ return catalog.filter(v=>tvTopicInSection(v.category,category)&&words.every(w=>normalize([v.title,v.channel,v.category,v.description].join(' ')).includes(w)));
 }
 // Capture the displayed order at activation, never loop or auto-select external recommendations.
 export function tvQueue(videos,id,autoplay=false){

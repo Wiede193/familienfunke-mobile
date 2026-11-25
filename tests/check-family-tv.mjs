@@ -124,3 +124,19 @@ failDelete=false;
 assert.deepEqual(await pref.loadTVPreferences(unreliable,failedKey,all,now),off);
 assert.equal(db.has(failedKey),false);
 console.log('Failed revocation cannot revive consent within the process; retry removes storage.');
+
+assert.equal(catalog.TV_BROWSE_CATEGORIES.length,5);
+assert.deepEqual(catalog.TV_BROWSE_CATEGORIES,['Alle','Küche & Genuss','Familie & Wissen','Gesundheit & Wohlbefinden','Freizeit & Jahreszeiten']);
+for(const item of [...all,...catalog.TV_EXTERNAL_SOURCES]){
+ const matches=catalog.TV_SECTIONS.filter(s=>s.topics.includes(item.category));
+ assert.equal(matches.length,1,'Every detailed topic must belong to exactly one visible section');
+ assert.ok(filterTVVideos(matches[0].title,'',[item]).includes(item));
+}
+assert.ok(filterTVVideos('Familie & Wissen','Inklusion').some(v=>v.category==='Inklusion & Teilhabe'));
+assert.ok(filterTVVideos('Gesundheit & Wohlbefinden','Schwangerschaft',catalog.TV_EXTERNAL_SOURCES).length>0);
+assert.ok(filterTVVideos('Küche & Genuss').some(v=>v.category==='Ernährung in der Familie'));
+assert.equal(filterTVVideos('Freizeit & Jahreszeiten','Weihnachten').length,2);
+assert.match(screen,/TV_BROWSE_CATEGORIES\.map/);
+assert.doesNotMatch(screen,/TV_CATEGORIES\.map/);
+assert.ok(screen.indexOf('TV_BROWSE_CATEGORIES.map')<screen.indexOf('Für dich empfohlen'));
+console.log('Four browse sections, complete topic coverage and detailed search passed.');
