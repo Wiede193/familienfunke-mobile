@@ -42,7 +42,7 @@ assert.match(screen,/mixedContentMode="never"/);
 assert.match(screen,/Math\.max\(200,/);
 assert.match(screen,/onClose=\{\(\)=>setSelected\(null\)\}/);
 assert.match(screen,/if\(state!=='active'\)setSelected\(null\)/);
-assert.match(screen,/YouTube-Player laden/);
+assert.match(screen,/Alert.alert\('YouTube laden\?'/);
 assert.match(screen,/Auf YouTube ansehen/);
 assert.match(app,/tab==='tv'\?<FamilyTVScreen/);
 assert.match(menu,/\['tv','▷','Familienfunke TV'/);
@@ -159,3 +159,7 @@ assert.doesNotMatch(screen,/allowFontScaling=\{false\}|maxFontSizeMultiplier|i\.
 assert.ok(screen.indexOf('accessibilityLabel="Videos suchen"')<screen.indexOf('Deine Daten & Einstellungen'));
 assert.equal(catalog.TV_EXTERNAL_SOURCES.filter(x=>x.accessibility).length,1);
 console.log('Video feed, local topic art, accessibility source checks and expanded catalogue passed.');
+
+assert.ok(screen.indexOf('["Alle Videos","Merkliste","Lieblingskanäle"]')<screen.indexOf('Für dich empfohlen'));
+assert.match(screen,/Themenmotiv · \{video.category\}/);
+assert.match(screen,/accessibilityLabel="Letzte Suchen"/);

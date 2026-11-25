@@ -29,7 +29,6 @@ function VideoCover({video,onPress}){
     <FamilyIcon name={art.icon} size={58} color={art.ink}/>
     <View style={s.playMark}><FamilyIcon name="video" size={26} color={C.white}/></View>
    </View>
-   <Text accessible={false} style={[s.coverLabel,{color:art.ink}]}>Themenmotiv · {video.category}</Text>
  </Pressable>;
 }
 function VideoCard({video,onPlay,reason,saved,followed,onSave,onFollow}){
@@ -37,6 +36,7 @@ function VideoCard({video,onPlay,reason,saved,followed,onSave,onFollow}){
  return <View style={s.videoCard}>
   <VideoCover video={video} onPress={onPlay}/>
   <View style={s.videoInfo}>
+   <Text style={s.meta}>Themenmotiv · {video.category}</Text>
    <Pressable accessibilityRole="button" accessibilityLabel={'Ansehen: '+video.title+' von '+video.channel} onPress={onPlay} style={s.titleTap}>
     <Text style={s.videoTitle}>{video.title}</Text><Text style={s.meta}>{video.channel} · YouTube</Text>
    </Pressable>
@@ -179,6 +179,7 @@ export default function FamilyTVScreen({visible=true,owner,interests=[],initialS
    {TV_BROWSE_CATEGORIES.map(c=><Pressable key={c} accessibilityRole="button" accessibilityState={{selected:c===category}} onPress={()=>{if(c!==category){setSelected(null);setCategory(c);}}}
      style={[s.chip,c===category&&s.selected]}><Text style={[s.chipText,c===category&&{color:C.white}]}>{c}</Text></Pressable>)}
   </View>
+  <View style={s.chips}>{(prefs.enabled?["Alle Videos","Merkliste","Lieblingskanäle"]:["Alle Videos"]).map(v=><Pressable key={v} accessibilityRole="button" accessibilityState={{selected:view===v}} onPress={()=>setView(v)} style={[s.chip,view===v&&s.selected]}><Text style={[s.chipText,view===v&&{color:C.white}]}>{v}</Text></Pressable>)}</View>
   {storageError?<Text accessibilityLiveRegion="polite" style={s.copy}>{storageError}</Text>:null}
   <Pressable accessibilityRole="button" accessibilityState={{expanded:showPrivacy}} onPress={()=>setShowPrivacy(v=>!v)} style={[s.privacy,{minHeight:48}]}><Text style={s.cardTitle}>Deine Daten & Einstellungen {showPrivacy?'−':'+'}</Text><Text style={s.meta}>Personalisierung {prefs.enabled?'an':'aus'} · nur auf diesem Gerät</Text></Pressable>
   {showPrivacy?<View style={s.privacy}>
@@ -208,8 +209,8 @@ export default function FamilyTVScreen({visible=true,owner,interests=[],initialS
   </View>:null}
   {seasonal.length&&!query.trim()&&category==='Alle'&&view==='Alle Videos'?<View style={s.card}><Text style={s.cardTitle}>Advent & Weihnachten</Text><Text style={s.copy}>Backideen für die gemütliche Zeit im Jahr.</Text><Action title="Weihnachtsvideos entdecken" onPress={()=>{setCategory('Freizeit & Jahreszeiten');setView('Alle Videos');setQuery('Weihnachten');}}/></View>:null}
   {programme.length&&!query.trim()&&category==='Alle'&&view==='Alle Videos'?<View style={s.card}><Text style={s.cardTitle}>Unser Wochenprogramm</Text><Text style={s.copy}>{programme[0].title}</Text><Text style={s.meta}>Wöchentlich wechselnde Reihenfolge aus unserer redaktionellen Auswahl.</Text><Action title="Wochenprogramm starten" onPress={()=>activate(programme[0],programme,0,autoplay)}/></View>:null}
-  {prefs.enabled&&prefs.history.length>0?<View style={s.card}><Pressable accessibilityRole="button" accessibilityState={{expanded:historyExpanded}} style={s.titleTap} onPress={()=>setHistoryExpanded(v=>!v)}><Text style={s.cardTitle}>Letzte Suchen {historyExpanded?"−":"+"}</Text></Pressable>{historyExpanded?prefs.history.map(h=><View key={h.query} style={s.autoRow}><Pressable accessibilityRole="button" style={{flex:1,minHeight:48,justifyContent:"center"}} onPress={()=>{setQuery(h.query);changePrefs(p=>recordTVSearch(p,h.query));}}><Text style={s.copy}>{h.query}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={"Suche löschen: "+h.query} onPress={()=>changePrefs(p=>({...p,history:p.history.filter(x=>x.query!==h.query)}))} style={s.chip}><Text style={s.chipText}>×</Text></Pressable></View>):null}<Action title="Suchverlauf löschen" secondary onPress={()=>changePrefs(p=>({...p,history:[]}))}/></View>:null}
-  <View style={s.chips}>{(prefs.enabled?["Alle Videos","Merkliste","Lieblingskanäle"]:["Alle Videos"]).map(v=><Pressable key={v} accessibilityRole="button" accessibilityState={{selected:view===v}} onPress={()=>setView(v)} style={[s.chip,view===v&&s.selected]}><Text style={[s.chipText,view===v&&{color:C.white}]}>{v}</Text></Pressable>)}</View>
+  {prefs.enabled&&prefs.history.length>0?<View style={s.card}><Pressable accessibilityRole="button" accessibilityState={{expanded:historyExpanded}} style={s.titleTap} accessibilityLabel="Letzte Suchen" onPress={()=>setHistoryExpanded(v=>!v)}><Text style={s.cardTitle}>Letzte Suchen {historyExpanded?"−":"+"}</Text></Pressable>{historyExpanded?prefs.history.map(h=><View key={h.query} style={s.autoRow}><Pressable accessibilityRole="button" style={{flex:1,minHeight:48,justifyContent:"center"}} onPress={()=>{setQuery(h.query);changePrefs(p=>recordTVSearch(p,h.query));}}><Text style={s.copy}>{h.query}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={"Suche löschen: "+h.query} onPress={()=>changePrefs(p=>({...p,history:p.history.filter(x=>x.query!==h.query)}))} style={s.chip}><Text style={s.chipText}>×</Text></Pressable></View>):null}<Action title="Suchverlauf löschen" secondary onPress={()=>changePrefs(p=>({...p,history:[]}))}/></View>:null}
+
   <Text accessibilityLiveRegion="polite" accessibilityRole="header" style={s.cardTitle}>{videos.length} {videos.length===1?'Video':'Videos'} in deiner Auswahl</Text>
   {autoplay&&videos.length>0?<Action title="Programm starten" onPress={()=>activate(videos[0])}/>:null}
   {!videos.length?<Text style={s.copy}>Keine passenden Videos. Wähle ein anderes Thema oder ändere deine Suche.</Text>:null}
