@@ -163,3 +163,16 @@ console.log('Video feed, local topic art, accessibility source checks and expand
 assert.ok(screen.indexOf('["Alle Videos","Merkliste","Lieblingskanäle"]')<screen.indexOf('Für dich empfohlen'));
 assert.match(screen,/Themenmotiv · \{video.category\}/);
 assert.match(screen,/accessibilityLabel="Letzte Suchen"/);
+
+assert.match(screen,/Datenschutz im Detail/);
+assert.match(screen,/Persönliche TV-Funktionen aktivieren/);
+assert.match(screen,/Meine privaten Themen/);
+assert.match(screen,/playerStatus==='unconfirmed'/);
+assert.match(screen,/HTML loaded is not proof/);
+assert.match(screen,/tvPlayerError\(m.code\)/);
+assert.match(screen,/18000/);
+assert.match(tvEmbedSource(all[0].id).html,/onAutoplayBlocked/);
+assert.match(tvEmbedSource(all[0].id).html,/onError:function/);
+assert.match(catalog.tvPlayerError(150),/nicht/);
+assert.match(catalog.tvPlayerError(153),/Einbettung/);
+console.log('Player readiness, provider errors and accessible compact consent controls passed.');
