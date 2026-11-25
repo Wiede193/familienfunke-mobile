@@ -3,8 +3,17 @@ appId: de.familienfunke.app
 - launchApp:
     clearState: true
 - extendedWaitUntil:
-    visible: "Willkommen zurück!"
+    visible: "Willkommen zurück!|Quickstep isn't responding"
     timeout: 60000
+- runFlow:
+    when:
+      visible: "Quickstep isn't responding"
+    commands:
+      - takeScreenshot: 00-android-launcher-error
+      - tapOn: "Close app"
+- extendedWaitUntil:
+    visible: "Willkommen zurück!"
+    timeout: 30000
 - takeScreenshot: 01-anmeldung
 - scrollUntilVisible:
     element:
