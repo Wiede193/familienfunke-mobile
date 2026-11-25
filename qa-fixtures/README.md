@@ -1,0 +1,3 @@
+# Isolated member UI QA
+
+Only the dedicated member CI workflow copies the offline read-only fixture into the build checkout. Never publish that APK or merge the fixture substitution into main/release builds. No actual authentication, Supabase integration, writes, or authorization tested. All data are synthetic. Existing login-smoke remains unmodified. UI checks cover tour, search, menu, profile, hobbies, market and knowledge; screenshots are evidence, not a comprehensive usability review. Successful login run 45683262761: 1/1 flow, 16.77s. Visually review status-bar overlap on help header and emoji-like heart; SafeAreaView deprecation recorded.

@@ -1,0 +1,55 @@
+appId: de.familienfunke.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Alles mit einer Suche finden|Quickstep isn't responding"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: "Quickstep isn't responding"
+    commands:
+      - takeScreenshot: 00-android-launcher-error
+      - tapOn: "Close app"
+- extendedWaitUntil:
+    visible: "Alles mit einer Suche finden"
+    timeout: 30000
+- takeScreenshot: 01-tour
+- tapOn: "Tour überspringen"
+- extendedWaitUntil:
+    visible: "Hallo, Testfamilie!"
+    timeout: 30000
+- takeScreenshot: 02-start
+- tapOn: "Familienfunke durchsuchen oder Wissensfrage stellen"
+- inputText: "Kindergeld"
+- hideKeyboard
+- assertVisible: "Direkt gefunden"
+- takeScreenshot: 03-suche
+- tapOn: "Eingabe löschen"
+- tapOn: "Menü öffnen"
+- assertVisible: "Funktion im Menü suchen"
+- takeScreenshot: 04-menue
+- tapOn: "Funktion im Menü suchen"
+- inputText: "Profil"
+- hideKeyboard
+- tapOn: "Mein Profil"
+- assertVisible: "Mein Familienprofil"
+- takeScreenshot: 05-profil
+- scrollUntilVisible:
+    element:
+      text: "Hobbys"
+    direction: DOWN
+- tapOn: "Hobbys"
+- assertVisible: "Was macht euch Freude?"
+- takeScreenshot: 06-hobbys
+- tapOn: "Zurück aus Profil"
+- assertVisible: "Hallo, Testfamilie!"
+- tapOn: "Basar"
+- assertVisible: "Angebote durchsuchen"
+- takeScreenshot: 07-basar
+- tapOn: "Wissen"
+- scrollUntilVisible:
+    element:
+      text: "Familienthemen durchsuchen"
+    direction: DOWN
+- takeScreenshot: 08-wissen
