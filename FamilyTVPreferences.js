@@ -113,7 +113,7 @@ export function persistTVPreferences(storage,key,value,catalog,now=Date.now()){
  if(!p.enabled)revokedKeys.add(key);
  return serial(key,async()=>{
   if(p.enabled){await storage.setItem(key,JSON.stringify(p));revokedKeys.delete(key);}
-  else{await storage.removeItem(key);}
+  else{revokedKeys.add(key);await storage.removeItem(key);}
   return p;
  });
 }

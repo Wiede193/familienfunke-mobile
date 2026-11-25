@@ -110,3 +110,17 @@ assert.equal(catalog.seasonalTVVideos(all,new Date(2026,11,1)).length,2);
 assert.equal(catalog.seasonalTVVideos(all,new Date(2026,6,1)).length,0);
 assert.ok(all.slice(5).every(v=>v.sourceUrl.startsWith('https://')));
 console.log('Expanded catalogue, default refusal, unified opt-in, persistence isolation, deletion, expiry and private topic checks passed.');
+
+const failedKey=pref.tvPreferencesKey('failure-test');
+let failDelete=true;
+const unreliable={getItem:storage.getItem,setItem:storage.setItem,removeItem:async k=>{if(failDelete)throw new Error('simulated storage failure');return storage.removeItem(k);}};
+const queuedWrite=pref.persistTVPreferences(unreliable,failedKey,on,all,now);
+const queuedRevoke=pref.persistTVPreferences(unreliable,failedKey,off,all,now);
+await queuedWrite;
+await assert.rejects(queuedRevoke);
+assert.ok(db.has(failedKey));
+await assert.rejects(pref.loadTVPreferences(unreliable,failedKey,all,now));
+failDelete=false;
+assert.deepEqual(await pref.loadTVPreferences(unreliable,failedKey,all,now),off);
+assert.equal(db.has(failedKey),false);
+console.log('Failed revocation cannot revive consent within the process; retry removes storage.');
