@@ -36,6 +36,15 @@ export const TV_VIDEOS=Object.freeze([
   {"id":"w-n07rLLdn8","title":"Milan beim Judo","channel":"Hamburger Sportbund","category":"Inklusion & Teilhabe","description":"Sportporträt aus dem inklusiven Vereinssport.","sourceUrl":"https://www.hamburger-sportbund.de/themen/inklusion/70-videos-inklusion-und-sport","review":"candidate"},
   {"id":"Yb0gcwwy9Dw","title":"Anne beim Rudern – mit Gebärdensprache","channel":"Hamburger Sportbund","category":"Inklusion & Teilhabe","description":"Rudern und Kommunikation in Gebärdensprache.","sourceUrl":"https://www.hamburger-sportbund.de/themen/inklusion/70-videos-inklusion-und-sport","review":"candidate"},
   {"id":"3OZ8JfO9GUY","title":"Inklusives Klettern – mit Untertiteln","channel":"Hamburger Sportbund","category":"Inklusion & Teilhabe","description":"Gemeinsam klettern im Verein.","sourceUrl":"https://www.hamburger-sportbund.de/themen/inklusion/70-videos-inklusion-und-sport","review":"candidate"}
+,
+{"id":"fsK91LG3w64","title":"Yoga in der Schwangerschaft mit Hebamme Bettina Breunig","channel":"dm-drogerie markt Deutschland","category":"Schwangerschaft & Baby","description":"Yogaübungen mit einer Hebamme; individuelle Eignung vorher fachlich klären.","sourceUrl":"https://www.youtube.com/watch?v=fsK91LG3w64","flag":"health","review":"candidate"},
+{"id":"YOjIWEbER-k","title":"Frühlings-Make-up mit Olesja","channel":"dm-drogerie markt Deutschland","category":"Beauty & Wohlbefinden","description":"Schritt für Schritt zu einem frischen Look für Erwachsene.","sourceUrl":"https://www.youtube.com/watch?v=YOjIWEbER-k","flag":"commercial","review":"candidate"},
+{"id":"6CNVMausYSM","title":"Make-up für sonnige Tage mit Olesja","channel":"dm-drogerie markt Deutschland","category":"Beauty & Wohlbefinden","description":"Sommerlicher Look und Hinweise zum Sonnenschutz für Erwachsene.","sourceUrl":"https://www.youtube.com/watch?v=6CNVMausYSM","flag":"commercial","review":"candidate"},
+{"id":"ffV68UN-3vs","title":"Schlidderdackelei – Sport macht Spaß, Kita 1","channel":"ALBA BERLIN","category":"Sport & Bewegung","description":"Spielerische Bewegung mit den Jugendcoaches; Kinder beim Mitmachen begleiten.","sourceUrl":"https://www.youtube.com/watch?v=ffV68UN-3vs","review":"candidate"},
+{"id":"I5Erkw79vdM","title":"Ab auf den Schlittenberg – Sport macht Spaß, Kita 16","channel":"ALBA BERLIN","category":"Sport & Bewegung","description":"Winterliche Mitmachspiele für Kinder im Kitaalter; Platz schaffen und begleiten.","sourceUrl":"https://www.youtube.com/watch?v=I5Erkw79vdM","review":"candidate"},
+{"id":"5yeZjEWmbcw","title":"Faktencheck: Inklusionsbetriebe","channel":"Aktion Mensch","category":"Inklusion & Teilhabe","description":"Kurzer Erklärbeitrag über inklusive Arbeitsplätze.","sourceUrl":"https://www.youtube.com/watch?v=5yeZjEWmbcw","review":"candidate"},
+{"id":"0US_dglqsKI","title":"Gemeinsam lernen: Inklusion durch Ganztagsbetreuung","channel":"Aktion Mensch","category":"Inklusion & Teilhabe","description":"Wie gemeinsame Lern- und Spielzeit die Teilhabe fördern kann.","sourceUrl":"https://www.youtube.com/watch?v=0US_dglqsKI","review":"candidate"},
+{"id":"h5XRySh8i08","title":"Igelkekse aus Mürbeteig","channel":"Familienkost","category":"Advent & Weihnachten","description":"Eine Backidee für kleine und große Hände in der Weihnachtsbäckerei.","sourceUrl":"https://www.familienkost.de/kategorie-weihnachtsplaetzchen-rezepte.html","flag":"commercial","review":"candidate"}
 ].map(Object.freeze));
 export const TV_EXTERNAL_SOURCES=Object.freeze([
   {
@@ -115,6 +124,11 @@ export const TV_EXTERNAL_SOURCES=Object.freeze([
     "url": "https://www.josefinum.de/elternschule/nach-geburt-kurse/",
     "description": "Fachlich betreute Ernährungs-Videotutorials."
   }
+,
+{"title":"Wut im Bauch – kleine Kinder verstehen","channel":"Familienland Bayern","category":"Erziehung & Alltag","url":"https://www.familienland.bayern.de/familienstark-webcoaching/themen-termine-aufzeichnungen/kinder-wut.php","description":"Web-Coaching; Versionen mit Gebärdensprache, Untertiteln und Audiodeskription auf der Originalseite.","accessibility":"DGS, Untertitel und Audiodeskription als separate Versionen"},
+{"title":"Bienen los! – Sportstunde für Kita-Kinder","channel":"ALBA BERLIN","category":"Sport & Bewegung","url":"https://sportstunde.albaberlin.de/kita-folge-48-bienen-los","description":"Bewegungsstunde rund um Bienen und Obstgärten; gemeinsam mit Erwachsenen mitmachen."},
+{"title":"Spiel, Satz, Sieg – Sportstunde für Grundschulkinder","channel":"ALBA BERLIN","category":"Sport & Bewegung","url":"https://sportstunde.albaberlin.de/grundschule-folge-28-spiel-satz-sieg","description":"Bewegungsstunde mit Rückschlagspielen."},
+{"title":"Hebammenvideos für Schwangerschaft und Baby","channel":"babyclub.de","category":"Schwangerschaft & Baby","url":"https://www.babyclub.de/hebamme/hebammenservice.html","description":"Fachlich begleitete Videos zur Schwangerschaft, Geburt und Zeit danach; Übungseignung individuell klären."}
 ].map(Object.freeze));
 export const TV_CATEGORIES=Object.freeze(['Alle',...new Set([...TV_VIDEOS,...TV_EXTERNAL_SOURCES].map(v=>v.category))]);
 // Broad visible categories; detailed topics stay intact for search and recommendations.
@@ -127,6 +141,17 @@ export const TV_SECTIONS=Object.freeze([
 export const TV_BROWSE_CATEGORIES=Object.freeze(['Alle',...TV_SECTIONS.map(s=>s.title)]);
 export function tvTopicInSection(topic,category){
  return category==='Alle'||topic===category||TV_SECTIONS.some(s=>s.title===category&&s.topics.includes(topic));
+}
+// Local artwork is a topic marker, never an actual video thumbnail.
+export function tvCoverKind(topic){
+ if(topic==='Advent & Weihnachten')return 'season';
+ if(topic==='Inklusion & Teilhabe')return 'community';
+ if(topic==='Schwangerschaft & Baby')return 'care';
+ if(topic==='Beauty & Wohlbefinden')return 'beauty';
+ if(topic==='Sport & Bewegung')return 'movement';
+ if(['Familienküche','Ernährung in der Familie'].includes(topic))return 'food';
+ if(['Erziehung & Alltag','Lesen & Lernen','Medien & Alltag'].includes(topic))return 'knowledge';
+ return 'leisure';
 }
 export function seasonalTVVideos(catalog=TV_VIDEOS,now=new Date()){return [10,11].includes(now.getMonth())?catalog.filter(v=>v.category==='Advent & Weihnachten'):[];}
 export function isVideoId(id){return typeof id==='string'&&/^[A-Za-z0-9_-]{11}$/.test(id);}
