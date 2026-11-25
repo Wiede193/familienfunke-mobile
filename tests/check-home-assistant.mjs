@@ -5,7 +5,8 @@ const source=readFileSync(new URL('../HomeNavigation.js',import.meta.url),'utf8'
 const {HOME_ROUTES,HOME_PAGE_IDS,findHomeRoutes,looksLikeKnowledgeQuestion}=await import(
   'data:text/javascript;base64,'+Buffer.from(source).toString('base64')
 );
-assert.equal(HOME_ROUTES.length,23,'Expected 23 real navigable areas including own listings and favorites');
+assert.equal(HOME_ROUTES.length,24,'Expected 24 real navigable areas including Familienfunke TV');
+assert.equal(findHomeRoutes('YouTube')[0]?.id,'tv');
 assert.equal(new Set(HOME_PAGE_IDS).size,HOME_PAGE_IDS.length,'Page IDs must be unique');
 for(const [phrase,id] of [
   ['Kistenmodus','box'],

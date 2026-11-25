@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
-const {TV_VIDEOS,TV_CATEGORIES,tvEmbedSource,tvWatchUrl,allowedTVNavigation,isVideoId,TV_ORIGIN}=await import('data:text/javascript;base64,'+Buffer.from(read('FamilyTV.js')).toString('base64'));
+const {TV_VIDEOS,TV_CATEGORIES,tvEmbedSource,tvWatchUrl,allowedTVNavigation,isVideoId,TV_ORIGIN,filterTVVideos,tvQueue}=await import('data:text/javascript;base64,'+Buffer.from(read('FamilyTV.js')).toString('base64'));
 assert.equal(new Set(TV_VIDEOS.map(v=>v.id)).size,TV_VIDEOS.length);
-assert.ok(TV_VIDEOS.length>=3);
+assert.ok(TV_VIDEOS.length>=5);
 for(const v of TV_VIDEOS){
  assert.ok(isVideoId(v.id));assert.ok(TV_CATEGORIES.includes(v.category));
  const s=tvEmbedSource(v.id);
@@ -17,8 +17,25 @@ for(const v of TV_VIDEOS){
 for(const id of ['"><script>', 'https://youtu.be/abc','',null])assert.throws(()=>tvEmbedSource(id));
 for(const url of ['http://www.youtube.com','https://www.youtube.com.evil.test/','https://evil.test/','file:///etc/passwd','javascript:alert(1)','https://evil@www.youtube.com/','https://www.youtube.com:1234/'])assert.equal(allowedTVNavigation(url),false);
 assert.ok(allowedTVNavigation('https://www.youtube-nocookie.com/embed/ILIB9YOE1DM'));
+const all=filterTVVideos();
+assert.equal(filterTVVideos('Familienküche')[0]?.id,'QAF7iNFKg4U');
+assert.equal(filterTVVideos('Alle','Rogge')[0]?.id,'R_DVON0csog');
+assert.equal(filterTVVideos('Alle','qzxwyv').length,0);
+assert.deepEqual(tvQueue(all,all[1].id,false),[all[1].id]);
+assert.deepEqual(tvQueue(all,all[1].id,true),all.slice(1).map(v=>v.id));
+assert.deepEqual(tvQueue(all,'invalid',true),[]);
+const auto=tvEmbedSource(all[0].id,true,tvQueue(all,all[0].id,true));
+assert.match(auto.html,/autoplay=1/);
+assert.match(auto.html,/playlist=/);
+assert.match(auto.html,/loop=0/);
+assert.doesNotMatch(tvEmbedSource(all[0].id,false,all.map(v=>v.id)).html,/playlist=/);
+assert.doesNotMatch(tvEmbedSource(all[0].id,true,['"><script>']).html,/playlist=/);
 const screen=read('FamilyTVScreen.jsx'),app=read('App.jsx'),menu=read('TopRightMenu.jsx'),nav=read('HomeNavigation.js');
-assert.match(screen,/selected===video.id\?<Player/);
+assert.match(screen,/if\(visible&&current\)return <Player/);
+assert.match(screen,/\[autoplay,setAutoplay\]=useState\(false\)/);
+assert.match(screen,/mediaPlaybackRequiresUserAction=\{!session.autoplay\}/);
+assert.match(screen,/playerWidth>=200&&height>=200/);
+assert.match(screen,/if\(!visible\)setSelected\(null\)/);
 assert.match(screen,/useState\(null\)/);
 assert.match(screen,/mediaPlaybackRequiresUserAction/);
 assert.match(screen,/mixedContentMode="never"/);
