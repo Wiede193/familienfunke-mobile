@@ -1,5 +1,5 @@
 # Familienfunke – Datenschutz als Produktargument (Entwurf)
-**Deine Interessen. Deine Entscheidung.** Du bestimmst, ob Familienfunke TV deine gewählten Profilinteressen für passende Vorschläge nutzt. Die Sortierung läuft auf deinem Gerät. Dein optionaler TV-Suchverlauf dient dir, nicht personalisierter Werbung durch Familienfunke. Du kannst ihn und andere lokale TV-Daten löschen.
+**Deine Interessen. Deine Entscheidung.** Du bestimmst, ob Familienfunke TV deine gewählten Profilinteressen, frühere TV-Suchen oder gemerkte Videos und Kanäle für passende Vorschläge nutzt. Jede Quelle ist separat abschaltbar und standardmäßig aus. Die Sortierung läuft auf deinem Gerät. Dein optionaler TV-Suchverlauf dient dir, nicht personalisierter Werbung durch Familienfunke. Du kannst ihn und andere lokale TV-Daten löschen.
 
 Für Landingpage und Kampagne erst nach Funktionstest und Datenschutzprüfung freigeben. Klarer Zusatz: Für Konto und soziale Funktionen nutzen wir Serverdaten. Wenn du ein YouTube-Video startest, verarbeitet Google eigene Daten und kann Werbung anzeigen. Wir versprechen nicht „keine Datenverarbeitung“, „keine Cookies“ oder „keine Daten an Dritte“. Lokale Speicherung ist nicht zusätzliche App-Verschlüsselung und kein geräteübergreifendes Backup. 
 

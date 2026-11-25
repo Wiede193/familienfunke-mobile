@@ -1,8 +1,8 @@
-// Local-only preferences. No analytics, no network, no search-based profiling.
+// Local-only preferences. No analytics or network. Recommendations are opt-in, derived in memory.
 export const TV_PREFS_VERSION=1;
 export const TV_HISTORY_AGE=30*24*60*60*1000;
 export const tvPreferencesKey=owner=>'familienfunke.tv.preferences.v1.'+owner;
-export function emptyTVPreferences(){return {version:1,historyEnabled:false,personalized:false,favorites:[],channels:[],history:[],resume:null};}
+export function emptyTVPreferences(){return {version:1,historyEnabled:false,personalized:false,recommendFromHistory:false,recommendFromSaved:false,favorites:[],channels:[],history:[],resume:null};}
 export function cleanTVPreferences(value,catalog,now=Date.now()){
  const p=value&&value.version===1?value:{};
  const ids=new Set(catalog.map(v=>v.id)),channels=new Set(catalog.map(v=>v.channel));
@@ -11,7 +11,7 @@ export function cleanTVPreferences(value,catalog,now=Date.now()){
  const seen=new Set();
  const history=historyEnabled&&Array.isArray(p.history)?p.history.filter(x=>x&&typeof x.query==='string'&&x.query.trim()&&x.query.length<=120&&Number.isFinite(x.at)&&x.at<=now&&now-x.at<TV_HISTORY_AGE).sort((a,b)=>b.at-a.at).filter(x=>{const k=x.query.toLocaleLowerCase('de-DE');if(seen.has(k))return false;seen.add(k);return true;}).slice(0,20):[];
  const resume=p.resume&&ids.has(p.resume.id)&&Number.isInteger(p.resume.seconds)&&p.resume.seconds>=0&&p.resume.seconds<=43200?{id:p.resume.id,seconds:p.resume.seconds}:null;
- return {version:1,historyEnabled,personalized:p.personalized===true,favorites:unique(p.favorites,ids),channels:unique(p.channels,channels),history,resume};
+ return {version:1,historyEnabled,personalized:p.personalized===true,recommendFromHistory:historyEnabled&&p.recommendFromHistory===true,recommendFromSaved:p.recommendFromSaved===true,favorites:unique(p.favorites,ids),channels:unique(p.channels,channels),history,resume};
 }
 export function recordTVSearch(p,query,now=Date.now()){
  const q=String(query||'').trim().replace(/\s+/g,' ').slice(0,120);
@@ -39,4 +39,38 @@ export function weeklyTVProgram(videos,now=Date.now()){
  const week=Math.floor(now/(7*86400000));
  const offset=((week%videos.length)+videos.length)%videos.length;
  return [...videos.slice(offset),...videos.slice(0,offset)];
+}
+
+// Match earlier explicit searches to the curated catalogue, not to inferred
+// demographic or health attributes. No derived profile is stored.
+const tvNormalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('de-DE');
+const tvTerms=q=>tvNormalize(q).trim().split(/\s+/).filter(Boolean);
+function historyMatches(video,query){
+ const terms=tvTerms(query);
+ if(!terms.length)return false;
+ const hay=tvNormalize([video.title,video.channel,video.category,video.description].join(' '));
+ return terms.every(term=>hay.includes(term));
+}
+export function tvRecommendations(catalog,preferences,interests=[],now=Date.now()){
+ const p=cleanTVPreferences(preferences,catalog,now);
+ const saved=new Set(p.favorites),followed=new Set(p.channels);
+ const savedTopics=p.recommendFromSaved?new Set(catalog.filter(v=>saved.has(v.id)).map(v=>v.category)):new Set();
+ const searchedTopics=new Set();
+ if(p.recommendFromHistory){
+  for(const h of p.history)for(const v of catalog)if(historyMatches(v,h.query))searchedTopics.add(v.category);
+ }
+ return catalog.map((video,index)=>{
+  let score=0;const reasons=[];
+  const interest=tvReason(video,interests,p.personalized);
+  if(interest){score+=3;reasons.push('Passt zu deinem Interesse: '+interest);}
+  if(p.recommendFromSaved){
+   if(followed.has(video.channel)){score+=5;reasons.push('Von einem gemerkten Kanal');}
+   if(savedTopics.has(video.category)){score+=4;reasons.push('Ähnlich zu gemerkten Videos');}
+  }
+  if(p.recommendFromHistory){
+   if(p.history.some(h=>historyMatches(video,h.query))){score+=6;reasons.push('Passt zu einer früheren TV-Suche');}
+   else if(searchedTopics.has(video.category)){score+=2;reasons.push('Verwandtes Thema zu früheren TV-Suchen');}
+  }
+  return {video,score,reasons,index};
+ }).filter(row=>row.score>0&&!saved.has(row.video.id)).sort((a,b)=>b.score-a.score||a.index-b.index).map(({video,score,reasons})=>({video,score,reasons}));
 }

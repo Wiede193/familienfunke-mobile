@@ -2,7 +2,7 @@ import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {ActivityIndicator,Alert,AppState,Linking,Pressable,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
 import {WebView} from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {tvPreferencesKey,emptyTVPreferences,cleanTVPreferences,recordTVSearch,toggleTVValue,tvReason,rankTVVideos,weeklyTVProgram} from './FamilyTVPreferences';
+import {tvPreferencesKey,emptyTVPreferences,cleanTVPreferences,recordTVSearch,toggleTVValue,tvReason,rankTVVideos,weeklyTVProgram,tvRecommendations} from './FamilyTVPreferences';
 import {FAMILY_COLORS as C,FAMILY_UI as UI,FAMILY_TYPE as T} from './FamilyTheme';
 import FamilyIcon from './FamilyIcon';
 import {TV_VIDEOS,TV_CATEGORIES,TV_PRIVACY_URL,tvEmbedSource,tvWatchUrl,allowedTVNavigation,TV_ORIGIN,filterTVVideos,tvQueue} from './FamilyTV';
@@ -77,6 +77,7 @@ export default function FamilyTVScreen({visible=true,owner,interests=[]}){
  const [ready,setReady]=useState(false),[storageError,setStorageError]=useState('');
  const [view,setView]=useState('Alle Videos'),[showPrivacy,setShowPrivacy]=useState(false);
  const latest=useRef(emptyTVPreferences()),writes=useRef(Promise.resolve()),live=useRef(true);
+ const scrollRef=useRef(null);
  const key=tvPreferencesKey(owner);
  useEffect(()=>{
   live.current=true;let current=true;
@@ -98,6 +99,10 @@ export default function FamilyTVScreen({visible=true,owner,interests=[]}){
  const filtered=useMemo(()=>filterTVVideos(category,query),[category,query]);
  const videos=useMemo(()=>rankTVVideos(filtered.filter(v=>view==='Merkliste'?prefs.favorites.includes(v.id):view==='Lieblingskanäle'?prefs.channels.includes(v.channel):true),interests,prefs.personalized),[filtered,view,prefs,interests]);
  const programme=useMemo(()=>weeklyTVProgram(TV_VIDEOS),[]);
+ const recommendations=useMemo(()=>tvRecommendations(TV_VIDEOS,prefs,interests),[prefs,interests]);
+ const suggested= recommendations.map(row=>row.video);
+ const recommendationMap=new Map(recommendations.map(row=>[row.video.id,row]));
+ const anyRecommendation=prefs.personalized||prefs.recommendFromHistory||prefs.recommendFromSaved;
  const resume=prefs.resume&&TV_VIDEOS.find(v=>v.id===prefs.resume.id);
  useEffect(()=>{
   const sub=AppState.addEventListener('change',state=>{if(state!=='active')setSelected(null);});
@@ -107,7 +112,7 @@ export default function FamilyTVScreen({visible=true,owner,interests=[]}){
  const activate=(video,list=videos,startSeconds=0,auto=autoplay)=>setSelected({id:video.id,autoplay:auto,ids:tvQueue(list,video.id,auto),startSeconds});
  const current=selected&&TV_VIDEOS.find(v=>v.id===selected.id);
  if(visible&&current)return <Player key={current.id} video={current} session={selected} onClose={()=>setSelected(null)} onDisableAutoplay={()=>{setAutoplay(false);setSelected(null);}} onBookmark={ready?async mark=>{if(await changePrefs(p=>({...p,resume:mark})))setSelected(null);else Alert.alert('Nicht gespeichert','Die Wiedergabeposition konnte nicht gespeichert werden.');}:undefined}/>;
- return <ScrollView style={s.screen} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+ return <ScrollView ref={scrollRef} style={s.screen} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
   <View style={s.hero}>
    <View style={s.heroIcon}><FamilyIcon name="video" size={30}/></View>
    <Text accessibilityRole="header" style={s.title}>Familienfunke TV</Text>
@@ -119,8 +124,11 @@ export default function FamilyTVScreen({visible=true,owner,interests=[]}){
    <Text style={s.cardTitle}>Du entscheidest, wann YouTube geladen wird.</Text>
    <Text style={s.copy}>Erst wenn du ein Video oder das Programm startest, verbindet sich der Player mit Google/YouTube. Dabei können z. B. IP-Adresse, Geräteinformationen und weitere Nutzungsdaten verarbeitet werden. Der datenschutzfreundlichere Modus ist keine Garantie für Datenfreiheit. YouTube kann Werbung und weitere Videos anzeigen.</Text>
    <Pressable accessibilityRole="link" onPress={()=>Alert.alert('Google-Datenschutz öffnen?','Du öffnest eine externe Website.',[{text:'Abbrechen',style:'cancel'},{text:'Öffnen',onPress:()=>openExternal(TV_PRIVACY_URL)}])} style={s.link}><Text style={s.linkText}>Datenschutz von Google ↗</Text></Pressable>
-   <View style={s.autoRow}><View style={{flex:1}}><Text style={s.cardTitle}>Suchverlauf speichern</Text><Text style={s.meta}>Nur abgeschickte Suchen; höchstens 20, nach 30 Tagen beim nächsten Öffnen bereinigt. Ausschalten löscht den Verlauf.</Text></View><Switch disabled={!ready} accessibilityLabel="TV-Suchverlauf speichern" value={prefs.historyEnabled} onValueChange={v=>changePrefs(p=>({...p,historyEnabled:v,history:v?p.history:[]}))}/></View>
-   <View style={s.autoRow}><View style={{flex:1}}><Text style={s.cardTitle}>Nach meinen Interessen sortieren</Text><Text style={s.meta}>Nur passende vorgegebene Profilhobbys; keine Analyse von Suchverlauf oder Videonutzung.</Text></View><Switch disabled={!ready} accessibilityLabel="TV-Interessen nutzen" value={prefs.personalized} onValueChange={v=>changePrefs(p=>({...p,personalized:v}))}/></View>
+   <View style={s.autoRow}><View style={{flex:1}}><Text style={s.cardTitle}>Suchverlauf speichern</Text><Text style={s.meta}>Nur abgeschickte Suchen; höchstens 20, nach 30 Tagen beim nächsten Öffnen bereinigt. Ausschalten löscht den Verlauf.</Text></View><Switch disabled={!ready} accessibilityLabel="TV-Suchverlauf speichern" value={prefs.historyEnabled} onValueChange={v=>changePrefs(p=>({...p,historyEnabled:v,history:v?p.history:[],recommendFromHistory:v&&p.recommendFromHistory}))}/></View>
+   <View style={s.autoRow}><View style={{flex:1}}><Text style={s.cardTitle}>Nach meinen Interessen sortieren</Text><Text style={s.meta}>Nur passende vorgegebene Profilhobbys. Die anderen Quellen steuerst du separat.</Text></View><Switch disabled={!ready} accessibilityLabel="TV-Interessen nutzen" value={prefs.personalized} onValueChange={v=>changePrefs(p=>({...p,personalized:v}))}/></View>
+   <View style={s.autoRow}><View style={{flex:1}}><Text style={s.cardTitle}>Frühere Suchen berücksichtigen</Text><Text style={s.meta}>Nur gespeicherte TV-Suchen aus den letzten 30 Tagen; passende Themen werden lokal ermittelt. Erfordert einen aktiven Suchverlauf.</Text></View><Switch disabled={!ready||!prefs.historyEnabled} accessibilityLabel="Empfehlungen aus TV-Suchverlauf" value={prefs.recommendFromHistory} onValueChange={v=>changePrefs(p=>({...p,recommendFromHistory:v&&p.historyEnabled}))}/></View>
+   <View style={s.autoRow}><View style={{flex:1}}><Text style={s.cardTitle}>Merkliste berücksichtigen</Text><Text style={s.meta}>Ähnliche Themen und weitere Beiträge deiner gemerkten Kanäle. Keine automatische Erfassung angesehener Videos.</Text></View><Switch disabled={!ready} accessibilityLabel="Empfehlungen aus TV-Merkliste" value={prefs.recommendFromSaved} onValueChange={v=>changePrefs(p=>({...p,recommendFromSaved:v}))}/></View>
+   <Text style={s.meta}>Alle drei Empfehlungsquellen sind standardmäßig aus. Beim Ausschalten werden die betreffenden Vorschläge sofort entfernt. Wir speichern kein zusätzliches Interessenprofil und übertragen keine Suchbegriffe oder Favoriten zur Empfehlungsberechnung.</Text>
    <Text style={s.copy}>Merkliste, Lieblingskanäle, gemerkte Position, Einstellungen und optionaler Suchverlauf werden je Konto lokal in der App gespeichert, nicht an unsere Server gesendet. Der Gerätespeicher ist nicht zusätzlich durch uns verschlüsselt. Bei Gerätewechsel nicht verfügbar. Profilinteressen sind separat Teil deines Online-Profils. YouTube verarbeitet beim Laden des Players eigene Daten. Bitte keine persönlichen Angaben in die Suche schreiben.</Text>
    <Action title="Alle lokalen TV-Daten löschen" secondary onPress={()=>Alert.alert('Lokale TV-Daten löschen?','Favoriten, Lieblingskanäle, Verlauf, Position und Einwilligungen werden zurückgesetzt.',[{text:'Abbrechen',style:'cancel'},{text:'Löschen',style:'destructive',onPress:()=>changePrefs(()=>emptyTVPreferences())}])}/>
   </View>:null}
@@ -130,6 +138,16 @@ export default function FamilyTVScreen({visible=true,owner,interests=[]}){
    <Text style={s.meta}>Standardmäßig aus. Keine Wiedergabe beim Öffnen von Familienfunke TV. Du kannst jederzeit stoppen.</Text>
   </View>
   {resume?<View style={s.card}><Text style={s.cardTitle}>Weiterschauen</Text><Text style={s.copy}>{resume.title} · {Math.floor(prefs.resume.seconds/60)}:{String(prefs.resume.seconds%60).padStart(2,"0")}</Text><Action title="An gemerkter Position fortsetzen" onPress={()=>activate(resume,[resume],prefs.resume.seconds,false)}/><Action title="Position löschen" secondary onPress={()=>changePrefs(p=>({...p,resume:null}))}/></View>:null}
+  {anyRecommendation?<View style={s.card}>
+    <Text accessibilityRole="header" style={s.cardTitle}>Für dich empfohlen</Text>
+    <Text style={s.meta}>Aus deiner freiwilligen Auswahl. Nur unser redaktioneller Katalog, keine bezahlten Empfehlungen.</Text>
+    {recommendations.length?recommendations.slice(0,5).map(row=><View key={row.video.id} style={s.recommendation}>
+      <Text style={s.cardTitle}>{row.video.title}</Text><Text style={s.meta}>{row.video.channel} · {row.video.category}</Text>
+      <Text style={s.meta}>{row.reasons.join(' · ')}</Text>
+      <Action title={autoplay?'Empfohlenes Programm ab hier starten':'Empfohlenes Video laden'} onPress={()=>activate(row.video,suggested)}/>
+    </View>):<Text style={s.copy}>Noch keine weiteren passenden Videos im Katalog. Du kannst weiterhin alle Videos durchsuchen.</Text>}
+    <Action title="Empfehlungen einstellen" secondary onPress={()=>{setShowPrivacy(true);scrollRef.current?.scrollTo({y:0,animated:true});}}/>
+  </View>:null}
   {programme.length?<View style={s.card}><Text style={s.cardTitle}>Unser Wochenprogramm</Text><Text style={s.copy}>{programme[0].title}</Text><Text style={s.meta}>Wöchentlich wechselnde Reihenfolge aus unserer redaktionellen Auswahl.</Text><Action title="Wochenprogramm starten" onPress={()=>activate(programme[0],programme,0,autoplay)}/></View>:null}
   <TextInput accessibilityLabel="Videos suchen" placeholder="Thema, Titel oder Anbieter suchen" placeholderTextColor={C.muted} value={query} onChangeText={setQuery} maxLength={120} returnKeyType="search" onSubmitEditing={()=>changePrefs(p=>recordTVSearch(p,query))} autoCorrect={false} style={s.search}/>
   <Action title="Suchen" secondary onPress={()=>changePrefs(p=>recordTVSearch(p,query))}/>
@@ -145,7 +163,7 @@ export default function FamilyTVScreen({visible=true,owner,interests=[]}){
   {videos.map(video=><View key={video.id} style={s.card}>
     <View style={s.cardHead}><View style={s.thumb}><FamilyIcon name="video" size={28}/></View><View style={{flex:1,minWidth:0}}><Text style={s.meta}>{video.category}</Text><Text style={s.cardTitle}>{video.title}</Text><Text style={s.meta}>Quelle: {video.channel} · YouTube</Text></View></View>
     <Text style={s.copy}>{video.description}</Text>
-    {tvReason(video,interests,prefs.personalized)?<Text style={s.meta}>Passt zu deinem Interesse: {tvReason(video,interests,true)}</Text>:null}
+    {recommendationMap.has(video.id)?<Text style={s.meta}>{recommendationMap.get(video.id).reasons.join(' · ')}</Text>:tvReason(video,interests,prefs.personalized)?<Text style={s.meta}>Passt zu deinem Interesse: {tvReason(video,interests,true)}</Text>:null}
     {ready?<View style={s.chips}><Pressable accessibilityRole="button" accessibilityState={{selected:prefs.favorites.includes(video.id)}} style={s.chip} onPress={()=>changePrefs(p=>({...p,favorites:toggleTVValue(p.favorites,video.id)}))}><Text style={s.chipText}>{prefs.favorites.includes(video.id)?"♥ Gemerkt":"♡ Merken"}</Text></Pressable><Pressable accessibilityRole="button" accessibilityState={{selected:prefs.channels.includes(video.channel)}} style={s.chip} onPress={()=>changePrefs(p=>({...p,channels:toggleTVValue(p.channels,video.channel)}))}><Text style={s.chipText}>{prefs.channels.includes(video.channel)?"Kanal gemerkt":"Kanal merken"}</Text></Pressable></View>:null}
     <Action title={autoplay?"Programm ab hier starten":"YouTube-Player laden"} onPress={()=>activate(video)}/>
    </View>)}
@@ -153,6 +171,7 @@ export default function FamilyTVScreen({visible=true,owner,interests=[]}){
  </ScrollView>;
 }
 const s=StyleSheet.create({
+ recommendation:{borderTopWidth:1,borderTopColor:C.line,paddingTop:12,gap:6},
  watchScreen:{flex:1,backgroundColor:C.bg,padding:12,gap:8},watchHeader:{gap:4},playerArea:{flex:3,minHeight:0,justifyContent:'flex-start'},watchDetails:{flex:2,minHeight:0},autoRow:{flexDirection:'row',alignItems:'center',gap:12},search:{...UI.field,paddingHorizontal:14,color:C.ink,fontSize:T.body},
  screen:{flex:1,backgroundColor:C.bg},content:{padding:16,paddingBottom:30,gap:14},
  hero:{...UI.card,padding:18,backgroundColor:C.sunPale,gap:8},heroIcon:{width:52,height:52,borderRadius:16,backgroundColor:C.white,alignItems:'center',justifyContent:'center'},
