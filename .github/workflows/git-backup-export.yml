@@ -1,0 +1,35 @@
+name: Familienfunke Git backup
+on:
+  push:
+    branches: ['backup/export-20261125']
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Create and validate full Git backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$RUNNER_TEMP/export"
+          git clone --mirror "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "$RUNNER_TEMP/mirror.git"
+          git -C "$RUNNER_TEMP/mirror.git" fsck --full
+          git -C "$RUNNER_TEMP/mirror.git" bundle create "$RUNNER_TEMP/export/Familienfunke-Historie.bundle" --all
+          git -C "$RUNNER_TEMP/mirror.git" bundle verify "$RUNNER_TEMP/export/Familienfunke-Historie.bundle"
+          git clone --mirror "$RUNNER_TEMP/export/Familienfunke-Historie.bundle" "$RUNNER_TEMP/check.git"
+          git -C "$RUNNER_TEMP/check.git" fsck --full
+          git -C "$RUNNER_TEMP/mirror.git" archive --format=zip --output="$RUNNER_TEMP/export/Familienfunke-Projektarchiv.zip" 130470c932fc0c3bc195f2b74b351fcf63f27f36
+          git -C "$RUNNER_TEMP/mirror.git" show-ref > "$RUNNER_TEMP/export/git-refs.txt"
+          git -C "$RUNNER_TEMP/check.git" show-ref > "$RUNNER_TEMP/verified-refs.txt"
+          diff "$RUNNER_TEMP/export/git-refs.txt" "$RUNNER_TEMP/verified-refs.txt"
+          cd "$RUNNER_TEMP/export"
+          sha256sum Familienfunke-Historie.bundle Familienfunke-Projektarchiv.zip git-refs.txt > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Familienfunke-Git-Backup-20261125
+          path: ${{ runner.temp }}/export/
+          if-no-files-found: error
+          retention-days: 7
