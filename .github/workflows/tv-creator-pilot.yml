@@ -1,0 +1,27 @@
+name: TV creator isolated SQL pilot
+on:
+  push:
+    branches: [qa/tv-creator-pilot]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  creator-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ephemeral-pilot-only
+          POSTGRES_DB: creator_pilot
+        ports:
+          - 5432:5432
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test creator submission and editorial permissions
+        env:
+          PGPASSWORD: ephemeral-pilot-only
+        run: psql -h 127.0.0.1 -U postgres -d creator_pilot -v ON_ERROR_STOP=1 -f tests/check-tv-creator-staging.sql
