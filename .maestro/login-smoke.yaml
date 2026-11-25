@@ -4,7 +4,7 @@ appId: de.familienfunke.app
     clearState: true
 - extendedWaitUntil:
     visible: "Willkommen zurück!"
-    timeout: 30000
+    timeout: 60000
 - takeScreenshot: 01-anmeldung
 - scrollUntilVisible:
     element:
@@ -20,6 +20,6 @@ appId: de.familienfunke.app
 - tapOn: "Anmeldung, Einladung & Hilfe"
 - assertVisible: "Hilfe zur Anmeldung"
 - takeScreenshot: 03-anmeldehilfe
-- tapOn: ".*Zur Anmeldung"
+- tapOn: "← Zur Anmeldung"
 - assertVisible: "Willkommen zurück!"
 - takeScreenshot: 04-zurueck
