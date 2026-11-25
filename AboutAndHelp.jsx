@@ -76,6 +76,7 @@ export function AboutFamilienfunkeScreen(){
     <Block title="Darum gibt es Familienfunke">
       {'Wir wollten einen Ort schaffen, der Familien miteinander verbindet: andere Eltern in der Nähe kennenlernen, gemeinsame Unternehmungen entdecken, Kinderartikel weitergeben und schneller zu hilfreichen Informationen finden.\n\nEin Ort von Familien für Familien, der den Alltag ein Stück einfacher machen soll.'}
     </Block>
+    <Block title="Deine Interessen. Deine Entscheidung.">{'Bei Familienfunke TV entscheidest du, ob du einen lokalen Suchverlauf und Empfehlungen nach deinen ausgewählten Profilinteressen möchtest. Beides ist standardmäßig ausgeschaltet. Favoriten und gemerkte Positionen bleiben auf deinem Gerät; du kannst diese TV-Daten löschen. Wir verwenden den TV-Suchverlauf nicht für Werbung oder persönliche Profile. Andere App-Funktionen benötigen weiterhin Serverdaten. Beim freiwilligen Laden des YouTube-Players gelten auch die Datenschutzregeln von Google.'}</Block>
     <View style={[styles.card,{backgroundColor:C.pale}]}>
       <Text style={styles.sectionTitle}>Schön, dass ihr dabei seid. ♡</Text>
       <Text style={styles.body}>Wir wünschen uns, dass aus einer Begegnung ein Gespräch entsteht – und vielleicht eine echte Freundschaft.</Text>

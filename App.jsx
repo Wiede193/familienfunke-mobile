@@ -1081,7 +1081,7 @@ onReport={(id)=>report('message',id)} onBlock={blockUser}/>:
 showInfo?<InfoScreen/>:
 tab==='home'?<HomeAssistant key={me} onNavigate={navigateFromHome} userId={me} profile={myProfile} active={active} inboxUnread={inbox.unread}/>:
 tab==='play'?<FamilyPlayScreen key={me}/>:
-tab==='tv'?<FamilyTVScreen key={me} visible={!menuOpen&&!showWelcome&&!showTour&&!reportTarget}/>:
+tab==='tv'?<FamilyTVScreen key={me} owner={me} interests={myProfile?.interests} visible={!menuOpen&&!showWelcome&&!showTour&&!reportTarget}/>:
 tab==='healthy'?<HealthyScreen initialQuery={healthyQuery} onOpenMap={()=>{setExtraReturnTab('healthy');setMapIntent({layer:'bike',returnTab:'healthy'});setTab('map');}}/>:
 tab==='decisions'?<OfficialDecisionsScreen key={me} userId={me} initialQuery={decisionQuery} focusId={decisionFocusId}/>:
 tab==='calendar'?<FamilyCalendar key={me} userId={me} seed={calendarSeed?.owner===me?calendarSeed.place:null} onOpenEvent={(kind,id)=>{const target=kind==='family'?'events':'partners';setCalendarSeed(null);setEventIntent({id,tab:target,owner:me,returnTab:'calendar'});setTab(target);}} onOpenPlace={id=>{setCalendarSeed(null);setMapIntent({id,returnTab:'calendar'});setTab('map');}}/>:

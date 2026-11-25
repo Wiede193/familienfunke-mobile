@@ -1,6 +1,8 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useRef,useState} from 'react';
 import {ActivityIndicator,Alert,AppState,Linking,Pressable,ScrollView,StyleSheet,Switch,Text,TextInput,View} from 'react-native';
 import {WebView} from 'react-native-webview';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {tvPreferencesKey,emptyTVPreferences,cleanTVPreferences,recordTVSearch,toggleTVValue,tvReason,rankTVVideos,weeklyTVProgram} from './FamilyTVPreferences';
 import {FAMILY_COLORS as C,FAMILY_UI as UI,FAMILY_TYPE as T} from './FamilyTheme';
 import FamilyIcon from './FamilyIcon';
 import {TV_VIDEOS,TV_CATEGORIES,TV_PRIVACY_URL,tvEmbedSource,tvWatchUrl,allowedTVNavigation,TV_ORIGIN,filterTVVideos,tvQueue} from './FamilyTV';
@@ -20,9 +22,15 @@ function confirmExternal(url){
   {text:'Abbrechen',style:'cancel'},{text:'YouTube öffnen',onPress:()=>openExternal(url)}
  ]);
 }
-function Player({video,session,onClose,onDisableAutoplay}){
+function Player({video,session,onClose,onDisableAutoplay,onBookmark}){
+ const web=useRef(null),pending=useRef(null),timer=useRef(null),sequence=useRef(0);
+ const [saving,setSaving]=useState(false);
+ useEffect(()=>()=>{clearTimeout(timer.current);pending.current=null;},[]);
+ function bookmark(){if(!web.current||pending.current)return;const token=String(++sequence.current);pending.current=token;setSaving(true);timer.current=setTimeout(()=>{pending.current=null;setSaving(false);Alert.alert('Position nicht verfügbar','Bitte versuche es nach dem Start des Videos erneut.');},3500);web.current.injectJavaScript('window.ffBookmark && window.ffBookmark('+JSON.stringify(token)+'); true;');}
+ function receive({nativeEvent}){try{const m=JSON.parse(nativeEvent.data);if(m.type!=='bookmark'||!pending.current||m.token!==pending.current)return;clearTimeout(timer.current);pending.current=null;setSaving(false);if(m.error||!session.ids.includes(m.id)||!Number.isInteger(m.seconds)||m.seconds<0||m.seconds>43200){Alert.alert('Position nicht verfügbar','Bitte starte ein Video aus unserem Programm und versuche es erneut.');return;}onBookmark({id:m.id,seconds:m.seconds});}catch{/* Ignore malformed external messages. */}}
+
  const [bounds,setBounds]=useState(null);
- const source=useMemo(()=>tvEmbedSource(video.id,session.autoplay,session.ids),[video.id,session]);
+ const source=useMemo(()=>tvEmbedSource(video.id,session.autoplay,session.ids,session.startSeconds||0),[video.id,session]);
  const width=bounds?.width||0,height=bounds?.height||0;
  const [failed,setFailed]=useState(false),[loading,setLoading]=useState(true),[attempt,setAttempt]=useState(0);
  const playerWidth=width;
@@ -33,7 +41,7 @@ function Player({video,session,onClose,onDisableAutoplay}){
   <View style={s.watchHeader}><Text accessibilityRole="header" style={s.cardTitle}>{session.autoplay?'Dein TV-Programm':video.title}</Text><Text style={s.meta}>{session.autoplay?session.ids.length+' ausgewählte Videos · YouTube':'Quelle: '+video.channel+' · YouTube'}</Text></View>
   <View style={s.playerArea} onLayout={({nativeEvent:{layout}})=>setBounds({width:layout.width,height:layout.height})}>
   {canEmbed&&!failed?<View style={{height:playerHeight,backgroundColor:'#000'}}>
-   <WebView key={video.id+':'+attempt} source={source}
+   <WebView ref={web} onMessage={receive} key={video.id+':'+attempt} source={source}
     accessibilityLabel="YouTube-Videoplayer" originWhitelist={['*']}
     javaScriptEnabled domStorageEnabled allowsFullscreenVideo allowsInlineMediaPlayback
     mediaPlaybackRequiresUserAction={!session.autoplay} mixedContentMode="never" sharedCookiesEnabled={false}
@@ -55,39 +63,78 @@ function Player({video,session,onClose,onDisableAutoplay}){
   {session.autoplay?<><Text style={s.cardTitle}>Deine Wiedergabeliste</Text>{session.ids.map((id,i)=>{const item=TV_VIDEOS.find(v=>v.id===id);return <Text key={id} style={s.meta}>{i+1}. {item?.title} · {item?.channel}</Text>;})}<Action title="Autoplay ausschalten und Player schließen" onPress={onDisableAutoplay} secondary/></>:null}
   <Action title="Auf YouTube ansehen" onPress={()=>confirmExternal(tvWatchUrl(video.id))} secondary/>
   </ScrollView>
+  {canEmbed&&!failed&&!saving&&onBookmark?<Action title="Position merken und schließen" onPress={bookmark} secondary/>:null}
+  {saving?<Text accessibilityLiveRegion="polite" style={s.meta}>Position wird abgefragt …</Text>:null}
   <Action title="Player schließen" onPress={onClose}/>
  </View>;
 }
-export default function FamilyTVScreen({visible=true}){
+export default function FamilyTVScreen({visible=true,owner,interests=[]}){
  const [category,setCategory]=useState('Alle');
  const [query,setQuery]=useState('');
  const [autoplay,setAutoplay]=useState(false);
  const [selected,setSelected]=useState(null);
- const videos=useMemo(()=>filterTVVideos(category,query),[category,query]);
+ const [prefs,setPrefs]=useState(emptyTVPreferences);
+ const [ready,setReady]=useState(false),[storageError,setStorageError]=useState('');
+ const [view,setView]=useState('Alle Videos'),[showPrivacy,setShowPrivacy]=useState(false);
+ const latest=useRef(emptyTVPreferences()),writes=useRef(Promise.resolve()),live=useRef(true);
+ const key=tvPreferencesKey(owner);
+ useEffect(()=>{
+  live.current=true;let current=true;
+  AsyncStorage.getItem(key).then(raw=>{
+   if(!current)return;
+   const data=cleanTVPreferences(raw?JSON.parse(raw):null,TV_VIDEOS);
+   latest.current=data;setPrefs(data);setReady(true);
+   if(raw)writes.current=writes.current.catch(()=>{}).then(()=>AsyncStorage.setItem(key,JSON.stringify(data))).catch(()=>{if(current)setStorageError('Lokale Daten konnten nicht bereinigt werden.');});
+  }).catch(()=>{if(current)setStorageError('Lokale Daten konnten nicht geladen werden. Bitte öffne den Bereich erneut.');});
+  return()=>{current=false;live.current=false;};
+ },[key]);
+ function changePrefs(fn){
+  if(!ready)return Promise.resolve(false);
+  const next=cleanTVPreferences(fn(latest.current),TV_VIDEOS);latest.current=next;setPrefs(next);
+  const task=writes.current.catch(()=>{}).then(()=>AsyncStorage.setItem(key,JSON.stringify(next)));
+  writes.current=task;
+  return task.then(()=>{if(live.current)setStorageError('');return true;}).catch(()=>{if(live.current)setStorageError('Änderung konnte nicht auf dem Gerät gespeichert werden. Bitte erneut versuchen.');return false;});
+ }
+ const filtered=useMemo(()=>filterTVVideos(category,query),[category,query]);
+ const videos=useMemo(()=>rankTVVideos(filtered.filter(v=>view==='Merkliste'?prefs.favorites.includes(v.id):view==='Lieblingskanäle'?prefs.channels.includes(v.channel):true),interests,prefs.personalized),[filtered,view,prefs,interests]);
+ const programme=useMemo(()=>weeklyTVProgram(TV_VIDEOS),[]);
+ const resume=prefs.resume&&TV_VIDEOS.find(v=>v.id===prefs.resume.id);
  useEffect(()=>{
   const sub=AppState.addEventListener('change',state=>{if(state!=='active')setSelected(null);});
   return ()=>sub.remove();
  },[]);
  useEffect(()=>{if(!visible)setSelected(null);},[visible]);
- const activate=video=>setSelected({id:video.id,autoplay,ids:tvQueue(videos,video.id,autoplay)});
+ const activate=(video,list=videos,startSeconds=0,auto=autoplay)=>setSelected({id:video.id,autoplay:auto,ids:tvQueue(list,video.id,auto),startSeconds});
  const current=selected&&TV_VIDEOS.find(v=>v.id===selected.id);
- if(visible&&current)return <Player key={current.id} video={current} session={selected} onClose={()=>setSelected(null)} onDisableAutoplay={()=>{setAutoplay(false);setSelected(null);}}/>;
+ if(visible&&current)return <Player key={current.id} video={current} session={selected} onClose={()=>setSelected(null)} onDisableAutoplay={()=>{setAutoplay(false);setSelected(null);}} onBookmark={ready?async mark=>{if(await changePrefs(p=>({...p,resume:mark})))setSelected(null);else Alert.alert('Nicht gespeichert','Die Wiedergabeposition konnte nicht gespeichert werden.');}:undefined}/>;
  return <ScrollView style={s.screen} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
   <View style={s.hero}>
    <View style={s.heroIcon}><FamilyIcon name="video" size={30}/></View>
    <Text accessibilityRole="header" style={s.title}>Familienfunke TV</Text>
    <Text style={s.copy}>Eine kleine Auswahl an Videos für Eltern. Entdecke Anregungen für euren Familienalltag.</Text>
   </View>
-  <View style={s.privacy}>
+  {storageError?<Text accessibilityLiveRegion="polite" style={s.copy}>{storageError}</Text>:null}
+  <Pressable accessibilityRole="button" accessibilityState={{expanded:showPrivacy}} onPress={()=>setShowPrivacy(v=>!v)} style={s.privacy}><Text style={s.cardTitle}>Deine Daten & Einstellungen {showPrivacy?'−':'+'}</Text><Text style={s.meta}>Suchverlauf {prefs.historyEnabled?'an':'aus'} · Interessen {prefs.personalized?'an':'aus'}</Text></Pressable>
+  {showPrivacy?<View style={s.privacy}>
    <Text style={s.cardTitle}>Du entscheidest, wann YouTube geladen wird.</Text>
    <Text style={s.copy}>Erst wenn du ein Video oder das Programm startest, verbindet sich der Player mit Google/YouTube. Dabei können z. B. IP-Adresse, Geräteinformationen und weitere Nutzungsdaten verarbeitet werden. Der datenschutzfreundlichere Modus ist keine Garantie für Datenfreiheit. YouTube kann Werbung und weitere Videos anzeigen.</Text>
    <Pressable accessibilityRole="link" onPress={()=>Alert.alert('Google-Datenschutz öffnen?','Du öffnest eine externe Website.',[{text:'Abbrechen',style:'cancel'},{text:'Öffnen',onPress:()=>openExternal(TV_PRIVACY_URL)}])} style={s.link}><Text style={s.linkText}>Datenschutz von Google ↗</Text></Pressable>
-  </View>
+   <View style={s.autoRow}><View style={{flex:1}}><Text style={s.cardTitle}>Suchverlauf speichern</Text><Text style={s.meta}>Nur abgeschickte Suchen; höchstens 20, nach 30 Tagen beim nächsten Öffnen bereinigt. Ausschalten löscht den Verlauf.</Text></View><Switch disabled={!ready} accessibilityLabel="TV-Suchverlauf speichern" value={prefs.historyEnabled} onValueChange={v=>changePrefs(p=>({...p,historyEnabled:v,history:v?p.history:[]}))}/></View>
+   <View style={s.autoRow}><View style={{flex:1}}><Text style={s.cardTitle}>Nach meinen Interessen sortieren</Text><Text style={s.meta}>Nur passende vorgegebene Profilhobbys; keine Analyse von Suchverlauf oder Videonutzung.</Text></View><Switch disabled={!ready} accessibilityLabel="TV-Interessen nutzen" value={prefs.personalized} onValueChange={v=>changePrefs(p=>({...p,personalized:v}))}/></View>
+   <Text style={s.copy}>Merkliste, Lieblingskanäle, gemerkte Position, Einstellungen und optionaler Suchverlauf werden je Konto lokal in der App gespeichert, nicht an unsere Server gesendet. Der Gerätespeicher ist nicht zusätzlich durch uns verschlüsselt. Bei Gerätewechsel nicht verfügbar. Profilinteressen sind separat Teil deines Online-Profils. YouTube verarbeitet beim Laden des Players eigene Daten. Bitte keine persönlichen Angaben in die Suche schreiben.</Text>
+   <Action title="Alle lokalen TV-Daten löschen" secondary onPress={()=>Alert.alert('Lokale TV-Daten löschen?','Favoriten, Lieblingskanäle, Verlauf, Position und Einwilligungen werden zurückgesetzt.',[{text:'Abbrechen',style:'cancel'},{text:'Löschen',style:'destructive',onPress:()=>changePrefs(()=>emptyTVPreferences())}])}/>
+  </View>:null}
+  <Text style={s.meta}>YouTube wird erst nach deinem Start geladen und verarbeitet dann eigene Daten. Details unter „Deine Daten & Einstellungen“.</Text>
   <View style={s.privacy}>
    <View style={s.autoRow}><View style={{flex:1}}><Text style={s.cardTitle}>Autoplay</Text><Text style={s.meta}>Nach dem Start weitere Videos aus deiner aktuellen Auswahl abspielen.</Text></View><Switch accessibilityLabel="Autoplay" value={autoplay} onValueChange={setAutoplay} trackColor={{true:C.accent}}/></View>
    <Text style={s.meta}>Standardmäßig aus. Keine Wiedergabe beim Öffnen von Familienfunke TV. Du kannst jederzeit stoppen.</Text>
   </View>
-  <TextInput accessibilityLabel="Videos suchen" placeholder="Thema, Titel oder Anbieter suchen" placeholderTextColor={C.muted} value={query} onChangeText={setQuery} autoCorrect={false} style={s.search}/>
+  {resume?<View style={s.card}><Text style={s.cardTitle}>Weiterschauen</Text><Text style={s.copy}>{resume.title} · {Math.floor(prefs.resume.seconds/60)}:{String(prefs.resume.seconds%60).padStart(2,"0")}</Text><Action title="An gemerkter Position fortsetzen" onPress={()=>activate(resume,[resume],prefs.resume.seconds,false)}/><Action title="Position löschen" secondary onPress={()=>changePrefs(p=>({...p,resume:null}))}/></View>:null}
+  {programme.length?<View style={s.card}><Text style={s.cardTitle}>Unser Wochenprogramm</Text><Text style={s.copy}>{programme[0].title}</Text><Text style={s.meta}>Wöchentlich wechselnde Reihenfolge aus unserer redaktionellen Auswahl.</Text><Action title="Wochenprogramm starten" onPress={()=>activate(programme[0],programme,0,autoplay)}/></View>:null}
+  <TextInput accessibilityLabel="Videos suchen" placeholder="Thema, Titel oder Anbieter suchen" placeholderTextColor={C.muted} value={query} onChangeText={setQuery} maxLength={120} returnKeyType="search" onSubmitEditing={()=>changePrefs(p=>recordTVSearch(p,query))} autoCorrect={false} style={s.search}/>
+  <Action title="Suchen" secondary onPress={()=>changePrefs(p=>recordTVSearch(p,query))}/>
+  {prefs.historyEnabled&&prefs.history.length>0?<View style={s.card}><Text style={s.cardTitle}>Letzte Suchen</Text>{prefs.history.map(h=><View key={h.query} style={s.autoRow}><Pressable accessibilityRole="button" style={{flex:1,minHeight:48,justifyContent:"center"}} onPress={()=>{setQuery(h.query);changePrefs(p=>recordTVSearch(p,h.query));}}><Text style={s.copy}>{h.query}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={"Suche löschen: "+h.query} onPress={()=>changePrefs(p=>({...p,history:p.history.filter(x=>x.query!==h.query)}))} style={s.chip}><Text style={s.chipText}>×</Text></Pressable></View>)}<Action title="Suchverlauf löschen" secondary onPress={()=>changePrefs(p=>({...p,history:[]}))}/></View>:null}
+  <View style={s.chips}>{["Alle Videos","Merkliste","Lieblingskanäle"].map(v=><Pressable key={v} accessibilityRole="button" accessibilityState={{selected:view===v}} onPress={()=>setView(v)} style={[s.chip,view===v&&s.selected]}><Text style={[s.chipText,view===v&&{color:C.white}]}>{v}</Text></Pressable>)}</View>
   <View style={s.chips}>
    {TV_CATEGORIES.map(c=><Pressable key={c} accessibilityRole="button" accessibilityState={{selected:c===category}} onPress={()=>{if(c!==category){setSelected(null);setCategory(c);}}}
      style={[s.chip,c===category&&s.selected]}><Text style={[s.chipText,c===category&&{color:C.white}]}>{c}</Text></Pressable>)}
@@ -98,6 +145,8 @@ export default function FamilyTVScreen({visible=true}){
   {videos.map(video=><View key={video.id} style={s.card}>
     <View style={s.cardHead}><View style={s.thumb}><FamilyIcon name="video" size={28}/></View><View style={{flex:1,minWidth:0}}><Text style={s.meta}>{video.category}</Text><Text style={s.cardTitle}>{video.title}</Text><Text style={s.meta}>Quelle: {video.channel} · YouTube</Text></View></View>
     <Text style={s.copy}>{video.description}</Text>
+    {tvReason(video,interests,prefs.personalized)?<Text style={s.meta}>Passt zu deinem Interesse: {tvReason(video,interests,true)}</Text>:null}
+    {ready?<View style={s.chips}><Pressable accessibilityRole="button" accessibilityState={{selected:prefs.favorites.includes(video.id)}} style={s.chip} onPress={()=>changePrefs(p=>({...p,favorites:toggleTVValue(p.favorites,video.id)}))}><Text style={s.chipText}>{prefs.favorites.includes(video.id)?"♥ Gemerkt":"♡ Merken"}</Text></Pressable><Pressable accessibilityRole="button" accessibilityState={{selected:prefs.channels.includes(video.channel)}} style={s.chip} onPress={()=>changePrefs(p=>({...p,channels:toggleTVValue(p.channels,video.channel)}))}><Text style={s.chipText}>{prefs.channels.includes(video.channel)?"Kanal gemerkt":"Kanal merken"}</Text></Pressable></View>:null}
     <Action title={autoplay?"Programm ab hier starten":"YouTube-Player laden"} onPress={()=>activate(video)}/>
    </View>)}
   <Text style={s.meta}>Pilotangebot für Eltern. Die Videos stammen von den genannten externen Anbietern. Es besteht keine behauptete Kooperation. Empfehlungen im YouTube-Player liegen außerhalb unserer redaktionellen Auswahl.</Text>

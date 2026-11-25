@@ -51,3 +51,24 @@ const navMod=await import('data:text/javascript;base64,'+Buffer.from(nav).toStri
 assert.equal(navMod.findHomeRoutes('YouTube')[0]?.id,'tv');
 assert.equal(navMod.findHomeRoutes('Familienfunke TV')[0]?.id,'tv');
 console.log('TV catalogue, explicit activation, safe URL construction and navigation checks passed.');
+
+const pref=await import('data:text/javascript;base64,'+Buffer.from(read('FamilyTVPreferences.js')).toString('base64'));
+let p=pref.emptyTVPreferences();const now=1720000000000;
+assert.deepEqual(pref.recordTVSearch(p,'Kochen',now).history,[]);
+p={...p,historyEnabled:true};
+p=pref.recordTVSearch(p,'Kochen',now);p=pref.recordTVSearch(p,'kochen',now+1);
+assert.equal(p.history.length,1);
+assert.deepEqual(pref.cleanTVPreferences({...p,historyEnabled:false},all,now+1).history,[]);
+assert.deepEqual(pref.cleanTVPreferences(p,all,now+pref.TV_HISTORY_AGE+2).history,[]);
+assert.equal(pref.rankTVVideos(all,['Kochen'],true)[0].category,'Familienküche');
+assert.deepEqual(pref.rankTVVideos(all,['Kochen'],false),all);
+assert.equal(pref.tvReason(all[0],['private notes'],true),'');
+assert.equal(pref.weeklyTVProgram(all,now).length,all.length);
+assert.notDeepEqual(pref.weeklyTVProgram(all,now),pref.weeklyTVProgram(all,now+7*86400000));
+assert.match(tvEmbedSource(all[0].id,false,[],125).html,/start=125/);
+assert.match(tvEmbedSource(all[0].id,false,[],-1).html,/start=0/);
+assert.match(screen,/AsyncStorage\.setItem\(key,JSON\.stringify\(next\)\)/);
+assert.doesNotMatch(screen,/supabase|fetch\(/i);
+assert.match(screen,/onSubmitEditing=\{\(\)=>changePrefs\(p=>recordTVSearch/);
+assert.match(screen,/onBookmark=\{ready\?/);
+console.log('TV privacy defaults, local history deletion, interest ranking and resume checks passed.');
