@@ -427,7 +427,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
         style={styles.field} placeholder="z. B. 15230, Rathausplatz oder Berlin"
         placeholderTextColor={C.muted} maxLength={160}
         autoCorrect={false} returnKeyType="search" onSubmitEditing={searchGermany}/>
-      <Text style={[styles.micro,{marginTop:7}]}>Online-Suche über Photon: nur Suchtext, kein GPS. Bitte keine privaten Adressen oder Namen eingeben.</Text>
+      <Text style={[styles.micro,{marginTop:7}]}>Online-Suche: Suchtext über unseren Server an Photon, kein GPS. Bitte keine privaten Adressen oder Namen eingeben.</Text>
       <Pressable accessibilityRole="button" accessibilityState={{disabled:geoStatus==='loading'||placeQuery.trim().length<3,busy:geoStatus==='loading'}}
         disabled={geoStatus==='loading'||placeQuery.trim().length<3} onPress={searchGermany}
         style={[styles.mainBtn,{minHeight:48,marginTop:10,opacity:geoStatus==='loading'||placeQuery.trim().length<3?0.5:1}]}>

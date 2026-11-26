@@ -110,4 +110,4 @@ assert.ok(market.indexOf('accessibilityLabel="Angebote durchsuchen"')<market.ind
 assert.equal((market.match(/accessibilityLabel="Angebote durchsuchen"/g)||[]).length,1);
 assert.match(market,/minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center'/);
 assert.ok(topics.indexOf('accessibilityLabel="Familienthemen durchsuchen"')<topics.indexOf('Keine Anspruchsprüfung.'));
-assert.match(map,/Online-Suche über Photon: nur Suchtext, kein GPS/);
+assert.match(map,/Online-Suche: Suchtext über unseren Server an Photon, kein GPS/);

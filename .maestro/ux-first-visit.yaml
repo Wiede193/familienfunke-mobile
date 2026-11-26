@@ -32,10 +32,10 @@ appId: de.familienfunke.app
 - inputText: "Kinderjeans"
 - hideKeyboard
 - scrollUntilVisible:
-    element: "Test-Kinderjeans Größe 116"
+    element: "Angebot laut Anzeige: Test-Kinderjeans Größe 116.*"
     direction: DOWN
 - takeScreenshot: 04a-Basar-Treffer
-- tapOn: "Test-Kinderjeans Größe 116"
+- tapOn: "Angebot laut Anzeige: Test-Kinderjeans Größe 116.*"
 - scrollUntilVisible:
     element: "Verkäufer kontaktieren"
     direction: DOWN
