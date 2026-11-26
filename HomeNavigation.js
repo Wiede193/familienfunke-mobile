@@ -60,6 +60,7 @@ export function findHomeRoutes(value){
  if(/\b(kita|kindergarten|kitaplatz)\b/.test(intent)&&/\b(antrag|anmeldung|formular|frist)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='guide'),HOME_ROUTES.find(x=>x.id==='partners')];
  if(/^(chat|chats|private nachrichten|unterhaltungen)$/.test(intent))return [HOME_ROUTES.find(x=>x.id==='chat')];
  if(/\b(beschlusse|beschluss|regierung|bundestag|landtag|gesetzgebung|gesetzesanderung|kabinett)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='decisions')];
+ if(/\b(kindergeld|kinderzuschlag|elterngeld|elternzeit|wohngeld|unterhaltsvorschuss|mutterschaftsgeld)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='guide'),HOME_ROUTES.find(x=>x.id==='decisions')];
  if(/\b(push|pushnachrichten|benachrichtigungseinstellungen|sperrbildschirm)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='push')];
  if(/\b(neuigkeiten|benachrichtigungszentrale|benachrichtigungen|ungelesen)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='inbox')];
  if(/\b(radweg|radwege|radtour|radtouren|wanderweg|wanderwege|wandertour|fahrradwege)\b/.test(intent))return [HOME_ROUTES.find(x=>x.id==='map'),HOME_ROUTES.find(x=>x.id==='healthy')];

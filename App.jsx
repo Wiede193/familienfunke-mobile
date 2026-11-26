@@ -2162,13 +2162,13 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
     </Pressable>
     {showMarketTrust?<Info>{SECTION_MESSAGES.market}</Info>:null}
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
-    <View style={{flexDirection:'row',gap:7,marginBottom:16}}>
-      <View style={{flex:1}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
+    <View style={{flexDirection:'row',flexWrap:'wrap',gap:7,marginBottom:16}}>
+      <View style={{flex:1,minWidth:singleColumn?'45%':0}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyMine(false);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
-      <View style={{flex:1}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+(ownHasMore?'+':'')+')'}
+      <View style={{flex:1,minWidth:singleColumn?'45%':0}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+(ownHasMore?'+':'')+')'}
         mode={onlyMine?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
-      <View style={{flex:1}}><Button title="♡ Merkliste"
+      <View style={{flex:1,minWidth:singleColumn?'45%':0}}><Button title="♡ Merkliste"
         mode={onlyFavorites?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
@@ -3586,7 +3586,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 <Card style={{backgroundColor:C.sunPale}}>
 <Row><Avatar size={65} name={profile?.display_name}/><View style={{flex:1}}><Text style={styles.cardTitle}>{profile?.display_name||'Deine Familie'}</Text><Text style={styles.micro}>{active?'✓ Erwachsener geprüft, Profil freigegeben':'⌛ Prüfung oder Freigabe ausstehend'}</Text><Text style={styles.micro}>Mitgliedschaft: {membership?.status||'–'}</Text></View></Row>
 <View style={{marginTop:15}}>
-<Row style={{justifyContent:'space-between',marginBottom:6}}><Text style={styles.label}>Profil gestalten</Text><Text style={styles.micro}>{completed} von 4 freiwilligen Angaben</Text></Row>
+<Row style={{justifyContent:'space-between',flexWrap:'wrap',rowGap:2,marginBottom:6}}><Text style={styles.label}>Profil gestalten</Text><Text style={[styles.micro,{flexShrink:1}]}>{completed} von 4 Angaben</Text></Row>
 <View style={styles.progressTrack}><View style={[styles.progressFill,{width:(completed*25)+'%'}]}/></View>
 </View>
 {!active?<Info warning>Neue Profilangaben werden manuell geprüft. Die Foto-/Videoverifizierung folgt erst in einer späteren Version.</Info>:null}

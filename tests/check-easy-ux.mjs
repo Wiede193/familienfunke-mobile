@@ -31,4 +31,11 @@ const shortcuts=menu.slice(menu.indexOf('const QUICK_ITEMS='),menu.indexOf('cons
 for(const id of ['discover','map','market','guide'])
  assert.match(shortcuts,new RegExp("\\['"+id+"'"),'Main destination must be a top shortcut');
 assert.ok(!shortcuts.includes("['sell'"),'Advanced actions should not dominate the menu');
+// Regression from the real 150%-font screenshot: the column must stretch
+// across the available width; an instant result must never use a half-width tile.
+assert.match(home,/singleColumn&&s\.featuredSingle/);
+assert.match(home,/featuredSingle:\{flexDirection:'column',flexWrap:'nowrap',alignItems:'stretch'/);
+assert.match(home,/areaRow:\{\.\.\.UI\.card,width:'100%'/);
+assert.match(home,/matches\[0\]\?<AreaCard route=\{matches\[0\]\} onNavigate=\{onNavigate\} query=\{needle\}\/>/);
+assert.match(app,/flexWrap:'wrap',rowGap:2,marginBottom:6/);
 console.log('Simplified menu, direct search and expanded interests verified.');

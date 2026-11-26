@@ -7,6 +7,8 @@ const {HOME_ROUTES,HOME_PAGE_IDS,findHomeRoutes,looksLikeKnowledgeQuestion}=awai
 );
 assert.equal(HOME_ROUTES.length,24,'Expected 24 real navigable areas including Familienfunke TV');
 assert.equal(findHomeRoutes('YouTube')[0]?.id,'tv');
+for(const term of ['Kindergeld','Kinderzuschlag','Elterngeld','Elternzeit','Wohngeld'])assert.equal(findHomeRoutes(term)[0]?.id,'guide');
+assert.equal(findHomeRoutes('Bundestag Beschluss Kindergeld')[0]?.id,'decisions');
 assert.equal(new Set(HOME_PAGE_IDS).size,HOME_PAGE_IDS.length,'Page IDs must be unique');
 for(const [phrase,id] of [
   ['Kistenmodus','box'],

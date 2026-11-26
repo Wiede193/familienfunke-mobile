@@ -45,9 +45,9 @@ function AreaCard({route,onNavigate,query,compact=false}){
     onPress={()=>onNavigate(route.id,['healthy','guide','inclusion','decisions'].includes(route.id)?query.trim():productSearch?query.trim():'')}
     style={({pressed})=>[compact?s.areaGrid:s.areaRow,pressed&&s.pressed]}>
     <View style={[s.areaIcon,{backgroundColor:ROUTE_TINTS[route.id]||C.mint}]}><FamilyIcon name={FAMILY_ROUTE_ICONS[route.id]||'compass'} size={compact?25:23}/></View>
-    <View style={{flex:1}}>
+    <View style={{flex:1,minWidth:0}}>
       <Text style={[s.areaTitle,compact&&{fontSize:15}]}>{route.title}</Text>
-      <Text style={s.areaSubtitle} numberOfLines={compact?3:2}>{route.subtitle}</Text>
+      <Text style={s.areaSubtitle} numberOfLines={compact?3:undefined}>{route.subtitle}</Text>
     </View>
     <FamilyIcon name="chevron-right" size={19} color={C.accentDark}/>
   </Pressable>;
@@ -320,7 +320,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
               <Text style={s.areaSubtitle}>{topicMatches[0].short}</Text></View>
               <Text style={s.areaArrow}>›</Text>
             </Pressable>:
-          matches[0]?<AreaCard route={matches[0]} onNavigate={onNavigate} query={needle} compact/>:
+          matches[0]?<AreaCard route={matches[0]} onNavigate={onNavigate} query={needle}/>:
           <Text style={s.mutedSmall}>Noch kein direkter Treffer. Suche starten, um weitere Ergebnisse zu laden.</Text>}
       </View>:null}
       {error?<Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={s.error}>{error}</Text>:null}
@@ -338,7 +338,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
     </View>:null}
     {needle?<View style={s.section} onLayout={event=>{searchResultOffset.current=event.nativeEvent.layout.y;}}>
       <SearchResultFeedback active context={visibleSearch?'Familienfunke-Suche':'Direkte Suchtreffer'} query={needle} count={searchCount} loading={searchBusy}
-        hint={visibleSearch?'Passenden Eintrag antippen, um ihn zu öffnen.':'Für aktuelle Angebote, Veranstaltungen und Beschlüsse auf „Suchen“ tippen.'}/>
+        hint={visibleSearch?'Passenden Eintrag antippen, um ihn zu öffnen.':'Für aktuelle Angebote, Veranstaltungen und Beschlüsse auf „Ergebnisse anzeigen“ tippen.'}/>
       <Text accessibilityRole="header" style={s.sectionTitle}>Suchergebnisse</Text>
       {matches.length?<><Text style={s.sectionSubtitle}>App-Bereiche</Text>
       {matches.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query={needle}/>)}</>:null}
@@ -402,12 +402,12 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         <Pressable accessibilityRole="button" onPress={()=>onNavigate('market',needle)} style={s.answerAction}><Text style={s.answerActionLabel}>Alle Basar-Ergebnisse ansehen ›</Text></Pressable>
       </View>:null}
       {!matches.length&&!places.length&&!healthMatches.length&&!topicMatches.length&&!inclusionMatches.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Tippe auf „Ergebnisse anzeigen“ oder ändere die Suchbegriffe.</Text>:null}
-      {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>Tippe auf „Suchen“, um aktuelle Basar-Angebote und Termine abzurufen.</Text>:null}
+      {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>Tippe auf „Ergebnisse anzeigen“, um aktuelle Basar-Angebote und Termine abzurufen.</Text>:null}
     </View>:null}
     {!needle?<View style={s.section}>
       <FamilySectionTitle title="Direkt zu" subtitle="Die vier wichtigsten Bereiche"/>
 
-      <Animated.View style={[s.featuredGrid,singleColumn&&{flexDirection:'column'},
+      <Animated.View style={[s.featuredGrid,singleColumn&&s.featuredSingle,
         {transform:[{translateY:reducedMotion?0:scrollY.interpolate({
           inputRange:[0,250,650],outputRange:[9,0,-7],extrapolate:'clamp'})}]}]}>
         {featured.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query="" compact={!singleColumn}/>)}
@@ -703,7 +703,8 @@ const s=StyleSheet.create({
   featuredGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:10},
   areaGrid:{...UI.card,width:'48.4%',minHeight:114,padding:14,justifyContent:'space-between'},
   areaGridAccent:{width:29,height:5,borderRadius:5,backgroundColor:C.sun,marginBottom:10},
-  areaRow:{...UI.card,paddingHorizontal:15,paddingVertical:14,marginBottom:9,flexDirection:'row',alignItems:'center',gap:9},
+  featuredSingle:{flexDirection:'column',flexWrap:'nowrap',alignItems:'stretch',justifyContent:'flex-start'},
+  areaRow:{...UI.card,width:'100%',paddingHorizontal:15,paddingVertical:14,marginBottom:9,flexDirection:'row',alignItems:'center',gap:9},
   areaAccent:{width:5,height:39,borderRadius:4,backgroundColor:C.sun,marginRight:12},
   areaTitle:{color:C.ink,fontSize:15.5,fontWeight:'900',lineHeight:20},
   areaSubtitle:{fontSize:14,lineHeight:18,color:C.muted,marginTop:5},
