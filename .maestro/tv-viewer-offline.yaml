@@ -18,6 +18,10 @@ appId: de.familienfunke.app
 - extendedWaitUntil:
     visible: "Hallo, Testfamilie!"
     timeout: 30000
+- tapOn: "Menü öffnen"
+- assertVisible: "Menü schließen"
+- takeScreenshot: 00b-Menue-Systemleisten
+- tapOn: "Menü schließen"
 - tapOn: "Familienfunke durchsuchen oder Wissensfrage stellen"
 - inputText: "YouTube"
 - hideKeyboard
@@ -79,6 +83,9 @@ appId: de.familienfunke.app
     element: "Persönliche TV-Funktionen"
     direction: DOWN
 - tapOn: "Persönliche TV-Funktionen"
+- assertVisible: "Persönliche TV-Funktionen aktivieren?"
+- takeScreenshot: 05b-Zustimmungsdialog
+- tapOn: "Aktivieren"
 - scrollUntilVisible:
     element: "Meine privaten Themen"
     direction: DOWN

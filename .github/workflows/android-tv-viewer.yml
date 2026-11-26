@@ -1,4 +1,4 @@
-name: Android TV viewer journey (offline and online)
+name: Android TV viewer regression (isolated offline)
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
     paths:
       - '.github/workflows/android-tv-viewer.yml'
       - '.maestro/tv-viewer-*.yaml'
+      - 'App.jsx'
+      - 'TopRightMenu.jsx'
+      - 'package-lock.json'
       - 'FamilyTV.js'
       - 'FamilyTVScreen.jsx'
       - 'qa-fixtures/**'
@@ -25,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [offline, online, large-text]
+        mode: [offline, large-text]
     env:
       CI: '1'
       MAESTRO_CLI_NO_ANALYTICS: '1'

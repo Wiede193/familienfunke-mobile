@@ -1,0 +1,193 @@
+{
+  "date": "2026-11-26",
+  "videos": [
+    {
+      "id": "O7jyL7fuZck",
+      "title": "Pfannkuchen nach Omas Rezept",
+      "channel": "Familienkost",
+      "category": "Familienküche",
+      "sourceUrl": "https://www.youtube.com/watch?v=O7jyL7fuZck",
+      "watchUrl": "https://www.youtube.com/watch?v=O7jyL7fuZck",
+      "note": "Alltagstaugliches Grundrezept; Anbieter mit eigenem Shop.",
+      "status": "source_metadata_found",
+      "playbackVerified": false,
+      "fullReview": false
+    },
+    {
+      "id": "1MlInAT5BZs",
+      "title": "Quarkbrötchen ohne Hefe",
+      "channel": "Familienkost",
+      "category": "Familienküche",
+      "sourceUrl": "https://www.youtube.com/watch?v=1MlInAT5BZs",
+      "watchUrl": "https://www.youtube.com/watch?v=1MlInAT5BZs",
+      "note": "Frühstück und Pausenbrot; Produkt-/Buchhinweise prüfen.",
+      "status": "source_metadata_found",
+      "playbackVerified": false,
+      "fullReview": false
+    },
+    {
+      "id": "9aqxdQL7drg",
+      "title": "Djuvec-Reis mit Gemüse",
+      "channel": "Familienkost",
+      "category": "Familienküche",
+      "sourceUrl": "https://www.youtube.com/watch?v=9aqxdQL7drg",
+      "watchUrl": "https://www.youtube.com/watch?v=9aqxdQL7drg",
+      "note": "Ein-Topf-Rezept; Anbieter mit eigenen Angeboten.",
+      "status": "source_metadata_found",
+      "playbackVerified": false,
+      "fullReview": false
+    },
+    {
+      "id": "aMR9AQD1uOk",
+      "title": "Schwere Gefühle in der Schwangerschaft und nach der Geburt",
+      "channel": "NZFH / BIÖG",
+      "category": "Schwangerschaft & Baby",
+      "sourceUrl": "https://www.bioeg.de/mediathek/themen/fruehe-hilfen/v/schwere-gefuehle-in-der-schwangerschaft-und-nach-der-geburt/",
+      "watchUrl": "https://www.youtube.com/watch?v=aMR9AQD1uOk",
+      "note": "Fachinformation; keine individuelle Diagnose; nur nach ausdrücklicher Themenwahl empfehlen.",
+      "status": "source_metadata_found",
+      "playbackVerified": false,
+      "fullReview": false
+    },
+    {
+      "id": "92lj66Z-RSk",
+      "title": "Fossilien mit Gipsabdrücken entdecken",
+      "channel": "Stiftung Kinder forschen",
+      "category": "Kreativwerkstatt",
+      "sourceUrl": "https://www.youtube.com/watch?v=92lj66Z-RSk",
+      "watchUrl": "https://www.youtube.com/watch?v=92lj66Z-RSk",
+      "note": "Grundschulkinder mit Erwachsenen; Material-/Gipssicherheit vor Freigabe sichten.",
+      "status": "source_metadata_found",
+      "playbackVerified": false,
+      "fullReview": false
+    },
+    {
+      "id": "hxA2ROG2r64",
+      "title": "Wenn Babys schreien: Trost und Beruhigung",
+      "channel": "NZFH / BIÖG (Filmquelle)",
+      "category": "Schwangerschaft & Baby",
+      "sourceUrl": "https://www.bioeg.de/mediathek/themen/fruehe-hilfen/v/wenn-babys-schreien-ueber-das-troesten-und-beruhigen/",
+      "watchUrl": "https://www.youtube.com/watch?v=hxA2ROG2r64",
+      "linkEvidence": "https://diakonie-freiburg.aufwind-solutions.de/de/fuer-eltern/infothek",
+      "status": "linked_but_watch_page_unavailable",
+      "playbackVerified": false,
+      "fullReview": false
+    },
+    {
+      "id": "UpQKeUoqN3M",
+      "title": "Niemals schütteln!",
+      "channel": "NZFH / BIÖG (Filmquelle)",
+      "category": "Schwangerschaft & Baby",
+      "sourceUrl": "https://www.elternsein.info/schuetteln/gefahr-schuetteln/",
+      "watchUrl": "https://www.youtube.com/watch?v=UpQKeUoqN3M",
+      "linkEvidence": "https://diakonie-freiburg.aufwind-solutions.de/de/fuer-eltern/infothek",
+      "status": "linked_but_watch_page_unavailable",
+      "playbackVerified": false,
+      "fullReview": false
+    },
+    {
+      "id": "2qLIHuIz1Z0",
+      "title": "Stillen: Passt das zu mir?",
+      "channel": "NZFH / BIÖG (Filmquelle)",
+      "category": "Schwangerschaft & Baby",
+      "sourceUrl": "https://www.bioeg.de/mediathek/themen/fruehe-hilfen/v/stillen-passt-das-zu-mir/",
+      "watchUrl": "https://www.youtube.com/watch?v=2qLIHuIz1Z0",
+      "linkEvidence": "https://diakonie-freiburg.aufwind-solutions.de/de/fuer-eltern/infothek",
+      "status": "linked_but_watch_page_unavailable",
+      "playbackVerified": false,
+      "fullReview": false
+    }
+  ],
+  "sources": [
+    {
+      "title": "Filme für Eltern: Stillen",
+      "channel": "NZFH",
+      "category": "Schwangerschaft & Baby",
+      "url": "https://www.elternsein.info/alltag-mit-kind/stillen/stillen-passt-das-zu-mir/",
+      "note": "Originalfilmseite; fachliche Information",
+      "status": "source_found",
+      "fullReview": false
+    },
+    {
+      "title": "Filme für Eltern: Babyschreien",
+      "channel": "NZFH",
+      "category": "Schwangerschaft & Baby",
+      "url": "https://www.elternsein.info/schreien/baby-schreit-viel/",
+      "note": "Originalfilmseite; weitere Sprachfassungen",
+      "status": "source_found",
+      "fullReview": false
+    },
+    {
+      "title": "Frühe Hilfen und Elternberatung",
+      "channel": "NZFH",
+      "category": "Erziehung & Alltag",
+      "url": "https://www.elternsein.info/",
+      "note": "Mehrere Elternfilme; einzelne Beiträge vor Freigabe auswählen",
+      "status": "source_found",
+      "fullReview": false
+    },
+    {
+      "title": "Winterliche Bastelvideos",
+      "channel": "Bistum Osnabrück / Franz-von-Assisi-Schule",
+      "category": "Advent & Weihnachten",
+      "url": "https://bistum-osnabrueck.de/basteln-mit-dem-bistum/",
+      "note": "Originalsammlung mit Sternen, Schneemännern, Karten; Eltern begleiten",
+      "status": "source_found",
+      "fullReview": false
+    },
+    {
+      "title": "Papierstern falten",
+      "channel": "Paper Land",
+      "category": "Advent & Weihnachten",
+      "url": "https://origamiinpaperland.com/de/models/christmas-paper-star/",
+      "note": "Schritt-für-Schritt-Anleitung mit Video; Sprachfassung prüfen",
+      "status": "source_found",
+      "fullReview": false
+    },
+    {
+      "title": "Flug mit dem Albatros",
+      "channel": "ALBA BERLIN",
+      "category": "Sport & Bewegung",
+      "url": "https://sportstunde.albaberlin.de/kita-folge-1-flug-mit-dem-albatros",
+      "note": "Konkrete Kita-Folge",
+      "status": "source_found",
+      "fullReview": false
+    },
+    {
+      "title": "Digitale Sportangebote",
+      "channel": "ALBA BERLIN",
+      "category": "Sport & Bewegung",
+      "url": "https://www.albaberlin.de/jugend/kita-schule/digitale-sportangebote",
+      "note": "Mitmachreihen für Kinder und ältere Menschen; einzelne Folgen und Untertitel prüfen",
+      "status": "source_found",
+      "fullReview": false
+    },
+    {
+      "title": "Inklusion in Bildungseinrichtungen",
+      "channel": "Aktion Mensch",
+      "category": "Inklusion & Teilhabe",
+      "url": "https://www.aktion-mensch.de/inklusion/bildung/inklusion-beispiele",
+      "note": "Praxisfilme zu Schule und Teilhabe; konkrete Filme prüfen",
+      "status": "source_found",
+      "fullReview": false
+    },
+    {
+      "title": "Erste Hilfe am Kind",
+      "channel": "BIÖG / Universitätsklinikum Bonn",
+      "category": "Erziehung & Alltag",
+      "url": "https://www.kindergesundheit-info.de/themen/sicher-aufwachsen/notfall-infos/erste-hilfe-kurse/",
+      "note": "Fachquelle verlinkt Originalfilm; Aktualität prüfen, kein Ersatz für Erste-Hilfe-Kurs",
+      "status": "source_found",
+      "fullReview": false
+    },
+    {
+      "title": "Familienkost – weitere Rezeptvideos",
+      "channel": "Familienkost",
+      "category": "Familienküche",
+      "url": "https://www.youtube.com/channel/UCpym9sNpIl5R7R0Z5TAUA9A",
+      "note": "Kanalsichtung: Frühstück, Backen, einfache Mahlzeiten; keine pauschale Freigabe",
+      "status": "source_found",
+      "fullReview": false
+    }
+  ]
+}

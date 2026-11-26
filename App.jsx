@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 ActivityIndicator, Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Linking,
-Platform, Pressable, RefreshControl, SafeAreaView, ScrollView, Modal, useWindowDimensions,
+Platform, Pressable, RefreshControl, ScrollView, Modal, useWindowDimensions,
 StatusBar, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
