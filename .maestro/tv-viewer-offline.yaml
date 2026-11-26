@@ -80,10 +80,14 @@ appId: de.familienfunke.app
     direction: DOWN
 - tapOn: "Deine Daten & Einstellungen.*"
 - scrollUntilVisible:
-    element: "Persönliche TV-Funktionen"
+    element: "^Persönliche TV-Funktionen$"
     direction: DOWN
-- tapOn: "Persönliche TV-Funktionen"
-- assertVisible: "Persönliche TV-Funktionen aktivieren?"
+    centerElement: true
+- takeScreenshot: 05a-Zustimmung-Schalter
+- tapOn: "^Persönliche TV-Funktionen$"
+- extendedWaitUntil:
+    visible: "^Persönliche TV-Funktionen aktivieren[?]$"
+    timeout: 15000
 - takeScreenshot: 05b-Zustimmungsdialog
 - tapOn: "Aktivieren"
 - scrollUntilVisible:
