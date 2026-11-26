@@ -15,16 +15,15 @@ export default function FamilyTopicsSection({initialQuery=''}){
     accessibilityLabel="Familienthemen – Ratgeber öffnen"
     onPress={()=>setOpen(v=>!v)} style={s.header}>
    <View style={{flex:1}}>
-    <Text style={s.kicker}>FAMILIENWISSEN</Text>
-    <Text accessibilityRole="header" style={s.title}>Alltag, Geld, Erziehung & Gesundheit</Text>
-    <Text style={s.description}>{FAMILY_TOPIC_ARTICLES.length} recherchierte Ratgeber mit Originalquellen, Antragswegen und konkreten nächsten Schritten.</Text>
+    <Text accessibilityRole="header" style={s.title}>Familienratgeber</Text>
+    <Text style={s.hint}>{FAMILY_TOPIC_ARTICLES.length} Themen · offizielle Quellen</Text>
    </View>
    <Text style={s.arrow}>{open?'⌃':'›'}</Text>
   </Pressable>
   {open?<View style={s.body}>
-   <Text style={s.hint}>Informationen zur Orientierung, keine automatische Anspruchsprüfung. Suche und Auswahl werden nicht gespeichert.</Text>
    <TextInput accessibilityLabel="Familienthemen durchsuchen" placeholder="z. B. Wohngeld, Kindergeld, Kita, Streit …"
-    value={query} onChangeText={value=>{setQuery(value);setExpanded(null);setVisibleCount(6);}} placeholderTextColor={C.muted} style={s.input}/>
+    value={query} onChangeText={value=>{setQuery(value);setExpanded(null);setVisibleCount(6);}} placeholderTextColor={C.muted} returnKeyType="search" style={s.input}/>
+   <Text style={s.hint}>Suche und Auswahl werden nicht gespeichert. Keine Anspruchsprüfung.</Text>
    {query?<Pressable accessibilityRole="button" onPress={()=>{setQuery('');setCategory('all');setExpanded(null);setVisibleCount(6);}} style={s.reset}><Text style={s.linkText}>Suche zurücksetzen</Text></Pressable>:null}
    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingVertical:8}} keyboardShouldPersistTaps="handled">
     {FAMILY_TOPIC_CATEGORIES.map(item=><Pressable key={item.id} accessibilityRole="button"
@@ -34,7 +33,7 @@ export default function FamilyTopicsSection({initialQuery=''}){
        <Text style={[s.chipText,category===item.id&&s.selectedText]}>{item.label}</Text>
     </Pressable>)}
    </ScrollView>
-   <SearchResultFeedback active={!!(query.trim()||category!=='all')} query={query} count={items.length} context="Familienratgeber" hint="Artikel antippen, um die nächsten Schritte und offiziellen Quellen zu öffnen."/>
+   <SearchResultFeedback active={!!(query.trim()||category!=='all')} query={query} count={items.length} context="Familienratgeber" compact hint="Artikel antippen, um die nächsten Schritte und offiziellen Quellen zu öffnen."/>
    {items.slice(0,visibleCount).map(item=><View key={item.id} style={s.article}>
      <Pressable accessibilityRole="button" accessibilityState={{expanded:expanded===item.id}}
        accessibilityLabel={item.title+(expanded===item.id?' schließen':' öffnen')}
@@ -70,14 +69,14 @@ export default function FamilyTopicsSection({initialQuery=''}){
  </View>;
 }
 const s=StyleSheet.create({
- container:{marginTop:18,marginBottom:18,borderRadius:19,backgroundColor:C.paper,borderColor:C.line,borderWidth:1,overflow:'hidden'},
- header:{flexDirection:'row',alignItems:'center',minHeight:92,padding:16,gap:10,backgroundColor:C.sunPale},
+ container:{marginTop:8,marginBottom:14,borderRadius:19,backgroundColor:C.paper,borderColor:C.line,borderWidth:1,overflow:'hidden'},
+ header:{flexDirection:'row',alignItems:'center',minHeight:64,padding:12,gap:10,backgroundColor:C.sunPale},
  kicker:{fontWeight:'800',fontSize:10,letterSpacing:1.2,color:C.accentDark},
  title:{fontSize:18,fontWeight:'800',color:C.ink,marginTop:6},
- description:{fontSize:15,lineHeight:20,color:C.ink,marginTop:5},
+ description:{fontSize:15,color:C.ink,marginTop:5},
  arrow:{fontSize:23,fontWeight:'700',color:C.accentDark},
  body:{padding:14,gap:9},
- hint:{fontSize:14,lineHeight:18,color:C.muted},
+ hint:{fontSize:14,color:C.muted},
  input:{...UI.field,paddingHorizontal:13,color:C.ink,fontSize:15},
  reset:{minHeight:44,justifyContent:'center'},
  chip:{minHeight:44,paddingHorizontal:11,justifyContent:'center',borderRadius:18,borderColor:C.line,borderWidth:1,backgroundColor:C.paper},

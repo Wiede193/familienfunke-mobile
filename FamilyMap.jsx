@@ -422,13 +422,12 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
   return <ScrollView ref={scroll} style={styles.page} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
     <View style={styles.locationSearch}>
       <Text accessibilityRole="header" style={styles.sectionNoMargin}>Ort oder Ausflugsziel suchen</Text>
-      <Text style={[styles.micro,{marginTop:7,marginBottom:11}]}>Ausflugsziele und öffentliche Orte direkt finden.</Text>
       <TextInput accessibilityLabel="Stadt oder Ausflugsziel suchen" accessibilityHint="Auch Postleitzahl, Straße und öffentliche Adresse möglich. Deutschlandweite Suche mit der Suchtaste starten."
         value={placeQuery} onChangeText={changePlaceQuery}
         style={styles.field} placeholder="z. B. 15230, Rathausplatz oder Berlin"
         placeholderTextColor={C.muted} maxLength={160}
         autoCorrect={false} returnKeyType="search" onSubmitEditing={searchGermany}/>
-      <Text style={[styles.micro,{marginTop:9}]}>Mit „Deutschlandweit suchen“ wird nur dein Suchtext über unseren Server an Photon übermittelt. Bitte keine privaten Wohnadressen, Namen oder vertraulichen Angaben eingeben. Kein GPS-Zugriff.</Text>
+      <Text style={[styles.micro,{marginTop:7}]}>Online-Suche: Suchtext über unseren Server an Photon, kein GPS. Bitte keine privaten Wohnadressen oder Namen eingeben.</Text>
       <Pressable accessibilityRole="button" accessibilityState={{disabled:geoStatus==='loading'||placeQuery.trim().length<3,busy:geoStatus==='loading'}}
         disabled={geoStatus==='loading'||placeQuery.trim().length<3} onPress={searchGermany}
         style={[styles.mainBtn,{minHeight:48,marginTop:10,opacity:geoStatus==='loading'||placeQuery.trim().length<3?0.5:1}]}>
@@ -569,7 +568,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
       <Text style={styles.outlineText}>Alle Suchtreffer auf der Karte anzeigen</Text>
     </Pressable>:null}
     {mapError?<View accessibilityLiveRegion="polite" style={styles.warn}><Text style={styles.micro}>{mapError} Die Ortsliste kann weiterhin genutzt werden.</Text></View>:null}
-    <Text style={[styles.micro,{marginTop:7}]}>Kartengrundlage: OpenFreeMap / OpenStreetMap. Adresssuche: Photon / © OpenStreetMap-Mitwirkende. Zum Navigieren die Karte verschieben und zoomen. Standortzugriff ist nicht nötig. Alle verfügbaren Orte sind zusätzlich als bedienbare Liste unter der Karte erreichbar.</Text>
+    <Text style={[styles.micro,{marginTop:7}]}>Karte: OpenFreeMap / © OpenStreetMap-Mitwirkende. Adresssuche: Photon / © OpenStreetMap-Mitwirkende. Alle Orte auch als Liste. Kein Standortzugriff nötig.</Text>
     <Text style={styles.section}>Stadt auswählen</Text>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:15}}>
       {CENTERS.map(c=><Chip key={c.name} label={c.name} selected={false} onPress={()=>visit(c)}/>)}
@@ -590,7 +589,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:15}}>
       {TYPES.map(([id,label,icon])=><Chip key={id} label={icon+' '+label} selected={types===id} onPress={()=>{setTypes(id);setSelectedId(null);}}/>)}
     </ScrollView>
-    <Text style={[styles.micro,{marginTop:12}]}>Orte aus OpenStreetMap sind nicht von Familienfunke überprüft. Ein Wickeltisch ist nur dann als vorhanden markiert, wenn die Quelle oder der Eintrag das ausdrücklich angibt.</Text>
+    <Text style={[styles.micro,{marginTop:12}]}>OpenStreetMap-Orte sind nicht von uns geprüft. Wickeltische nur bei ausdrücklicher Quellenangabe.</Text>
     <View style={[styles.row,{justifyContent:'space-between',marginTop:24}]}>
       <Text style={styles.sectionNoMargin}>Orte im Kartenausschnitt</Text>
       <Text style={styles.micro}>{list.length} angezeigt</Text>

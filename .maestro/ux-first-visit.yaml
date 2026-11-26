@@ -1,0 +1,87 @@
+appId: de.familienfunke.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Alles mit einer Suche finden|Quickstep isn't responding"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: "Quickstep isn't responding"
+    commands:
+      - tapOn: "Close app"
+- extendedWaitUntil:
+    visible: "Alles mit einer Suche finden"
+    timeout: 30000
+- takeScreenshot: 01-Einstieg
+- tapOn: "Tour überspringen"
+- extendedWaitUntil:
+    visible: "Hallo, Testfamilie!"
+    timeout: 30000
+- takeScreenshot: 02-Startseite
+- scrollUntilVisible:
+    element: "Familienbasar durchsuchen öffnen"
+    direction: DOWN
+- takeScreenshot: 03-Hauptbereiche
+- tapOn: "Familienbasar durchsuchen öffnen"
+- extendedWaitUntil:
+    visible: "Angebote durchsuchen"
+    timeout: 15000
+- takeScreenshot: 04-Basar
+- tapOn: "Angebote durchsuchen"
+- inputText: "Kinderjeans"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Angebot laut Anzeige: Test-Kinderjeans Größe 116.*"
+    direction: DOWN
+- takeScreenshot: 04a-Basar-Treffer
+- tapOn: "Angebot laut Anzeige: Test-Kinderjeans Größe 116.*"
+- scrollUntilVisible:
+    element: "Verkäufer kontaktieren"
+    direction: DOWN
+- takeScreenshot: 04b-Basar-Detail
+- tapOn: "^Familien$"
+- takeScreenshot: 05-Familien
+- tapOn: "^Karte$"
+- takeScreenshot: 06-Karte
+- tapOn: "^Wissen$"
+- takeScreenshot: 07-Wissen
+- scrollUntilVisible:
+    element: "Familienthemen durchsuchen"
+    direction: DOWN
+- tapOn: "Familienthemen durchsuchen"
+- inputText: "Kindergeld"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Kindergeld.* öffnen"
+    direction: DOWN
+- takeScreenshot: 07a-Ratgeber-Suche
+- tapOn: "Kindergeld.* öffnen"
+- scrollUntilVisible:
+    element: "Das könnt ihr jetzt tun"
+    direction: DOWN
+- takeScreenshot: 07b-Ratgeber-Detail
+- tapOn: "^Start$"
+- scrollUntilVisible:
+    element: "Familienfunke durchsuchen oder Wissensfrage stellen"
+    direction: UP
+- tapOn: "Familienfunke durchsuchen oder Wissensfrage stellen"
+- inputText: "YouTube"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "Familienfunke TV öffnen"
+    timeout: 15000
+- takeScreenshot: 08-Suchtreffer
+- tapOn: "Familienfunke TV öffnen"
+- extendedWaitUntil:
+    visible: "Personalisierung aus.*"
+    timeout: 15000
+- takeScreenshot: 09-TV
+- tapOn: "Menü öffnen"
+- assertVisible: "Menü schließen"
+- takeScreenshot: 10-Menue
+- tapOn: "Funktion im Menü suchen"
+- inputText: "Profil"
+- hideKeyboard
+- tapOn: "^Mein Profil$"
+- takeScreenshot: 11-Profil

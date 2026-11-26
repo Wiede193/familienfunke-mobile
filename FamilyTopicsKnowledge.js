@@ -633,6 +633,16 @@ export const FAMILY_TOPIC_ARTICLES=[
 const fold=value=>String(value||'').toLocaleLowerCase('de-DE').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss').replace(/[^a-z0-9 ]/g,' ');
 export function findFamilyTopics(query='',category='all'){
  const needle=fold(query).trim().replace(/\s+/g,' ');
- return FAMILY_TOPIC_ARTICLES.filter(x=>(category==='all'||x.category===category)&&
+ const matches=FAMILY_TOPIC_ARTICLES.filter(x=>(category==='all'||x.category===category)&&
   (!needle||fold([x.title,x.short,x.overview,x.responsible,...x.steps].join(' ')).includes(needle)));
+ if(!needle)return matches;
+ // Prefer an exact title phrase over a passing mention in another article.
+ const rank=x=>{
+  const title=fold(x.title).trim().replace(/\s+/g,' ');
+  if((' '+title+' ').includes(' '+needle+' '))return 3;
+  if(title.includes(needle))return 2;
+  if(fold(x.short).includes(needle))return 1;
+  return 0;
+ };
+ return matches.sort((a,b)=>rank(b)-rank(a));
 }

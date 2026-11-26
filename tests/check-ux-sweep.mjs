@@ -105,3 +105,17 @@ assert.doesNotMatch(dateFields,/Math\.random|fetch\(|supabase/);
 assert.match(read('AboutAndHelp.jsx'),/geschlossene Testversion/);
 assert.match(app,/Testphase ist derzeit nur mit bereits eingerichtetem Konto zugänglich/);
 console.log('App-wide UX checks: contrast, readability, navigation, forms, disclosures, workflows and grouping passed.');
+
+assert.ok(market.indexOf('accessibilityLabel="Angebote durchsuchen"')<market.indexOf('Informationen zu Gebühren und Datenschutz'),'Search before optional explanations');
+assert.equal((market.match(/accessibilityLabel="Angebote durchsuchen"/g)||[]).length,1);
+assert.match(market,/minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center'/);
+assert.ok(topics.indexOf('accessibilityLabel="Familienthemen durchsuchen"')<topics.indexOf('Keine Anspruchsprüfung.'));
+assert.match(map,/Online-Suche: Suchtext über unseren Server an Photon, kein GPS/);
+
+assert.match(market,/singleColumn&&\{flexDirection:'column',alignItems:'stretch'\}/);
+assert.match(market,/hasMore=\{onlyMine\?ownHasMore:remoteHasMore\} context="Familienbasar" compact/);
+assert.match(topics,/context="Familienratgeber" compact/);
+assert.match(searchFeedback,/compact=false/);
+assert.match(searchFeedback,/accessibilityLabel=\{\[context,headline,detail,hint\]/);
+assert.match(map,/Photon \/ © OpenStreetMap-Mitwirkende/);
+assert.match(map,/Bitte keine privaten Wohnadressen/);
