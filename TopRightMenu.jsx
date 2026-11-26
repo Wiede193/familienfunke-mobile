@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
-import {Modal,Pressable,SafeAreaView,ScrollView,StyleSheet,Text,TextInput,View,useWindowDimensions} from 'react-native';
+import {Modal,Pressable,ScrollView,StyleSheet,Text,TextInput,View,useWindowDimensions} from 'react-native';
+import {SafeAreaProvider,SafeAreaView} from 'react-native-safe-area-context';
 import {FAMILY_COLORS as C} from './FamilyTheme';
 import {FAMILY_UI as UI,FAMILY_RADII as R} from './FamilyTheme';
 import {FAMILY_TYPE as T,FAMILY_SPACE as S} from './FamilyTheme';
@@ -72,7 +73,7 @@ export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}
  const searching=search.trim().length>0;
  const matches=searchMenuEntries(search,MENU_GROUPS);
  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-  <SafeAreaView style={s.shade}>
+  <SafeAreaProvider><SafeAreaView style={s.shade}>
    <Pressable accessible={false} importantForAccessibility="no" onPress={onClose} style={StyleSheet.absoluteFill}/>
    <View accessibilityViewIsModal style={s.panel}>
     <View style={s.header}>
@@ -155,7 +156,7 @@ export default function TopRightMenu({visible,onClose,onSelect,activeTab,unread}
       </>}
     </ScrollView>
    </View>
-  </SafeAreaView>
+  </SafeAreaView></SafeAreaProvider>
  </Modal>;
 }
 const s=StyleSheet.create({
