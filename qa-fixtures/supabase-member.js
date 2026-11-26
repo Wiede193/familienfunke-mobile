@@ -7,7 +7,7 @@ const ok=data=>({data,error:null});
 const deny=name=>({data:null,error:new Error('QA fixture: unsupported '+name)});
 const seller='00000000-0000-4000-8000-000000000002';
 const listing={id:'00000000-0000-4000-8000-000000000101',seller_id:seller,title:'Test-Kinderjeans Größe 116',description:'Blaue Kinderjeans. QA-Testartikel, kein echtes Angebot.',category:'Kleidung',trade_type:'sell',price_cents:400,item_condition:'Gut',region_label:'Landkreis Oder-Spree',moderation_status:'approved',created_at:'2026-11-25T00:00:00Z',photo_path:null};
-const tables={ff_market_listings:[listing],profiles:[profile],verifications:[{user_id:id,status:'verified'}],memberships:[{user_id:id,status:'active'}],ff_organizations:[],ff_official_family_events:[],ff_official_decisions:[],ff_market_photos:[]};
+const tables={ff_market_listings:[listing],profiles:[profile],verifications:[{user_id:id,status:'verified'}],memberships:[{user_id:id,status:'active'}],ff_organizations:[],ff_official_family_events:[],ff_official_decisions:[],ff_market_photos:[],ff_family_places:[]};
 const emptyRPC=new Set(['ff_discover_page','ff_contacts_page','ff_block_flags','ff_profile_photos_page','ff_my_market_page','ff_market_search','ff_market_favorite_flags','ff_search_events']);
 function from(name){
  let rows=tables[name]||[],error=Object.hasOwn(tables,name)?null:deny(name).error;

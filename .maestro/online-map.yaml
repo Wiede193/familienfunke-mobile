@@ -1,0 +1,42 @@
+appId: de.familienfunke.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Alles mit einer Suche finden|Quickstep isn't responding"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: "Quickstep isn't responding"
+    commands:
+      - tapOn: "Close app"
+- extendedWaitUntil:
+    visible: "Alles mit einer Suche finden"
+    timeout: 30000
+- tapOn: "Tour überspringen"
+- extendedWaitUntil:
+    visible: "Hallo, Testfamilie!"
+    timeout: 30000
+- tapOn: "^Karte$"
+- scrollUntilVisible:
+    element: "QA: Karte gerendert"
+    direction: DOWN
+    timeout: 90000
+- takeScreenshot: 01-map-initial
+- scrollUntilVisible:
+    element: "Stadt oder Ausflugsziel suchen"
+    direction: UP
+- tapOn: "Stadt oder Ausflugsziel suchen"
+- inputText: "Berlin"
+- hideKeyboard
+- tapOn: "Berlin, Stadt, auf der Karte anzeigen"
+- scrollUntilVisible:
+    element: "QA: Berlin gerendert"
+    direction: DOWN
+    timeout: 90000
+- takeScreenshot: 02-map-berlin
+- tapOn: "Karte vergrößern"
+- extendedWaitUntil:
+    visible: "QA: Berlin gezoomt"
+    timeout: 60000
+- takeScreenshot: 03-map-zoom

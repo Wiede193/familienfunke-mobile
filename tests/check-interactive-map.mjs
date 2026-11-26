@@ -51,3 +51,9 @@ assert.ok(source.indexOf('<View style={styles.searchResultPanel}>')>=0&&
  source.indexOf('<View style={styles.searchResultPanel}>')<source.indexOf('<View style={styles.mapFrame} onLayout='),
  'Search results should be directly below the search field, above the map');
 console.log('Interaktive Karte: Pins, Suchergebnis-Auswahl, Kartenausschnitt und Barrierefreiheit geprüft.');
+
+assert.match(source,/latitude=Number\(latitude\?\?lat\);longitude=Number\(longitude\?\?lon\)/);
+assert.match(html,/queryRenderedFeatures\(\)/);
+assert.match(source,/clearTimeout\(readyTimeout.current\);setRendered\(true\)/);
+assert.match(source,/Karte erneut laden/);
+assert.match(source,/Karte vergrößern/);

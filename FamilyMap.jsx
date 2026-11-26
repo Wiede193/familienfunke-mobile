@@ -90,6 +90,7 @@ const MAP_HTML=[
   'setSearchSelection:function(id){searchSelection(id);},',
   'setPathLayer:function(kind){["bike","walk"].forEach(v=>{const id="ff-"+v+"-paths";',
   'if(map.getLayer(id))map.setLayoutProperty(id,"visibility",kind===v?"visible":"none");});},',
+  'zoomBy:function(delta){map.easeTo({zoom:map.getZoom()+delta,duration:reducedMotion?0:300});},',
   'fitSearchResults:function(){zoomToSearch();}',
   '};',
   'function addPathLayer(id,color,subclasses){map.addLayer({id,type:"line",source:"openmaptiles",',
@@ -104,6 +105,8 @@ const MAP_HTML=[
   'addPathLayer("ff-walk-paths","#B9474C",["footway","path","track","pedestrian"]);',
   '}catch(e){send({type:"pathsError"});}send({type:"ready"});});',
   'map.on("moveend",()=>{const p=map.getCenter();send({type:"move",latitude:p.lat,longitude:p.lng,zoom:map.getZoom()});});',
+  'map.on("idle",()=>{try{const p=map.getCenter();const count=map.queryRenderedFeatures().filter(f=>f.source==="openmaptiles").length;send({type:"rendered",count,latitude:p.lat,longitude:p.lng,zoom:map.getZoom()});}catch(e){}});',
+  'map.on("error",e=>send({type:"resourceError"}));',
   'map.on("click",(e)=>send({type:"tap",latitude:e.lngLat.lat,longitude:e.lngLat.lng}));',
   '}catch(e){send({type:"error",message:"Die Vektorkarte konnte nicht gestartet werden."});}',
   '</script></body></html>'
@@ -134,6 +137,13 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
   const mapOffset=useRef(0);
   const [ready,setReady]=useState(false);
   const [mapError,setMapError]=useState('');
+  const [mapAttempt,setMapAttempt]=useState(0),[rendered,setRendered]=useState(false),[qaMap,setQaMap]=useState('');
+  const [resourceError,setResourceError]=useState(false);
+  const readyTimeout=useRef(null);
+  const qaOnline=process.env.EXPO_PUBLIC_QA_ONLINE==='1';
+  useEffect(()=>{readyTimeout.current=setTimeout(()=>setMapError('Die Karte reagiert nicht. Bitte erneut laden.'),20000);return()=>clearTimeout(readyTimeout.current);},[mapAttempt]);
+  function retryMap(){setReady(false);setRendered(false);setResourceError(false);setPathsError(false);setMapError('');setQaMap('');setMapAttempt(n=>n+1);}
+  function failMap(){clearTimeout(readyTimeout.current);setReady(false);setRendered(false);setMapError('Die Vektorkarte konnte nicht geladen werden.');}
   const [pathsError,setPathsError]=useState(false);
   const [pathLayer,setPathLayer]=useState(['bike','walk'].includes(entryLayer)?entryLayer:'none');
   const [center,setCenter]=useState({latitude:51.2,longitude:10.45,zoom:5.3});
@@ -273,7 +283,9 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
     }catch{setSearchError('Die OpenStreetMap-Ortssuche ist vorübergehend nicht erreichbar. Bereits eingereichte Familienorte bleiben sichtbar.');}
     finally{setLoading(false);}
   }
-  function visit({latitude,longitude,name}){
+  function visit({latitude,longitude,lat,lon}){
+    latitude=Number(latitude??lat);longitude=Number(longitude??lon);
+    if(!inGermany(latitude,longitude))return;
     setCenter({latitude,longitude,zoom:12.3});
     setSelectedId(null);
     if(ready)map.current?.injectJavaScript(
@@ -305,8 +317,18 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
   function onMapMessage(event){
     let value;
     try{value=JSON.parse(event.nativeEvent.data);}catch{return;}
-    if(value.type==='ready'){setReady(true);setMapError('');}
-    else if(value.type==='error')setMapError(String(value.message||'Karte nicht verfügbar'));
+    if(value.type==='ready'){
+      setReady(true);setMapError('');
+      if(inGermany(center.latitude,center.longitude)&&Number.isFinite(center.zoom))map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo('+Number(center.latitude)+','+Number(center.longitude)+','+Number(center.zoom)+');true;');
+    }
+    else if(value.type==='rendered'&&Number.isFinite(value.count)&&value.count>0&&Number.isFinite(value.latitude)&&Number.isFinite(value.longitude)&&Number.isFinite(value.zoom)){
+      clearTimeout(readyTimeout.current);setRendered(true);setMapError('');setResourceError(false);
+      if(qaOnline){const city=Math.abs(value.latitude-52.52)<.08&&Math.abs(value.longitude-13.405)<.08&&value.zoom>=12;
+       const label=city?(value.zoom>=13?'QA: Berlin gezoomt':'QA: Berlin gerendert'):'QA: Karte gerendert';
+       setQaMap(label);console.log('QA map rendered',JSON.stringify(value));}
+    }
+    else if(value.type==='resourceError'){setResourceError(true);}
+    else if(value.type==='error')failMap();
     else if(value.type==='pathsError')setPathsError(true);
     else if(value.type==='move'&&valid(value.latitude)&&valid(value.longitude)&&valid(value.zoom)){
       setCenter({latitude:value.latitude,longitude:value.longitude,zoom:value.zoom});
@@ -480,12 +502,12 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
       </Text>:null}
     </View>:null}
     <View style={styles.mapFrame} onLayout={event=>{mapOffset.current=event.nativeEvent.layout.y;}}>
-      <WebView ref={map} originWhitelist={['*']} source={{html:MAP_HTML}}
+      <WebView key={mapAttempt} ref={map} originWhitelist={['*']} source={{html:MAP_HTML}}
        accessible={false} importantForAccessibility="no-hide-descendants"
        javaScriptEnabled domStorageEnabled scrollEnabled={false}
-       style={styles.map} onMessage={onMapMessage} onError={()=>setMapError('Die Vektorkarte konnte nicht geladen werden.')}
+       style={styles.map} onMessage={onMapMessage} onError={failMap} onRenderProcessGone={failMap} onContentProcessDidTerminate={failMap}
        setSupportMultipleWindows={false} allowsInlineMediaPlayback/>
-      {!ready?<View pointerEvents="none" style={styles.mapLoading}><ActivityIndicator color={C.teal}/><Text style={styles.micro}>Vektorkarte laden …</Text></View>:null}
+      {!rendered&&!mapError?<View pointerEvents="none" style={styles.mapLoading}><ActivityIndicator color={C.teal}/><Text style={styles.micro}>Vektorkarte laden …</Text></View>:null}
       <View pointerEvents="none" style={styles.mapTag}><Text style={styles.mapTagText}>
         {placeQuery.trim().length>=2?'Suchtreffer auf der Karte: '+locationMatches.length:pathLayer==='bike'?'Radwege · Familien-Hotspots':pathLayer==='walk'?'Fußwege · Familien-Hotspots':'Vektorkarte · Deutschland'}
       </Text></View>
@@ -567,7 +589,12 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
       style={[styles.outlineBtn,{marginTop:10,minHeight:46}]}>
       <Text style={styles.outlineText}>Alle Suchtreffer auf der Karte anzeigen</Text>
     </Pressable>:null}
-    {mapError?<View accessibilityLiveRegion="polite" style={styles.warn}><Text style={styles.micro}>{mapError} Die Ortsliste kann weiterhin genutzt werden.</Text></View>:null}
+    {qaOnline&&qaMap?<Text accessibilityLiveRegion="polite" style={styles.micro}>{qaMap}</Text>:null}
+    {ready&&rendered?<View style={[styles.row,{gap:8,marginTop:8}]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Karte verkleinern" onPress={()=>map.current?.injectJavaScript(mapScript('zoomBy',-1))} style={[styles.outlineBtn,{flex:1,minHeight:48}]}><Text style={styles.outlineText}>− Verkleinern</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Karte vergrößern" onPress={()=>map.current?.injectJavaScript(mapScript('zoomBy',1))} style={[styles.outlineBtn,{flex:1,minHeight:48}]}><Text style={styles.outlineText}>+ Vergrößern</Text></Pressable>
+    </View>:null}
+    {mapError||resourceError?<View accessibilityLiveRegion="polite" style={styles.warn}><Text style={styles.micro}>{mapError||'Ein Teil der Karte konnte nicht geladen werden.'} Die Ortsliste kann weiterhin genutzt werden.</Text><Pressable accessibilityRole="button" onPress={retryMap} style={[styles.outlineBtn,{minHeight:48,marginTop:8}]}><Text style={styles.outlineText}>Karte erneut laden</Text></Pressable></View>:null}
     <Text style={[styles.micro,{marginTop:7}]}>Karte: OpenFreeMap / © OpenStreetMap-Mitwirkende. Adresssuche: Photon / © OpenStreetMap-Mitwirkende. Alle Orte auch als Liste. Kein Standortzugriff nötig.</Text>
     <Text style={styles.section}>Stadt auswählen</Text>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:7,paddingRight:15}}>

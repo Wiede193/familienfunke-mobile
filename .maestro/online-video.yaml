@@ -1,0 +1,42 @@
+appId: de.familienfunke.app
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Alles mit einer Suche finden|Quickstep isn't responding"
+    timeout: 60000
+- runFlow:
+    when:
+      visible: "Quickstep isn't responding"
+    commands:
+      - tapOn: "Close app"
+- extendedWaitUntil:
+    visible: "Alles mit einer Suche finden"
+    timeout: 30000
+- tapOn: "Tour überspringen"
+- extendedWaitUntil:
+    visible: "Hallo, Testfamilie!"
+    timeout: 30000
+- tapOn: "Familienfunke durchsuchen oder Wissensfrage stellen"
+- inputText: "YouTube"
+- hideKeyboard
+- tapOn: "Familienfunke TV öffnen"
+- tapOn: "Videos suchen"
+- inputText: "Rogge"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Autoplay"
+    direction: DOWN
+- tapOn: "Autoplay"
+- scrollUntilVisible:
+    element: "Programm starten"
+    direction: DOWN
+- tapOn: "Programm starten"
+- assertVisible: "YouTube laden?"
+- tapOn: "^YouTube laden$"
+- extendedWaitUntil:
+    visible: "QA: Wiedergabezeit steigt"
+    timeout: 90000
+- takeScreenshot: 01-video-playing
+- tapOn: "Player schließen"
+- assertVisible: "Videos suchen"

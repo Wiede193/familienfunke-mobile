@@ -1,0 +1,87 @@
+name: Android online map and TV (isolated)
+
+on:
+  push:
+    branches: [qa/online-map-video-20261126]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-online-map-video-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [map, video]
+    env:
+      CI: '1'
+      EXPO_PUBLIC_QA_ONLINE: '1'
+      MAESTRO_CLI_NO_ANALYTICS: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_NO_DOTENV: '1'
+      # Deliberately fake credentials; never use production or GitHub secrets.
+      EXPO_PUBLIC_SUPABASE_URL: 'https://familienfunke-ui-pilot.invalid.supabase.co'
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_e2e_invalid'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Install isolated read-only QA fixture
+        run: cp qa-fixtures/supabase-member.js supabase.js
+      - name: Generate Android native project
+        run: npx expo prebuild --platform android --no-install --clean
+      - name: Build standalone test APK
+        working-directory: android
+        run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon
+      - name: Install Maestro
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Enable hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run the real Android UI
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          disable-animations: true
+          script: >-
+            bash -c 'set -e; mkdir -p ui-results;
+            sleep 20; adb shell input keyevent 82;
+            adb install android/app/build/outputs/apk/release/app-release.apk;
+            adb shell svc wifi enable; adb shell svc data enable; sleep 5;
+            adb logcat -c; status=0;
+            flow=${{ matrix.mode }};
+            maestro test --format junit --output ui-results/junit.xml --debug-output ui-results/debug --test-output-dir ui-results/screenshots .maestro/online-$flow.yaml || status=$?;
+            adb exec-out screencap -p > ui-results/final-screen.png || true;
+            adb logcat -d -s ReactNativeJS AndroidRuntime > ui-results/android-errors.log || true;
+            exit "$status"'
+      - name: Upload screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-online-${{ matrix.mode }}-results
+          path: ui-results/
+          if-no-files-found: warn
+          retention-days: 7
