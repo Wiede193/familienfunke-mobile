@@ -24,13 +24,43 @@ appId: de.familienfunke.app
     direction: DOWN
 - takeScreenshot: 03-Hauptbereiche
 - tapOn: "Familienbasar durchsuchen öffnen"
+- extendedWaitUntil:
+    visible: "Angebote durchsuchen"
+    timeout: 15000
 - takeScreenshot: 04-Basar
+- tapOn: "Angebote durchsuchen"
+- inputText: "Kinderjeans"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Test-Kinderjeans Größe 116"
+    direction: DOWN
+- takeScreenshot: 04a-Basar-Treffer
+- tapOn: "Test-Kinderjeans Größe 116"
+- scrollUntilVisible:
+    element: "Verkäufer kontaktieren"
+    direction: DOWN
+- takeScreenshot: 04b-Basar-Detail
 - tapOn: "^Familien$"
 - takeScreenshot: 05-Familien
 - tapOn: "^Karte$"
 - takeScreenshot: 06-Karte
 - tapOn: "^Wissen$"
 - takeScreenshot: 07-Wissen
+- scrollUntilVisible:
+    element: "Familienthemen durchsuchen"
+    direction: DOWN
+- tapOn: "Familienthemen durchsuchen"
+- inputText: "Kindergeld"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Kindergeld.* öffnen"
+    direction: DOWN
+- takeScreenshot: 07a-Ratgeber-Suche
+- tapOn: "Kindergeld.* öffnen"
+- scrollUntilVisible:
+    element: "Das könnt ihr jetzt tun"
+    direction: DOWN
+- takeScreenshot: 07b-Ratgeber-Detail
 - tapOn: "^Start$"
 - scrollUntilVisible:
     element: "Familienfunke durchsuchen oder Wissensfrage stellen"

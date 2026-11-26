@@ -211,7 +211,7 @@ export default function FamilyGuideScreen({userId,regionLabel,initialKnowledgeQu
   return <ScrollView style={st.page} contentContainerStyle={st.content}>
     <View style={st.hero}>
       <Text accessibilityRole="header" style={st.heroTitle}>Rat & Wissen</Text>
-      <Text style={st.heroDescription}>Antworten, Anträge und nächste Schritte für euren Familienalltag.</Text>
+      <Text style={st.heroDescription}>Ratgeber, Anträge und nächste Schritte.</Text>
       <Text style={st.region}>⌖ {regionLabel?.trim()?regionLabel.trim():'Deutschland'} · örtliche Regeln beachten</Text>
     </View>
      {linkedStateCode&&pickedState?<View style={st.regionCard}>
@@ -405,13 +405,13 @@ const st=StyleSheet.create({
  directoryToggleTitle:{fontSize:16,fontWeight:'800',color:P.ink},
   page:{flex:1,backgroundColor:P.bg},content:{padding:17,paddingBottom:46},
   loading:{flex:1,justifyContent:'center',alignItems:'center',gap:12},small:{fontSize:14,lineHeight:19,color:P.muted},
-  hero:{borderRadius:25,backgroundColor:P.sun,padding:16,marginBottom:12,borderWidth:1,borderColor:P.sunPale},
+  hero:{borderRadius:20,backgroundColor:P.sunPale,padding:12,marginBottom:6,borderWidth:1,borderColor:P.sunPale},
   sunDot:{width:49,height:49,backgroundColor:P.paper,borderRadius:18,alignItems:'center',justifyContent:'center',marginBottom:12},
   sunSymbol:{fontSize:27,color:P.coral,fontWeight:'900'},
   eyebrow:{fontSize:13,fontWeight:'900',color:P.tealDark,letterSpacing:1.3,marginBottom:6},
   heroTitle:{fontSize:27,fontWeight:'900',color:P.ink,letterSpacing:-0.6},
   heroDescription:{fontSize:15,color:P.ink,lineHeight:21,marginTop:8},
-  region:{fontSize:14,fontWeight:'700',color:P.tealDark,marginTop:13},
+  region:{fontSize:14,fontWeight:'700',color:P.tealDark,marginTop:6},
   flexRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:10},
   progressCard:{...UI.card,padding:16,marginBottom:14},
   progressTitle:{fontSize:15,fontWeight:'900',color:P.ink,marginBottom:3},

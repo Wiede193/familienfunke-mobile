@@ -2128,20 +2128,18 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   const imageDescription=selected?marketPhotoAlt(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length):'';
   return <ScrollView ref={marketScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     {!inMarketSubpage?<>
-    <View style={[styles.marketHero,{padding:14,marginBottom:10}]}>
-      <View style={{flex:1}}>
-        
-        <Text accessibilityRole="header" style={styles.marketHeroTitle}>Familienbasar</Text>
-        <Text style={styles.marketHeroText}>Kaufen, tauschen und verschenken.</Text>
-      </View>
-      <View style={styles.marketHeroIcon}><FamilyIcon name="bag" size={30}/></View>
-    </View>
-    <View style={styles.marketTopActions}>
-      <View style={{flex:1}}>
-        <Text style={styles.marketTopTitle}>Etwas weitergeben?</Text>
-      </View>
+    <View style={[styles.marketHero,{padding:12,marginBottom:10,flexWrap:'wrap'}]}>
+      <View style={{flex:1,minWidth:120}}><Text accessibilityRole="header" style={styles.marketHeroTitle}>Familienbasar</Text><Text style={styles.marketHeroText}>Kaufen, tauschen, verschenken.</Text></View>
       <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':sellChoicesOpen?'Auswahl schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){navigationBackRef.current?.();}else{setSellChoicesOpen(v=>!v);}}}/>
     </View>
+      <View style={styles.marketSearchBox}>
+        <FamilyIcon name="search" size={22} color={C.accentDark}/>
+        <TextInput accessibilityLabel="Angebote durchsuchen" style={styles.marketSearchInput}
+          placeholder="z. B. Kinderjeans Größe 110 blau" placeholderTextColor="#647D82" value={query} onChangeText={setQuery} returnKeyType="search"/>
+        {query.length>0?<Pressable accessibilityRole="button" accessibilityLabel="Suche löschen" style={{minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center'}} onPress={()=>setQuery('')}>
+          <Text style={{fontSize:20,color:C.muted}}>×</Text>
+        </Pressable>:null}
+      </View>
     </>:null}
     {sellChoicesOpen&&!open&&!boxOpen&&active?<Card style={{marginBottom:13,backgroundColor:C.sunPale}}>
       <Text style={styles.sectionTitle}>Was möchtest du anbieten?</Text>
@@ -2157,10 +2155,11 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
     <Pressable accessibilityRole="button" accessibilityLabel="Informationen zu Gebühren und Datenschutz"
       accessibilityState={{expanded:showMarketTrust}} onPress={()=>setShowMarketTrust(v=>!v)}
       style={styles.marketTrust}>
-      <FamilyIcon name="shield" size={18}/><Text style={styles.marketTrustText}>Geprüfte Familien · Gebühren transparent · Keine Onlinezahlung</Text>
+      <FamilyIcon name="shield" size={18}/><Text style={styles.marketTrustText}>Sicher handeln & Gebühren</Text>
       <FamilyIcon name={showMarketTrust?'chevron-up':'chevron-down'} size={16}/>
     </Pressable>
     {showMarketTrust?<Info>{SECTION_MESSAGES.market}</Info>:null}
+    <Text style={[styles.micro,{marginBottom:10}]}>Keine Onlinezahlung in der App.</Text>
     {!active?<Info warning>Inserieren und Kontakt aufnehmen können nur freigegebene erwachsene Mitglieder.</Info>:null}
     <View style={{flexDirection:'row',flexWrap:'wrap',gap:7,marginBottom:16}}>
       <View style={{flex:1,minWidth:singleColumn?'45%':0}}><Button title="Stöbern" mode={!onlyMine&&!onlyFavorites?'primary':'outline'} small
@@ -2168,7 +2167,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       <View style={{flex:1,minWidth:singleColumn?'45%':0}}><Button title={'Meine ('+listings.filter(x=>x.seller_id===me).length+(ownHasMore?'+':'')+')'}
         mode={onlyMine?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyMine(true);setOnlyFavorites(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
-      <View style={{flex:1,minWidth:singleColumn?'45%':0}}><Button title="♡ Merkliste"
+      <View style={{flex:1,minWidth:singleColumn?'45%':0}}><Button title="Merkliste"
         mode={onlyFavorites?'primary':'outline'} small
         onPress={()=>{setBuyerFocus(null);setOnlyFavorites(true);setOnlyMine(false);setSelectedListing(null);setFilter('Alle');setQuery('');setTradeFilter('all');setMinPrice('');setMaxPrice('');}}/></View>
     </View>
@@ -2576,19 +2575,11 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         <Text style={[styles.micro,{marginTop:20}]}>Keine Zahlung über Familienfunke möglich. Prüfe Artikel und Übergabe sorgfältig.</Text>
       </Card>
     </View>:!boxOpen&&!boxEditor&&!sellChoicesOpen?<>
-      <View style={styles.marketSearchBox}>
-        <Text style={{fontSize:19,color:C.accentDark,marginRight:10}}>⌕</Text>
-        <TextInput accessibilityLabel="Angebote durchsuchen" style={styles.marketSearchInput}
-          placeholder="z. B. Kinderjeans Größe 110 blau" placeholderTextColor="#647D82" value={query} onChangeText={setQuery} returnKeyType="search"/>
-        {query.length>0?<Pressable accessibilityRole="button" accessibilityLabel="Suche löschen" hitSlop={12} onPress={()=>setQuery('')}>
-          <Text style={{fontSize:20,color:C.muted}}>×</Text>
-        </Pressable>:null}
-      </View>
       <SearchResultFeedback active={!!(query.trim()||filter!=='Alle'||tradeFilter!=='all'||minPrice||maxPrice||onlyMine||onlyFavorites)}
         query={query} count={shown.length} loading={remoteBusy||!!(onlyMine&&ownLoading)} error={remoteError||ownError}
         hasMore={remoteHasMore||ownHasMore} context="Familienbasar"
-        hint="Tippe auf eine Anzeige, um Fotos, Details und Kontaktmöglichkeiten zu sehen."/>
-      <Text style={styles.marketFilterHeading}>Kategorie auswählen</Text>
+        hint="Anzeige antippen für Fotos und Details."/>
+      <Text style={styles.marketFilterHeading}>Kategorie</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}}
         contentContainerStyle={{gap:7,paddingRight:15}}>
         {['Alle',...MARKET_CATEGORIES].map(choice=>
@@ -2619,7 +2610,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         {!onlyMine&&!onlyFavorites&&!buyerFocus?<Button title={savingSearch?'Speichert …':'♡ Suche speichern'} mode="outline" disabled={savingSearch||!active} onPress={saveCurrentSearch}/>:null}
         <Button title="Meine Suchaufträge" mode="ghost" onPress={onSavedSearches}/>
       </View>:null}
-      <Row style={{justifyContent:'space-between',marginBottom:12}}>
+      <Row style={{justifyContent:'space-between',flexWrap:'wrap',marginBottom:12}}>
         <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length}{serverSearchActive&&remoteHasMore?'+':''} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
         <Text style={styles.micro}>Neu und gebraucht</Text>
       </Row>
@@ -2627,7 +2618,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
       {remoteError?<><Info warning>{remoteError}</Info>
         <Button title="Basarsuche erneut versuchen" mode="outline" disabled={remoteBusy}
           onPress={()=>setSearchRetry(n=>n+1)}/></>:null}
-      {serverSearchActive&&query.trim()&&!remoteBusy&&!remoteError?<Text style={[styles.micro,{marginBottom:12}]}>Auch einzelne Teile innerhalb eines Pakets werden gefunden. Größen und Farben sind Angaben, die Verkäufer prüfen müssen.</Text>:null}
+      {serverSearchActive&&shown.some(x=>!!x.match_item)&&!remoteBusy&&!remoteError?<Text style={[styles.micro,{marginBottom:12}]}>Pakettreffer: Größe und Farbe bitte beim Anbieter prüfen.</Text>:null}
       {onlyMine&&ownLoading?<View style={{paddingVertical:12}}><ActivityIndicator color={C.accent}/></View>:null}
       {onlyMine&&ownError?<><Info warning>{ownError}</Info><Button title="Eigene Anzeigen erneut laden" mode="outline" onPress={onRetryOwn}/></>:null}
       {onlyMine&&ownHasMore?<Text style={[styles.micro,{marginBottom:10}]}>Weitere eigene Anzeigen sind vorhanden. Suche und Sortierung beziehen sich auf die bisher geladenen Einträge.</Text>:null}
@@ -2655,16 +2646,16 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
                 <Pressable accessibilityRole="button" accessibilityLabel={favoriteMap[x.id]===undefined?'Merkliste wird geprüft':favoriteIds.has(x.id)?'Von Merkliste entfernen':'Zur Merkliste hinzufügen'} hitSlop={9}
                   disabled={busy||!active||favoriteBusy[x.id]||favoriteMap[x.id]===undefined}
                   onPress={event=>{event.stopPropagation();changeFavorite(x.id);}}
-                  style={{position:'absolute',right:7,top:8,backgroundColor:'#FFFFFFF2',borderRadius:20,paddingHorizontal:10,paddingVertical:7}}>
+                  style={{position:'absolute',right:7,top:8,backgroundColor:'#FFFFFFF2',borderRadius:24,minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center'}}>
                   <FamilyIcon name="heart" size={21} color={favoriteIds.has(x.id)?C.coralDeep:C.accentDark}/>
                 </Pressable>:null}
             </View>
             <View style={styles.marketTileBody}>
-              <Text style={styles.marketTileTitle} numberOfLines={2}>{x.title}</Text>
-              <Text style={styles.marketTilePrice} numberOfLines={1}>{priceLabel(x)}</Text>
+              <Text style={styles.marketTileTitle} numberOfLines={singleColumn?undefined:2}>{x.title}</Text>
+              <Text style={styles.marketTilePrice} >{priceLabel(x)}</Text>
               {x.match_item?<Text style={[styles.micro,{color:C.accentDark,marginTop:3}]} numberOfLines={2}>Passender Artikel: {x.match_item}</Text>:null}
               {galleryOf(x).length>1?<Text style={[styles.micro,{fontWeight:'800',color:C.accentDark}]}>{galleryOf(x).length} Bilder</Text>:null}
-              <Text style={styles.micro} numberOfLines={1}>{x.item_condition} · {x.category}</Text>
+              <Text style={styles.micro} numberOfLines={singleColumn?undefined:1}>{x.item_condition} · {x.category}</Text>
               <Row style={{gap:4,marginTop:5}}><FamilyIcon name="pin" size={14} color={C.muted}/>
                 <Text style={styles.micro} numberOfLines={1}>{x.region_label||'Region auf Anfrage'}</Text>
               </Row>
@@ -3746,7 +3737,7 @@ marketDropdown:{minHeight:50,flexDirection:'row',alignItems:'center',justifyCont
 marketDropdownOptions:{backgroundColor:C.white,borderWidth:1,borderColor:C.line,borderRadius:14,marginTop:4,overflow:'hidden'},
 marketDropdownOption:{minHeight:48,paddingHorizontal:15,paddingVertical:11,borderBottomWidth:1,borderBottomColor:C.line,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
 marketSearchBox:{minHeight:53,backgroundColor:C.white,borderRadius:17,borderWidth:1,borderColor:'#D0DFDE',paddingHorizontal:15,flexDirection:'row',alignItems:'center',marginBottom:14},
-marketSearchInput:{fontSize:16,color:C.ink,flex:1,minHeight:50},
+marketSearchInput:{fontSize:16,color:C.ink,flex:1,minWidth:0,minHeight:50,paddingHorizontal:8},
 marketFilters:{flexDirection:'row',alignItems:'flex-start',gap:10,marginBottom:14},
 marketFilterToggle:{minHeight:47,borderRadius:14,borderWidth:1,borderColor:'#D0DFDE',backgroundColor:C.white,paddingHorizontal:10,justifyContent:'center',alignItems:'center'},
 marketFilterLabel:{fontSize:14,fontWeight:'800',color:C.accentDark},
