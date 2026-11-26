@@ -71,11 +71,13 @@ jobs:
             sleep 20; adb shell input keyevent 82;
             adb install android/app/build/outputs/apk/release/app-release.apk;
             adb shell svc wifi enable; adb shell svc data enable; sleep 5;
+            adb shell dumpsys webviewupdate > ui-results/webview-version.txt || true;
+            adb shell getprop > ui-results/emulator-properties.txt || true;
             adb logcat -c; status=0;
             flow=${{ matrix.mode }};
             maestro test --format junit --output ui-results/junit.xml --debug-output ui-results/debug --test-output-dir ui-results/screenshots .maestro/online-$flow.yaml || status=$?;
             adb exec-out screencap -p > ui-results/final-screen.png || true;
-            adb logcat -d -s ReactNativeJS AndroidRuntime > ui-results/android-errors.log || true;
+            adb logcat -d -s ReactNativeJS AndroidRuntime chromium cr_WebView EGL_emulation OpenGLRenderer > ui-results/android-errors.log || true;
             exit "$status"'
       - name: Upload screenshots and diagnostics
         if: always()
