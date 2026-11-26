@@ -20,6 +20,7 @@ for(const item of FAMILY_TOPIC_ARTICLES){
 assert.ok(findFamilyTopics('KiZ').some(a=>a.id==='kinderzuschlag'),'Article contains the official KiZ-Lotse term');
 assert.ok(findFamilyTopics('kinderzuschlag').some(a=>a.id==='kinderzuschlag'));
 assert.ok(findFamilyTopics('wohngeld').some(a=>a.id==='wohngeld'));
+for(const [query,id] of [['Kindergeld','kindergeld-antrag'],['Elterngeld','elterngeld-antrag'],['Kinderzuschlag','kinderzuschlag'],['Wohngeld','wohngeld']])assert.equal(findFamilyTopics(query)[0]?.id,id,'Direct title match must outrank incidental mention');
 for(const id of ['kinderkrankengeld','mutter-vater-kind-kur','ganztag-grundschule','familienerholung','beistandschaft','haushaltshilfe-eltern-krank',
  'elterngeld-antrag','kindergeld-antrag','mutterschutz-mutterschaftsgeld',
  'schwangerschaftsberatung','geburt-checkliste','studium-ausbildung-mit-kind',
