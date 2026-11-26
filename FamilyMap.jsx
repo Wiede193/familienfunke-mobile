@@ -45,7 +45,10 @@ const MAP_HTML=[
   '.draft-pin{width:18px;height:18px;background:#ED7867;border:3px solid white;border-radius:9px;',
   'box-shadow:0 0 0 4px rgba(238,120,103,.25);}</style></head><body><div id="map"></div>',
   '<script type="module">',
-  'import * as ml from "https://cdn.jsdelivr.net/npm/maplibre-gl@6.16.0/dist/maplibre-gl.mjs";',
+  'const sendDiagnostic=(stage,message)=>window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({type:"diagnostic",stage,message:String(message).slice(0,300)}));',
+  'window.addEventListener("unhandledrejection",e=>sendDiagnostic("promise",e.reason));',
+  'window.addEventListener("error",e=>sendDiagnostic("script",e.message));',
+  'let ml;try{ml=await import("https://cdn.jsdelivr.net/npm/maplibre-gl@6.16.0/dist/maplibre-gl.mjs");sendDiagnostic("module","loaded");}catch(e){sendDiagnostic("module",e);window.ReactNativeWebView.postMessage(JSON.stringify({type:"error"}));throw e;}',
   'const send=(payload)=>window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify(payload));',
   'try{',
   'const map=new ml.Map({container:"map",style:"https://tiles.openfreemap.org/styles/liberty",',
@@ -106,9 +109,10 @@ const MAP_HTML=[
   '}catch(e){send({type:"pathsError"});}send({type:"ready"});});',
   'map.on("moveend",()=>{const p=map.getCenter();send({type:"move",latitude:p.lat,longitude:p.lng,zoom:map.getZoom()});});',
   'map.on("idle",()=>{try{const p=map.getCenter();const count=map.queryRenderedFeatures().filter(f=>f.source==="openmaptiles").length;send({type:"rendered",count,latitude:p.lat,longitude:p.lng,zoom:map.getZoom()});}catch(e){}});',
-  'map.on("error",e=>send({type:"resourceError"}));',
+  'map.on("error",e=>{sendDiagnostic("map-resource",e.error&&e.error.message||"unknown");send({type:"resourceError"});});',
+  'map.getCanvas().addEventListener("webglcontextlost",()=>sendDiagnostic("webgl","context lost"));',
   'map.on("click",(e)=>send({type:"tap",latitude:e.lngLat.lat,longitude:e.lngLat.lng}));',
-  '}catch(e){send({type:"error",message:"Die Vektorkarte konnte nicht gestartet werden."});}',
+  '}catch(e){sendDiagnostic("map-init",e);send({type:"error",message:"Die Vektorkarte konnte nicht gestartet werden."});}',
   '</script></body></html>'
 ].join('\n');
 
@@ -317,6 +321,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
   function onMapMessage(event){
     let value;
     try{value=JSON.parse(event.nativeEvent.data);}catch{return;}
+    if(value.type==='diagnostic'){if(qaOnline)console.log('QA map diagnostic',String(value.stage),String(value.message));return;}
     if(value.type==='ready'){
       setReady(true);setMapError('');
       if(inGermany(center.latitude,center.longitude)&&Number.isFinite(center.zoom))map.current?.injectJavaScript('window.ffMap&&window.ffMap.flyTo('+Number(center.latitude)+','+Number(center.longitude)+','+Number(center.zoom)+');true;');
@@ -502,7 +507,7 @@ export default function FamilyMapScreen({userId,active,addPlace,entryPlaceId,ent
       </Text>:null}
     </View>:null}
     <View style={styles.mapFrame} onLayout={event=>{mapOffset.current=event.nativeEvent.layout.y;}}>
-      <WebView key={mapAttempt} ref={map} originWhitelist={['*']} source={{html:MAP_HTML}}
+      <WebView key={mapAttempt} ref={map} originWhitelist={['*']} source={{html:MAP_HTML}} androidLayerType="hardware"
        accessible={false} importantForAccessibility="no-hide-descendants"
        javaScriptEnabled domStorageEnabled scrollEnabled={false}
        style={styles.map} onMessage={onMapMessage} onError={failMap} onRenderProcessGone={failMap} onContentProcessDidTerminate={failMap}
