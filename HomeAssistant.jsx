@@ -288,7 +288,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
         <FamilyIcon name="search" size={23} color={C.accentDark}/>
         <TextInput accessibilityLabel="Familienfunke durchsuchen oder Wissensfrage stellen"
           style={s.input} value={question} onChangeText={updateQuestion} editable={!busy&&!searchBusy}
-          placeholder="Was sucht ihr? z. B. Spielplatz, Elterngeld …"
+          placeholder="Spielplatz, Elterngeld, Kinderwagen …"
           placeholderTextColor={C.muted} maxLength={600}
           autoCapitalize="sentences" returnKeyType="search" onSubmitEditing={submitSearch}/>
         {needle?<Pressable accessibilityRole="button" accessibilityLabel="Eingabe löschen"
@@ -303,7 +303,7 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
           <Text style={s.askButtonLabel}>{searchBusy?'Suche läuft …':'Ergebnisse anzeigen'}</Text>
         </Pressable>
       </View>
-      <Text style={s.searchHint}>Ein Suchfeld für alles: Familien, Angebote, Ausflüge und Fragen.</Text>
+      <Text style={s.searchHint}>Familien, Angebote, Ausflüge und Rat finden.</Text>
       {needle.length>=2&&!visibleReplies.length?<View style={s.instantResults}>
         <Text style={s.instantTitle}>Direkt gefunden</Text>
         {places[0]?<Pressable accessibilityRole="button"
@@ -404,6 +404,15 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       {!matches.length&&!places.length&&!healthMatches.length&&!topicMatches.length&&!inclusionMatches.length&&!visibleSearch&&!searchBusy?<Text style={s.empty}>Keine direkten Treffer. Tippe auf „Ergebnisse anzeigen“ oder ändere die Suchbegriffe.</Text>:null}
       {marketIntent&&!visibleSearch&&!searchBusy?<Text style={s.mutedSmall}>Tippe auf „Suchen“, um aktuelle Basar-Angebote und Termine abzurufen.</Text>:null}
     </View>:null}
+    {!needle?<View style={s.section}>
+      <FamilySectionTitle title="Direkt zu" subtitle="Die vier wichtigsten Bereiche"/>
+
+      <Animated.View style={[s.featuredGrid,singleColumn&&{flexDirection:'column'},
+        {transform:[{translateY:reducedMotion?0:scrollY.interpolate({
+          inputRange:[0,250,650],outputRange:[9,0,-7],extrapolate:'clamp'})}]}]}>
+        {featured.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query="" compact={!singleColumn}/>)}
+      </Animated.View>
+    </View>:null}
     {!needle&&(profileStep||(typeof inboxUnread==='number'&&inboxUnread>0))?<View style={s.welcomeSection}>
       {typeof inboxUnread==='number'&&inboxUnread>0?
         <Pressable accessibilityRole="button" accessibilityLabel={inboxUnread+' ungelesene Neuigkeiten öffnen'}
@@ -488,13 +497,6 @@ export default function HomeAssistant({onNavigate,profile,userId,active=false,in
       </ContextHelp>
     </GentleReveal>:null}
     {!needle?<View style={s.section}>
-      <FamilySectionTitle title="Direkt zu" subtitle="Die vier wichtigsten Bereiche"/>
-
-      <Animated.View style={[s.featuredGrid,singleColumn&&{flexDirection:'column'},
-        {transform:[{translateY:reducedMotion?0:scrollY.interpolate({
-          inputRange:[0,250,650],outputRange:[9,0,-7],extrapolate:'clamp'})}]}]}>
-        {featured.map(route=><AreaCard key={route.id} route={route} onNavigate={onNavigate} query="" compact={!singleColumn}/>)}
-      </Animated.View>
       <Pressable accessibilityRole="button" accessibilityState={{expanded:showAll}} onPress={()=>setShowAll(v=>!v)} style={s.allAction}>
         <Text style={s.allActionLabel}>{showAll?'Weniger Bereiche anzeigen':'Alle Bereiche entdecken'}</Text><Text style={s.allActionLabel}>{showAll?'⌃':'⌄'}</Text>
       </Pressable>
