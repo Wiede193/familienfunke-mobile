@@ -33,7 +33,7 @@ export default function FamilyTopicsSection({initialQuery=''}){
        <Text style={[s.chipText,category===item.id&&s.selectedText]}>{item.label}</Text>
     </Pressable>)}
    </ScrollView>
-   <SearchResultFeedback active={!!(query.trim()||category!=='all')} query={query} count={items.length} context="Familienratgeber" hint="Artikel antippen, um die nächsten Schritte und offiziellen Quellen zu öffnen."/>
+   <SearchResultFeedback active={!!(query.trim()||category!=='all')} query={query} count={items.length} context="Familienratgeber" compact hint="Artikel antippen, um die nächsten Schritte und offiziellen Quellen zu öffnen."/>
    {items.slice(0,visibleCount).map(item=><View key={item.id} style={s.article}>
      <Pressable accessibilityRole="button" accessibilityState={{expanded:expanded===item.id}}
        accessibilityLabel={item.title+(expanded===item.id?' schließen':' öffnen')}

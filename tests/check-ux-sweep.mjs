@@ -111,3 +111,11 @@ assert.equal((market.match(/accessibilityLabel="Angebote durchsuchen"/g)||[]).le
 assert.match(market,/minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center'/);
 assert.ok(topics.indexOf('accessibilityLabel="Familienthemen durchsuchen"')<topics.indexOf('Keine Anspruchsprüfung.'));
 assert.match(map,/Online-Suche: Suchtext über unseren Server an Photon, kein GPS/);
+
+assert.match(market,/singleColumn&&\{flexDirection:'column',alignItems:'stretch'\}/);
+assert.match(market,/hasMore=\{onlyMine\?ownHasMore:remoteHasMore\} context="Familienbasar" compact/);
+assert.match(topics,/context="Familienratgeber" compact/);
+assert.match(searchFeedback,/compact=false/);
+assert.match(searchFeedback,/accessibilityLabel=\{\[context,headline,detail,hint\]/);
+assert.match(map,/Photon \/ © OpenStreetMap-Mitwirkende/);
+assert.match(map,/Bitte keine privaten Wohnadressen/);

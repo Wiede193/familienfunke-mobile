@@ -1050,7 +1050,7 @@ function guardProfileExit(next){
   {!showBack?<View style={styles.headerHeartBadge}><Text style={styles.headerHeart}>♥</Text></View>:null}
   <View style={{flex:1}}>
     {!showBack?<Text style={styles.smallBrand}>Familienfunke<Text style={{color:C.coral}}>.</Text></Text>:null}
-    <Text numberOfLines={1} style={[styles.topHint,showBack&&{fontSize:14,fontWeight:'800',color:C.ink,marginTop:0}]}>{navTitle}</Text>
+    <Text numberOfLines={1} style={[styles.topHint,showBack&&{fontSize:14,fontWeight:'800',color:C.ink,marginTop:0}]}>{tab==='tv'&&showBack?'TV':navTitle}</Text>
   </View>
 </View>
 {tab!=='inbox'&&!detailFamily&&!selectedContact&&!showInfo?<Pressable accessibilityRole="button" accessibilityLabel={'Neuigkeiten öffnen'+(inbox.unread===null?'':', '+inbox.unread+' ungelesen')} onPress={()=>guardProfileExit(openInbox)} style={styles.inboxBell}><FamilyIcon name="bell" size={22} color={C.ink}/>{inbox.unread>0?<View style={styles.inboxBadge}><Text style={styles.inboxBadgeText}>{inbox.unread>99?'99+':inbox.unread}</Text></View>:null}</Pressable>:null}
@@ -2128,8 +2128,8 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
   const imageDescription=selected?marketPhotoAlt(selected,selectedFacts,selectedPackage,galleryIndex,gallery.length):'';
   return <ScrollView ref={marketScrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     {!inMarketSubpage?<>
-    <View style={[styles.marketHero,{padding:12,marginBottom:10,flexWrap:'wrap'}]}>
-      <View style={{flex:1,minWidth:120}}><Text accessibilityRole="header" style={styles.marketHeroTitle}>Familienbasar</Text><Text style={styles.marketHeroText}>Kaufen, tauschen, verschenken.</Text></View>
+    <View style={[styles.marketHero,{padding:12,marginBottom:10},singleColumn&&{flexDirection:'column',alignItems:'stretch'}]}>
+      <View style={singleColumn?{width:'100%'}:{flex:1,minWidth:0}}><Text accessibilityRole="header" style={styles.marketHeroTitle}>Familienbasar</Text><Text style={styles.marketHeroText}>Kaufen, tauschen, verschenken.</Text></View>
       <Button title={boxEditor?'‹ Zur Kiste':boxOpen?'Schließen':open?'Schließen':sellChoicesOpen?'Auswahl schließen':'＋ Inserieren'} small disabled={!active||scanBusy||busy||choosing} onPress={()=>{if(boxEditor){saveBoxEditor();}else if(boxOpen){closeBox();}else if(open){navigationBackRef.current?.();}else{setSellChoicesOpen(v=>!v);}}}/>
     </View>
       <View style={styles.marketSearchBox}>
@@ -2577,7 +2577,7 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
     </View>:!boxOpen&&!boxEditor&&!sellChoicesOpen?<>
       <SearchResultFeedback active={!!(query.trim()||filter!=='Alle'||tradeFilter!=='all'||minPrice||maxPrice||onlyMine||onlyFavorites)}
         query={query} count={shown.length} loading={remoteBusy||!!(onlyMine&&ownLoading)} error={remoteError||ownError}
-        hasMore={remoteHasMore||ownHasMore} context="Familienbasar"
+        hasMore={onlyMine?ownHasMore:remoteHasMore} context="Familienbasar" compact
         hint="Anzeige antippen für Fotos und Details."/>
       <Text style={styles.marketFilterHeading}>Kategorie</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom:12}}
@@ -2610,10 +2610,10 @@ const [sellChoicesOpen,setSellChoicesOpen]=useState(false);
         {!onlyMine&&!onlyFavorites&&!buyerFocus?<Button title={savingSearch?'Speichert …':'♡ Suche speichern'} mode="outline" disabled={savingSearch||!active} onPress={saveCurrentSearch}/>:null}
         <Button title="Meine Suchaufträge" mode="ghost" onPress={onSavedSearches}/>
       </View>:null}
-      <Row style={{justifyContent:'space-between',flexWrap:'wrap',marginBottom:12}}>
+      {!(query.trim()||filter!=='Alle'||tradeFilter!=='all'||minPrice||maxPrice||onlyMine||onlyFavorites)?<Row style={{justifyContent:'space-between',flexWrap:'wrap',marginBottom:12}}>
         <Text style={[styles.micro,{fontWeight:'800'}]}>{shown.length}{serverSearchActive&&remoteHasMore?'+':''} {shown.length===1?'Anzeige':'Anzeigen'} gefunden</Text>
         <Text style={styles.micro}>Neu und gebraucht</Text>
-      </Row>
+      </Row>:null}
       {remoteBusy?<FamilySkeleton rows={2} label="Suche im gesamten Familienbasar …"/>:null}
       {remoteError?<><Info warning>{remoteError}</Info>
         <Button title="Basarsuche erneut versuchen" mode="outline" disabled={remoteBusy}
@@ -3750,7 +3750,7 @@ marketImagePlaceholder:{backgroundColor:'#F4F1EB',alignItems:'center',justifyCon
 marketPricePill:{position:'absolute',top:8,left:7,right:50,backgroundColor:'#FFFFFFF2',borderRadius:11,paddingVertical:6,paddingHorizontal:9,alignSelf:'flex-start'},
 marketPricePillText:{fontSize:14,fontWeight:'900',color:C.ink},
 marketTileBody:{padding:12,paddingBottom:15,gap:3},
-marketTileTitle:{fontSize:16,fontWeight:'700',color:C.ink,lineHeight:20,minHeight:38},
+marketTileTitle:{fontSize:16,fontWeight:'700',color:C.ink,minHeight:38},
 marketTilePrice:{fontSize:17,fontWeight:'800',color:C.accentDark,marginTop:6},
 marketDetailCard:{padding:17,marginBottom:18},
 marketDetailImage:{height:285,backgroundColor:'#F4F1EB',borderRadius:18,overflow:'hidden'},
