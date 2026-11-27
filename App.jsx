@@ -272,6 +272,8 @@ const EMPTY_DISCOVER_FILTERS=Object.freeze({query:'',interest:'Alle',onlyRegion:
 
 export default function App() {
 const [session,setSession]=useState(undefined);
+// Do not render an earlier account's state during the account-reset commit.
+const [renderOwner,setRenderOwner]=useState(undefined);
 const [tab,setTab]=useState('home');
 const [menuOpen,setMenuOpen]=useState(false);
 const [profileDirty,setProfileDirty]=useState(false);
@@ -517,6 +519,9 @@ useEffect(()=>{
   actionGate.current.reset();
   setBusy(false);setLoading(false);setError('');setNotice('');setConnectionIssue(false); // Never carry messages across accounts.
   setReportTarget(null);setReportDetails('');setReportReason('');
+  setProfileDirty(false);setChatDraftDirty(false);setEventDraftDirty(false);
+  setHealthyQuery('');setDecisionQuery('');setDecisionFocusId(null);setGuideQuery('');setInclusionQuery('');
+  setRenderOwner(me);
 },[me]);
 useEffect(()=>{if(me)load();else{setDb(blankData);setMyProfile(null);setMarketPhotoUrls({});setMarketExtraPhotoUrls({});}},[me,load]);
 
@@ -614,7 +619,7 @@ useEffect(()=>{
      {isCurrent:()=>live&&photoSeq.current===seq&&accountRef.current===me}
    );
    if(e||!Array.isArray(data))throw e||new Error('Invalid photo page');
-   const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),1800);
+   const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),300);
    if(!live||photoSeq.current!==seq||accountRef.current!==me)return;
    setDb(old=>({...old,photos:data}));
    setPhotosUrls(Object.fromEntries(data.map(row=>[row.id,signed[row.storage_path]||null])));
@@ -637,7 +642,7 @@ async function loadMorePhotos(){
      {isCurrent:()=>photoSeq.current===seq&&accountRef.current===me}
    );
    if(e||!Array.isArray(data))throw e||new Error('Invalid photo page');
-   const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),1800);
+   const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),300);
    if(accountRef.current!==me||photoSeq.current!==seq)return;
    setDb(old=>({...old,photos:appendUniqueRows(old.photos,data)}));
    setPhotosUrls(old=>({...old,...Object.fromEntries(data.map(row=>[row.id,signed[row.storage_path]||null]))}));
@@ -978,7 +983,7 @@ function selectMenuItem(id){
  setTab(id==='sell'||id==='myListings'||id==='favorites'?'market':id);
 }
 if(!configured)return <SafeAreaView style={styles.screen}><View style={{padding:24,marginTop:80}}><Text style={styles.brand}>Familienfunke.</Text><H sub="Die App ist vorbereitet, braucht aber noch deine öffentlichen Supabase-Projektdaten.">Einrichtung erforderlich</H><Info>Bitte in der Datei .env die beiden Werte EXPO_PUBLIC_SUPABASE_URL und EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY eintragen. Niemals einen Secret Key verwenden.</Info></View></SafeAreaView>;
-if(session===undefined)return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
+if(session===undefined||(me&&renderOwner!==me))return <View style={styles.center}><ActivityIndicator color={C.accent} size="large"/><Text style={styles.sub}>Familienfunke wird gestartet …</Text></View>;
 if(!me&&introPhase==='checking')return <View style={styles.center}><ActivityIndicator color={C.accent}/></View>;
 if(!me&&introPhase==='intro')return <SparkleIntro onFinish={finishLoginSpark}/>;
 if(!me)return <SafeAreaView style={styles.screen}><ExpoStatusBar style="dark"/>
@@ -1263,7 +1268,7 @@ const file=new File(saved.uri);
 if(file.size>5*1024*1024)throw new Error('Das Bild ist größer als 5 MB.');
 const buffer=await file.arrayBuffer();
 const path=`${me}/${Date.now()}-${Math.random().toString(36).slice(2,10)}.jpg`;
-assertResult(await supabase.storage.from('familienfunke-photos').upload(path,new Uint8Array(buffer),{contentType:'image/jpeg',upsert:false}));
+assertResult(await supabase.storage.from('familienfunke-photos').upload(path,new Uint8Array(buffer),{contentType:'image/jpeg',cacheControl:'0',upsert:false}));
 const result=await supabase.from('profile_photos')
   .insert({owner_id:me,storage_path:path,caption:safeString(caption,200)})
   .select('id')
@@ -1343,7 +1348,7 @@ async function uploadMarketPhotos(listingId,assets,me){
   const bytes=await prepareMarketJpeg(asset);
   if(!primary){
    const path=`${me}/${listingId}.jpg`;
-   assertResult(await supabase.storage.from('ff-market-photos').upload(path,bytes,{contentType:'image/jpeg',upsert:false}));
+   assertResult(await supabase.storage.from('ff-market-photos').upload(path,bytes,{contentType:'image/jpeg',cacheControl:'0',upsert:false}));
    assertResult(await supabase.from('ff_market_listings')
      .update({photo_path:path}).eq('id',listingId).eq('seller_id',me));
    primary=true;
@@ -1351,7 +1356,7 @@ async function uploadMarketPhotos(listingId,assets,me){
    const slot=[2,3,4,5].find(n=>!used.has(n));
    if(!slot)throw new Error('Maximal fünf Bilder pro Inserat sind möglich.');
    const path=`${me}/${listingId}/${slot}.jpg`;
-   assertResult(await supabase.storage.from('ff-market-photos').upload(path,bytes,{contentType:'image/jpeg',upsert:false}));
+   assertResult(await supabase.storage.from('ff-market-photos').upload(path,bytes,{contentType:'image/jpeg',cacheControl:'0',upsert:false}));
    assertResult(await supabase.from('ff_market_photos').insert({listing_id:listingId,seller_id:me,slot,photo_path:path}));
    used.add(slot);
   }
