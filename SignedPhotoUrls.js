@@ -24,3 +24,28 @@ export async function signPhotoPaths(supabase, bucket, paths, expiresIn) {
   }
   return signed;
 }
+
+
+ // Family photos: never create a bearer-style signed link in the normal app.
+ // The native image request sends the current user JWT only to our own Storage.
+ // Each refresh has a fresh cache key; cache reload is best-effort on native.
+let profilePhotoSequence=0;
+export function authenticatedProfilePhotoSources(paths,{url,key,accessToken,nonce}={}) {
+  const sources=Object.create(null);
+  if(typeof url!=='string'||!/^https:\/\/[a-z0-9]+\.supabase\.co\/?$/.test(url)||
+     typeof key!=='string'||!key.startsWith('sb_publishable_')||
+     typeof accessToken!=='string'||!accessToken)return sources;
+  const root=url.replace(/\/$/,'');
+  const refresh=String(nonce??(Date.now()+'-'+(++profilePhotoSequence)));
+  for(const path of new Set(paths||[])){
+    if(typeof path!=='string'||!/^([0-9a-f-]{36})\/[A-Za-z0-9_.-]+\.(jpg|jpeg|png|webp)$/i.test(path))continue;
+    if(path.split('/').some(segment=>segment==='.'||segment==='..'))continue;
+    const encoded=path.split('/').map(encodeURIComponent).join('/');
+    sources[path]={
+      uri:root+'/storage/v1/object/authenticated/familienfunke-photos/'+encoded+'?ff_refresh='+encodeURIComponent(refresh),
+      headers:{Authorization:'Bearer '+accessToken,apikey:key,'Cache-Control':'no-cache, no-store'},
+      cache:'reload'
+    };
+  }
+  return sources;
+}
