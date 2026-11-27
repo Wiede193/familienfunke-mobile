@@ -182,7 +182,7 @@ export function tvEmbedSource(id,autoplay=false,queue=[],startSeconds=0){
 }
 export function tvPlayerError(code){
  if(code===100)return 'Dieses Video ist nicht mehr verfügbar oder privat.';
- if(code===101||code===150)return 'Der Anbieter erlaubt die Wiedergabe in anderen Apps nicht.';
+ if(code===101||code===150)return 'YouTube erlaubt die eingebettete Wiedergabe dieses Videos derzeit nicht. Auch eine erforderliche Anmeldung oder Anbieterbeschränkung kann die Wiedergabe verhindern. Öffne bei Bedarf das Original auf YouTube.';
  if(code===153)return 'YouTube konnte die Einbettung dieser App nicht bestätigen.';
  if(code===2||code===5)return 'Das Video kann in diesem Player nicht wiedergegeben werden.';
  return 'YouTube konnte das Video nicht abspielen. Eine Anmeldung oder andere Einschränkung des Anbieters kann die Ursache sein.';

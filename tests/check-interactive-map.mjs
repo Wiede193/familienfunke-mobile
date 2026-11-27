@@ -8,9 +8,8 @@ assert.ok(htmlDecl.startsWith('const MAP_HTML=['),'Map HTML must remain availabl
 const html=vm.runInNewContext(htmlDecl+'\nMAP_HTML;');
 const script=html.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script,'MapLibre script must be embedded');
-const executable=script.replace(/import \* as ml from "https:\/\/[^"]+";/,
-  'const ml={};');
-assert.doesNotThrow(()=>new vm.Script(executable),'MapLibre HTML-JS must parse');
+assert.match(script,/await import\("https:\/\/[^"]+maplibre-gl@6\.18\.0\/dist\/maplibre-gl\.mjs"\)/);
+assert.doesNotThrow(()=>new vm.Script("(async()=>{"+script+"})"),'MapLibre HTML-JS must parse');
 assert.match(html,/className="search-pin"/,'Search markers must have a visible map element');
 assert.match(html,/search-dot/,'Search markers must be numbered and clearly styled');
 assert.match(html,/\.search-pin\.selected/,'Selected marker must be visibly distinct');
@@ -51,3 +50,9 @@ assert.ok(source.indexOf('<View style={styles.searchResultPanel}>')>=0&&
  source.indexOf('<View style={styles.searchResultPanel}>')<source.indexOf('<View style={styles.mapFrame} onLayout='),
  'Search results should be directly below the search field, above the map');
 console.log('Interaktive Karte: Pins, Suchergebnis-Auswahl, Kartenausschnitt und Barrierefreiheit geprüft.');
+
+assert.match(source,/latitude=Number\(latitude\?\?lat\);longitude=Number\(longitude\?\?lon\)/);
+assert.match(html,/queryRenderedFeatures\(\)/);
+assert.match(source,/clearTimeout\(readyTimeout.current\);setRendered\(true\)/);
+assert.match(source,/Karte erneut laden/);
+assert.match(source,/Karte vergrößern/);

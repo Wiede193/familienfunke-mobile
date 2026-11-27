@@ -1,0 +1,5 @@
+# Beta-Freigabestand 27.11.2026
+
+Grunddesign in main. Android-UX normal/150% bestanden (45871407637). Online-Karte bestand nach MapLibre-Update 6.18.0 (45921107550, Job 140251789116, 46 s); Berlin und Zoom mit echten Vektorfeatures. Übernahme nur der App-Dateien und Regressionstests, keine QA-Fixture oder Testmarker. YouTube-Wiedergabe im Emulator weiterhin nicht bestätigt (Job 140251789322); Original-Link bleibt sichtbar und öffnet erst nach Zustimmung. Kein Nachweis für die Wiedergabe auf realem Gerät.
+
+Vor geschlossener Beta: vollständiger CI-Lauf auf diesem Commit; reale iOS-/Android-Geräte mit isolierten Testkonten, Anmeldung, Abmeldung, Profil, Kontaktanfrage, Nachrichten, Basar, Bildrechte/Uploads, Melden/Blockieren; Server-RLS und Rollen prüfen; externe Adress-/Umgebungssuche mit autorisiertem Testkonto; vollständiger Datenbank-/Storage-Backup und Wiederherstellung; Datenschutz, Impressum, Löschprozess, Moderation und Store-Formulare prüfen. Keine öffentliche Registrierung ohne Freigabe. Keine weiteren Funktionen oder Designänderungen außer Fehlerkorrekturen.

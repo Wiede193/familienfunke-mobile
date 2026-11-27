@@ -81,8 +81,8 @@ function Player({video,session,onClose,onDisableAutoplay,onBookmark}){
  const playerHeight=canEmbed?Math.min(height,Math.max(200,Math.round(playerWidth*9/16))):0;
  useEffect(()=>{if(!canEmbed||failed)return;readyTimer.current=setTimeout(()=>{setLoading(false);setPlayerStatus(p=>p==='loading'?'unconfirmed':p);},18000);return()=>clearTimeout(readyTimer.current);},[canEmbed,failed,attempt]);
  return <View style={s.watchScreen}>
-  <View style={s.watchHeader}><Text accessibilityRole="header" style={s.cardTitle}>{session.autoplay?'Dein TV-Programm':video.title}</Text><Text style={s.meta}>{session.autoplay?session.ids.length+' ausgewählte Videos · YouTube':'Quelle: '+video.channel+' · YouTube'}</Text></View>
-  <View style={s.playerArea} onLayout={({nativeEvent:{layout}})=>setBounds({width:layout.width,height:layout.height})}>
+  <View style={s.watchHeader}><Text accessibilityRole="header" style={s.cardTitle}>{session.autoplay?'Dein TV-Programm':video.title}</Text><Text style={s.meta}>{session.autoplay?session.ids.length+(session.ids.length===1?' ausgewähltes Video':' ausgewählte Videos')+' · YouTube':'Quelle: '+video.channel+' · YouTube'}</Text></View>
+  <View style={[s.playerArea,{height:Math.max(200,Math.round((bounds?.width||0)*9/16))}]} onLayout={({nativeEvent:{layout}})=>setBounds({width:layout.width,height:layout.height})}>
   {canEmbed&&!failed?<View style={{height:playerHeight,backgroundColor:'#000'}}>
    <WebView ref={web} onMessage={receive} key={video.id+':'+attempt} source={source}
     accessibilityLabel="YouTube-Videoplayer" originWhitelist={['*']}
@@ -104,10 +104,10 @@ function Player({video,session,onClose,onDisableAutoplay,onBookmark}){
   {playerMessage?<Text accessibilityLiveRegion="polite" style={s.copy}>{playerMessage}</Text>:null}
   {playerStatus==='unconfirmed'?<Text accessibilityLiveRegion="polite" style={s.copy}>Die Wiedergabebereitschaft konnte nicht bestätigt werden. Falls YouTube eine Anmeldung verlangt oder die Wiedergabe blockiert, öffne das Original. Du kannst auch im Player auf Wiedergabe tippen.</Text>:null}
   {(failed||playerStatus==='error'||playerStatus==='unconfirmed')&&canEmbed?<Action title="Player erneut laden" onPress={()=>{setPlayerStatus('loading');setPlayerMessage('');setLoading(true);setFailed(false);setAttempt(v=>v+1);}} secondary/>:null}
-  <Action title="Auf YouTube ansehen" onPress={()=>confirmExternal(tvWatchUrl(video.id))} secondary/>
   <Text style={s.meta}>Falls die automatische Wiedergabe blockiert ist, tippe im Player auf Wiedergabe. Bei gesperrter Einbettung öffne den Originallink.</Text>
   {session.autoplay?<><Text style={s.cardTitle}>Deine Wiedergabeliste</Text>{session.ids.map((id,i)=>{const item=TV_VIDEOS.find(v=>v.id===id);return <Text key={id} style={s.meta}>{i+1}. {item?.title} · {item?.channel}</Text>;})}<Action title="Autoplay ausschalten und Player schließen" onPress={onDisableAutoplay} secondary/></>:null}
   </ScrollView>
+  <Action title="Auf YouTube ansehen" onPress={()=>confirmExternal(tvWatchUrl(video.id))} secondary/>
   {canEmbed&&!failed&&!saving&&onBookmark&&playerStatus!=='error'?<Action title="Position merken und schließen" onPress={bookmark} secondary/>:null}
   {saving?<Text accessibilityLiveRegion="polite" style={s.meta}>Position wird abgefragt …</Text>:null}
   <Action title="Player schließen" onPress={onClose}/>
@@ -237,7 +237,7 @@ export default function FamilyTVScreen({visible=true,owner,interests=[],initialS
 const s=StyleSheet.create({
  tvHeader:{flexDirection:'row',alignItems:'center',gap:12,paddingVertical:6},searchRow:{...UI.field,flexDirection:'row',alignItems:'center',paddingLeft:12,gap:6},iconTap:{minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center'},feed:{gap:16},feedWide:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between'},feedHalf:{width:'48.5%'},feedFull:{width:'100%'},videoCard:{...UI.card,overflow:'hidden'},cover:{aspectRatio:16/9,minHeight:150,justifyContent:'center',alignItems:'center',overflow:'hidden',padding:12},coverDecor:{flex:1,width:'100%',justifyContent:'center',alignItems:'center'},coverOrb:{position:'absolute',width:124,height:124,borderRadius:62,opacity:.65,left:'14%',top:'10%'},coverRing:{position:'absolute',width:104,height:104,borderRadius:52,borderWidth:3,opacity:.14,right:'10%',top:'12%'},playMark:{position:'absolute',bottom:4,right:4,backgroundColor:C.accentDark,padding:10,borderRadius:24},coverLabel:{fontSize:T.meta,fontWeight:'700',textAlign:'center'},videoInfo:{padding:14,gap:8},videoTitle:{fontSize:T.section,fontWeight:'800',color:C.ink},titleTap:{minHeight:48,justifyContent:'center',gap:4},detailPanel:{gap:8,borderTopWidth:1,borderTopColor:C.line,paddingTop:10},
  recommendation:{borderTopWidth:1,borderTopColor:C.line,paddingTop:12,gap:6},
- watchScreen:{flex:1,backgroundColor:C.bg,padding:12,gap:8},watchHeader:{gap:4},playerArea:{flex:3,minHeight:0,justifyContent:'flex-start'},watchDetails:{flex:2,minHeight:0},autoRow:{flexDirection:'row',alignItems:'center',gap:12},search:{flex:1,minWidth:0,minHeight:48,paddingVertical:12,paddingHorizontal:4,color:C.ink,fontSize:T.body},
+ watchScreen:{flex:1,backgroundColor:C.bg,padding:12,gap:8},watchHeader:{gap:4},playerArea:{flexShrink:0,height:200,minHeight:0,justifyContent:'flex-start'},watchDetails:{flex:2,minHeight:0},autoRow:{flexDirection:'row',alignItems:'center',gap:12},search:{flex:1,minWidth:0,minHeight:48,paddingVertical:12,paddingHorizontal:4,color:C.ink,fontSize:T.body},
  screen:{flex:1,backgroundColor:C.bg},content:{padding:16,paddingBottom:30,gap:14},
  hero:{...UI.card,padding:18,backgroundColor:C.sunPale,gap:8},heroIcon:{width:52,height:52,borderRadius:16,backgroundColor:C.white,alignItems:'center',justifyContent:'center'},
  title:{fontSize:T.display,fontWeight:'800',color:C.ink},copy:{fontSize:T.body,color:C.muted},
