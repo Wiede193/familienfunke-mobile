@@ -843,10 +843,11 @@ async function replyRequest(id,status){
 async function blockUser(uid){
 Alert.alert('Kontakt blockieren?','Die Person kann dir dann keine neuen Nachrichten schicken.',[
 {text:'Abbrechen',style:'cancelled'},
-{text:'Blockieren',style:'destructive',onPress:async()=>{
-  const ok=await execute(async()=>assertResult(await supabase.from('blocks').insert({blocker_id:me,blocked_id:uid})),'Kontakt blockiert.');
-  if(ok&&accountRef.current===me){photoSeq.current++;setPhotosUrls({});setDb(old=>({...old,photos:old.photos.filter(p=>p.owner_id!==uid)}));setPhotoEpoch(x=>x+1);}
- }},
+{text:'Blockieren',style:'destructive',onPress:()=>execute(async()=>{
+  assertResult(await supabase.from('blocks').insert({blocker_id:me,blocked_id:uid}));
+  // Invalidate media immediately after the server confirms the block, before the list reload.
+  if(accountRef.current===me){photoSeq.current++;setPhotosUrls({});setDb(old=>({...old,photos:old.photos.filter(p=>p.owner_id!==uid)}));setPhotoEpoch(x=>x+1);}
+ },'Kontakt blockiert.')},
 ]);
 }
 async function unblockUser(uid){return execute(async()=>assertResult(await supabase.from('blocks').delete().eq('blocker_id',me).eq('blocked_id',uid)),'Blockierung aufgehoben.');}
