@@ -1,0 +1,35 @@
+name: Staging account isolation (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type FRESH_SYNTHETIC_ACCOUNTS_ONLY"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    if: inputs.confirmation == 'FRESH_SYNTHETIC_ACCOUNTS_ONLY'
+    runs-on: ubuntu-latest
+    environment: staging-qa
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+          cache: npm
+      - run: npm ci
+      - name: Run live staging checks
+        env:
+          FF_STAGE_CONFIRM: STAGING_ONLY
+          FF_STAGE_WRITE_CONFIRM: FRESH_SYNTHETIC_ACCOUNTS_ONLY
+          FF_STAGE_REF: ${{ vars.FF_STAGE_REF }}
+          FF_STAGE_URL: ${{ vars.FF_STAGE_URL }}
+          FF_STAGE_PUBLISHABLE_KEY: ${{ secrets.FF_STAGE_PUBLISHABLE_KEY }}
+          FF_STAGE_USERS_JSON: ${{ secrets.FF_STAGE_USERS_JSON }}
+        run: node scripts/staging-two-account-acceptance.mjs
