@@ -11,7 +11,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import {photoResize} from './PhotoResize';
 import { File } from 'expo-file-system';
 import { assertResult, configured, errorMessage, supabase } from './supabase';
-import { signPhotoPaths } from './SignedPhotoUrls';
+import { signPhotoPaths, authenticatedProfilePhotoSources } from './SignedPhotoUrls';
 import { EVENT_PAGE_SIZE, PHOTO_PAGE_SIZE, ascendingEventCursor, descendingRowCursor, hasFullPage } from './EventPhotoPages';
 import { MARKET_OWNER_PAGE_SIZE, PARTNER_PAGE_SIZE, marketCursor, partnerEventCursor, hasMarketPage } from './MarketPartnerPages';
 import { isCurrentRequest } from './RequestGeneration';
@@ -187,7 +187,7 @@ function Info({children,warning=false}){return <View style={[styles.info,warning
    </View>
    <Text style={[styles.infoText,warning&&{color:C.warningText}]}>{children}</Text>
  </View>;}
-function Avatar({name,size=52,uri}) {return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.avatar,{width:size,height:size,borderRadius:size/2}]}>{uri?<Image source={{uri}} style={{width:size,height:size,borderRadius:size/2}}/>:<Text style={[styles.avatarText,{fontSize:size*.30}]}>{initial(name)}</Text>}</View>;}
+function Avatar({name,size=52,uri}) {return <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.avatar,{width:size,height:size,borderRadius:size/2}]}>{uri?<Image source={typeof uri==='string'?{uri}:uri} style={{width:size,height:size,borderRadius:size/2}}/>:<Text style={[styles.avatarText,{fontSize:size*.30}]}>{initial(name)}</Text>}</View>;}
 function Row({children,style}) {return <View style={[{flexDirection:'row',alignItems:'center',gap:10},style]}>{children}</View>;}
 function Input({label,multiline=false,style,onFocus,onBlur,helpText,errorText,...props}){
  const [focused,setFocused]=useState(false);
@@ -344,6 +344,7 @@ const [contactsCursor,setContactsCursor]=useState(null);
 const [contactsMore,setContactsMore]=useState(false);
 const [contactsLoadingMore,setContactsLoadingMore]=useState(false);
 const me=session?.user?.id;
+const profilePhotoToken=session?.access_token;
 const photoTarget=detailFamily||(tab==='profile'?me:null);
 const accountRef=useRef(me);accountRef.current=me;
 const selectedContactRef=useRef(selectedContact);selectedContactRef.current=selectedContact;
@@ -604,7 +605,7 @@ async function loadMoreOwnListings(){
 
 // Only the currently viewed adult's photos are requested. Existing photo RLS
 // permits own uploads and approved images of established contacts; never cache
-// cross-account signed links after a logout or profile change.
+// cross-account image sources after a logout or profile change.
 useEffect(()=>{
  const seq=++photoSeq.current;
  let live=true;
@@ -619,7 +620,9 @@ useEffect(()=>{
      {isCurrent:()=>live&&photoSeq.current===seq&&accountRef.current===me}
    );
    if(e||!Array.isArray(data))throw e||new Error('Invalid photo page');
-   const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),300);
+   const signed=authenticatedProfilePhotoSources(data.map(row=>row.storage_path),{
+     url:process.env.EXPO_PUBLIC_SUPABASE_URL,key:process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,accessToken:profilePhotoToken
+   });
    if(!live||photoSeq.current!==seq||accountRef.current!==me)return;
    setDb(old=>({...old,photos:data}));
    setPhotosUrls(Object.fromEntries(data.map(row=>[row.id,signed[row.storage_path]||null])));
@@ -631,7 +634,7 @@ useEffect(()=>{
    if(live&&photoSeq.current===seq&&accountRef.current===me)setPhotoBusy(false);
  });
  return ()=>{live=false;photoSeq.current++;};
-},[me,photoTarget,photoEpoch]);
+},[me,photoTarget,photoEpoch,profilePhotoToken]);
 async function loadMorePhotos(){
  if(!me||!photoTarget||!photoHasMore||!photoCursor||photoBusy||photoBusyMore)return;
  const seq=photoSeq.current;
@@ -642,7 +645,9 @@ async function loadMorePhotos(){
      {isCurrent:()=>photoSeq.current===seq&&accountRef.current===me}
    );
    if(e||!Array.isArray(data))throw e||new Error('Invalid photo page');
-   const signed=await signPhotoPaths(supabase,'familienfunke-photos',data.map(row=>row.storage_path),300);
+   const signed=authenticatedProfilePhotoSources(data.map(row=>row.storage_path),{
+     url:process.env.EXPO_PUBLIC_SUPABASE_URL,key:process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,accessToken:profilePhotoToken
+   });
    if(accountRef.current!==me||photoSeq.current!==seq)return;
    setDb(old=>({...old,photos:appendUniqueRows(old.photos,data)}));
    setPhotosUrls(old=>({...old,...Object.fromEntries(data.map(row=>[row.id,signed[row.storage_path]||null]))}));
@@ -838,7 +843,10 @@ async function replyRequest(id,status){
 async function blockUser(uid){
 Alert.alert('Kontakt blockieren?','Die Person kann dir dann keine neuen Nachrichten schicken.',[
 {text:'Abbrechen',style:'cancelled'},
-{text:'Blockieren',style:'destructive',onPress:()=>execute(async()=>assertResult(await supabase.from('blocks').insert({blocker_id:me,blocked_id:uid})),'Kontakt blockiert.')},
+{text:'Blockieren',style:'destructive',onPress:async()=>{
+  const ok=await execute(async()=>assertResult(await supabase.from('blocks').insert({blocker_id:me,blocked_id:uid})),'Kontakt blockiert.');
+  if(ok&&accountRef.current===me){photoSeq.current++;setPhotosUrls({});setDb(old=>({...old,photos:old.photos.filter(p=>p.owner_id!==uid)}));setPhotoEpoch(x=>x+1);}
+ }},
 ]);
 }
 async function unblockUser(uid){return execute(async()=>assertResult(await supabase.from('blocks').delete().eq('blocker_id',me).eq('blocked_id',uid)),'Blockierung aufgehoben.');}
@@ -3041,7 +3049,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 </Card>
 {photoBusy?<ActivityIndicator color={C.accent}/>:null}
 {photoLoadError?<><Info warning>{photoLoadError}</Info><Button title="Fotos erneut laden" mode="outline" onPress={retryPhotos}/></>:null}
-{photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image accessibilityLabel={photo.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[photo.id]}} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
+{photos?.length>0?<><H sub="Freigegebene Fotos sind nur bestätigten Kontakten sichtbar.">Familienbilder</H><View style={styles.photoGrid}>{photos.map(photo=><Card key={photo.id} style={styles.photoCard}>{photosUrls[photo.id]?<Image accessibilityLabel={photo.caption||"Familienfoto ohne Bildbeschreibung"} source={photosUrls[photo.id]} style={styles.photoImage}/>:null}<Text style={styles.micro}>{photo.caption||'Profilfoto'}</Text></Card>)}</View></>:null}
 {photoHasMore?<Button title={photoBusyMore?'Weitere Bilder werden geladen …':'Weitere Familienbilder laden'} disabled={photoBusyMore} mode="outline" onPress={loadMorePhotos}/>:null}
 </ScrollView>;
 }
@@ -3668,7 +3676,7 @@ return <ScrollView style={styles.scroll} contentContainerStyle={styles.content} 
 {photoBusy?<ActivityIndicator color={C.accent}/>:null}
 {photoLoadError?<><Info warning>{photoLoadError}</Info><Button title="Fotos erneut laden" mode="outline" onPress={retryPhotos}/></>:null}
 <View style={[styles.photoGrid,{marginTop:15}]}>{photos.map(p=><Card key={p.id} style={styles.photoCard}>
-{photosUrls[p.id]?<Image accessibilityLabel={p.caption||"Familienfoto ohne Bildbeschreibung"} source={{uri:photosUrls[p.id]}} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
+{photosUrls[p.id]?<Image accessibilityLabel={p.caption||"Familienfoto ohne Bildbeschreibung"} source={photosUrls[p.id]} style={styles.photoImage}/>:<View style={[styles.photoImage,{backgroundColor:C.pale}]}/>}
 <Text style={styles.micro} numberOfLines={2}>{p.caption||'Profilbild'}</Text><Text style={[styles.micro,{color:p.moderation_status==='approved'?C.accent:C.warningText}]}>{p.moderation_status==='approved'?'Freigegeben':p.moderation_status==='pending'?'In Prüfung':'Abgelehnt'}</Text>
 <Button title="Löschen" small mode="ghost" onPress={()=>deletePhoto(p.id)}/>
 </Card>)}</View>
