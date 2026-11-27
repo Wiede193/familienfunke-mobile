@@ -10,7 +10,7 @@ let passed=0;
 const requireOK=(value,label)=>{if(!value)throw new Error(label);};
 function check(label,ok){requireOK(ok,label);passed++;console.log('PASS '+label);}
 function data(result,label){requireOK(!result.error,label);return result.data;}
-function denied(result){return !!result.error && [400,401,403,404].includes(Number(result.error.status??result.status??0)) || !!result.error && ['42501','P0002','PGRST116'].includes(result.error.code);}
+function denied(result){return !!result.error && ([400,401,403,404].includes(Number(result.error.statusCode??result.error.status??result.status??0)) || ['42501','P0002','PGRST116'].includes(result.error.code));}
 const jpeg=Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCAAQABADASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAABP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AKwAEp//2Q==','base64');
 
 async function run(){
