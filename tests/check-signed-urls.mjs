@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../SignedPhotoUrls.js',import.meta.url),'utf8');
-const {signPhotoPaths}=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(source));
+const {signPhotoPaths,authenticatedProfilePhotoSources}=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(source));
 let inflight=0,maxFlight=0; const calls=[];
 const mock={storage:{from(bucket){assert.equal(bucket,'private');return{async createSignedUrls(paths,ttl){
   calls.push(paths); assert.equal(ttl,600); inflight++;maxFlight=Math.max(maxFlight,inflight);
@@ -17,3 +17,22 @@ assert.equal(Object.keys(await signPhotoPaths(mock,'private',[],600)).length,0);
 const broken={storage:{from(){return{async createSignedUrls(){throw Error('offline')}}}}};
 assert.equal(Object.keys(await signPhotoPaths(broken,'private',['x.jpg'],600)).length,0);
 console.log('Signed URL batching tests passed');
+
+const path='00000000-0000-4000-8000-000000000001/test.jpg';
+const options={url:'https://exampleproject.supabase.co',key:'sb_publishable_fixture',accessToken:'test-user-jwt',nonce:'first'};
+const sources=authenticatedProfilePhotoSources([path,path,'../escape.jpg','https://evil.test/file.jpg'],options);
+assert.equal(Object.keys(sources).length,1);
+assert.equal(sources[path].uri,'https://exampleproject.supabase.co/storage/v1/object/authenticated/familienfunke-photos/'+path+'?ff_refresh=first');
+assert.equal(sources[path].headers.Authorization,'Bearer test-user-jwt');
+assert.equal(sources[path].headers['Cache-Control'],'no-cache, no-store');
+assert.ok(!sources[path].uri.includes(options.accessToken));
+assert.notEqual(authenticatedProfilePhotoSources([path],{...options,nonce:'second'})[path].uri,sources[path].uri);
+assert.equal(Object.keys(authenticatedProfilePhotoSources([path],{...options,url:'https://evil.test'})).length,0);
+assert.equal(Object.keys(authenticatedProfilePhotoSources([path],{...options,accessToken:null})).length,0);
+assert.equal(Object.keys(authenticatedProfilePhotoSources([path],{...options,key:'sb_secret_fixture'})).length,0);
+const app=readFileSync(new URL('../App.jsx',import.meta.url),'utf8');
+assert.ok(!app.includes("signPhotoPaths(supabase,'familienfunke-photos'"));
+assert.ok(app.includes("source={photosUrls[photo.id]}"));
+assert.ok(app.includes("source={photosUrls[p.id]}"));
+assert.ok(app.includes("photoSeq.current++;setPhotosUrls({})"));
+console.log('Authenticated profile photo source checks passed');
