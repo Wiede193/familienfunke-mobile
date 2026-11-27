@@ -46,13 +46,14 @@ jobs:
         run: |
           node --input-type=module -e 'import fs from "node:fs"; import {spawnSync} from "node:child_process"; const p=JSON.parse(fs.readFileSync("package.json","utf8")); let failed=false; for(const name of Object.keys(p.scripts).filter(n=>n.startsWith("check:"))){const r=spawnSync("npm",["run",name],{stdio:"inherit"}); if(r.status!==0)failed=true;} if(failed)process.exit(1);'
         continue-on-error: true
+        id: source_checks
       - name: Install isolated read-only QA fixture
         run: cp qa-fixtures/supabase-member.js supabase.js
       - name: Generate Android native project
         run: npx expo prebuild --platform android --no-install --clean
       - name: Build standalone test APK
         working-directory: android
-        run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon
+        run: ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64,arm64-v8a --no-daemon
       - name: Upload isolated installable Android APK
         if: matrix.mode == 'map'
         uses: actions/upload-artifact@v4
@@ -91,6 +92,9 @@ jobs:
             adb exec-out screencap -p > ui-results/final-screen.png || true;
             adb logcat -d -s ReactNativeJS AndroidRuntime chromium cr_WebView EGL_emulation OpenGLRenderer > ui-results/android-errors.log || true;
             exit "$status"'
+      - name: Enforce source regression results
+        if: always() && steps.source_checks.outcome == 'failure'
+        run: exit 1
       - name: Upload screenshots and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
