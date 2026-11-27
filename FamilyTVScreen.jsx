@@ -83,7 +83,7 @@ function Player({video,session,onClose,onDisableAutoplay,onBookmark}){
  const playerHeight=canEmbed?Math.min(height,Math.max(200,Math.round(playerWidth*9/16))):0;
  useEffect(()=>{if(!canEmbed||failed)return;readyTimer.current=setTimeout(()=>{setLoading(false);setPlayerStatus(p=>p==='loading'?'unconfirmed':p);},18000);return()=>clearTimeout(readyTimer.current);},[canEmbed,failed,attempt]);
  return <View style={s.watchScreen}>
-  <View style={s.watchHeader}><Text accessibilityRole="header" style={s.cardTitle}>{session.autoplay?'Dein TV-Programm':video.title}</Text><Text style={s.meta}>{session.autoplay?session.ids.length+' ausgewählte Videos · YouTube':'Quelle: '+video.channel+' · YouTube'}</Text></View>
+  <View style={s.watchHeader}><Text accessibilityRole="header" style={s.cardTitle}>{session.autoplay?'Dein TV-Programm':video.title}</Text><Text style={s.meta}>{session.autoplay?session.ids.length+(session.ids.length===1?' ausgewähltes Video':' ausgewählte Videos')+' · YouTube':'Quelle: '+video.channel+' · YouTube'}</Text></View>
   <View style={[s.playerArea,{height:Math.max(200,Math.round((bounds?.width||0)*9/16))}]} onLayout={({nativeEvent:{layout}})=>setBounds({width:layout.width,height:layout.height})}>
   {canEmbed&&!failed?<View style={{height:playerHeight,backgroundColor:'#000'}}>
    <WebView ref={web} onMessage={receive} key={video.id+':'+attempt} source={source}
