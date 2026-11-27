@@ -74,6 +74,8 @@ function Player({video,session,onClose,onDisableAutoplay,onBookmark}){
  function receive({nativeEvent}){try{const m=JSON.parse(nativeEvent.data);if(qaOnline&&m.type==='qaPlayback'&&session.ids.includes(m.id)&&Number.isFinite(m.start)&&Number.isFinite(m.seconds)&&m.seconds-m.start>=2){setQaPlayback(true);console.log('QA video playback',JSON.stringify(m));return;}if(m.type==='playerStatus'){if(!['ready','playing','error','autoplayBlocked'].includes(m.status))return;clearTimeout(readyTimer.current);if(qaOnline)console.log('QA video status',m.status,m.code);setPlayerStatus(m.status);setLoading(false);if(m.status==='error')setPlayerMessage(tvPlayerError(m.code));else if(m.status==='autoplayBlocked')setPlayerMessage('Automatischer Start wurde blockiert. Tippe im YouTube-Player auf Wiedergabe.');else setPlayerMessage('');return;}if(m.type!=='bookmark'||!pending.current||m.token!==pending.current)return;clearTimeout(timer.current);pending.current=null;setSaving(false);if(m.error||!session.ids.includes(m.id)||!Number.isInteger(m.seconds)||m.seconds<0||m.seconds>43200){Alert.alert('Position nicht verfügbar','Bitte starte ein Video aus unserem Programm und versuche es erneut.');return;}onBookmark({id:m.id,seconds:m.seconds});}catch{/* Ignore malformed external messages. */}}
 
  const [bounds,setBounds]=useState(null);
+ const {height:windowHeight}=useWindowDimensions();
+ const compact=windowHeight<600;
  const source=useMemo(()=>tvEmbedSource(video.id,session.autoplay,session.ids,session.startSeconds||0),[video.id,session]);
  const width=bounds?.width||0,height=bounds?.height||0;
  const [failed,setFailed]=useState(false),[loading,setLoading]=useState(true),[attempt,setAttempt]=useState(0);
@@ -82,9 +84,9 @@ function Player({video,session,onClose,onDisableAutoplay,onBookmark}){
  const canEmbed=playerWidth>=200&&height>=200;
  const playerHeight=canEmbed?Math.min(height,Math.max(200,Math.round(playerWidth*9/16))):0;
  useEffect(()=>{if(!canEmbed||failed)return;readyTimer.current=setTimeout(()=>{setLoading(false);setPlayerStatus(p=>p==='loading'?'unconfirmed':p);},18000);return()=>clearTimeout(readyTimer.current);},[canEmbed,failed,attempt]);
- return <View style={s.watchScreen}>
+ return <ScrollView style={{flex:1,backgroundColor:C.bg}} contentContainerStyle={[s.watchScreen,{flexGrow:1,flex:undefined}]}>
   <View style={s.watchHeader}><Text accessibilityRole="header" style={s.cardTitle}>{session.autoplay?'Dein TV-Programm':video.title}</Text><Text style={s.meta}>{session.autoplay?session.ids.length+(session.ids.length===1?' ausgewähltes Video':' ausgewählte Videos')+' · YouTube':'Quelle: '+video.channel+' · YouTube'}</Text></View>
-  <View style={[s.playerArea,{height:Math.max(200,Math.round((bounds?.width||0)*9/16))}]} onLayout={({nativeEvent:{layout}})=>setBounds({width:layout.width,height:layout.height})}>
+  <View style={[s.playerArea,{height:Math.max(200,Math.min(Math.round((bounds?.width||0)*9/16),compact?240:360))}]} onLayout={({nativeEvent:{layout}})=>setBounds({width:layout.width,height:layout.height})}>
   {canEmbed&&!failed?<View style={{height:playerHeight,backgroundColor:'#000'}}>
    <WebView ref={web} onMessage={receive} key={video.id+':'+attempt} source={source}
     accessibilityLabel="YouTube-Videoplayer" originWhitelist={['*']}
@@ -102,19 +104,19 @@ function Player({video,session,onClose,onDisableAutoplay,onBookmark}){
   </View>:bounds?<Text accessibilityLiveRegion="polite" style={s.copy}>{canEmbed?'Der Player konnte nicht geladen werden.':'Der Bildschirm ist für den eingebetteten Player zu klein.'} Du kannst das Video direkt bei YouTube öffnen.</Text>:null}
   </View>
   {qaOnline&&qaPlayback?<Text accessibilityLiveRegion="polite" style={s.meta}>QA: Wiedergabezeit steigt</Text>:null}
-  <ScrollView style={s.watchDetails} contentContainerStyle={{gap:8,paddingBottom:8}}>
+  <View style={{gap:8,paddingBottom:8}}>
   {loading&&canEmbed&&!failed?<View style={s.loading}><ActivityIndicator color={C.accentDark}/><Text style={s.meta}>Player wird geladen …</Text></View>:null}
   {playerMessage?<Text accessibilityLiveRegion="polite" style={s.copy}>{playerMessage}</Text>:null}
   {playerStatus==='unconfirmed'?<Text accessibilityLiveRegion="polite" style={s.copy}>Die Wiedergabebereitschaft konnte nicht bestätigt werden. Falls YouTube eine Anmeldung verlangt oder die Wiedergabe blockiert, öffne das Original. Du kannst auch im Player auf Wiedergabe tippen.</Text>:null}
   {(failed||playerStatus==='error'||playerStatus==='unconfirmed')&&canEmbed?<Action title="Player erneut laden" onPress={()=>{setQaPlayback(false);setPlayerStatus('loading');setPlayerMessage('');setLoading(true);setFailed(false);setAttempt(v=>v+1);}} secondary/>:null}
   <Text style={s.meta}>Falls die automatische Wiedergabe blockiert ist, tippe im Player auf Wiedergabe. Bei gesperrter Einbettung öffne den Originallink.</Text>
   {session.autoplay?<><Text style={s.cardTitle}>Deine Wiedergabeliste</Text>{session.ids.map((id,i)=>{const item=TV_VIDEOS.find(v=>v.id===id);return <Text key={id} style={s.meta}>{i+1}. {item?.title} · {item?.channel}</Text>;})}<Action title="Autoplay ausschalten und Player schließen" onPress={onDisableAutoplay} secondary/></>:null}
-  </ScrollView>
+  </View>
   <Action title="Auf YouTube ansehen" onPress={()=>confirmExternal(tvWatchUrl(video.id))} secondary/>
   {canEmbed&&!failed&&!saving&&onBookmark&&playerStatus!=='error'?<Action title="Position merken und schließen" onPress={bookmark} secondary/>:null}
   {saving?<Text accessibilityLiveRegion="polite" style={s.meta}>Position wird abgefragt …</Text>:null}
   <Action title="Player schließen" onPress={onClose}/>
- </View>;
+ </ScrollView>;
 }
 export default function FamilyTVScreen({visible=true,owner,interests=[],initialShowPrivacy=false}){
  const [category,setCategory]=useState('Alle');
