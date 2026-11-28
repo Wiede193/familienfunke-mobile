@@ -62,6 +62,20 @@ function confirmExternal(url){
   {text:'Abbrechen',style:'cancel'},{text:'YouTube öffnen',onPress:()=>openExternal(url)}
  ]);
 }
+// Independent HTML5 player for editorially approved, first-party HTTPS media.
+function DirectPlayer({url,onClose}){
+ const [status,setStatus]=useState('loading');
+ const [progress,setProgress]=useState(false);
+ const qa=process.env.EXPO_PUBLIC_QA_ONLINE==='1';
+ const source=useMemo(()=>({html:'<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#000}video{width:100%;height:100%;}</style><video controls playsinline preload="metadata"></video><script>const v=document.querySelector("video");v.src='+JSON.stringify(url).replace(/</g,'\\u003c')+';let start=null;const send=(type)=>window.ReactNativeWebView.postMessage(JSON.stringify({type,time:v.currentTime,start}));v.onplaying=()=>{start=v.currentTime;send("playing")};v.onpause=()=>{start=null;send("paused")};v.onwaiting=()=>{start=null;send("waiting")};v.onseeking=()=>{start=null};v.onended=()=>send("ended");v.onerror=()=>send("error");v.onloadedmetadata=()=>send("ready");v.ontimeupdate=()=>{if(start!==null&&!v.paused&&!v.seeking&&v.currentTime-start>=2)send("progress")};</script>'}),[url]);
+ return <ScrollView style={s.screen} contentContainerStyle={s.content}>
+ <Text style={s.cardTitle}>Familienfunke · Direktvideo</Text>
+ <View style={{aspectRatio:16/9,backgroundColor:'#000'}}><WebView source={source} originWhitelist={['*']} javaScriptEnabled allowsInlineMediaPlayback allowsFullscreenVideo mediaPlaybackRequiresUserAction mixedContentMode="never" allowFileAccess={false} allowFileAccessFromFileURLs={false} allowUniversalAccessFromFileURLs={false} onShouldStartLoadWithRequest={r=>r.url==='about:blank'} onError={()=>setStatus('error')} onMessage={({nativeEvent})=>{try{const m=JSON.parse(nativeEvent.data);if(m.type==='progress'&&Number.isFinite(m.time)&&Number.isFinite(m.start)&&m.time-m.start>=2){setProgress(true);return;}if(['loading','ready','playing','paused','waiting','ended','error'].includes(m.type))setStatus(m.type);}catch{}}}/></View>
+ <Text accessibilityLiveRegion="polite" style={s.copy}>{({loading:'Video wird geladen …',ready:'Bereit – tippe auf Wiedergabe.',playing:'Wiedergabe läuft',paused:'Pausiert',waiting:'Video puffert …',ended:'Video beendet',error:'Video konnte nicht abgespielt werden.'})[status]}</Text>
+ {qa&&progress?<Text>QA: Direktvideo Wiedergabezeit steigt</Text>:null}
+ <Action title="Player schließen" onPress={onClose}/>
+ </ScrollView>;
+}
 function Player({video,session,onClose,onDisableAutoplay,onBookmark}){
  const web=useRef(null),pending=useRef(null),timer=useRef(null),sequence=useRef(0);
  const [saving,setSaving]=useState(false);
@@ -179,8 +193,9 @@ export default function FamilyTVScreen({visible=true,owner,interests=[],initialS
  },[]);
  useEffect(()=>{if(!visible)setSelected(null);},[visible]);
  useEffect(()=>{if(!selected||!visible)return;const sub=BackHandler.addEventListener('hardwareBackPress',()=>{setSelected(null);return true;});return ()=>sub.remove();},[selected,visible]);
- const activate=(video,list=videos,startSeconds=0,auto=autoplay)=>Alert.alert('YouTube laden?','Beim Laden erhält Google unter anderem Video-ID, IP-Adresse und Geräteinformationen; bei einem Programm auch die IDs der gewählten Wiedergabeliste, beim Fortsetzen die Startposition. Das ist unabhängig von deiner lokalen Personalisierung. YouTube kann Werbung anzeigen. Videos für Kinder bitte gemeinsam ansehen.',[{text:'Abbrechen',style:'cancel'},{text:'YouTube laden',onPress:()=>{if(live.current&&visible)setSelected({id:video.id,autoplay:auto,ids:tvQueue(list,video.id,auto),startSeconds});}}]);
+ const activate=(video,list=videos,startSeconds=0,auto=autoplay)=>video.directMediaUrl&&/^https:\/\//.test(video.directMediaUrl)?setSelected({id:video.id,autoplay:false,ids:[video.id],startSeconds:0}):Alert.alert('YouTube laden?','Beim Laden erhält Google unter anderem Video-ID, IP-Adresse und Geräteinformationen; bei einem Programm auch die IDs der gewählten Wiedergabeliste, beim Fortsetzen die Startposition. Das ist unabhängig von deiner lokalen Personalisierung. YouTube kann Werbung anzeigen. Videos für Kinder bitte gemeinsam ansehen.',[{text:'Abbrechen',style:'cancel'},{text:'YouTube laden',onPress:()=>{if(live.current&&visible)setSelected({id:video.id,autoplay:auto,ids:tvQueue(list,video.id,auto),startSeconds});}}]);
  const current=selected&&TV_VIDEOS.find(v=>v.id===selected.id);
+ if(visible&&current&&current.directMediaUrl&&/^https:\/\//.test(current.directMediaUrl))return <DirectPlayer url={current.directMediaUrl} onClose={()=>setSelected(null)}/>;
  if(visible&&current)return <Player key={current.id} video={current} session={selected} onClose={()=>setSelected(null)} onDisableAutoplay={()=>{setAutoplay(false);setSelected(null);}} onBookmark={ready&&prefs.enabled?async mark=>{if(await changePrefs(p=>({...p,resume:mark})))setSelected(null);else Alert.alert('Nicht gespeichert','Die Wiedergabeposition konnte nicht gespeichert werden.');}:undefined}/>;
  return <ScrollView ref={scrollRef} style={s.screen} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
   <View style={s.tvHeader}><View style={s.heroIcon}><FamilyIcon name="video" size={26}/></View><View style={{flex:1}}><Text accessibilityRole="header" style={s.title}>Familienfunke TV</Text><Text style={s.meta}>Entdecken. Lernen. Gemeinsam erleben.</Text></View></View>
